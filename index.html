@@ -1,14 +1,74 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pong Game</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="script.js" defer></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlowForge – Rap Trainer</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="game.js" defer></script>
 </head>
 <body>
-    <h1>Pong Game</h1>
-    <canvas id="pongCanvas" width="800" height="400" style="border:1px solid #000000;"></canvas>
+  <main class="app-shell">
+    <header class="hero">
+      <div>
+        <h1>FlowForge</h1>
+        <p>Schlagwörter rein, Beat an, Flow trainieren. Wie ein Mini-Garageband für Rap-Übungen.</p>
+      </div>
+      <div class="bpm-card glass">
+        <label for="bpm">BPM</label>
+        <input id="bpm" type="range" min="70" max="180" value="96" />
+        <output id="bpmValue">96</output>
+      </div>
+    </header>
+
+    <section class="grid">
+      <article class="panel glass">
+        <h2>1) Prompt & Lyrics</h2>
+        <p>2–3 Schlagwörter eingeben. Die App baut daraus taktgenaue Zeilen.</p>
+
+        <label for="keywords">Schlagwörter</label>
+        <input id="keywords" type="text" placeholder="z. B. Straße, Träume, Fokus" />
+
+        <div class="row">
+          <label for="bars">Bars</label>
+          <input id="bars" type="number" min="2" max="24" value="8" />
+          <button id="generateLyrics" class="btn">Text generieren</button>
+        </div>
+
+        <div class="lyrics-wrap">
+          <pre id="lyricsOutput" aria-live="polite"></pre>
+        </div>
+      </article>
+
+      <article class="panel glass">
+        <h2>2) Beat & Aufnahme</h2>
+        <p>Beat starten, Effekte live schalten und direkt aufnehmen.</p>
+
+        <div class="controls">
+          <button id="startBeat" class="btn">▶ Beat starten</button>
+          <button id="stopBeat" class="btn muted">■ Beat stoppen</button>
+          <button id="recordToggle" class="btn danger">● Aufnahme starten</button>
+        </div>
+
+        <fieldset class="effects">
+          <legend>Stimmeneffekte</legend>
+          <label><input id="fxLowpass" type="checkbox" /> Telefon (Lowpass)</label>
+          <label><input id="fxDelay" type="checkbox" /> Delay</label>
+          <label><input id="fxDistortion" type="checkbox" /> Drive</label>
+          <label><input id="fxReverb" type="checkbox" /> Room</label>
+        </fieldset>
+
+        <div class="status">
+          <p><strong>Status:</strong> <span id="statusText">Bereit</span></p>
+          <p><strong>Takt-Position:</strong> <span id="barPosition">0.0</span></p>
+        </div>
+
+        <div class="downloads">
+          <audio id="playback" controls></audio>
+          <a id="downloadLink" class="btn" download="flowforge-recording.webm" hidden>Aufnahme speichern</a>
+        </div>
+      </article>
+    </section>
+  </main>
 </body>
 </html>

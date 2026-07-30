@@ -4,6 +4,8 @@
   },
   "tasks": {
     "agent": "deno run --allow-read=. --allow-write=content --allow-env=AGENT_DATE agent/mod.ts",
+    "youtube": "deno run --allow-read --allow-write --allow-env --allow-run=ffmpeg --allow-net=oauth2.googleapis.com,www.googleapis.com agent/publish/mod.ts",
+    "setup:youtube": "deno run --allow-net=accounts.google.com,oauth2.googleapis.com,127.0.0.1:8790,0.0.0.0:8790 --allow-env agent/setup/youtube_oauth.ts",
     "lint": "deno lint",
     "test": "deno test -A"
   },

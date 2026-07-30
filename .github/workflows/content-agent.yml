@@ -1,0 +1,53 @@
+# Autonomer Content-Agent
+#
+# Läuft täglich (und manuell per workflow_dispatch), erzeugt die neue
+# Channel-Edition über die Multi-Agent-Pipeline, prüft sie mit denselben
+# Qualitätsgates wie die CI und committet das Ergebnis selbstständig.
+# Ohne inhaltliche Änderung (Re-Run am selben Tag) wird nichts gepusht.
+
+name: Content Agent
+
+on:
+  schedule:
+    # Täglich 05:17 UTC – bewusst nicht zur vollen Stunde (GitHub-Cron-Last).
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: content-agent
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Qualitätsgate (Lint & Tests)
+        run: |
+          deno lint
+          deno test -A
+
+      - name: Pipeline ausführen
+        run: deno task agent
+
+      - name: Änderungen committen & pushen
+        run: |
+          git config user.name "flowforge-content-agent[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add content
+          if git diff --cached --quiet; then
+            echo "Keine inhaltlichen Änderungen – nichts zu committen."
+          else
+            git commit -m "chore(agent): Channel-Edition $(date -u +%F)"
+            git push
+          fi

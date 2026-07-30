@@ -40,6 +40,16 @@ jobs:
       - name: Pipeline ausführen
         run: deno task agent
 
+      # Lädt das Daily-Video auf YouTube hoch, sobald die drei Secrets
+      # hinterlegt sind. Ohne Secrets wird der Schritt sauber übersprungen.
+      - name: YouTube-Upload (optional)
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY }}
+        run: deno task youtube
+
       - name: Änderungen committen & pushen
         run: |
           git config user.name "flowforge-content-agent[bot]"

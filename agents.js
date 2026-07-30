@@ -100,6 +100,37 @@ function markStages(log) {
   });
 }
 
+async function renderUploads() {
+  let uploads;
+  try {
+    uploads = await fetchJson("content/youtube-log.json");
+  } catch (_error) {
+    return; // Noch keine Uploads – Sektion bleibt ausgeblendet.
+  }
+  if (!Array.isArray(uploads) || uploads.length === 0) return;
+
+  const tbody = document.querySelector("#uploadTable tbody");
+  tbody.replaceChildren();
+  uploads.forEach((entry) => {
+    const row = el("tr");
+    const linkCell = el("td");
+    const link = el("a", null, entry.url);
+    link.href = entry.url;
+    link.target = "_blank";
+    link.rel = "noopener";
+    linkCell.append(link);
+
+    row.append(
+      el("td", null, entry.edition),
+      el("td", null, new Date(entry.uploadedAt).toISOString().replace("T", " ").slice(0, 16)),
+      el("td", null, entry.privacy),
+      linkCell,
+    );
+    tbody.append(row);
+  });
+  document.getElementById("uploadSection").hidden = false;
+}
+
 async function init() {
   try {
     const [channel, log] = await Promise.all([
@@ -110,6 +141,7 @@ async function init() {
     renderEdition(channel);
     renderLog(log);
     markStages(log);
+    await renderUploads();
   } catch (_error) {
     document.getElementById("healthCards").replaceChildren(
       el(

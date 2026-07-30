@@ -104,10 +104,49 @@ Challenge-Vorlagen, Zusatzregeln, Reimpaare, Flow-Tipps, Zitate, Wort-Pools
 und Beat-Patterns. Neue Einträge dort werden ab dem nächsten Lauf automatisch
 in Editionen eingemischt – die Tests sichern ab, dass die Gates weiter halten.
 
+## YouTube-Autopilot
+
+Der Workflow kann jede Edition zusätzlich als **Daily-Video auf YouTube**
+veröffentlichen: Die Pipeline synthetisiert den Übungs-Beat der Edition als
+Audio (gleiche Drum-Logik wie die App: Kick-Sweep, Bandpass-Snare, Hi-Hat),
+rendert daraus per ffmpeg ein 1080p-Video mit Challenge, Zusatzregel und
+Beat-Infos im FlowForge-Look und lädt es über die YouTube Data API hoch –
+inklusive eigenem Metadaten-Gate (Titel-/Beschreibungs-/Tag-Limits, Lexikon).
+
+Der Upload ist idempotent (`content/youtube-log.json` merkt sich jede
+Edition) und wird **sauber übersprungen, solange keine Secrets hinterlegt
+sind** – der Rest der Pipeline läuft davon unabhängig.
+
+### Einmalige Einrichtung (~10 Minuten)
+
+1. In der [Google Cloud Console](https://console.cloud.google.com) ein
+   Projekt anlegen, die **YouTube Data API v3** aktivieren und unter
+   „APIs & Dienste → Anmeldedaten“ einen **OAuth-Client** vom Typ
+   „Desktop-App“ erstellen.
+2. Lokal das Setup-Skript ausführen und den Google-Login bestätigen:
+
+   ```bash
+   deno task setup:youtube
+   ```
+
+   Das Skript gibt die drei fertigen Werte aus.
+3. Die Werte im GitHub-Repo unter **Settings → Secrets and variables →
+   Actions** als Secrets anlegen:
+   `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`.
+
+Ab dem nächsten Lauf lädt der Workflow das Daily-Video automatisch hoch.
+Optional steuert die Repository-Variable `YOUTUBE_PRIVACY`
+(`public` | `unlisted` | `private`, Standard `public`) die Sichtbarkeit.
+
+**Lokal testen ohne Upload:**
+
+```bash
+YOUTUBE_DRY_RUN=1 deno task youtube   # rendert Beat + Video, lädt nichts hoch
+```
+
 ## Ausbaustufen (optional)
 
-- **Externe Kanäle:** Der PublisherAgent ist die einzige Schreibstelle – dort
-  lassen sich z. B. YouTube-/Social-Uploads über API-Secrets ergänzen.
-  Empfehlung: pro Zielplattform ein eigener Publisher mit eigenem Gate.
+- **Weitere Kanäle:** Instagram/TikTok/X analog zum YouTube-Publisher – pro
+  Zielplattform ein eigener Publisher mit eigenem Gate unter `agent/publish/`.
 - **Review-Modus:** Statt direkt auf `main` zu pushen, kann der Workflow auf
   Pull-Request-Publishing umgestellt werden (menschliches Freigabe-Gate).

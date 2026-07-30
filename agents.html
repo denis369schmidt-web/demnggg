@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlowForge – Agent-Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="agents.js" defer></script>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="hero">
+      <div>
+        <h1>Agent-Dashboard</h1>
+        <p>
+          Der FlowForge Content-Agent pflegt den Daily Channel vollautomatisch:
+          recherchieren, entwerfen, prüfen, veröffentlichen, aufräumen.
+        </p>
+      </div>
+      <a class="btn muted back-btn" href="index.html">← Zurück zum Trainer</a>
+    </header>
+
+    <section class="panel glass">
+      <h2>Pipeline</h2>
+      <p>
+        Fünf spezialisierte Agents mit strukturierten Übergaben. Kein Inhalt
+        erreicht den Channel, bevor der Editor nicht alle Qualitätsgates
+        freigegeben hat.
+      </p>
+      <div class="stage-flow" id="stageFlow">
+        <div class="stage" data-stage="Research">
+          <span class="stage-icon">🔍</span>
+          <strong>Research</strong>
+          <small>Thema, Trend-Wörter &amp; Beat-Richtung wählen</small>
+        </div>
+        <div class="stage" data-stage="Draft">
+          <span class="stage-icon">✍️</span>
+          <strong>Draft</strong>
+          <small>Challenge, Wortpakete &amp; Starter-Bars bauen</small>
+        </div>
+        <div class="stage" data-stage="Editor">
+          <span class="stage-icon">🛡️</span>
+          <strong>Editor</strong>
+          <small>6 Qualitätsgates, sonst neuer Versuch</small>
+        </div>
+        <div class="stage" data-stage="Maintenance">
+          <span class="stage-icon">🧹</span>
+          <strong>Maintenance</strong>
+          <small>Archiv pflegen &amp; Health-Report erstellen</small>
+        </div>
+        <div class="stage" data-stage="Publisher">
+          <span class="stage-icon">🚀</span>
+          <strong>Publisher</strong>
+          <small>Channel &amp; Archiv schreiben, Log führen</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid dashboard-grid">
+      <article class="panel glass">
+        <h2>Channel-Health</h2>
+        <div id="healthCards" class="health-cards">
+          <p class="channel-empty">Lade Health-Report …</p>
+        </div>
+        <div id="healthNotes"></div>
+      </article>
+
+      <article class="panel glass">
+        <h2>Aktuelle Edition</h2>
+        <div id="editionInfo">
+          <p class="channel-empty">Lade Edition …</p>
+        </div>
+        <h2>Qualitätsgates</h2>
+        <div id="gateList"></div>
+      </article>
+    </section>
+
+    <section class="panel glass" id="uploadSection" hidden>
+      <h2>YouTube-Uploads</h2>
+      <p>
+        Vom Publisher automatisch erstellte und hochgeladene Daily-Videos
+        (Beat + Challenge der jeweiligen Edition).
+      </p>
+      <div class="table-wrap">
+        <table class="log-table" id="uploadTable">
+          <thead>
+            <tr>
+              <th>Edition</th>
+              <th>Hochgeladen (UTC)</th>
+              <th>Sichtbarkeit</th>
+              <th>Video</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel glass">
+      <h2>Lauf-Protokoll</h2>
+      <p>
+        Jeder Pipeline-Lauf wird protokolliert – auch abgelehnte Entwürfe und
+        Läufe ohne Änderung. Der Zeitplan: täglich 05:17 UTC via GitHub Actions.
+      </p>
+      <div class="table-wrap">
+        <table class="log-table" id="logTable">
+          <thead>
+            <tr>
+              <th>Zeitpunkt (UTC)</th>
+              <th>Edition</th>
+              <th>Status</th>
+              <th>Score</th>
+              <th>Stationen</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="5" class="channel-empty">Lade Protokoll …</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

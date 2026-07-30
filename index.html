@@ -6,6 +6,7 @@
   <title>FlowForge – Rap Trainer</title>
   <link rel="stylesheet" href="style.css" />
   <script src="game.js" defer></script>
+  <script src="channel.js" defer></script>
 </head>
 <body>
   <main class="app-shell">
@@ -66,6 +67,25 @@
         <div class="downloads">
           <audio id="playback" controls></audio>
           <a id="downloadLink" class="btn" download="flowforge-recording.webm" hidden>Aufnahme speichern</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="channel-section">
+      <article class="panel glass channel-panel">
+        <div class="channel-head">
+          <div>
+            <h2>3) Daily Channel</h2>
+            <p>
+              Täglich frischer Trainings-Content – automatisch erstellt, geprüft und
+              veröffentlicht vom FlowForge Content-Agenten.
+            </p>
+          </div>
+          <a class="btn muted" href="agents.html">Agent-Dashboard →</a>
+        </div>
+
+        <div id="channelContent" class="channel-grid" aria-live="polite">
+          <p class="channel-empty">Channel wird geladen …</p>
         </div>
       </article>
     </section>

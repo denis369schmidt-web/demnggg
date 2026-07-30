@@ -11,14 +11,28 @@ export interface YoutubeCredentials {
   refreshToken: string;
 }
 
+/** Entfernt typische Copy-Paste-Reste: Whitespace, Zeilenumbrüche, Anführungszeichen. */
+function cleanSecret(value: string | undefined): string | undefined {
+  const cleaned = value?.trim().replace(/^["']+|["']+$/g, "").trim();
+  return cleaned || undefined;
+}
+
 export function credentialsFromEnv(): YoutubeCredentials | undefined {
-  const clientId = Deno.env.get("YOUTUBE_CLIENT_ID");
-  const clientSecret = Deno.env.get("YOUTUBE_CLIENT_SECRET");
-  const refreshToken = Deno.env.get("YOUTUBE_REFRESH_TOKEN");
+  const clientId = cleanSecret(Deno.env.get("YOUTUBE_CLIENT_ID"));
+  const clientSecret = cleanSecret(Deno.env.get("YOUTUBE_CLIENT_SECRET"));
+  const refreshToken = cleanSecret(Deno.env.get("YOUTUBE_REFRESH_TOKEN"));
 
   if (!clientId || !clientSecret || !refreshToken) {
     return undefined;
   }
+
+  if (!clientId.endsWith(".apps.googleusercontent.com")) {
+    console.warn(
+      "Hinweis: YOUTUBE_CLIENT_ID endet nicht auf '.apps.googleusercontent.com' – " +
+        "vermutlich wurde ein falscher oder unvollständiger Wert hinterlegt.",
+    );
+  }
+
   return { clientId, clientSecret, refreshToken };
 }
 
@@ -37,9 +51,17 @@ export async function refreshAccessToken(
   });
 
   if (!response.ok) {
+    const detail = await response.text();
+    let hint = "";
+    if (detail.includes("invalid_client")) {
+      hint = "\nHinweis: YOUTUBE_CLIENT_ID/-SECRET prüfen – die ID muss auf " +
+        "'.apps.googleusercontent.com' enden, das Secret beginnt mit 'GOCSPX-'.";
+    } else if (detail.includes("invalid_grant")) {
+      hint = "\nHinweis: Das Refresh-Token ist ungültig oder widerrufen – " +
+        "`deno task setup:youtube` erneut ausführen und das Secret aktualisieren.";
+    }
     throw new Error(
-      `OAuth-Refresh fehlgeschlagen (HTTP ${response.status}): ${await response
-        .text()}`,
+      `OAuth-Refresh fehlgeschlagen (HTTP ${response.status}): ${detail}${hint}`,
     );
   }
 

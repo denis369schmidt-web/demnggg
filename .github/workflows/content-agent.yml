@@ -32,6 +32,10 @@ jobs:
         with:
           deno-version: v2.x
 
+      # Für das Rendern des Daily-Videos (nicht auf dem Runner vorinstalliert).
+      - name: ffmpeg installieren
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
       - name: Qualitätsgate (Lint & Tests)
         run: |
           deno lint

@@ -1,0 +1,37 @@
+[
+  {
+    "runAt": "2026-07-30T11:26:13.829Z",
+    "edition": "2026-07-30",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 99,
+    "durationMs": 6,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Heimathafen“, West Coast Bounce @ 92 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Ein-Wort-Anker“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 99."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 0 Editionen, 0 bereinigt, Status gelb."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-07-30 veröffentlicht (Hash b6f82c84)."
+      }
+    ]
+  }
+]

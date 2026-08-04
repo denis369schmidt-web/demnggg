@@ -114,8 +114,13 @@ Beat-Infos im FlowForge-Look und lädt es über die YouTube Data API hoch –
 inklusive eigenem Metadaten-Gate (Titel-/Beschreibungs-/Tag-Limits, Lexikon).
 
 Der Upload ist idempotent (`content/youtube-log.json` merkt sich jede
-Edition) und wird **sauber übersprungen, solange keine Secrets hinterlegt
-sind** – der Rest der Pipeline läuft davon unabhängig.
+Edition) und wird **sauber übersprungen**, wenn keine Secrets hinterlegt
+sind **oder** die OAuth-Credentials ungültig sind (z. B. gelöschter
+Client / `deleted_client`). In beiden Fällen läuft der Channel-Publish
+unbeeindruckt weiter – YouTube blockiert den Daily Content nie.
+
+Im Workflow wird die Channel-Edition **vor** dem optionalen YouTube-Schritt
+committed; Auth-Fehler können den Push nicht mehr verhindern.
 
 ### Einmalige Einrichtung (~10 Minuten)
 

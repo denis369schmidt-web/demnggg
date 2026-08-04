@@ -4,6 +4,9 @@
 # Channel-Edition über die Multi-Agent-Pipeline, prüft sie mit denselben
 # Qualitätsgates wie die CI und committet das Ergebnis selbstständig.
 # Ohne inhaltliche Änderung (Re-Run am selben Tag) wird nichts gepusht.
+#
+# Wichtig: Der Channel wird VOR dem optionalen YouTube-Upload committed.
+# Auth-/Config-Fehler bei YouTube dürfen den Daily Channel nie blockieren.
 
 name: Content Agent
 
@@ -44,17 +47,8 @@ jobs:
       - name: Pipeline ausführen
         run: deno task agent
 
-      # Lädt das Daily-Video auf YouTube hoch, sobald die drei Secrets
-      # hinterlegt sind. Ohne Secrets wird der Schritt sauber übersprungen.
-      - name: YouTube-Upload (optional)
-        env:
-          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-          YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY }}
-        run: deno task youtube
-
-      - name: Änderungen committen & pushen
+      # Channel zuerst committen – unabhängig vom optionalen YouTube-Schritt.
+      - name: Channel committen & pushen
         run: |
           git config user.name "flowforge-content-agent[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -63,5 +57,31 @@ jobs:
             echo "Keine inhaltlichen Änderungen – nichts zu committen."
           else
             git commit -m "chore(agent): Channel-Edition $(date -u +%F)"
+            git push
+          fi
+
+      # Lädt das Daily-Video auf YouTube hoch, sobald die drei Secrets
+      # hinterlegt sind. Ohne Secrets oder bei Auth-Fehlern: Skip (Exit 0).
+      # continue-on-error: selbst unerwartete Throws blockieren den Channel nicht.
+      - name: YouTube-Upload (optional)
+        id: youtube
+        continue-on-error: true
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY }}
+        run: deno task youtube
+
+      - name: YouTube-Log committen (falls Upload lief)
+        if: always()
+        run: |
+          git config user.name "flowforge-content-agent[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add content/youtube-log.json
+          if git diff --cached --quiet; then
+            echo "Kein YouTube-Log-Update."
+          else
+            git commit -m "chore(agent): YouTube-Upload $(date -u +%F)"
             git push
           fi

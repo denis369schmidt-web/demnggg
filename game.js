@@ -3,14 +3,18 @@ const bpmValue = document.getElementById("bpmValue");
 const keywordsInput = document.getElementById("keywords");
 const barsInput = document.getElementById("bars");
 const lyricsOutput = document.getElementById("lyricsOutput");
+const lyricsWrap = document.getElementById("lyricsWrap");
 const generateLyricsButton = document.getElementById("generateLyrics");
 const startBeatButton = document.getElementById("startBeat");
 const stopBeatButton = document.getElementById("stopBeat");
 const recordToggleButton = document.getElementById("recordToggle");
 const statusText = document.getElementById("statusText");
 const barPositionText = document.getElementById("barPosition");
+const activeBarText = document.getElementById("activeBarText");
 const playback = document.getElementById("playback");
 const downloadLink = document.getElementById("downloadLink");
+const beatViz = document.getElementById("beatViz");
+const streakValue = document.getElementById("streakValue");
 
 const fxLowpass = document.getElementById("fxLowpass");
 const fxDelay = document.getElementById("fxDelay");
@@ -37,6 +41,12 @@ let beatTimerId;
 let beatIntervalMs = 60000 / Number(bpmInput.value) / 2; // 8th-note pulse
 let pulseIndex = 0;
 let beatStartedAt = 0;
+let lyricLines = [];
+let activeBarIndex = -1;
+let vizFlash = 0;
+let vizKind = "hat";
+
+const STREAK_KEY = "flowforge-streak";
 
 const templates = [
   ["{k0} ist im Kopf, ich bleib stabil auf dem Takt", "{k1} in der Nacht, jeder Schritt sitzt exakt"],
@@ -49,6 +59,50 @@ const templates = [
 function updateStatus(message, isGood = true) {
   statusText.textContent = message;
   statusText.style.color = isGood ? "#5cd6a9" : "#ff9fb0";
+}
+
+function loadStreak() {
+  try {
+    return JSON.parse(localStorage.getItem(STREAK_KEY) || "null") || {
+      count: 0,
+      lastDay: null,
+    };
+  } catch {
+    return { count: 0, lastDay: null };
+  }
+}
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function renderStreak() {
+  const streak = loadStreak();
+  streakValue.textContent = String(streak.count);
+}
+
+function bumpStreak() {
+  const streak = loadStreak();
+  const today = todayKey();
+  if (streak.lastDay === today) {
+    renderStreak();
+    return;
+  }
+
+  const yesterday = new Date();
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const yKey = yesterday.toISOString().slice(0, 10);
+
+  streak.count = streak.lastDay === yKey ? streak.count + 1 : 1;
+  streak.lastDay = today;
+  localStorage.setItem(STREAK_KEY, JSON.stringify(streak));
+  renderStreak();
+  const card = document.getElementById("streakCard");
+  if (card) {
+    card.classList.remove("streak-pop");
+    void card.offsetWidth;
+    card.classList.add("streak-pop");
+  }
 }
 
 function ensureAudioContext() {
@@ -193,6 +247,8 @@ function scheduleBeatPulse() {
     osc.connect(amp).connect(beatGain);
     osc.start(now);
     osc.stop(now + 0.13);
+    vizFlash = 1;
+    vizKind = "kick";
   }
 
   if (snareOn) {
@@ -213,6 +269,8 @@ function scheduleBeatPulse() {
     noise.connect(bandpass).connect(amp).connect(beatGain);
     noise.start(now);
     noise.stop(now + 0.18);
+    vizFlash = Math.max(vizFlash, 0.75);
+    vizKind = "snare";
   }
 
   if (hatOn) {
@@ -233,6 +291,10 @@ function scheduleBeatPulse() {
     noise.connect(highpass).connect(amp).connect(beatGain);
     noise.start(now);
     noise.stop(now + 0.05);
+    if (vizFlash < 0.35) {
+      vizFlash = 0.35;
+      vizKind = "hat";
+    }
   }
 
   pulseIndex += 1;
@@ -241,6 +303,10 @@ function scheduleBeatPulse() {
 function startBeat() {
   ensureAudioContext();
 
+  if (audioContext.state === "suspended") {
+    audioContext.resume();
+  }
+
   if (beatTimerId) {
     return;
   }
@@ -248,10 +314,12 @@ function startBeat() {
   beatIntervalMs = 60000 / Number(bpmInput.value) / 2;
   pulseIndex = 0;
   beatStartedAt = performance.now();
+  activeBarIndex = -1;
 
   scheduleBeatPulse();
   beatTimerId = window.setInterval(scheduleBeatPulse, beatIntervalMs);
 
+  bumpStreak();
   updateStatus("Beat läuft");
 }
 
@@ -262,7 +330,25 @@ function stopBeat() {
   }
 
   barPositionText.textContent = "0.0";
+  activeBarText.textContent = "–";
+  setActiveLyric(-1);
   updateStatus("Beat gestoppt", false);
+}
+
+function setActiveLyric(index) {
+  if (index === activeBarIndex) {
+    return;
+  }
+  activeBarIndex = index;
+  const rows = lyricsOutput.querySelectorAll(".lyric-row");
+  rows.forEach((row, i) => {
+    row.classList.toggle("lyric-active", i === index);
+    row.classList.toggle("lyric-done", i < index);
+  });
+  if (index >= 0 && rows[index]) {
+    rows[index].scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  activeBarText.textContent = index >= 0 ? String(index + 1) : "–";
 }
 
 function calculateBarPosition() {
@@ -274,6 +360,11 @@ function calculateBarPosition() {
   const beatsPerSecond = Number(bpmInput.value) / 60;
   const bars = (elapsed * beatsPerSecond) / 4;
   barPositionText.textContent = bars.toFixed(2);
+
+  if (lyricLines.length > 0) {
+    const idx = Math.min(lyricLines.length - 1, Math.floor(bars));
+    setActiveLyric(idx);
+  }
 }
 
 function estimateSyllables(text) {
@@ -301,12 +392,48 @@ function buildTimedLyrics(keywords, bars) {
       .replaceAll("{k2}", tokens[2]);
 
     const syllables = estimateSyllables(line);
-    const targetBeats = 4;
-    const density = (syllables / targetBeats).toFixed(1);
-    lines.push(`Bar ${String(i + 1).padStart(2, "0")} | ${line}\n   ↳ Timing: ~${syllables} Silben / 4 Beats (${density} Silben pro Beat)`);
+    const density = (syllables / 4).toFixed(1);
+    lines.push({
+      bar: i + 1,
+      line,
+      syllables,
+      density,
+    });
   }
 
-  return lines.join("\n\n");
+  return lines;
+}
+
+function renderLyrics(lines) {
+  lyricLines = lines;
+  lyricsOutput.replaceChildren();
+
+  if (lines.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "channel-empty";
+    empty.textContent = "Bitte mindestens 2 Schlagwörter eingeben.";
+    lyricsOutput.append(empty);
+    return;
+  }
+
+  lines.forEach((entry) => {
+    const row = document.createElement("div");
+    row.className = "lyric-row";
+    row.dataset.bar = String(entry.bar);
+
+    const main = document.createElement("p");
+    main.className = "lyric-main";
+    main.textContent = `Bar ${String(entry.bar).padStart(2, "0")}  ${entry.line}`;
+
+    const meta = document.createElement("p");
+    meta.className = "lyric-meta";
+    meta.textContent = `~${entry.syllables} Silben / 4 Beats (${entry.density} pro Beat)`;
+
+    row.append(main, meta);
+    lyricsOutput.append(row);
+  });
+
+  setActiveLyric(-1);
 }
 
 function generateLyrics() {
@@ -316,14 +443,13 @@ function generateLyrics() {
     .filter(Boolean);
 
   if (rawKeywords.length < 2) {
-    lyricsOutput.textContent = "Bitte mindestens 2 Schlagwörter eingeben.";
+    renderLyrics([]);
     updateStatus("Mehr Schlagwörter benötigt", false);
     return;
   }
 
   const bars = Math.min(24, Math.max(2, Number(barsInput.value) || 8));
-  const lyrics = buildTimedLyrics(rawKeywords, bars);
-  lyricsOutput.textContent = lyrics;
+  renderLyrics(buildTimedLyrics(rawKeywords, bars));
   updateStatus("Lyrics erzeugt");
 }
 
@@ -369,6 +495,102 @@ async function toggleRecording() {
   updateStatus("Aufnahme läuft");
 }
 
+function drawBeatViz() {
+  if (!beatViz) {
+    return;
+  }
+
+  const ctx = beatViz.getContext("2d");
+  const width = beatViz.width;
+  const height = beatViz.height;
+  ctx.clearRect(0, 0, width, height);
+
+  ctx.fillStyle = "rgba(7, 8, 14, 0.55)";
+  ctx.fillRect(0, 0, width, height);
+
+  const running = Boolean(beatTimerId);
+  const bars = 32;
+  const gap = 3;
+  const barW = (width - gap * (bars + 1)) / bars;
+  const t = performance.now() / 1000;
+  const bpm = Number(bpmInput.value) || 96;
+
+  for (let i = 0; i < bars; i += 1) {
+    const phase = running
+      ? Math.abs(Math.sin(t * (bpm / 60) * Math.PI + i * 0.35))
+      : 0.12 + (i % 4 === 0 ? 0.08 : 0);
+    const flashBoost = vizFlash * (vizKind === "kick" ? 1 : vizKind === "snare" ? 0.7 : 0.4);
+    const h = Math.max(4, (phase * 0.55 + flashBoost * 0.45) * (height - 12));
+    const x = gap + i * (barW + gap);
+    const y = (height - h) / 2;
+
+    const isDownbeat = i % 4 === 0;
+    ctx.fillStyle = isDownbeat
+      ? `rgba(98, 163, 255, ${0.35 + flashBoost * 0.55})`
+      : `rgba(92, 214, 169, ${0.2 + phase * 0.45})`;
+    const radius = Math.min(3, barW / 2);
+    ctx.beginPath();
+    if (typeof ctx.roundRect === "function") {
+      ctx.roundRect(x, y, barW, h, radius);
+    } else {
+      ctx.rect(x, y, barW, h);
+    }
+    ctx.fill();
+  }
+
+  vizFlash *= 0.86;
+  requestAnimationFrame(drawBeatViz);
+}
+
+/**
+ * One-Tap: Daily-Challenge in den Trainer laden und Beat starten.
+ */
+function startChallenge(options = {}) {
+  const {
+    bpm,
+    bars,
+    keywords,
+    wordPack,
+    start = true,
+  } = options;
+
+  if (bpm) {
+    bpmInput.value = String(bpm);
+    bpmInput.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  if (bars) {
+    barsInput.value = String(bars);
+  }
+
+  const words = keywords || (wordPack && wordPack.words) || [];
+  if (words.length > 0) {
+    keywordsInput.value = words.slice(0, 3).join(", ");
+  }
+
+  generateLyrics();
+
+  if (start) {
+    stopBeat();
+    startBeat();
+  }
+
+  lyricsWrap?.scrollIntoView({ behavior: "smooth", block: "center" });
+  updateStatus("Challenge geladen – Flow!");
+}
+
+window.FlowForge = {
+  startChallenge,
+  generateLyrics,
+  startBeat,
+  stopBeat,
+  isBeatRunning: () => Boolean(beatTimerId),
+  setBpm: (bpm) => {
+    bpmInput.value = String(bpm);
+    bpmInput.dispatchEvent(new Event("input", { bubbles: true }));
+  },
+};
+
 bpmInput.addEventListener("input", () => {
   bpmValue.textContent = bpmInput.value;
 
@@ -394,5 +616,6 @@ stopBeatButton.addEventListener("click", stopBeat);
 recordToggleButton.addEventListener("click", toggleRecording);
 
 window.setInterval(calculateBarPosition, 50);
-
+renderStreak();
+drawBeatViz();
 generateLyrics();

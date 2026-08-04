@@ -38,6 +38,46 @@ body {
   margin-bottom: 20px;
 }
 
+.hero-side {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.streak-card {
+  min-width: 88px;
+  padding: 14px 16px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+}
+
+.streak-label,
+.streak-unit {
+  font-size: 0.72rem;
+  color: var(--subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.streak-card strong {
+  font-size: 1.6rem;
+  color: #ffcd70;
+  line-height: 1.1;
+}
+
+.streak-pop {
+  animation: streak-pop 0.55s ease;
+}
+
+@keyframes streak-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
 h1 {
   margin: 0;
   font-size: clamp(2rem, 4vw, 2.8rem);
@@ -174,14 +214,87 @@ button:hover,
   border: 1px solid rgba(255, 255, 255, 0.1);
   max-height: 340px;
   overflow: auto;
+  scroll-behavior: smooth;
+}
+
+.lyrics-list {
+  padding: 10px 8px;
+}
+
+.lyric-row {
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.lyric-main {
+  margin: 0;
+  font-family: "SF Mono", "Consolas", monospace;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.lyric-meta {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--subtle);
+}
+
+.lyric-active {
+  background: rgba(98, 163, 255, 0.16);
+  border-color: rgba(98, 163, 255, 0.45);
+  transform: translateX(4px);
+}
+
+.lyric-active .lyric-main {
+  color: #cfe0ff;
+}
+
+.lyric-done {
+  opacity: 0.55;
+}
+
+.beat-viz {
+  width: 100%;
+  height: 88px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(7, 8, 14, 0.55);
+  display: block;
+}
+
+.challenge-launch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(120deg, rgba(98, 163, 255, 0.14), rgba(92, 214, 169, 0.1));
+  border: 1px solid rgba(98, 163, 255, 0.28);
+}
+
+.launch-btn {
+  font-size: 1rem;
+  padding: 12px 18px;
+  animation: launch-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes launch-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(98, 163, 255, 0.35); }
+  50% { box-shadow: 0 0 0 8px rgba(98, 163, 255, 0); }
 }
 
 #lyricsOutput {
   margin: 0;
-  padding: 16px;
+  padding: 0;
   line-height: 1.5;
-  white-space: pre-wrap;
-  font-family: "SF Mono", "Consolas", monospace;
+  white-space: normal;
 }
 
 .status {
@@ -468,5 +581,18 @@ audio {
 
   .hero {
     flex-direction: column;
+  }
+
+  .hero-side {
+    width: 100%;
+  }
+
+  .bpm-card {
+    flex: 1;
+  }
+
+  .challenge-launch {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

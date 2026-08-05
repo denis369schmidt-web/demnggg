@@ -7,6 +7,8 @@
  *
  *  - Ohne Secrets:            sauberer Skip (Exit 0) – der Rest der
  *                             Pipeline läuft unbeeinflusst weiter.
+ *  - Auth/Config kaputt:      Soft-Skip (Exit 0) mit Hinweis – Channel
+ *                             darf nie an YouTube hängenbleiben.
  *  - Edition schon online:    Skip (Idempotenz über content/youtube-log.json).
  *  - YOUTUBE_DRY_RUN=1:       rendert alles, lädt aber nichts hoch.
  *  - Gate verletzt:           Abbruch mit Exit 1, nichts wird hochgeladen.
@@ -18,6 +20,7 @@ import { renderVideo } from "./video.ts";
 import { buildVideoMetadata, gateVideoMetadata } from "./metadata.ts";
 import {
   credentialsFromEnv,
+  isRecoverableAuthError,
   refreshAccessToken,
   uploadVideo,
 } from "./youtube.ts";
@@ -114,20 +117,46 @@ if (dryRun) {
   Deno.exit(0);
 }
 
-const accessToken = await refreshAccessToken(credentials!);
-const result = await uploadVideo(accessToken, videoPath, metadata);
+let accessToken: string;
+try {
+  accessToken = await refreshAccessToken(credentials!);
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (isRecoverableAuthError(message)) {
+    console.error("YouTube-Upload übersprungen (Auth/Config):");
+    console.error(message);
+    console.error(
+      "Channel-Edition bleibt davon unberührt. Secrets neu einrichten: " +
+        "`deno task setup:youtube` → GitHub Secrets aktualisieren.",
+    );
+    Deno.exit(0);
+  }
+  throw error;
+}
 
-uploadLog.unshift({
-  edition: edition.edition,
-  uploadedAt: new Date().toISOString(),
-  videoId: result.videoId,
-  url: result.url,
-  privacy,
-});
-await Deno.writeTextFile(
-  uploadLogPath,
-  `${JSON.stringify(uploadLog.slice(0, 100), null, 2)}\n`,
-);
+try {
+  const result = await uploadVideo(accessToken, videoPath, metadata);
 
-console.log("─".repeat(56));
-console.log(`✔ Hochgeladen: ${result.url} (${privacy})`);
+  uploadLog.unshift({
+    edition: edition.edition,
+    uploadedAt: new Date().toISOString(),
+    videoId: result.videoId,
+    url: result.url,
+    privacy,
+  });
+  await Deno.writeTextFile(
+    uploadLogPath,
+    `${JSON.stringify(uploadLog.slice(0, 100), null, 2)}\n`,
+  );
+
+  console.log("─".repeat(56));
+  console.log(`✔ Hochgeladen: ${result.url} (${privacy})`);
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (isRecoverableAuthError(message)) {
+    console.error("YouTube-Upload übersprungen (Auth/Config):");
+    console.error(message);
+    Deno.exit(0);
+  }
+  throw error;
+}

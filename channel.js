@@ -1,6 +1,6 @@
 // Lädt die aktuelle Channel-Edition (content/channel.json) und rendert
-// sie in den "Daily Channel"-Bereich der App. Word-Packs und Beat-Preset
-// lassen sich per Klick direkt in den Trainer übernehmen.
+// sie in den "Daily Channel"-Bereich der App. One-Tap startet die
+// Tages-Challenge direkt im Trainer (BPM, Bars, Wortpaket, Beat, Karaoke).
 
 const channelContent = document.getElementById("channelContent");
 
@@ -12,17 +12,44 @@ function el(tag, className, text) {
 }
 
 function applyWordPack(pack) {
+  if (window.FlowForge) {
+    window.FlowForge.startChallenge({
+      keywords: pack.words,
+      start: false,
+    });
+    return;
+  }
   const keywords = document.getElementById("keywords");
   keywords.value = pack.words.slice(0, 3).join(", ");
-  keywords.dispatchEvent(new Event("input", { bubbles: true }));
   document.getElementById("generateLyrics").click();
   keywords.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function applyBeatPreset(preset) {
+  if (window.FlowForge) {
+    window.FlowForge.setBpm(preset.bpm);
+    return;
+  }
   const bpm = document.getElementById("bpm");
   bpm.value = String(preset.bpm);
   bpm.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function launchChallenge(data, pack) {
+  const words = (pack || data.wordPacks[0]).words;
+  if (window.FlowForge) {
+    window.FlowForge.startChallenge({
+      bpm: data.challenge.bpm || data.beatPreset.bpm,
+      bars: data.challenge.bars,
+      keywords: words,
+      start: true,
+    });
+  } else {
+    applyBeatPreset(data.beatPreset);
+    applyWordPack(pack || data.wordPacks[0]);
+    document.getElementById("bars").value = String(data.challenge.bars);
+    document.getElementById("startBeat").click();
+  }
 }
 
 function renderChannel(data) {
@@ -40,12 +67,25 @@ function renderChannel(data) {
   );
   channelContent.append(meta);
 
+  const launch = el("div", "challenge-launch");
+  const launchBtn = el("button", "btn launch-btn", "▶ Challenge jetzt starten");
+  launchBtn.addEventListener("click", () => launchChallenge(data));
+  launch.append(
+    el(
+      "p",
+      "channel-small",
+      "One-Tap: BPM, Bars, Wortpaket und Beat – Karaoke läuft live mit.",
+    ),
+    launchBtn,
+  );
+  channelContent.append(launch);
+
   const grid = el("div", "channel-cards");
 
   // Tages-Challenge
   const challenge = el("article", "channel-card");
   challenge.append(
-    el("h3", null, `🎯 ${data.challenge.title}`),
+    el("h3", null, data.challenge.title),
     el("p", null, data.challenge.task),
     el("p", "channel-constraint", `Zusatzregel: ${data.challenge.constraint}`),
   );
@@ -61,7 +101,7 @@ function renderChannel(data) {
 
   // Wortpakete
   const packs = el("article", "channel-card");
-  packs.append(el("h3", null, "📦 Wortpakete"));
+  packs.append(el("h3", null, "Wortpakete"));
   data.wordPacks.forEach((pack) => {
     const wrap = el("div", "pack");
     wrap.append(el("p", "channel-small", pack.title));
@@ -69,19 +109,21 @@ function renderChannel(data) {
     pack.words.forEach((word) => chips.append(el("span", "chip", word)));
     const use = el("button", "btn chip-btn", "In Trainer übernehmen");
     use.addEventListener("click", () => applyWordPack(pack));
-    wrap.append(chips, use);
+    const useAndGo = el("button", "btn chip-btn muted", "Übernehmen & starten");
+    useAndGo.addEventListener("click", () => launchChallenge(data, pack));
+    wrap.append(chips, use, useAndGo);
     packs.append(wrap);
   });
   grid.append(packs);
 
   // Reimpaare + Starter-Bars
   const rhymes = el("article", "channel-card");
-  rhymes.append(el("h3", null, "🔗 Reimpaare des Tages"));
+  rhymes.append(el("h3", null, "Reimpaare des Tages"));
   const chips = el("div", "chips");
   data.rhymePairs.forEach((pair) =>
     chips.append(el("span", "chip", `${pair.a} / ${pair.b}`))
   );
-  rhymes.append(chips, el("h3", null, "🎤 Starter-Bars"));
+  rhymes.append(chips, el("h3", null, "Starter-Bars"));
   data.starterBars.forEach((bar) => {
     rhymes.append(
       el("p", "starter-bar", `„${bar.line}“ (${bar.syllables} Silben)`),
@@ -92,7 +134,7 @@ function renderChannel(data) {
   // Flow-Tipp + Zitat
   const tip = el("article", "channel-card");
   tip.append(
-    el("h3", null, `💡 ${data.flowTip.title}`),
+    el("h3", null, data.flowTip.title),
     el("p", null, data.flowTip.tip),
     el("blockquote", "channel-quote", `„${data.quote}“`),
   );

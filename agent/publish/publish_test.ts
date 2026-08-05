@@ -2,6 +2,7 @@ import { assertEquals } from "@std/assert";
 import { renderBeatWav } from "./audio.ts";
 import { buildVideoMetadata, gateVideoMetadata } from "./metadata.ts";
 import { wrapText } from "./video.ts";
+import { isRecoverableAuthError, oauthErrorHint } from "./youtube.ts";
 import { runPipeline } from "../pipeline.ts";
 import type { ChannelEdition } from "../lib/types.ts";
 
@@ -68,4 +69,12 @@ Deno.test("wrapText bricht lange Zeilen sauber um", () => {
   const lines = wrapped.split("\n");
   assertEquals(lines.length >= 3, true);
   assertEquals(lines.every((line) => line.length <= 24), true);
+});
+
+Deno.test("Auth-Fehler (deleted_client) sind soft-skip-fähig", () => {
+  const message =
+    'OAuth-Refresh fehlgeschlagen (HTTP 401): { "error": "deleted_client" }';
+  assertEquals(isRecoverableAuthError(message), true);
+  assertEquals(oauthErrorHint('"error": "deleted_client"').includes("gelöscht"), true);
+  assertEquals(isRecoverableAuthError("Upload-Session fehlgeschlagen (HTTP 500)"), false);
 });

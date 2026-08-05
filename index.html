@@ -19,17 +19,24 @@
           <p>Schlagwörter rein, Beat an, Flow trainieren. Wie ein Mini-Garageband für Rap-Übungen.</p>
         </div>
       </div>
-      <div class="bpm-card glass">
-        <label for="bpm">BPM</label>
-        <input id="bpm" type="range" min="70" max="180" value="96" />
-        <output id="bpmValue">96</output>
+      <div class="hero-side">
+        <div class="streak-card glass" id="streakCard" title="Trainings-Streak">
+          <span class="streak-label">Streak</span>
+          <strong id="streakValue">0</strong>
+          <span class="streak-unit">Tage</span>
+        </div>
+        <div class="bpm-card glass">
+          <label for="bpm">BPM</label>
+          <input id="bpm" type="range" min="70" max="180" value="96" />
+          <output id="bpmValue">96</output>
+        </div>
       </div>
     </header>
 
     <section class="grid">
       <article class="panel glass">
         <h2>1) Prompt & Lyrics</h2>
-        <p>2–3 Schlagwörter eingeben. Die App baut daraus taktgenaue Zeilen.</p>
+        <p>2–3 Schlagwörter eingeben. Die App baut daraus taktgenaue Zeilen – Karaoke läuft am Beat mit.</p>
 
         <label for="keywords">Schlagwörter</label>
         <input id="keywords" type="text" placeholder="z. B. Straße, Träume, Fokus" />
@@ -40,14 +47,16 @@
           <button id="generateLyrics" class="btn">Text generieren</button>
         </div>
 
-        <div class="lyrics-wrap">
-          <pre id="lyricsOutput" aria-live="polite"></pre>
+        <div class="lyrics-wrap" id="lyricsWrap">
+          <div id="lyricsOutput" class="lyrics-list" aria-live="polite"></div>
         </div>
       </article>
 
       <article class="panel glass">
         <h2>2) Beat & Aufnahme</h2>
         <p>Beat starten, Effekte live schalten und direkt aufnehmen.</p>
+
+        <canvas id="beatViz" class="beat-viz" width="640" height="88" aria-hidden="true"></canvas>
 
         <div class="controls">
           <button id="startBeat" class="btn">▶ Beat starten</button>
@@ -66,6 +75,7 @@
         <div class="status">
           <p><strong>Status:</strong> <span id="statusText">Bereit</span></p>
           <p><strong>Takt-Position:</strong> <span id="barPosition">0.0</span></p>
+          <p><strong>Aktive Bar:</strong> <span id="activeBarText">–</span></p>
         </div>
 
         <div class="downloads">

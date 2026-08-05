@@ -1,5 +1,195 @@
 [
   {
+    "runAt": "2026-08-05T07:07:18.429Z",
+    "edition": "2026-08-04",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 14,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Tiefsee“, Boom Bap @ 96 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Vokal-Fessel“ (12 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 5 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-04 veröffentlicht (Hash 3ca56427)."
+      }
+    ]
+  },
+  {
+    "runAt": "2026-08-05T07:07:18.395Z",
+    "edition": "2026-08-03",
+    "attempt": 2,
+    "status": "veröffentlicht",
+    "score": 99,
+    "durationMs": 14,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 2 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Phönix“, Uptempo Battle @ 117 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Leiser & Lauter“ (8 Bars), Versuch 3."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 99."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 4 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-03 veröffentlicht (Hash 93467617)."
+      }
+    ]
+  },
+  {
+    "runAt": "2026-08-05T07:07:18.364Z",
+    "edition": "2026-08-02",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 12,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Neon-Horizont“, Double-Time Drill @ 157 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Flip the Beat“ (12 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 3 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-02 veröffentlicht (Hash 1e0b36f8)."
+      }
+    ]
+  },
+  {
+    "runAt": "2026-08-05T07:07:18.329Z",
+    "edition": "2026-08-01",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 99,
+    "durationMs": 15,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Nachtschicht“, Lo-Fi Chill @ 74 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Cypher-Staffel“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 99."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 2 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-01 veröffentlicht (Hash c7c958ac)."
+      }
+    ]
+  },
+  {
+    "runAt": "2026-08-05T07:07:01.003Z",
+    "edition": "2026-08-05",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 9,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Labyrinth“, Uptempo Battle @ 110 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Storytelling-Run“ (16 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 1 Editionen, 0 bereinigt, Status gelb."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-05 veröffentlicht (Hash 96d2e544)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-07-30T11:26:13.829Z",
     "edition": "2026-07-30",
     "attempt": 0,

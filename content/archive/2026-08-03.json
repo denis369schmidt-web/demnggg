@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-08-03",
+  "generatedAt": "2026-08-05T07:07:18.395Z",
+  "attempt": 2,
+  "theme": {
+    "id": "phoenix",
+    "title": "Phönix",
+    "mood": "trotzig",
+    "description": "Rückschläge in Treibstoff verwandeln und neu starten.",
+    "keywords": [
+      "Asche",
+      "Feuer",
+      "Neustart",
+      "Flügel",
+      "Glut",
+      "Comeback"
+    ]
+  },
+  "challenge": {
+    "id": "leiser-lauter",
+    "title": "Leiser & Lauter",
+    "task": "Performe 8 Bars über „Phönix“ und steigere die Dynamik von Flüstern bis volle Energie.",
+    "constraint": "Die Hook-Zeile muss eine Frage sein.",
+    "bars": 8,
+    "bpm": 117
+  },
+  "wordPacks": [
+    {
+      "id": "phoenix-thema",
+      "title": "Thema: Phönix",
+      "words": [
+        "Glut",
+        "Neustart",
+        "Flügel",
+        "Comeback",
+        "Feuer",
+        "Asche"
+      ]
+    },
+    {
+      "id": "2026-08-03-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Asphalt",
+        "Antenne",
+        "Kompass",
+        "Skyline",
+        "Neonlicht",
+        "Tinte"
+      ]
+    },
+    {
+      "id": "2026-08-03-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Geduld",
+        "Glut",
+        "Zweifel",
+        "gleiten",
+        "driften",
+        "klettern"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Rauch",
+      "b": "auch"
+    },
+    {
+      "a": "Klang",
+      "b": "Drang"
+    },
+    {
+      "a": "Feuer",
+      "b": "teuer"
+    },
+    {
+      "a": "Boden",
+      "b": "Methoden"
+    },
+    {
+      "a": "Takt",
+      "b": "exakt"
+    },
+    {
+      "a": "Zeilen",
+      "b": "eilen"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Skyline auf Repeat, bis die Hook von alleine läuft",
+      "syllables": 14
+    },
+    {
+      "line": "Neustart in der Hand und der Zweifel wird kleiner",
+      "syllables": 12
+    },
+    {
+      "line": "Feuer im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 10
+    },
+    {
+      "line": "Der Tag war Feuer, doch die Nacht macht ihn zu meinem",
+      "syllables": 12
+    }
+  ],
+  "flowTip": {
+    "id": "call-response",
+    "title": "Call & Response",
+    "tip": "Lass Zeile 2 auf Zeile 1 antworten – Frage/Antwort-Strukturen halten Zuhörer automatisch im Takt."
+  },
+  "quote": "Ein ruhiger Atem ist die beste Punchline-Versicherung.",
+  "beatPreset": {
+    "bpm": 117,
+    "pattern": "Uptempo Battle",
+    "energy": "hoch"
+  },
+  "editorial": {
+    "score": 99,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 5,
+    "latestEdition": "2026-08-03",
+    "archivedEditions": 4,
+    "prunedEditions": 0,
+    "notes": [
+      "Archiv ist aktuell und vollständig."
+    ]
+  }
+}

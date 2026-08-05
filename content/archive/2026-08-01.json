@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-08-01",
+  "generatedAt": "2026-08-05T07:07:18.329Z",
+  "attempt": 0,
+  "theme": {
+    "id": "nachtschicht",
+    "title": "Nachtschicht",
+    "mood": "fokussiert",
+    "description": "Wenn die Stadt schläft, läuft dein Mic heiß.",
+    "keywords": [
+      "Nacht",
+      "Neonlicht",
+      "Schatten",
+      "Stille",
+      "Mond",
+      "Session"
+    ]
+  },
+  "challenge": {
+    "id": "cypher-staffel",
+    "title": "Cypher-Staffel",
+    "task": "Nimm 8 Bars zu „Nachtschicht“ auf, höre sie an und antworte dir selbst mit 8 Kontra-Bars.",
+    "constraint": "Jede vierte Zeile beginnt mit demselben Wort.",
+    "bars": 8,
+    "bpm": 74
+  },
+  "wordPacks": [
+    {
+      "id": "nachtschicht-thema",
+      "title": "Thema: Nachtschicht",
+      "words": [
+        "Session",
+        "Neonlicht",
+        "Stille",
+        "Nacht",
+        "Schatten",
+        "Mond"
+      ]
+    },
+    {
+      "id": "2026-08-01-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Echo",
+        "Anker",
+        "Silhouette",
+        "Asphalt",
+        "Neonlicht",
+        "Magnet"
+      ]
+    },
+    {
+      "id": "2026-08-01-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Mut",
+        "Balance",
+        "Hunger",
+        "sprinten",
+        "landen",
+        "starten"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Wort",
+      "b": "Ort"
+    },
+    {
+      "a": "Hand",
+      "b": "Verstand"
+    },
+    {
+      "a": "Rauch",
+      "b": "auch"
+    },
+    {
+      "a": "Spur",
+      "b": "pur"
+    },
+    {
+      "a": "Ton",
+      "b": "davon"
+    },
+    {
+      "a": "Wind",
+      "b": "geschwind"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Mond als Kompass und die Snare gibt den Takt",
+      "syllables": 11
+    },
+    {
+      "line": "Ich stapel Silben auf Mond, bis der Pegel sich häuft",
+      "syllables": 13
+    },
+    {
+      "line": "Radar auf Repeat, bis die Hook von alleine läuft",
+      "syllables": 13
+    },
+    {
+      "line": "Mit Radar in der Stimme klingt selbst Stille wie ein Ruf",
+      "syllables": 14
+    }
+  ],
+  "flowTip": {
+    "id": "aufnahme-check",
+    "title": "Der 24-Stunden-Check",
+    "tip": "Höre jede Aufnahme erst am nächsten Tag erneut. Frische Ohren erkennen Timing-Fehler sofort."
+  },
+  "quote": "Der Unterschied zwischen Probe und Performance ist nur das Publikum.",
+  "beatPreset": {
+    "bpm": 74,
+    "pattern": "Lo-Fi Chill",
+    "energy": "chill"
+  },
+  "editorial": {
+    "score": 99,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 3,
+    "latestEdition": "2026-08-01",
+    "archivedEditions": 2,
+    "prunedEditions": 0,
+    "notes": [
+      "Archiv ist aktuell und vollständig."
+    ]
+  }
+}

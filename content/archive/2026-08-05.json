@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "edition": "2026-08-05",
-  "generatedAt": "2026-08-05T07:07:01.003Z",
+  "generatedAt": "2026-08-05T07:07:25.505Z",
   "attempt": 0,
   "theme": {
     "id": "labyrinth",
@@ -154,13 +154,13 @@
     ]
   },
   "health": {
-    "status": "gelb",
-    "editionCount": 2,
+    "status": "gruen",
+    "editionCount": 7,
     "latestEdition": "2026-08-05",
-    "archivedEditions": 1,
+    "archivedEditions": 6,
     "prunedEditions": 0,
     "notes": [
-      "Letzte archivierte Edition (2026-07-30) ist älter als 2 Tage."
+      "Archiv ist aktuell und vollständig."
     ]
   }
 }

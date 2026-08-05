@@ -1,88 +1,88 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-08-04",
-  "generatedAt": "2026-08-05T07:07:18.429Z",
-  "attempt": 1,
+  "edition": "2026-08-05",
+  "generatedAt": "2026-08-05T07:07:25.505Z",
+  "attempt": 0,
   "theme": {
-    "id": "tiefsee",
-    "title": "Tiefsee",
-    "mood": "dunkel",
-    "description": "Abtauchen in die tiefsten Gedanken, Druck aushalten.",
+    "id": "labyrinth",
+    "title": "Labyrinth",
+    "mood": "suchend",
+    "description": "Verwinkelte Gedanken, aber der Flow findet den Ausgang.",
     "keywords": [
-      "Tiefe",
-      "Ozean",
-      "Druck",
-      "Strömung",
-      "Leuchten",
-      "Grund"
+      "Labyrinth",
+      "Wege",
+      "Nebel",
+      "Kompass",
+      "Suche",
+      "Ausgang"
     ]
   },
   "challenge": {
-    "id": "vokal-fessel",
-    "title": "Vokal-Fessel",
-    "task": "Schreibe 12 Bars über „Tiefsee“, in denen jede Zeile auf denselben Vokalklang endet.",
-    "constraint": "Kein Wort darf doppelt als Zeilenende vorkommen.",
-    "bars": 12,
-    "bpm": 96
+    "id": "storytelling-run",
+    "title": "Storytelling-Run",
+    "task": "Erzähle in 16 Bars eine Mini-Geschichte über „Labyrinth“ mit Anfang, Wendepunkt und Schlusszeile.",
+    "constraint": "Baue genau eine bewusste Pause von einem halben Takt ein.",
+    "bars": 16,
+    "bpm": 110
   },
   "wordPacks": [
     {
-      "id": "tiefsee-thema",
-      "title": "Thema: Tiefsee",
+      "id": "labyrinth-thema",
+      "title": "Thema: Labyrinth",
       "words": [
-        "Tiefe",
-        "Strömung",
-        "Druck",
-        "Ozean",
-        "Grund",
-        "Leuchten"
+        "Nebel",
+        "Kompass",
+        "Labyrinth",
+        "Suche",
+        "Wege",
+        "Ausgang"
       ]
     },
     {
-      "id": "2026-08-04-bilder",
+      "id": "2026-08-05-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Fundament",
-        "Echo",
-        "Leuchtturm",
-        "Schatten",
+        "Anker",
+        "Spiegel",
+        "Neonlicht",
+        "Funken",
         "Radar",
-        "Anker"
+        "Fundament"
       ]
     },
     {
-      "id": "2026-08-04-energie",
+      "id": "2026-08-05-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Mut",
-        "Hunger",
+        "Geduld",
         "Instinkt",
-        "pushen",
-        "tauchen",
-        "kreisen"
+        "Mut",
+        "starten",
+        "kreisen",
+        "steigen"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Ton",
-      "b": "davon"
+      "a": "Zeilen",
+      "b": "eilen"
     },
     {
-      "a": "Klang",
-      "b": "Drang"
+      "a": "Hallen",
+      "b": "knallen"
     },
     {
-      "a": "Traum",
-      "b": "Raum"
+      "a": "Beben",
+      "b": "schweben"
     },
     {
-      "a": "Fluss",
-      "b": "Schluss"
+      "a": "Wind",
+      "b": "geschwind"
     },
     {
-      "a": "Glut",
-      "b": "Mut"
+      "a": "Nacht",
+      "b": "gemacht"
     },
     {
       "a": "Meer",
@@ -91,32 +91,32 @@
   ],
   "starterBars": [
     {
-      "line": "Ich zähl die Beats wie Ozean, alles landet exakt",
-      "syllables": 13
+      "line": "Nebel im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 11
     },
     {
-      "line": "Funken in den Zeilen, jede Silbe nimmt mich mit",
-      "syllables": 13
+      "line": "Ich stapel Silben auf Nebel, bis der Pegel sich häuft",
+      "syllables": 14
     },
     {
-      "line": "Aus Strömung wird ein Plan, aus dem Plan wird ein Schritt",
+      "line": "Nebel als Kompass und die Snare gibt den Takt",
       "syllables": 12
     },
     {
-      "line": "Strömung im Blick, ich bleib ruhig auf der Eins",
-      "syllables": 11
+      "line": "Ausgang in der Hand und der Zweifel wird kleiner",
+      "syllables": 12
     }
   ],
   "flowTip": {
-    "id": "tempo-treppe",
-    "title": "Tempo-Treppe",
-    "tip": "Trainiere denselben Text bei 85, 95 und 110 BPM. Wer die Treppe hochkommt, sitzt bei jedem Beat."
+    "id": "silben-budget",
+    "title": "Silben-Budget",
+    "tip": "Zähle Silben pro Zeile: 10–14 bei mittlerem Tempo. Über 16 wird es Double-Time, darunter entsteht Raum."
   },
-  "quote": "Schreib die Zeile, die du morgen hören willst.",
+  "quote": "Deine Stimme ist das einzige Instrument, das du immer dabei hast.",
   "beatPreset": {
-    "bpm": 96,
-    "pattern": "Boom Bap",
-    "energy": "mittel"
+    "bpm": 110,
+    "pattern": "Uptempo Battle",
+    "energy": "hoch"
   },
   "editorial": {
     "score": 100,
@@ -155,9 +155,9 @@
   },
   "health": {
     "status": "gruen",
-    "editionCount": 6,
-    "latestEdition": "2026-08-04",
-    "archivedEditions": 5,
+    "editionCount": 7,
+    "latestEdition": "2026-08-05",
+    "archivedEditions": 6,
     "prunedEditions": 0,
     "notes": [
       "Archiv ist aktuell und vollständig."

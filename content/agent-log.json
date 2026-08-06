@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-08-06T07:49:49.482Z",
+    "edition": "2026-08-06",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 21,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Vollgas“, West Coast Bounce @ 102 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Silben-Sprint“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 6 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-06 veröffentlicht (Hash d36f8b2f)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-05T07:49:34.452Z",
     "edition": "2026-08-05",
     "attempt": 0,

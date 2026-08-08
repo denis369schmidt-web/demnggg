@@ -1,5 +1,50 @@
 [
   {
+    "runAt": "2026-08-08T05:57:03.514Z",
+    "edition": "2026-08-08",
+    "attempt": 2,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 22,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 2 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Heimathafen“, Trap Halftime @ 134 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Freestyle-Zirkel“ (16 Bars), Versuch 3."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 8 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-08 veröffentlicht (Hash 21e4e789)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-07T06:19:34.087Z",
     "edition": "2026-08-07",
     "attempt": 0,

@@ -1,5 +1,50 @@
 [
   {
+    "runAt": "2026-08-09T05:58:28.462Z",
+    "edition": "2026-08-09",
+    "attempt": 2,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 19,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 2 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Gipfelsturm“, Uptempo Battle @ 101 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Double-Time-Drill“ (16 Bars), Versuch 3."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 9 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-09 veröffentlicht (Hash baaf0c9)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-08T05:57:03.514Z",
     "edition": "2026-08-08",
     "attempt": 2,

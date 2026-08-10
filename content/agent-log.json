@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-08-10T06:42:20.763Z",
+    "edition": "2026-08-10",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 24,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Tiefsee“, Boom Bap @ 89 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Ein-Wort-Anker“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 10 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-10 veröffentlicht (Hash 2557ce5e)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-09T05:58:28.462Z",
     "edition": "2026-08-09",
     "attempt": 2,

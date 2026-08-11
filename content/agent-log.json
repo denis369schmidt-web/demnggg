@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-08-11T06:05:03.737Z",
+    "edition": "2026-08-11",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 21,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Spiegelbild“, Uptempo Battle @ 100 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Leiser & Lauter“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 11 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-11 veröffentlicht (Hash fe2bd37a)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-10T06:42:20.763Z",
     "edition": "2026-08-10",
     "attempt": 0,

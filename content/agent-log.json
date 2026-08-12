@@ -1,5 +1,45 @@
 [
   {
+    "runAt": "2026-08-12T06:42:34.276Z",
+    "edition": "2026-08-12",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 21,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Vollgas“, Trap Halftime @ 144 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Punchline-Schmiede“ (16 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 12 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-12 veröffentlicht (Hash f4bf78f2)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-11T06:05:03.737Z",
     "edition": "2026-08-11",
     "attempt": 0,

@@ -1,5 +1,55 @@
 [
   {
+    "runAt": "2026-08-15T05:42:19.754Z",
+    "edition": "2026-08-15",
+    "attempt": 3,
+    "status": "veröffentlicht",
+    "score": 99,
+    "durationMs": 25,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 2 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 3 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Straßenträume“, West Coast Bounce @ 92 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Flip the Beat“ (8 Bars), Versuch 4."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 99."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 15 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-15 veröffentlicht (Hash 49d8e8bc)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-14T06:43:20.948Z",
     "edition": "2026-08-14",
     "attempt": 1,

@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-08-17T05:51:08.814Z",
+    "edition": "2026-08-17",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 22,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Spiegelbild“, Uptempo Battle @ 116 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Vokal-Fessel“ (12 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 17 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-17 veröffentlicht (Hash fdc27c48)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-16T05:43:44.693Z",
     "edition": "2026-08-16",
     "attempt": 0,

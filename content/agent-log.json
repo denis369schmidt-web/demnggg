@@ -1,5 +1,45 @@
 [
   {
+    "runAt": "2026-08-18T05:45:43.729Z",
+    "edition": "2026-08-18",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 23,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Vollgas“, Trap Halftime @ 145 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Cypher-Staffel“ (16 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 18 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-18 veröffentlicht (Hash 3f3cfa46)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-17T05:51:08.814Z",
     "edition": "2026-08-17",
     "attempt": 0,

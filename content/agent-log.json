@@ -1,5 +1,45 @@
 [
   {
+    "runAt": "2026-08-28T17:26:57.090Z",
+    "edition": "2026-08-28",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 31,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Labyrinth“, Double-Time Drill @ 150 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Atem-Marathon“ (8 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 28 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-28 veröffentlicht (Hash 4e1e1e2c)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-27T16:32:19.191Z",
     "edition": "2026-08-27",
     "attempt": 0,

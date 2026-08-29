@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-08-29T11:40:15.760Z",
+    "edition": "2026-08-29",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 33,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Phönix“, Double-Time Drill @ 155 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Ein-Wort-Anker“ (16 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 29 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-29 veröffentlicht (Hash ccc89bcb)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-28T17:26:57.090Z",
     "edition": "2026-08-28",
     "attempt": 1,

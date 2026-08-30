@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-08-30T10:29:35.199Z",
+    "edition": "2026-08-30",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 18,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Marktplatz“, Trap Halftime @ 150 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Storytelling-Run“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 0 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-30 veröffentlicht (Hash c05ec940)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-29T11:40:15.760Z",
     "edition": "2026-08-29",
     "attempt": 0,

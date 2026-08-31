@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-08-31T11:36:41.883Z",
+    "edition": "2026-08-31",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 31,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Tiefsee“, Lo-Fi Chill @ 75 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Punchline-Schmiede“ (16 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-08-31 veröffentlicht (Hash 5301969e)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-08-30T10:29:35.199Z",
     "edition": "2026-08-30",
     "attempt": 0,

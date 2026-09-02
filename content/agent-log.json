@@ -1,5 +1,45 @@
 [
   {
+    "runAt": "2026-09-02T09:38:38.256Z",
+    "edition": "2026-09-02",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 99,
+    "durationMs": 33,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Heimathafen“, Boom Bap @ 92 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Freestyle-Zirkel“ (16 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 99."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-02 veröffentlicht (Hash c95399e4)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-01T10:07:12.525Z",
     "edition": "2026-09-01",
     "attempt": 0,

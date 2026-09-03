@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-09-03T09:50:59.747Z",
+    "edition": "2026-09-03",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 25,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Zeitkapsel“, Uptempo Battle @ 109 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Double-Time-Drill“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-03 veröffentlicht (Hash 7025731)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-02T09:38:38.256Z",
     "edition": "2026-09-02",
     "attempt": 1,

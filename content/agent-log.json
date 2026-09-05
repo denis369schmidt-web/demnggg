@@ -1,5 +1,45 @@
 [
   {
+    "runAt": "2026-09-05T09:05:36.844Z",
+    "edition": "2026-09-05",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 24,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Labyrinth“, Double-Time Drill @ 142 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Storytelling-Run“ (12 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-05 veröffentlicht (Hash 465b97d9)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-04T09:40:14.968Z",
     "edition": "2026-09-04",
     "attempt": 0,

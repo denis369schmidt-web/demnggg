@@ -1,125 +1,125 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-09-04",
-  "generatedAt": "2026-09-04T09:40:14.968Z",
-  "attempt": 0,
+  "edition": "2026-09-05",
+  "generatedAt": "2026-09-05T09:05:36.844Z",
+  "attempt": 1,
   "theme": {
-    "id": "strassen-traeume",
-    "title": "Straßenträume",
-    "mood": "hungrig",
-    "description": "Vom Bordstein zur Skyline – Zeilen über den Weg nach oben.",
+    "id": "labyrinth",
+    "title": "Labyrinth",
+    "mood": "suchend",
+    "description": "Verwinkelte Gedanken, aber der Flow findet den Ausgang.",
     "keywords": [
-      "Straße",
-      "Träume",
-      "Asphalt",
-      "Skyline",
-      "Aufstieg",
-      "Beton"
+      "Labyrinth",
+      "Wege",
+      "Nebel",
+      "Kompass",
+      "Suche",
+      "Ausgang"
     ]
   },
   "challenge": {
-    "id": "silben-sprint",
-    "title": "Silben-Sprint",
-    "task": "Schreibe 8 Bars zum Thema „Straßenträume“ und lande jede Punchline exakt auf der Snare (Zählzeit 3).",
-    "constraint": "Verwende mindestens ein Bild aus der Natur.",
-    "bars": 8,
-    "bpm": 110
+    "id": "storytelling-run",
+    "title": "Storytelling-Run",
+    "task": "Erzähle in 12 Bars eine Mini-Geschichte über „Labyrinth“ mit Anfang, Wendepunkt und Schlusszeile.",
+    "constraint": "Eine Zeile darf maximal zehn Silben haben – finde sie beim Proben.",
+    "bars": 12,
+    "bpm": 142
   },
   "wordPacks": [
     {
-      "id": "strassen-traeume-thema",
-      "title": "Thema: Straßenträume",
+      "id": "labyrinth-thema",
+      "title": "Thema: Labyrinth",
       "words": [
-        "Träume",
-        "Beton",
-        "Straße",
-        "Asphalt",
-        "Skyline",
-        "Aufstieg"
+        "Wege",
+        "Suche",
+        "Ausgang",
+        "Kompass",
+        "Labyrinth",
+        "Nebel"
       ]
     },
     {
-      "id": "2026-09-04-bilder",
+      "id": "2026-09-05-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Radar",
-        "Funken",
-        "Skyline",
-        "Leuchtturm",
-        "Magnet",
-        "Silhouette"
+        "Antenne",
+        "Silhouette",
+        "Schatten",
+        "Neonlicht",
+        "Anker",
+        "Fundament"
       ]
     },
     {
-      "id": "2026-09-04-energie",
+      "id": "2026-09-05-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Instinkt",
-        "Balance",
-        "Hunger",
-        "kreisen",
+        "Fokus",
+        "Zweifel",
+        "Ruhe",
+        "schweben",
         "steigen",
-        "starten"
+        "tauchen"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Hand",
-      "b": "Verstand"
+      "a": "Druck",
+      "b": "Ruck"
     },
     {
-      "a": "Spur",
-      "b": "pur"
+      "a": "Kern",
+      "b": "fern"
     },
     {
-      "a": "Kette",
-      "b": "Wette"
+      "a": "Boden",
+      "b": "Methoden"
     },
     {
-      "a": "Blick",
-      "b": "Genick"
+      "a": "Nebel",
+      "b": "Pegel"
     },
     {
-      "a": "Rauch",
-      "b": "auch"
+      "a": "Ton",
+      "b": "davon"
     },
     {
-      "a": "Meer",
-      "b": "schwer"
+      "a": "Nacht",
+      "b": "gemacht"
     }
   ],
   "starterBars": [
     {
-      "line": "Zwischen Straße und Kompass find ich Raum für den Reim",
-      "syllables": 13
-    },
-    {
-      "line": "Kompass auf Repeat, bis die Hook von alleine läuft",
-      "syllables": 13
-    },
-    {
-      "line": "Der Tag war Asphalt, doch die Nacht macht ihn zu meinem",
-      "syllables": 13
-    },
-    {
-      "line": "Mit Kompass in der Stimme klingt selbst Stille wie ein Ruf",
+      "line": "Silhouette auf Repeat, bis die Hook von alleine läuft",
       "syllables": 14
+    },
+    {
+      "line": "Nebel in der Hand und der Zweifel wird kleiner",
+      "syllables": 12
+    },
+    {
+      "line": "Ich stapel Silben auf Suche, bis der Pegel sich häuft",
+      "syllables": 14
+    },
+    {
+      "line": "Ich zähl die Beats wie Nebel, alles landet exakt",
+      "syllables": 13
     }
   ],
   "flowTip": {
-    "id": "silben-budget",
-    "title": "Silben-Budget",
-    "tip": "Zähle Silben pro Zeile: 10–14 bei mittlerem Tempo. Über 16 wird es Double-Time, darunter entsteht Raum."
+    "id": "stimme-instrument",
+    "title": "Stimme als Instrument",
+    "tip": "Variiere Tonhöhe pro Abschnitt: Strophe tief, Pre-Hook mittig, Hook oben. Melodie entsteht nebenbei."
   },
-  "quote": "Deine Stimme ist das einzige Instrument, das du immer dabei hast.",
+  "quote": "Talent startet den Motor, Routine fährt die Strecke.",
   "beatPreset": {
-    "bpm": 110,
-    "pattern": "Uptempo Battle",
+    "bpm": 142,
+    "pattern": "Double-Time Drill",
     "energy": "hoch"
   },
   "editorial": {
-    "score": 99,
+    "score": 100,
     "gates": [
       {
         "gate": "Vollständigkeit",
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-09-04",
+    "latestEdition": "2026-09-05",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

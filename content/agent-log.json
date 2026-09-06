@@ -1,5 +1,50 @@
 [
   {
+    "runAt": "2026-09-06T09:27:04.796Z",
+    "edition": "2026-09-06",
+    "attempt": 2,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 24,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 2 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Fokus-Modus“, West Coast Bounce @ 96 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Punchline-Schmiede“ (16 Bars), Versuch 3."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-06 veröffentlicht (Hash 6c9f71b3)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-05T09:05:36.844Z",
     "edition": "2026-09-05",
     "attempt": 1,

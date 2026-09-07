@@ -1,5 +1,50 @@
 [
   {
+    "runAt": "2026-09-07T10:19:23.566Z",
+    "edition": "2026-09-07",
+    "attempt": 2,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 26,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 2 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Gipfelsturm“, Uptempo Battle @ 103 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Atem-Marathon“ (12 Bars), Versuch 3."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-07 veröffentlicht (Hash dc1cadfa)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-06T09:27:04.796Z",
     "edition": "2026-09-06",
     "attempt": 2,

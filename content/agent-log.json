@@ -1,5 +1,45 @@
 [
   {
+    "runAt": "2026-09-08T09:42:28.159Z",
+    "edition": "2026-09-08",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 17,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Goldene Stunde“, West Coast Bounce @ 99 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Ein-Wort-Anker“ (12 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-08 veröffentlicht (Hash 76ce6df2)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-07T10:19:23.566Z",
     "edition": "2026-09-07",
     "attempt": 2,

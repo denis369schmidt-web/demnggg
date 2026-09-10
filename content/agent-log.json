@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-09-10T09:44:56.687Z",
+    "edition": "2026-09-10",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 25,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Zeitkapsel“, Lo-Fi Chill @ 80 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Double-Time-Drill“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-10 veröffentlicht (Hash 63741391)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-08T09:42:28.159Z",
     "edition": "2026-09-08",
     "attempt": 1,

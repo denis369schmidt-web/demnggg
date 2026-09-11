@@ -1,5 +1,45 @@
 [
   {
+    "runAt": "2026-09-11T09:42:17.072Z",
+    "edition": "2026-09-11",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 29,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Nachtschicht“, West Coast Bounce @ 100 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Cypher-Staffel“ (8 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-11 veröffentlicht (Hash df2c81ed)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-10T09:44:56.687Z",
     "edition": "2026-09-10",
     "attempt": 0,

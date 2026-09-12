@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-09-12T09:22:24.270Z",
+    "edition": "2026-09-12",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 34,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Straßenträume“, Lo-Fi Chill @ 80 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Hook-Labor“ (12 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-12 veröffentlicht (Hash 3869a66a)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-11T09:42:17.072Z",
     "edition": "2026-09-11",
     "attempt": 1,

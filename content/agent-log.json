@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-09-13T10:18:11.823Z",
+    "edition": "2026-09-13",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 99,
+    "durationMs": 25,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Phönix“, West Coast Bounce @ 94 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Vokal-Fessel“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 99."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-13 veröffentlicht (Hash 77d138e2)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-12T09:22:24.270Z",
     "edition": "2026-09-12",
     "attempt": 0,

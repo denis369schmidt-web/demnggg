@@ -1,5 +1,60 @@
 [
   {
+    "runAt": "2026-09-20T09:49:32.022Z",
+    "edition": "2026-09-20",
+    "attempt": 4,
+    "status": "veröffentlicht",
+    "score": 99,
+    "durationMs": 30,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 2 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 3 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 4 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Phönix“, West Coast Bounce @ 98 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Freestyle-Zirkel“ (8 Bars), Versuch 5."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 99."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-20 veröffentlicht (Hash 72c656fa)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-19T09:31:17.121Z",
     "edition": "2026-09-19",
     "attempt": 0,
@@ -1851,41 +1906,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-08-02 veröffentlicht (Hash 1e0b36f8)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-08-05T07:07:18.329Z",
-    "edition": "2026-08-01",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 99,
-    "durationMs": 15,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Nachtschicht“, Lo-Fi Chill @ 74 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Cypher-Staffel“ (8 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 99."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 2 Editionen, 0 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-08-01 veröffentlicht (Hash c7c958ac)."
       }
     ]
   }

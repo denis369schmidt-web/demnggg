@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-09-26T09:52:49.231Z",
+    "edition": "2026-09-26",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 36,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Straßenträume“, Boom Bap @ 88 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Atem-Marathon“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-26 veröffentlicht (Hash d43b671b)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-25T10:12:19.942Z",
     "edition": "2026-09-25",
     "attempt": 0,
@@ -1871,41 +1906,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-08-06 veröffentlicht (Hash d36f8b2f)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-08-05T07:49:34.452Z",
-    "edition": "2026-08-05",
-    "attempt": 0,
-    "status": "unverändert",
-    "score": 100,
-    "durationMs": 22,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Labyrinth“, Uptempo Battle @ 110 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Storytelling-Run“ (16 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 6 Editionen, 0 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-08-05 unverändert – kein erneutes Publishing."
       }
     ]
   }

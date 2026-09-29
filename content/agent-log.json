@@ -1,5 +1,45 @@
 [
   {
+    "runAt": "2026-09-29T11:22:57.576Z",
+    "edition": "2026-09-29",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 28,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Gipfelsturm“, West Coast Bounce @ 92 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Flip the Beat“ (8 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-29 veröffentlicht (Hash 226e2ed9)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-28T11:42:51.097Z",
     "edition": "2026-09-28",
     "attempt": 0,
@@ -1861,51 +1901,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-08-09 veröffentlicht (Hash baaf0c9)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-08-08T05:57:03.514Z",
-    "edition": "2026-08-08",
-    "attempt": 2,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 22,
-    "stages": [
-      {
-        "name": "Editor",
-        "ok": false,
-        "summary": "Versuch 1 abgelehnt (Frische)."
-      },
-      {
-        "name": "Editor",
-        "ok": false,
-        "summary": "Versuch 2 abgelehnt (Frische)."
-      },
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Heimathafen“, Trap Halftime @ 134 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Freestyle-Zirkel“ (16 Bars), Versuch 3."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 8 Editionen, 0 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-08-08 veröffentlicht (Hash 21e4e789)."
       }
     ]
   }

@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-09-30T11:10:52.253Z",
+    "edition": "2026-09-30",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 21,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Vollgas“, West Coast Bounce @ 98 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Silben-Sprint“ (12 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-09-30 veröffentlicht (Hash 1428c55f)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-29T11:22:57.576Z",
     "edition": "2026-09-29",
     "attempt": 1,
@@ -1856,51 +1891,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-08-10 veröffentlicht (Hash 2557ce5e)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-08-09T05:58:28.462Z",
-    "edition": "2026-08-09",
-    "attempt": 2,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 19,
-    "stages": [
-      {
-        "name": "Editor",
-        "ok": false,
-        "summary": "Versuch 1 abgelehnt (Frische)."
-      },
-      {
-        "name": "Editor",
-        "ok": false,
-        "summary": "Versuch 2 abgelehnt (Frische)."
-      },
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Gipfelsturm“, Uptempo Battle @ 101 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Double-Time-Drill“ (16 Bars), Versuch 3."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 9 Editionen, 0 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-08-09 veröffentlicht (Hash baaf0c9)."
       }
     ]
   }

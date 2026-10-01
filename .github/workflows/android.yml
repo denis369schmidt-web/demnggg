@@ -80,23 +80,36 @@ jobs:
         id: keystore
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_B64" ]; then
-            echo "Kein Keystore-Secret – Release-Build wird übersprungen."
+            # Ohne eigenen Schlüssel: Release-Build trotzdem mit Wegwerf-Schlüssel
+            # prüfen, damit er garantiert funktioniert, sobald die Secrets gesetzt sind.
+            echo "Kein Keystore-Secret – Release wird nur geprüft, nicht veröffentlicht."
+            keytool -genkeypair -keystore "$RUNNER_TEMP/check.jks" -alias check -keyalg RSA -keysize 2048 \
+              -validity 1 -storepass checkpass -keypass checkpass -dname "CN=CI Release Check"
+            {
+              echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/check.jks"
+              echo "ANDROID_KEYSTORE_PASSWORD=checkpass"
+              echo "ANDROID_KEY_ALIAS=check"
+              echo "ANDROID_KEY_PASSWORD=checkpass"
+            } >> "$GITHUB_ENV"
             echo "signed=false" >> "$GITHUB_OUTPUT"
           else
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
-            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            {
+              echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks"
+              echo "ANDROID_KEYSTORE_PASSWORD=$KS_PASSWORD"
+              echo "ANDROID_KEY_ALIAS=$KS_ALIAS"
+              echo "ANDROID_KEY_PASSWORD=$KS_KEY_PASSWORD"
+            } >> "$GITHUB_ENV"
             echo "signed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Signiertes App Bundle & Release-APK bauen
-        if: steps.keystore.outputs.signed == 'true'
+      - name: App Bundle & Release-APK bauen
         working-directory: mobile/android
-        env:
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: ./gradlew bundleRelease assembleRelease --no-daemon --stacktrace
 
       - name: Release hochladen
@@ -118,7 +131,7 @@ jobs:
             if [ "${{ steps.keystore.outputs.signed }}" = "true" ]; then
               echo "- Play-Store-Bundle: Artifact **outbreak-hero-release** (app-release.aab hochladen)"
             else
-              echo "- Kein Release-Bundle: Keystore-Secrets fehlen (siehe mobile/README.md)"
+              echo "- Release-Build erfolgreich geprüft (Wegwerf-Schlüssel). Für den Play Store Keystore-Secrets setzen (siehe mobile/LAUNCH.md)"
             fi
             if [ -n "$ADMOB_REWARDED_ID" ] && [ -n "$ADMOB_INTERSTITIAL_ID" ]; then
               echo "- Werbung: **echte AdMob-Anzeigen**"

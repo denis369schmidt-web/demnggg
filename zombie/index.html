@@ -4,11 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0d1210" />
+  <meta name="description" content="Outbreak Hero – Zombie-Roguelite: Räume säubern, Skills kombinieren, die Epidemie überleben." />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Outbreak Hero</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -19,6 +21,7 @@
 
     <!-- Hauptmenü -->
     <section id="menu" class="overlay">
+      <button class="icon-btn" id="settingsBtn" aria-label="Einstellungen">⚙</button>
       <h1 class="logo">OUTBREAK<span>HERO</span></h1>
       <p class="sub">Überlebe die Epidemie. Raum für Raum.</p>
       <div class="coins-line">💰 <b id="menuCoins">0</b></div>
@@ -29,6 +32,11 @@
         <button class="btn" id="armoryBtn">🔫 Waffen</button>
         <button class="btn" id="talentBtn">🧬 Talente</button>
       </div>
+      <div class="row">
+        <button class="btn" id="shopBtn">🛒 Shop</button>
+        <button class="btn" id="dailyBtn">🎁 Täglich<i class="badge hidden" id="dailyBadge">!</i></button>
+      </div>
+      <a class="btn store-cta hidden" id="storeCta" target="_blank" rel="noopener">▶ Jetzt im Play Store holen</a>
       <p class="hint">Bewegen: Finger ziehen / WASD · Stehen bleiben = automatisch schießen</p>
     </section>
 
@@ -48,10 +56,50 @@
       <button class="btn" data-back>Zurück</button>
     </section>
 
+    <!-- Shop -->
+    <section id="shop" class="overlay hidden">
+      <h2>Shop</h2>
+      <div class="coins-line">💰 <b class="coinsVal">0</b></div>
+      <div id="shopList" class="list"></div>
+      <p class="hint" id="shopNote"></p>
+      <button class="btn" id="restoreBtn">Käufe wiederherstellen</button>
+      <button class="btn" data-back>Zurück</button>
+    </section>
+
+    <!-- Tägliche Belohnung -->
+    <section id="daily" class="overlay dim hidden">
+      <h2>Tägliche Belohnung</h2>
+      <p class="sub">Komm jeden Tag wieder – Tag 7 gibt den Jackpot.</p>
+      <div id="dailyGrid" class="daily-grid"></div>
+      <button class="btn primary" id="dailyClaim">Abholen</button>
+      <button class="btn ad" id="dailyClaimAd">▶ ×2 abholen</button>
+      <button class="btn" data-back>Später</button>
+    </section>
+
+    <!-- Einstellungen -->
+    <section id="settings" class="overlay hidden">
+      <h2>Einstellungen</h2>
+      <button class="btn" id="soundBtn2">Sound: an</button>
+      <button class="btn" id="vibBtn">Vibration: an</button>
+      <button class="btn hidden" id="privacyOptsBtn">Werbe-Einwilligung ändern</button>
+      <a class="btn" id="privacyLink" target="_blank" rel="noopener">Datenschutzerklärung</a>
+      <p class="hint" id="versionLine"></p>
+      <button class="btn" data-back>Zurück</button>
+    </section>
+
     <!-- Skill-Wahl -->
     <section id="skillPick" class="overlay dim hidden">
       <h2 id="skillTitle">LEVEL UP!</h2>
       <div id="skillCards" class="cards"></div>
+      <button class="btn ad hidden" id="rerollBtn">▶ 🎲 Neu würfeln</button>
+    </section>
+
+    <!-- Wiederbeleben -->
+    <section id="revive" class="overlay dim hidden">
+      <h2>WEITERKÄMPFEN?</h2>
+      <div class="countdown" id="reviveCount">5</div>
+      <button class="btn primary ad" id="reviveAdBtn">▶ Wiederbeleben (Video)</button>
+      <button class="btn" id="reviveNoBtn">Aufgeben</button>
     </section>
 
     <!-- Pause -->
@@ -67,10 +115,15 @@
     <section id="over" class="overlay dim hidden">
       <h2 id="overTitle">GEFALLEN</h2>
       <div id="overStats" class="stats"></div>
+      <button class="btn ad hidden" id="doubleBtn">▶ Münzen ×2 (Video)</button>
       <button class="btn primary" id="againBtn">Nochmal</button>
       <button class="btn" id="menuBtn">Menü</button>
     </section>
+
+    <div id="toast" class="toast hidden"></div>
   </div>
+  <script src="config.js"></script>
+  <script src="platform.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

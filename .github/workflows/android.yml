@@ -1,0 +1,166 @@
+# Baut die Android-App (Capacitor) von Outbreak Hero.
+#
+# - Jeder Push auf zombie/ oder mobile/: Debug-APK zum direkten Installieren
+#   (Artifact "outbreak-hero-debug-apk") + Start-Test im Android-Emulator.
+# - Mit Signatur-Secrets: zusätzlich signiertes App Bundle (.aab) für den
+#   Play Store und signierte Release-APK (Artifact "outbreak-hero-release").
+#
+# Secrets (Settings → Secrets and variables → Actions), alle optional:
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+#   ADMOB_APP_ID, ADMOB_REWARDED_ID, ADMOB_INTERSTITIAL_ID
+# Variables: PRIVACY_URL, PLAY_STORE_URL
+name: Android Build
+
+on:
+  push:
+    paths:
+      - "zombie/**"
+      - "mobile/**"
+      - ".github/workflows/android.yml"
+  pull_request:
+    paths:
+      - "zombie/**"
+      - "mobile/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+      ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+      ADMOB_REWARDED_ID: ${{ secrets.ADMOB_REWARDED_ID }}
+      ADMOB_INTERSTITIAL_ID: ${{ secrets.ADMOB_INTERSTITIAL_ID }}
+      PRIVACY_URL: ${{ vars.PRIVACY_URL }}
+      PLAY_STORE_URL: ${{ vars.PLAY_STORE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Web-Inhalt bauen & mit Android synchronisieren
+        run: npm run sync
+
+      - name: Debug-APK bauen
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Debug-APK hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: outbreak-hero-debug-apk
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Signatur-Schlüssel einrichten
+        id: keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "Kein Keystore-Secret – Release-Build wird übersprungen."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Signiertes App Bundle & Release-APK bauen
+        if: steps.keystore.outputs.signed == 'true'
+        working-directory: mobile/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease assembleRelease --no-daemon --stacktrace
+
+      - name: Release hochladen
+        if: steps.keystore.outputs.signed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: outbreak-hero-release
+          path: |
+            mobile/android/app/build/outputs/bundle/release/app-release.aab
+            mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Zusammenfassung
+        run: |
+          {
+            echo "## Outbreak Hero – Android-Build #${VERSION_CODE}"
+            echo ""
+            echo "- Debug-APK: Artifact **outbreak-hero-debug-apk** (aufs Handy laden & installieren)"
+            if [ "${{ steps.keystore.outputs.signed }}" = "true" ]; then
+              echo "- Play-Store-Bundle: Artifact **outbreak-hero-release** (app-release.aab hochladen)"
+            else
+              echo "- Kein Release-Bundle: Keystore-Secrets fehlen (siehe mobile/README.md)"
+            fi
+            if [ -n "$ADMOB_REWARDED_ID" ] && [ -n "$ADMOB_INTERSTITIAL_ID" ]; then
+              echo "- Werbung: **echte AdMob-Anzeigen**"
+            else
+              echo "- Werbung: Google-**Test**-Anzeigen (AdMob-Secrets fehlen)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  smoke-test:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: outbreak-hero-debug-apk
+          path: apk
+
+      - name: KVM aktivieren
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: App im Emulator starten & prüfen
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash mobile/scripts/smoke-test.sh apk/app-debug.apk
+
+      - name: Screenshot & Log hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test
+          path: |
+            smoke.png
+            logcat.txt
+          if-no-files-found: ignore

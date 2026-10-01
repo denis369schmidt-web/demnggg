@@ -153,3 +153,38 @@ h2 { margin: 0 0 4px; font-size: 28px; letter-spacing: 1px; }
 
 .stats { display: grid; grid-template-columns: auto auto; gap: 6px 18px; font-size: 16px; }
 .stats b { color: var(--gold); text-align: right; }
+
+/* ---------- Monetarisierung & Meta-UI ---------- */
+.overlay > .icon-btn { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; }
+.btn.ad { background: #2a2140; border-color: #6b4fd6; color: #e6dcff; }
+.btn.ad::first-letter { color: #ffd84a; }
+.btn.store-cta { background: #1f3b5c; border-color: #4aa8ff; text-decoration: none; text-align: center; }
+a.btn { display: inline-block; text-decoration: none; text-align: center; }
+.badge {
+  display: inline-block; margin-left: 6px; min-width: 18px; height: 18px; line-height: 18px;
+  border-radius: 9px; background: var(--blood); color: #fff; font-style: normal; font-size: 12px;
+}
+.countdown {
+  width: 96px; height: 96px; border-radius: 50%; border: 6px solid var(--toxic);
+  display: flex; align-items: center; justify-content: center; font-size: 44px; font-weight: 900;
+}
+.daily-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; max-width: 380px; }
+.day {
+  padding: 10px 4px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel);
+  text-align: center; font-size: 13px; color: var(--muted);
+}
+.day b { display: block; font-size: 16px; color: var(--gold); }
+.day.done { opacity: 0.45; }
+.day.today { border-color: var(--toxic); box-shadow: 0 0 0 1px var(--toxic) inset; color: var(--text); }
+.day.big { grid-column: span 2; }
+.item .tag { font-size: 11px; color: var(--toxic); font-weight: 800; }
+.toast {
+  position: absolute; left: 50%; bottom: calc(40px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  z-index: 50; padding: 10px 16px; border-radius: 10px; background: rgba(10, 16, 12, 0.92);
+  border: 1px solid var(--line); font-weight: 700; max-width: 90vw; text-align: center;
+}
+.fake-ad {
+  position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+  background: repeating-linear-gradient(45deg, #222 0 20px, #2b2b2b 20px 40px);
+}
+.fake-ad-box { display: flex; flex-direction: column; gap: 12px; align-items: center; padding: 24px; border-radius: 16px; background: #111; color: #fff; }

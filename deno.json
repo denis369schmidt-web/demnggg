@@ -1,4 +1,7 @@
 {
+  "exclude": [
+    "mobile/"
+  ],
   "imports": {
     "@std/assert": "jsr:@std/assert@1"
   },

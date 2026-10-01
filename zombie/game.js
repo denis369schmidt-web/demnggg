@@ -33,6 +33,15 @@
     talents: { hp: 0, atk: 0, speed: 0, greed: 0 },
     best: { chapter: 0, room: 0 },
     sound: true,
+    vibration: true,
+    noAds: false,
+    starterOwned: false,
+    txns: [],
+    runs: 0,
+    daily: { last: "", streak: 0 },
+    freeCoins: { day: "", n: 0 },
+    tutorialDone: false,
+    reviewAsked: false,
   });
   function loadSave() {
     const d = defaultSave();
@@ -45,6 +54,9 @@
           weapons: { ...d.weapons, ...s.weapons },
           talents: { ...d.talents, ...s.talents },
           best: { ...d.best, ...s.best },
+          daily: { ...d.daily, ...s.daily },
+          freeCoins: { ...d.freeCoins, ...s.freeCoins },
+          txns: Array.isArray(s.txns) ? s.txns : [],
         };
       }
     } catch { /* kein Speicher verfügbar */ }
@@ -136,8 +148,9 @@
   const ui = {
     menu: $("menu"), armory: $("armory"), talents: $("talents"), skillPick: $("skillPick"),
     pause: $("pause"), over: $("over"), pauseBtn: $("pauseBtn"),
+    shop: $("shop"), daily: $("daily"), settings: $("settings"), revive: $("revive"),
   };
-  const overlays = [ui.menu, ui.armory, ui.talents, ui.skillPick, ui.pause, ui.over];
+  const overlays = [ui.menu, ui.armory, ui.talents, ui.skillPick, ui.pause, ui.over, ui.shop, ui.daily, ui.settings, ui.revive];
   function show(el) {
     for (const o of overlays) o.classList.toggle("hidden", o !== el);
     ui.pauseBtn.classList.toggle("hidden", el !== null);
@@ -146,7 +159,7 @@
   let scale = 1;
   let dpr = 1;
   function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
     scale = Math.min(window.innerWidth / W, window.innerHeight / H);
     canvas.style.width = `${W * scale}px`;
     canvas.style.height = `${H * scale}px`;
@@ -201,7 +214,7 @@
   // ============================================================
   // Spielzustand
   // ============================================================
-  let state = "menu"; // menu | play | pick | pause | over
+  let state = "menu"; // menu | play | pick | pause | revive | over
   let run = null;
   let player = null;
   let enemies = [];
@@ -240,7 +253,10 @@
 
   function startRun() {
     ensureAudio();
-    run = { chapter: 1, room: 0, kills: 0, coins: 0, greed: 1 + 0.1 * save.talents.greed, time: 0, pendingPicks: 0, cleared: false };
+    run = {
+      chapter: 1, room: 0, kills: 0, coins: 0, greed: 1 + 0.1 * save.talents.greed, time: 0, pendingPicks: 0, cleared: false,
+      adRevived: false, adWatched: false, earned: 0,
+    };
     player = newPlayer();
     nextRoom();
     show(null);
@@ -456,7 +472,6 @@
     if (e.key === "Escape" || e.key === "p") togglePause();
   });
   window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
-  document.addEventListener("visibilitychange", () => { if (document.hidden && state === "play") togglePause(); });
 
   function inputVector() {
     let x = 0, y = 0;
@@ -634,20 +649,53 @@
     addText(p.x, p.y - 30, `-${Math.round(dmg)}`, "#ff5a5a", 20);
     burst(p.x, p.y, "#c0392b", 10, 160);
     sfx("hurt");
-    if (navigator.vibrate) { try { navigator.vibrate(30); } catch { /* egal */ } }
+    if (save.vibration) Platform.vibrate(30);
     if (p.hp <= 0) {
       if (p.revives > 0) {
         p.revives--;
-        p.hp = p.maxHp * 0.6;
-        p.invuln = 2.5;
-        showBanner("WIEDERBELEBT", "Zweites Leben verbraucht", 1.5);
-        for (const e of enemies) if (!e.def.boss && Math.sqrt(dist2(e, p)) < 160) damageEnemy(e, 999999, { silent: true });
-        eBullets = [];
+        revivePlayer(0.6, "Zweites Leben verbraucht");
       } else {
         p.hp = 0;
-        gameOver(false);
+        if (Platform.ads.available && !run.adRevived) offerRevive(); else gameOver(false);
       }
     }
+  }
+
+  function revivePlayer(frac, sub) {
+    const p = player;
+    p.hp = p.maxHp * frac;
+    p.invuln = 2.5;
+    for (const e of enemies) if (!e.def.boss && Math.sqrt(dist2(e, p)) < 170) damageEnemy(e, 999999, { silent: true });
+    eBullets = [];
+    showBanner("WIEDERBELEBT", sub, 1.5);
+  }
+
+  // Rewarded Ad Nr. 1: Wiederbeleben (einmal pro Run, wichtigste Einnahmequelle)
+  let reviveTimer = null;
+  function offerRevive() {
+    state = "revive";
+    joy.active = false;
+    let left = 5;
+    $("reviveCount").textContent = left;
+    show(ui.revive);
+    clearInterval(reviveTimer);
+    reviveTimer = setInterval(() => {
+      left--;
+      $("reviveCount").textContent = Math.max(0, left);
+      if (left <= 0) { clearInterval(reviveTimer); if (state === "revive") gameOver(false); }
+    }, 1000);
+  }
+  async function reviveWithAd() {
+    if (state !== "revive") return;
+    clearInterval(reviveTimer);
+    const ok = await Platform.ads.showRewarded("revive");
+    if (state !== "revive") return;
+    if (!ok) { toast("Kein Video verfügbar"); gameOver(false); return; }
+    run.adRevived = true;
+    run.adWatched = true;
+    revivePlayer(1, "Volle Gesundheit!");
+    state = "play";
+    show(null);
   }
 
   // ============================================================
@@ -913,7 +961,12 @@
     run.cleared = true;
     sfx("door");
     addText(W / 2, T + 40, "TÜR OFFEN ↑", "#8cff4a", 22);
-    if (BOSS_ROOMS[run.room]) { healPlayer(player.maxHp * 0.2); }
+    if (BOSS_ROOMS[run.room]) {
+      healPlayer(player.maxHp * 0.2);
+      // Bewertung im positivsten Moment anfragen: nach dem ersten Boss-Sieg
+      if (!save.reviewAsked) { save.reviewAsked = true; persist(); setTimeout(() => Platform.requestReview(), 1500); }
+    }
+    if (!save.tutorialDone) { save.tutorialDone = true; persist(); }
   }
 
   // ============================================================
@@ -975,7 +1028,10 @@
     s.apply(player);
   }
 
-  function renderCards(title, cards) {
+  let rerollHandler = null;
+  function renderCards(title, cards, onReroll = null) {
+    rerollHandler = onReroll;
+    $("rerollBtn").classList.toggle("hidden", !(onReroll && Platform.ads.available));
     $("skillTitle").textContent = title;
     const box = $("skillCards");
     box.innerHTML = "";
@@ -992,14 +1048,13 @@
     show(ui.skillPick);
   }
 
-  function openSkillPick() {
-    run.pendingPicks--;
-    sfx("level");
+  function openSkillPick(rerolled = false) {
+    if (!rerolled) { run.pendingPicks--; sfx("level"); }
     const choices = rollSkills(3);
     if (!choices.length) { resumePlay(); return; }
     renderCards("LEVEL UP!", choices.map((s) => ({
       ...s, onPick: () => { takeSkill(s); resumePlay(); },
-    })));
+    })), rerolled ? null : () => openSkillPick(true));
   }
 
   function openSupply() {
@@ -1084,6 +1139,7 @@
       if (!chips.children.length) chips.innerHTML = '<span class="chip">Noch keine Skills</span>';
       show(ui.pause);
     } else if (state === "pause") {
+      ensureAudio();
       state = "play";
       show(null);
     }
@@ -1092,8 +1148,11 @@
   function gameOver(quit) {
     state = "over";
     joy.active = false;
+    clearInterval(reviveTimer);
     const coins = Math.round(run.coins);
+    run.earned = coins;
     save.coins += coins;
+    save.runs++;
     const score = run.chapter * 100 + run.room;
     if (score > save.best.chapter * 100 + save.best.room) save.best = { chapter: run.chapter, room: run.room };
     persist();
@@ -1104,6 +1163,10 @@
       <span>Level</span><b>${player.level}</b>
       <span>Zeit</span><b>${Math.floor(run.time / 60)}:${String(Math.floor(run.time % 60)).padStart(2, "0")}</b>
       <span>Münzen</span><b>+${coins} 💰</b>`;
+    const dbl = $("doubleBtn");
+    dbl.classList.toggle("hidden", !(Platform.ads.available && coins > 0));
+    dbl.disabled = false;
+    dbl.textContent = "▶ Münzen ×2 (Video)";
     setTimeout(() => show(ui.over), quit ? 0 : 600);
   }
 
@@ -1135,6 +1198,31 @@
     drawHud();
     if (state === "play" && joy.active) drawJoystick();
     if (banner) drawBanner();
+    if (!save.tutorialDone && run.room === 1 && (state === "play" || state === "pick")) drawTutorial();
+  }
+
+  function drawTutorial() {
+    const t = performance.now() / 1000;
+    const moving = player.moving;
+    ctx.globalAlpha = 0.75 + Math.sin(t * 4) * 0.25;
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    roundRect(W / 2 - 200, (T + B) / 2 + 40, 400, 64, 14);
+    ctx.fill();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#8cff4a";
+    ctx.font = "900 20px system-ui";
+    ctx.fillText(moving ? "Loslassen = automatisch schießen!" : "👆 Finger ziehen = laufen & ausweichen", W / 2, (T + B) / 2 + 69);
+    ctx.fillStyle = "#e8efe9";
+    ctx.font = "600 14px system-ui";
+    ctx.fillText(moving ? "Du schießt nur, wenn du stehst." : "Stehenbleiben = auf den nächsten Zombie feuern", W / 2, (T + B) / 2 + 91);
+    ctx.globalAlpha = 1;
+    if (!moving) {
+      const cx = L + 90, cy = B - 90;
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      ctx.beginPath(); ctx.arc(cx, cy, 46, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(140,255,74,0.7)";
+      ctx.beginPath(); ctx.arc(cx + Math.sin(t * 2.5) * 30, cy + Math.cos(t * 2.5) * 30, 20, 0, Math.PI * 2); ctx.fill();
+    }
   }
 
   function drawMenuBg() {
@@ -1544,33 +1632,276 @@
     return b;
   }
 
+  // ============================================================
+  // Shop, tägliche Belohnung, Einstellungen (Monetarisierung)
+  // ============================================================
+  const IDS = Platform.cfg.iap || {};
+  const COIN_PACKS = { [IDS.coinsSmall]: 1200, [IDS.coinsBig]: 7000 };
+  const SHOP_ITEMS = [
+    { id: IDS.starter, icon: "🎒", name: "Starterpaket", desc: "Werbefrei + 3.000 Münzen + Armbrust", tag: "BESTER DEAL", owned: () => save.starterOwned },
+    { id: IDS.noAds, icon: "🚫", name: "Werbefrei", desc: "Keine Zwangswerbung mehr. Bonus-Videos bleiben freiwillig.", owned: () => save.noAds },
+    { id: IDS.coinsSmall, icon: "💰", name: "Münzbeutel", desc: "1.200 Münzen" },
+    { id: IDS.coinsBig, icon: "🏆", name: "Münztruhe", desc: "7.000 Münzen", tag: "+45% MEHR" },
+  ];
+  const DAILY = [100, 150, 200, 300, 400, 500, 1000];
+  const FREE_COINS_PER_DAY = 5;
+
+  function localDay(offset = 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function toast(msg) {
+    const el = $("toast");
+    el.textContent = msg;
+    el.classList.remove("hidden");
+    clearTimeout(toast.t);
+    toast.t = setTimeout(() => el.classList.add("hidden"), 2200);
+  }
+
+  // Lieferung von Käufen (wird von der Plattform-Schicht aufgerufen)
+  Platform.iap.onDeliver((id, txId) => {
+    if (txId && save.txns.includes(txId)) return;
+    const restore = !txId || txId.startsWith("restore:");
+    let changed = false;
+    if (id === IDS.noAds) {
+      changed = !save.noAds;
+      save.noAds = true;
+    } else if (id === IDS.starter) {
+      changed = !save.starterOwned;
+      save.noAds = true;
+      if (!save.starterOwned) {
+        save.starterOwned = true;
+        save.coins += 3000;
+        if (!save.weapons.crossbow) save.weapons.crossbow = 1;
+      }
+    } else if (COIN_PACKS[id] && !restore) {
+      save.coins += COIN_PACKS[id];
+      changed = true;
+    }
+    if (!restore) { save.txns.push(txId); if (save.txns.length > 200) save.txns.shift(); }
+    persist();
+    if (changed) { sfx("level"); toast(restore ? "Kauf wiederhergestellt" : "Kauf erfolgreich – danke! ❤️"); }
+    refreshMenu();
+    if (!ui.shop.classList.contains("hidden")) renderShop();
+  });
+  Platform.on("iap", () => { if (!ui.shop.classList.contains("hidden")) renderShop(); });
+
+  function freeCoinsLeft() {
+    if (save.freeCoins.day !== localDay()) return FREE_COINS_PER_DAY;
+    return Math.max(0, FREE_COINS_PER_DAY - save.freeCoins.n);
+  }
+  const freeCoinAmount = () => 150 + 50 * save.best.chapter;
+
+  function renderShop() {
+    const list = $("shopList");
+    list.innerHTML = "";
+    if (Platform.ads.available) {
+      const left = freeCoinsLeft();
+      list.appendChild(shopRow("🎬", "Gratis-Münzen", `Kurzes Video ansehen: +${freeCoinAmount()} Münzen (${left}/${FREE_COINS_PER_DAY} heute)`, "", left > 0 ? "▶ Gratis" : "Morgen wieder", left > 0, async (btn) => {
+        btn.disabled = true;
+        const ok = await Platform.ads.showRewarded("free_coins");
+        if (ok) {
+          if (save.freeCoins.day !== localDay()) save.freeCoins = { day: localDay(), n: 0 };
+          save.freeCoins.n++;
+          save.coins += freeCoinAmount();
+          persist();
+          sfx("coin");
+          toast(`+${freeCoinAmount()} 💰`);
+        } else toast("Kein Video verfügbar");
+        renderShop();
+      }, "ad"));
+    }
+    const iapReady = Platform.iap.available;
+    for (const it of SHOP_ITEMS) {
+      if (it.owned && it.owned()) {
+        list.appendChild(shopRow(it.icon, it.name, it.desc, it.tag, "✓ Gekauft", false, null));
+        continue;
+      }
+      const prod = iapReady ? Platform.iap.product(it.id) : null;
+      const label = prod && prod.price ? prod.price : iapReady ? "…" : "In der App";
+      list.appendChild(shopRow(it.icon, it.name, it.desc, it.tag, label, !!(prod && prod.canPurchase), async (btn) => {
+        btn.disabled = true;
+        const ok = await Platform.iap.buy(it.id);
+        if (!ok) toast("Kauf abgebrochen");
+        btn.disabled = false;
+      }));
+    }
+    $("shopNote").textContent = Platform.isNative
+      ? (iapReady ? "Zahlung sicher über Google Play." : "Verbinde mit Google Play …")
+      : "Käufe sind in der Android-App verfügbar.";
+    $("restoreBtn").classList.toggle("hidden", !Platform.isNative);
+    refreshMenu();
+  }
+
+  function shopRow(icon, name, desc, tag, label, enabled, onClick, cls = "") {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML = `<div class="ico">${icon}</div>
+      <div>${tag ? `<div class="tag">${tag}</div>` : ""}<div class="name">${name}</div><div class="desc">${desc}</div></div>
+      <div class="acts"></div>`;
+    const b = document.createElement("button");
+    b.className = `btn ${cls}`;
+    b.textContent = label;
+    b.disabled = !enabled;
+    if (onClick) b.addEventListener("click", () => onClick(b));
+    row.querySelector(".acts").appendChild(b);
+    return row;
+  }
+
+  function dailyState() {
+    const claimedToday = save.daily.last === localDay();
+    const continues = claimedToday || save.daily.last === localDay(-1);
+    const streak = continues ? save.daily.streak : 0;
+    const idx = claimedToday ? (streak - 1) % 7 : streak % 7;
+    return { claimedToday, streak, idx };
+  }
+
+  function renderDaily() {
+    const st = dailyState();
+    const grid = $("dailyGrid");
+    grid.innerHTML = "";
+    DAILY.forEach((amount, i) => {
+      const d = document.createElement("div");
+      const done = i < st.idx || (st.claimedToday && i === st.idx);
+      d.className = `day${i === 6 ? " big" : ""}${done ? " done" : ""}${i === st.idx && !st.claimedToday ? " today" : ""}`;
+      d.innerHTML = `Tag ${i + 1}<b>${done ? "✓" : amount}</b>`;
+      grid.appendChild(d);
+    });
+    $("dailyClaim").disabled = st.claimedToday;
+    $("dailyClaim").textContent = st.claimedToday ? "Morgen wieder" : `Abholen (+${DAILY[st.idx]})`;
+    $("dailyClaimAd").classList.toggle("hidden", st.claimedToday || !Platform.ads.available);
+    $("dailyClaimAd").disabled = false;
+  }
+
+  function claimDaily(mult) {
+    const st = dailyState();
+    if (st.claimedToday) return;
+    const amount = DAILY[st.idx] * mult;
+    save.coins += amount;
+    save.daily = { last: localDay(), streak: st.streak + 1 };
+    persist();
+    sfx("level");
+    toast(`+${amount} 💰`);
+    renderDaily();
+    refreshMenu();
+  }
+
+  function openDaily() { renderDaily(); show(ui.daily); }
+
+  function renderSettings() {
+    $("soundBtn2").textContent = `Sound: ${save.sound ? "an" : "aus"}`;
+    $("vibBtn").textContent = `Vibration: ${save.vibration ? "an" : "aus"}`;
+    $("privacyOptsBtn").classList.toggle("hidden", !Platform.isNative);
+    $("privacyLink").href = Platform.cfg.privacyUrl || "privacy.html";
+    $("versionLine").textContent = `Outbreak Hero v${Platform.cfg.version || "1.0.0"}${Platform.isNative ? " · Android" : " · Web"}`;
+  }
+
+  // Vollbild-Werbung nur an natürlichen Pausen, nie für Käufer von "Werbefrei"
+  function shouldInterstitial() {
+    const n = Platform.cfg.interstitialEvery || 3;
+    return Platform.ads.available && !save.noAds && run && !run.adWatched && save.runs >= n && save.runs % n === 0;
+  }
+  let leaving = false;
+  async function leaveOver(next) {
+    if (leaving) return;
+    leaving = true;
+    if (shouldInterstitial()) await Platform.ads.showInterstitial();
+    leaving = false;
+    next();
+  }
+
+  let dailyShown = false;
   function toMenu() {
     state = "menu";
     run = null;
     refreshMenu();
+    const st = dailyState();
+    $("dailyBadge").classList.toggle("hidden", st.claimedToday);
+    const cta = $("storeCta");
+    cta.classList.toggle("hidden", Platform.isNative || !Platform.cfg.playStoreUrl);
+    if (Platform.cfg.playStoreUrl) cta.href = Platform.cfg.playStoreUrl;
+    if (!dailyShown && !st.claimedToday) { dailyShown = true; openDaily(); return; }
     show(ui.menu);
   }
 
   $("playBtn").addEventListener("click", startRun);
-  $("againBtn").addEventListener("click", startRun);
-  $("menuBtn").addEventListener("click", toMenu);
+  $("againBtn").addEventListener("click", () => leaveOver(startRun));
+  $("menuBtn").addEventListener("click", () => leaveOver(toMenu));
   $("armoryBtn").addEventListener("click", () => { ensureAudio(); renderArmory(); show(ui.armory); });
   $("talentBtn").addEventListener("click", () => { ensureAudio(); renderTalents(); show(ui.talents); });
+  $("shopBtn").addEventListener("click", () => { ensureAudio(); renderShop(); show(ui.shop); });
+  $("dailyBtn").addEventListener("click", () => { ensureAudio(); openDaily(); });
+  $("settingsBtn").addEventListener("click", () => { renderSettings(); show(ui.settings); });
   for (const b of document.querySelectorAll("[data-back]")) b.addEventListener("click", toMenu);
+  $("dailyClaim").addEventListener("click", () => claimDaily(1));
+  $("dailyClaimAd").addEventListener("click", async () => {
+    const b = $("dailyClaimAd");
+    b.disabled = true;
+    const ok = await Platform.ads.showRewarded("daily_x2");
+    if (ok) claimDaily(2); else { toast("Kein Video verfügbar"); b.disabled = false; }
+  });
+  $("restoreBtn").addEventListener("click", async () => { toast("Suche Käufe …"); await Platform.iap.restore(); renderShop(); });
+  $("reviveAdBtn").addEventListener("click", reviveWithAd);
+  $("reviveNoBtn").addEventListener("click", () => { if (state === "revive") gameOver(false); });
+  $("rerollBtn").addEventListener("click", async () => {
+    const fn = rerollHandler;
+    if (!fn) return;
+    rerollHandler = null;
+    $("rerollBtn").classList.add("hidden");
+    const ok = await Platform.ads.showRewarded("reroll");
+    if (ok && state === "pick") { run.adWatched = true; fn(); } else if (!ok) toast("Kein Video verfügbar");
+  });
+  $("doubleBtn").addEventListener("click", async () => {
+    const b = $("doubleBtn");
+    if (b.disabled || !run) return;
+    b.disabled = true;
+    const ok = await Platform.ads.showRewarded("double_coins");
+    if (ok && run) {
+      save.coins += run.earned;
+      persist();
+      run.adWatched = true;
+      sfx("coin");
+      b.textContent = `✓ +${run.earned} 💰 extra`;
+    } else { b.disabled = false; toast("Kein Video verfügbar"); }
+  });
   ui.pauseBtn.addEventListener("click", togglePause);
   $("resumeBtn").addEventListener("click", togglePause);
   $("quitBtn").addEventListener("click", () => gameOver(true));
   const soundBtn = $("soundBtn");
-  const syncSound = () => { soundBtn.textContent = `Sound: ${save.sound ? "an" : "aus"}`; };
-  soundBtn.addEventListener("click", () => { save.sound = !save.sound; persist(); syncSound(); });
+  const syncSound = () => { soundBtn.textContent = `Sound: ${save.sound ? "an" : "aus"}`; renderSettings(); };
+  const toggleSound = () => { save.sound = !save.sound; persist(); syncSound(); };
+  soundBtn.addEventListener("click", toggleSound);
+  $("soundBtn2").addEventListener("click", toggleSound);
+  $("vibBtn").addEventListener("click", () => { save.vibration = !save.vibration; persist(); renderSettings(); if (save.vibration) Platform.vibrate(40); });
+  $("privacyOptsBtn").addEventListener("click", () => Platform.ads.showPrivacyOptions());
   syncSound();
 
-  toMenu();
+  // Plattform-Ereignisse: Zurück-Taste, App im Hintergrund, Werbung läuft
+  Platform.on("back", () => {
+    if (Platform.ads.busy) return;
+    if (state === "play" || state === "pause") togglePause();
+    else if (state === "over") leaveOver(toMenu);
+    else if (state === "menu") {
+      if (ui.menu.classList.contains("hidden")) toMenu(); else Platform.exitApp();
+    }
+  });
+  Platform.on("pause", () => {
+    if (state === "play") togglePause();
+    if (actx && actx.state === "running") actx.suspend();
+  });
+  Platform.on("adStart", () => { if (actx && actx.state === "running") actx.suspend(); });
+  Platform.on("adEnd", () => { if (actx && save.sound) actx.resume(); });
 
-  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  Platform.init();
+  toMenu();
+  console.log("[Outbreak] Spiel gestartet", Platform.cfg.version);
+
+  if (!Platform.isNative && "serviceWorker" in navigator && location.protocol.startsWith("http")) {
     navigator.serviceWorker.register("sw.js").catch(() => { /* offline-Modus optional */ });
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, save, hurt: (d) => hurtPlayer(d) };
 })();

@@ -1,0 +1,29 @@
+{
+  "name": "outbreak-hero-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android-Build (Capacitor) für Outbreak Hero",
+  "type": "module",
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs",
+    "sync": "npm run build:web && cap sync android",
+    "apk:debug": "npm run sync && cd android && ./gradlew assembleDebug",
+    "aab:release": "npm run sync && cd android && ./gradlew bundleRelease",
+    "assets": "npx @capacitor/assets@3 generate --android --iconBackgroundColor '#0d1210' --iconBackgroundColorDark '#0d1210' --splashBackgroundColor '#0d1210' --splashBackgroundColorDark '#0d1210'"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "^8.1.0",
+    "@capacitor-community/in-app-review": "^8.0.0",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
+    "cordova-plugin-purchase": "^13.18.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "esbuild": "^0.28.2"
+  }
+}

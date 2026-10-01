@@ -1,6 +1,9 @@
 // Offline-Cache: App-Dateien sofort aus dem Cache, Update im Hintergrund.
-const CACHE = "outbreak-hero-v1";
-const FILES = ["./", "./index.html", "./style.css", "./game.js", "./manifest.webmanifest", "./icon.svg"];
+const CACHE = "outbreak-hero-v2";
+const FILES = [
+  "./", "./index.html", "./style.css", "./config.js", "./platform.js", "./game.js",
+  "./manifest.webmanifest", "./icon.svg", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png",
+];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

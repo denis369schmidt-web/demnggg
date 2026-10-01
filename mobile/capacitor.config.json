@@ -1,0 +1,16 @@
+{
+  "appId": "de.outbreakhero.game",
+  "appName": "Outbreak Hero",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#0d1210"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#0d1210",
+      "showSpinner": false
+    }
+  }
+}

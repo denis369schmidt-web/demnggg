@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-10-01T11:38:02.379Z",
+    "edition": "2026-10-01",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 25,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Spiegelbild“, Boom Bap @ 91 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Freestyle-Zirkel“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-10-01 veröffentlicht (Hash 70bf0796)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-09-30T11:10:52.253Z",
     "edition": "2026-09-30",
     "attempt": 0,
@@ -1856,41 +1891,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-08-11 veröffentlicht (Hash fe2bd37a)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-08-10T06:42:20.763Z",
-    "edition": "2026-08-10",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 24,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Tiefsee“, Boom Bap @ 89 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Ein-Wort-Anker“ (8 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 10 Editionen, 0 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-08-10 veröffentlicht (Hash 2557ce5e)."
       }
     ]
   }

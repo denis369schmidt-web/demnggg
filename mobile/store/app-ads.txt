@@ -1,0 +1,7 @@
+# Vorlage für app-ads.txt (Schutz gegen Werbebetrug, von AdMob empfohlen).
+# 1. pub-XXXXXXXXXXXXXXXX durch deine AdMob-Publisher-ID ersetzen
+#    (AdMob → Einstellungen → Kontoinformationen).
+# 2. Datei im ROOT der Website ablegen, die im Play-Store-Eintrag als
+#    "Website" steht, z. B. https://deinname.github.io/app-ads.txt
+#    (dafür ein Repo "<user>.github.io" anlegen und dort einchecken).
+google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0

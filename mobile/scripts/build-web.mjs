@@ -15,7 +15,7 @@ const env = process.env;
 
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
-for (const f of ["index.html", "style.css", "platform.js", "game.js", "icon.svg", "privacy.html", "icons"]) {
+for (const f of ["index.html", "style.css", "i18n.js", "platform.js", "game.js", "icon.svg", "privacy.html", "icons"]) {
   cpSync(join(src, f), join(out, f), { recursive: true });
 }
 

@@ -124,6 +124,7 @@
     { id: "splash", name: "Infektionsbombe", icon: "🧨", rarity: "rare", max: 2, desc: "Getötete Zombies explodieren", apply: (p) => p.deathBlast++ },
   ];
   const RARITY_WEIGHT = { common: 1, rare: 0.7, epic: 0.45 };
+  const tr = I18N.t;
 
   // ============================================================
   // Zombie-Typen
@@ -138,6 +139,8 @@
     abom: { name: "ABSCHEULICHKEIT", r: 48, hp: 2200, speed: 60, dmg: 30, xp: 40, coins: [40, 60], color: "#6b3a52", skin: "#b06a8a", boss: true },
     mother: { name: "BRUTMUTTER", r: 52, hp: 2700, speed: 34, dmg: 28, xp: 50, coins: [50, 80], color: "#3f5a3a", skin: "#a8d26a", boss: true },
   };
+
+  I18N.localizeData({ weapons: WEAPONS, talents: TALENTS, skills: SKILLS, zombies: ZOMBIES });
 
   // ============================================================
   // DOM
@@ -273,7 +276,7 @@
       run.coins += bonus;
       run.chapter++;
       run.room = 1;
-      showBanner(`KAPITEL ${run.chapter - 1} ÜBERLEBT`, `+${bonus} 💰 · Die Seuche wird stärker…`);
+      showBanner(tr("KAPITEL {n} ÜBERLEBT", { n: run.chapter - 1 }), tr("+{b} 💰 · Die Seuche wird stärker…", { b: bonus }));
     }
     enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; volleyQueue.length = 0;
     supplyCrate = null;
@@ -288,13 +291,13 @@
 
     if (isSupply) {
       supplyCrate = { x: W / 2, y: (T + B) / 2, r: 26, bob: 0 };
-      showBanner("VERSORGUNGSRAUM", "Öffne die Kiste");
+      showBanner(tr("VERSORGUNGSRAUM"), tr("Öffne die Kiste"));
     } else if (isBoss) {
       spawnEnemy(isBoss, W / 2, T + 180);
-      showBanner(`BOSS: ${ZOMBIES[isBoss].name}`, `Kapitel ${run.chapter} · Raum ${run.room}`);
+      showBanner(tr("BOSS: {name}", { name: ZOMBIES[isBoss].name }), tr("Kapitel {c} · Raum {r}", { c: run.chapter, r: run.room }));
     } else {
       spawnWave();
-      if (!banner) showBanner(`RAUM ${run.room}`, `Kapitel ${run.chapter}`, 1.2);
+      if (!banner) showBanner(tr("RAUM {r}", { r: run.room }), tr("Kapitel {c}", { c: run.chapter }), 1.2);
     }
   }
 
@@ -639,7 +642,7 @@
     const p = player;
     if (p.invuln > 0 || state !== "play") return;
     if (Math.random() < p.dodge) {
-      addText(p.x, p.y - 30, "AUSGEWICHEN", "#9ee6ff", 15);
+      addText(p.x, p.y - 30, tr("AUSGEWICHEN"), "#9ee6ff", 15);
       p.invuln = 0.3;
       return;
     }
@@ -653,7 +656,7 @@
     if (p.hp <= 0) {
       if (p.revives > 0) {
         p.revives--;
-        revivePlayer(0.6, "Zweites Leben verbraucht");
+        revivePlayer(0.6, tr("Zweites Leben verbraucht"));
       } else {
         p.hp = 0;
         if (Platform.ads.available && !run.adRevived) offerRevive(); else gameOver(false);
@@ -667,7 +670,7 @@
     p.invuln = 2.5;
     for (const e of enemies) if (!e.def.boss && Math.sqrt(dist2(e, p)) < 170) damageEnemy(e, 999999, { silent: true });
     eBullets = [];
-    showBanner("WIEDERBELEBT", sub, 1.5);
+    showBanner(tr("WIEDERBELEBT"), sub, 1.5);
   }
 
   // Rewarded Ad Nr. 1: Wiederbeleben (einmal pro Run, wichtigste Einnahmequelle)
@@ -690,10 +693,10 @@
     clearInterval(reviveTimer);
     const ok = await Platform.ads.showRewarded("revive");
     if (state !== "revive") return;
-    if (!ok) { toast("Kein Video verfügbar"); gameOver(false); return; }
+    if (!ok) { toast(tr("Kein Video verfügbar")); gameOver(false); return; }
     run.adRevived = true;
     run.adWatched = true;
-    revivePlayer(1, "Volle Gesundheit!");
+    revivePlayer(1, tr("Volle Gesundheit!"));
     state = "play";
     show(null);
   }
@@ -896,7 +899,7 @@
             if (Math.random() < 0.5) particles.push(spark(e.x, e.y + e.r * 0.6, "#5a4a3a"));
             if (e.aiT <= 0) { e.mode = "walk"; e.aiT = rand(2.2, 3.5); }
           }
-          if (e.type === "abom" && !e.phase2 && e.hp < e.maxHp * 0.5) { e.phase2 = true; e.speed *= 1.3; showBanner("RASEREI!", "Die Abscheulichkeit mutiert", 1.2); }
+          if (e.type === "abom" && !e.phase2 && e.hp < e.maxHp * 0.5) { e.phase2 = true; e.speed *= 1.3; showBanner(tr("RASEREI!"), tr("Die Abscheulichkeit mutiert"), 1.2); }
           break;
         }
         case "mother": {
@@ -912,7 +915,7 @@
             const alive = enemies.filter((q) => !q.dead && q.type === "crawler").length;
             if (alive < 14) for (let i = 0; i < 4; i++) spawnEnemy("crawler", e.x + rand(-50, 50), e.y + e.r + rand(0, 30)).spawnT = 0.3;
           }
-          if (!e.phase2 && e.hp < e.maxHp * 0.5) { e.phase2 = true; showBanner("DIE BRUT ERWACHT", "", 1.2); }
+          if (!e.phase2 && e.hp < e.maxHp * 0.5) { e.phase2 = true; showBanner(tr("DIE BRUT ERWACHT"), "", 1.2); }
           break;
         }
       }
@@ -960,7 +963,7 @@
   function roomCleared() {
     run.cleared = true;
     sfx("door");
-    addText(W / 2, T + 40, "TÜR OFFEN ↑", "#8cff4a", 22);
+    addText(W / 2, T + 40, tr("TÜR OFFEN ↑"), "#8cff4a", 22);
     if (BOSS_ROOMS[run.room]) {
       healPlayer(player.maxHp * 0.2);
       // Bewertung im positivsten Moment anfragen: nach dem ersten Boss-Sieg
@@ -1038,7 +1041,7 @@
     for (const c of cards) {
       const btn = document.createElement("button");
       btn.className = `card ${c.rarity || ""}`;
-      const lvl = c.id && player.skills[c.id] ? ` <small>(Stufe ${player.skills[c.id] + 1})</small>` : "";
+      const lvl = c.id && player.skills[c.id] ? ` <small>${tr("(Stufe {n})", { n: player.skills[c.id] + 1 })}</small>` : "";
       btn.innerHTML = `<div class="ico">${c.icon}</div><div><div class="name">${c.name}${lvl}</div><div class="desc">${c.desc}</div></div>`;
       btn.addEventListener("click", () => c.onPick(), { once: true });
       box.appendChild(btn);
@@ -1059,15 +1062,15 @@
 
   function openSupply() {
     sfx("level");
-    renderCards("VERSORGUNGSKISTE", [
-      { icon: "🩹", name: "Erste Hilfe", desc: "Heilt 50% deiner max. HP", rarity: "", onPick: () => { healPlayer(player.maxHp * 0.5); afterSupply(); } },
-      { icon: "🎁", name: "Waffenkiste", desc: "Wähle einen zusätzlichen Skill", rarity: "epic", onPick: () => { run.pendingPicks++; afterSupply(); } },
+    renderCards(tr("VERSORGUNGSKISTE"), [
+      { icon: "🩹", name: tr("Erste Hilfe"), desc: tr("Heilt 50% deiner max. HP"), rarity: "", onPick: () => { healPlayer(player.maxHp * 0.5); afterSupply(); } },
+      { icon: "🎁", name: tr("Waffenkiste"), desc: tr("Wähle einen zusätzlichen Skill"), rarity: "epic", onPick: () => { run.pendingPicks++; afterSupply(); } },
     ]);
   }
   function afterSupply() {
     supplyCrate = null;
     run.cleared = true;
-    addText(W / 2, T + 40, "TÜR OFFEN ↑", "#8cff4a", 22);
+    addText(W / 2, T + 40, tr("TÜR OFFEN ↑"), "#8cff4a", 22);
     resumePlay();
   }
 
@@ -1136,7 +1139,7 @@
         c.textContent = `${s.icon} ${s.name}${n > 1 ? ` ×${n}` : ""}`;
         chips.appendChild(c);
       }
-      if (!chips.children.length) chips.innerHTML = '<span class="chip">Noch keine Skills</span>';
+      if (!chips.children.length) chips.innerHTML = `<span class="chip">${tr("Noch keine Skills")}</span>`;
       show(ui.pause);
     } else if (state === "pause") {
       ensureAudio();
@@ -1156,17 +1159,17 @@
     const score = run.chapter * 100 + run.room;
     if (score > save.best.chapter * 100 + save.best.room) save.best = { chapter: run.chapter, room: run.room };
     persist();
-    $("overTitle").textContent = quit ? "RUN BEENDET" : "GEFALLEN";
+    $("overTitle").textContent = quit ? tr("RUN BEENDET") : tr("GEFALLEN");
     $("overStats").innerHTML = `
-      <span>Erreicht</span><b>Kap. ${run.chapter} · Raum ${run.room}</b>
-      <span>Kills</span><b>${run.kills}</b>
-      <span>Level</span><b>${player.level}</b>
-      <span>Zeit</span><b>${Math.floor(run.time / 60)}:${String(Math.floor(run.time % 60)).padStart(2, "0")}</b>
-      <span>Münzen</span><b>+${coins} 💰</b>`;
+      <span>${tr("Erreicht")}</span><b>${tr("Kap. {c} · Raum {r}", { c: run.chapter, r: run.room })}</b>
+      <span>${tr("Kills")}</span><b>${run.kills}</b>
+      <span>${tr("Level")}</span><b>${player.level}</b>
+      <span>${tr("Zeit")}</span><b>${Math.floor(run.time / 60)}:${String(Math.floor(run.time % 60)).padStart(2, "0")}</b>
+      <span>${tr("Münzen")}</span><b>+${coins} 💰</b>`;
     const dbl = $("doubleBtn");
     dbl.classList.toggle("hidden", !(Platform.ads.available && coins > 0));
     dbl.disabled = false;
-    dbl.textContent = "▶ Münzen ×2 (Video)";
+    dbl.textContent = tr("▶ Münzen ×2 (Video)");
     setTimeout(() => show(ui.over), quit ? 0 : 600);
   }
 
@@ -1211,10 +1214,10 @@
     ctx.textAlign = "center";
     ctx.fillStyle = "#8cff4a";
     ctx.font = "900 20px system-ui";
-    ctx.fillText(moving ? "Loslassen = automatisch schießen!" : "👆 Finger ziehen = laufen & ausweichen", W / 2, (T + B) / 2 + 69);
+    ctx.fillText(moving ? tr("Loslassen = automatisch schießen!") : tr("👆 Finger ziehen = laufen & ausweichen"), W / 2, (T + B) / 2 + 69);
     ctx.fillStyle = "#e8efe9";
     ctx.font = "600 14px system-ui";
-    ctx.fillText(moving ? "Du schießt nur, wenn du stehst." : "Stehenbleiben = auf den nächsten Zombie feuern", W / 2, (T + B) / 2 + 91);
+    ctx.fillText(moving ? tr("Du schießt nur, wenn du stehst.") : tr("Stehenbleiben = auf den nächsten Zombie feuern"), W / 2, (T + B) / 2 + 91);
     ctx.globalAlpha = 1;
     if (!moving) {
       const cx = L + 90, cy = B - 90;
@@ -1506,7 +1509,7 @@
     ctx.font = "700 10px system-ui"; ctx.fillText("LV", 46, 18);
     // Raum & Münzen
     ctx.textAlign = "left"; ctx.fillStyle = "#8fa396"; ctx.font = "700 15px system-ui";
-    ctx.fillText(`Kapitel ${run.chapter} · Raum ${run.room}/${ROOMS_PER_CHAPTER}`, 72, 64);
+    ctx.fillText(tr("Kapitel {c} · Raum {r}", { c: run.chapter, r: `${run.room}/${ROOMS_PER_CHAPTER}` }), 72, 64);
     ctx.textAlign = "right"; ctx.fillStyle = "#ffc94a";
     ctx.fillText(`💰 ${Math.floor(run.coins)}`, W - 70, 64);
     ctx.textAlign = "left"; ctx.fillStyle = "#e8efe9"; ctx.font = "600 13px system-ui";
@@ -1567,9 +1570,9 @@
   // ============================================================
   function refreshMenu() {
     $("menuCoins").textContent = save.coins;
-    $("menuBest").textContent = save.best.chapter ? `Kapitel ${save.best.chapter} · Raum ${save.best.room}` : "–";
+    $("menuBest").textContent = save.best.chapter ? tr("Kapitel {c} · Raum {r}", { c: save.best.chapter, r: save.best.room }) : "–";
     const w = WEAPONS[save.equipped];
-    $("menuEquipped").textContent = `Ausgerüstet: ${w.icon} ${w.name} (Stufe ${save.weapons[save.equipped]})`;
+    $("menuEquipped").textContent = tr("Ausgerüstet: {w} (Stufe {n})", { w: `${w.icon} ${w.name}`, n: save.weapons[save.equipped] });
     for (const el of document.querySelectorAll(".coinsVal")) el.textContent = save.coins;
   }
 
@@ -1582,13 +1585,13 @@
       row.className = `item${save.equipped === id ? " active" : ""}`;
       const dps = Math.round(w.dmg * w.pellets * w.rate * weaponLvlMult(lvl || 1));
       row.innerHTML = `<div class="ico">${w.icon}</div>
-        <div><div class="name">${w.name}${lvl ? ` · Stufe ${lvl}` : ""}</div><div class="desc">${w.desc} · DPS ~${dps}</div></div>
+        <div><div class="name">${w.name}${lvl ? tr(" · Stufe {n}", { n: lvl }) : ""}</div><div class="desc">${w.desc} · DPS ~${dps}</div></div>
         <div class="acts"></div>`;
       const acts = row.querySelector(".acts");
       if (!lvl) {
-        acts.appendChild(actionBtn(`Kaufen ${w.price}💰`, save.coins >= w.price, () => { save.coins -= w.price; save.weapons[id] = 1; save.equipped = id; }));
+        acts.appendChild(actionBtn(tr("Kaufen {p}💰", { p: w.price }), save.coins >= w.price, () => { save.coins -= w.price; save.weapons[id] = 1; save.equipped = id; }));
       } else {
-        if (save.equipped !== id) acts.appendChild(actionBtn("Ausrüsten", true, () => { save.equipped = id; }));
+        if (save.equipped !== id) acts.appendChild(actionBtn(tr("Ausrüsten"), true, () => { save.equipped = id; }));
         if (lvl < WEAPON_MAX_LVL) {
           const c = weaponUpgradeCost(lvl);
           acts.appendChild(actionBtn(`▲ ${c}💰`, save.coins >= c, () => { save.coins -= c; save.weapons[id]++; }));
@@ -1638,10 +1641,10 @@
   const IDS = Platform.cfg.iap || {};
   const COIN_PACKS = { [IDS.coinsSmall]: 1200, [IDS.coinsBig]: 7000 };
   const SHOP_ITEMS = [
-    { id: IDS.starter, icon: "🎒", name: "Starterpaket", desc: "Werbefrei + 3.000 Münzen + Armbrust", tag: "BESTER DEAL", owned: () => save.starterOwned },
-    { id: IDS.noAds, icon: "🚫", name: "Werbefrei", desc: "Keine Zwangswerbung mehr. Bonus-Videos bleiben freiwillig.", owned: () => save.noAds },
-    { id: IDS.coinsSmall, icon: "💰", name: "Münzbeutel", desc: "1.200 Münzen" },
-    { id: IDS.coinsBig, icon: "🏆", name: "Münztruhe", desc: "7.000 Münzen", tag: "+45% MEHR" },
+    { id: IDS.starter, icon: "🎒", name: tr("Starterpaket"), desc: tr("Werbefrei + 3.000 Münzen + Armbrust"), tag: tr("BESTER DEAL"), owned: () => save.starterOwned },
+    { id: IDS.noAds, icon: "🚫", name: tr("Werbefrei"), desc: tr("Keine Zwangswerbung mehr. Bonus-Videos bleiben freiwillig."), owned: () => save.noAds },
+    { id: IDS.coinsSmall, icon: "💰", name: tr("Münzbeutel"), desc: tr("1.200 Münzen") },
+    { id: IDS.coinsBig, icon: "🏆", name: tr("Münztruhe"), desc: tr("7.000 Münzen"), tag: tr("+45% MEHR") },
   ];
   const DAILY = [100, 150, 200, 300, 400, 500, 1000];
   const FREE_COINS_PER_DAY = 5;
@@ -1682,7 +1685,7 @@
     }
     if (!restore) { save.txns.push(txId); if (save.txns.length > 200) save.txns.shift(); }
     persist();
-    if (changed) { sfx("level"); toast(restore ? "Kauf wiederhergestellt" : "Kauf erfolgreich – danke! ❤️"); }
+    if (changed) { sfx("level"); toast(restore ? tr("Kauf wiederhergestellt") : tr("Kauf erfolgreich – danke! ❤️")); }
     refreshMenu();
     if (!ui.shop.classList.contains("hidden")) renderShop();
   });
@@ -1699,7 +1702,7 @@
     list.innerHTML = "";
     if (Platform.ads.available) {
       const left = freeCoinsLeft();
-      list.appendChild(shopRow("🎬", "Gratis-Münzen", `Kurzes Video ansehen: +${freeCoinAmount()} Münzen (${left}/${FREE_COINS_PER_DAY} heute)`, "", left > 0 ? "▶ Gratis" : "Morgen wieder", left > 0, async (btn) => {
+      list.appendChild(shopRow("🎬", tr("Gratis-Münzen"), tr("Kurzes Video ansehen: +{x} Münzen ({l}/{n} heute)", { x: freeCoinAmount(), l: left, n: FREE_COINS_PER_DAY }), "", left > 0 ? tr("▶ Gratis") : tr("Morgen wieder"), left > 0, async (btn) => {
         btn.disabled = true;
         const ok = await Platform.ads.showRewarded("free_coins");
         if (ok) {
@@ -1709,28 +1712,28 @@
           persist();
           sfx("coin");
           toast(`+${freeCoinAmount()} 💰`);
-        } else toast("Kein Video verfügbar");
+        } else toast(tr("Kein Video verfügbar"));
         renderShop();
       }, "ad"));
     }
     const iapReady = Platform.iap.available;
     for (const it of SHOP_ITEMS) {
       if (it.owned && it.owned()) {
-        list.appendChild(shopRow(it.icon, it.name, it.desc, it.tag, "✓ Gekauft", false, null));
+        list.appendChild(shopRow(it.icon, it.name, it.desc, it.tag, tr("✓ Gekauft"), false, null));
         continue;
       }
       const prod = iapReady ? Platform.iap.product(it.id) : null;
-      const label = prod && prod.price ? prod.price : iapReady ? "…" : "In der App";
+      const label = prod && prod.price ? prod.price : iapReady ? "…" : tr("In der App");
       list.appendChild(shopRow(it.icon, it.name, it.desc, it.tag, label, !!(prod && prod.canPurchase), async (btn) => {
         btn.disabled = true;
         const ok = await Platform.iap.buy(it.id);
-        if (!ok) toast("Kauf abgebrochen");
+        if (!ok) toast(tr("Kauf abgebrochen"));
         btn.disabled = false;
       }));
     }
     $("shopNote").textContent = Platform.isNative
-      ? (iapReady ? "Zahlung sicher über Google Play." : "Verbinde mit Google Play …")
-      : "Käufe sind in der Android-App verfügbar.";
+      ? (iapReady ? tr("Zahlung sicher über Google Play.") : tr("Verbinde mit Google Play …"))
+      : tr("Käufe sind in der Android-App verfügbar.");
     $("restoreBtn").classList.toggle("hidden", !Platform.isNative);
     refreshMenu();
   }
@@ -1766,11 +1769,11 @@
       const d = document.createElement("div");
       const done = i < st.idx || (st.claimedToday && i === st.idx);
       d.className = `day${i === 6 ? " big" : ""}${done ? " done" : ""}${i === st.idx && !st.claimedToday ? " today" : ""}`;
-      d.innerHTML = `Tag ${i + 1}<b>${done ? "✓" : amount}</b>`;
+      d.innerHTML = `${tr("Tag {n}", { n: i + 1 })}<b>${done ? "✓" : amount}</b>`;
       grid.appendChild(d);
     });
     $("dailyClaim").disabled = st.claimedToday;
-    $("dailyClaim").textContent = st.claimedToday ? "Morgen wieder" : `Abholen (+${DAILY[st.idx]})`;
+    $("dailyClaim").textContent = st.claimedToday ? tr("Morgen wieder") : tr("Abholen (+{x})", { x: DAILY[st.idx] });
     $("dailyClaimAd").classList.toggle("hidden", st.claimedToday || !Platform.ads.available);
     $("dailyClaimAd").disabled = false;
   }
@@ -1791,10 +1794,14 @@
   function openDaily() { renderDaily(); show(ui.daily); }
 
   function renderSettings() {
-    $("soundBtn2").textContent = `Sound: ${save.sound ? "an" : "aus"}`;
-    $("vibBtn").textContent = `Vibration: ${save.vibration ? "an" : "aus"}`;
+    $("soundBtn2").textContent = tr("Sound: {v}", { v: tr(save.sound ? "an" : "aus") });
+    $("vibBtn").textContent = tr("Vibration: {v}", { v: tr(save.vibration ? "an" : "aus") });
+    $("langBtn").textContent = tr("Sprache: {v}", { v: I18N.lang === "de" ? "Deutsch" : "English" });
     $("privacyOptsBtn").classList.toggle("hidden", !Platform.isNative);
     $("privacyLink").href = Platform.cfg.privacyUrl || "privacy.html";
+    // In der App im selben WebView öffnen: externe Links leitet Capacitor an den Browser weiter,
+    // lokale Seiten bleiben per Zurück-Taste erreichbar.
+    if (Platform.isNative) $("privacyLink").removeAttribute("target");
     $("versionLine").textContent = `Outbreak Hero v${Platform.cfg.version || "1.0.0"}${Platform.isNative ? " · Android" : " · Web"}`;
   }
 
@@ -1840,9 +1847,9 @@
     const b = $("dailyClaimAd");
     b.disabled = true;
     const ok = await Platform.ads.showRewarded("daily_x2");
-    if (ok) claimDaily(2); else { toast("Kein Video verfügbar"); b.disabled = false; }
+    if (ok) claimDaily(2); else { toast(tr("Kein Video verfügbar")); b.disabled = false; }
   });
-  $("restoreBtn").addEventListener("click", async () => { toast("Suche Käufe …"); await Platform.iap.restore(); renderShop(); });
+  $("restoreBtn").addEventListener("click", async () => { toast(tr("Suche Käufe …")); await Platform.iap.restore(); renderShop(); });
   $("reviveAdBtn").addEventListener("click", reviveWithAd);
   $("reviveNoBtn").addEventListener("click", () => { if (state === "revive") gameOver(false); });
   $("rerollBtn").addEventListener("click", async () => {
@@ -1851,7 +1858,7 @@
     rerollHandler = null;
     $("rerollBtn").classList.add("hidden");
     const ok = await Platform.ads.showRewarded("reroll");
-    if (ok && state === "pick") { run.adWatched = true; fn(); } else if (!ok) toast("Kein Video verfügbar");
+    if (ok && state === "pick") { run.adWatched = true; fn(); } else if (!ok) toast(tr("Kein Video verfügbar"));
   });
   $("doubleBtn").addEventListener("click", async () => {
     const b = $("doubleBtn");
@@ -1864,18 +1871,19 @@
       run.adWatched = true;
       sfx("coin");
       b.textContent = `✓ +${run.earned} 💰 extra`;
-    } else { b.disabled = false; toast("Kein Video verfügbar"); }
+    } else { b.disabled = false; toast(tr("Kein Video verfügbar")); }
   });
   ui.pauseBtn.addEventListener("click", togglePause);
   $("resumeBtn").addEventListener("click", togglePause);
   $("quitBtn").addEventListener("click", () => gameOver(true));
   const soundBtn = $("soundBtn");
-  const syncSound = () => { soundBtn.textContent = `Sound: ${save.sound ? "an" : "aus"}`; renderSettings(); };
+  const syncSound = () => { soundBtn.textContent = tr("Sound: {v}", { v: tr(save.sound ? "an" : "aus") }); renderSettings(); };
   const toggleSound = () => { save.sound = !save.sound; persist(); syncSound(); };
   soundBtn.addEventListener("click", toggleSound);
   $("soundBtn2").addEventListener("click", toggleSound);
   $("vibBtn").addEventListener("click", () => { save.vibration = !save.vibration; persist(); renderSettings(); if (save.vibration) Platform.vibrate(40); });
   $("privacyOptsBtn").addEventListener("click", () => Platform.ads.showPrivacyOptions());
+  $("langBtn").addEventListener("click", () => { I18N.setLang(I18N.lang === "de" ? "en" : "de"); location.reload(); });
   syncSound();
 
   // Plattform-Ereignisse: Zurück-Taste, App im Hintergrund, Werbung läuft
@@ -1894,6 +1902,7 @@
   Platform.on("adStart", () => { if (actx && actx.state === "running") actx.suspend(); });
   Platform.on("adEnd", () => { if (actx && save.sound) actx.resume(); });
 
+  I18N.localizeDom();
   Platform.init();
   toMenu();
   console.log("[Outbreak] Spiel gestartet", Platform.cfg.version);
@@ -1903,5 +1912,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, save, hurt: (d) => hurtPlayer(d) };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y) };
 })();

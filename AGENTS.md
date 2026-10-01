@@ -30,6 +30,12 @@ The static app has no build step. The agent system uses Deno (install via `curl 
 
 CI (`.github/workflows/deno.yml`) runs `deno lint` and `deno test -A` on pushes/PRs to `main`.
 
+### Outbreak Hero (Zombie-Spiel)
+- `zombie/` — eigenständiges Canvas-Spiel (Vanilla JS, keine Abhängigkeiten): `game.js` (Logik), `platform.js` (Werbung/Käufe/native Funktionen hinter `window.Platform`), `i18n.js` (DE/EN), `config.js`. Lokal: `http://localhost:8080/zombie/` – auf localhost erscheint Test-Werbung statt AdMob.
+- `mobile/` — Capacitor-8-Android-Projekt (Node 22, JDK 21). `npm ci && npm run sync` kopiert `zombie/` nach `mobile/www` und bündelt die Plugins. Ein Android-SDK ist in der Cloud-VM nicht verfügbar; gebaut und im Emulator getestet wird über `.github/workflows/android.yml`.
+- `mobile/` ist per `deno.json` von Deno ausgeschlossen; `zombie/` von Lint/Format.
+- Test-Hook im Browser: `window.__outbreak` (state, run, player, enemies, save, hurt, spawn).
+
 ### Non-obvious notes
 - Core flows that work headlessly in-browser: entering keywords -> "Text generieren" generates timed lyrics, and "Beat starten" plays a synthesized beat with a live `Takt-Position` counter.
 - The **recording** feature (`Aufnahme starten`) calls `getUserMedia`, so it needs microphone access. In a headless/cloud VM without a mic, recording will fail with "Mikrofonzugriff verweigert" — this is expected and does not indicate a broken environment.

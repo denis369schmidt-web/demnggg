@@ -10,9 +10,20 @@
     "test": "deno test -A"
   },
   "lint": {
-    "exclude": ["game.js", "channel.js", "agents.js"]
+    "exclude": [
+      "game.js",
+      "channel.js",
+      "agents.js",
+      "zombie/"
+    ]
   },
   "fmt": {
-    "exclude": ["game.js", "channel.js", "agents.js", "content/"]
+    "exclude": [
+      "game.js",
+      "channel.js",
+      "agents.js",
+      "content/",
+      "zombie/"
+    ]
   }
 }

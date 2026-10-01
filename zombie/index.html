@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1210" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Outbreak Hero</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="stage">
+    <canvas id="game"></canvas>
+
+    <button id="pauseBtn" class="icon-btn hidden" aria-label="Pause">II</button>
+
+    <!-- Hauptmenü -->
+    <section id="menu" class="overlay">
+      <h1 class="logo">OUTBREAK<span>HERO</span></h1>
+      <p class="sub">Überlebe die Epidemie. Raum für Raum.</p>
+      <div class="coins-line">💰 <b id="menuCoins">0</b></div>
+      <div class="best-line">Rekord: <b id="menuBest">–</b></div>
+      <div class="equipped" id="menuEquipped"></div>
+      <button class="btn primary" id="playBtn">SPIELEN</button>
+      <div class="row">
+        <button class="btn" id="armoryBtn">🔫 Waffen</button>
+        <button class="btn" id="talentBtn">🧬 Talente</button>
+      </div>
+      <p class="hint">Bewegen: Finger ziehen / WASD · Stehen bleiben = automatisch schießen</p>
+    </section>
+
+    <!-- Waffenkammer -->
+    <section id="armory" class="overlay hidden">
+      <h2>Waffenkammer</h2>
+      <div class="coins-line">💰 <b class="coinsVal">0</b></div>
+      <div id="weaponList" class="list"></div>
+      <button class="btn" data-back>Zurück</button>
+    </section>
+
+    <!-- Talente -->
+    <section id="talents" class="overlay hidden">
+      <h2>Talente</h2>
+      <div class="coins-line">💰 <b class="coinsVal">0</b></div>
+      <div id="talentList" class="list"></div>
+      <button class="btn" data-back>Zurück</button>
+    </section>
+
+    <!-- Skill-Wahl -->
+    <section id="skillPick" class="overlay dim hidden">
+      <h2 id="skillTitle">LEVEL UP!</h2>
+      <div id="skillCards" class="cards"></div>
+    </section>
+
+    <!-- Pause -->
+    <section id="pause" class="overlay dim hidden">
+      <h2>Pause</h2>
+      <div id="pauseSkills" class="skill-chips"></div>
+      <button class="btn primary" id="resumeBtn">Weiter</button>
+      <button class="btn" id="soundBtn">Sound: an</button>
+      <button class="btn danger" id="quitBtn">Run beenden</button>
+    </section>
+
+    <!-- Game Over -->
+    <section id="over" class="overlay dim hidden">
+      <h2 id="overTitle">GEFALLEN</h2>
+      <div id="overStats" class="stats"></div>
+      <button class="btn primary" id="againBtn">Nochmal</button>
+      <button class="btn" id="menuBtn">Menü</button>
+    </section>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>

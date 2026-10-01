@@ -1,0 +1,14 @@
+{
+  "name": "Outbreak Hero",
+  "short_name": "Outbreak",
+  "description": "Zombie-Roguelite: Räume säubern, Skills sammeln, überleben.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#0d1210",
+  "theme_color": "#0d1210",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -1,65 +1,65 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-01",
-  "generatedAt": "2026-10-01T11:38:02.379Z",
+  "edition": "2026-10-02",
+  "generatedAt": "2026-10-02T11:07:04.350Z",
   "attempt": 0,
   "theme": {
-    "id": "spiegelbild",
-    "title": "Spiegelbild",
-    "mood": "ehrlich",
-    "description": "Selbstreflexion ohne Filter – die härteste Battle-Runde.",
+    "id": "marktplatz",
+    "title": "Marktplatz",
+    "mood": "wach",
+    "description": "Beobachtungen aus der Stadt – Storytelling in Echtzeit.",
     "keywords": [
-      "Spiegel",
-      "Wahrheit",
-      "Zweifel",
-      "Stolz",
-      "Wandel",
-      "Kern"
+      "Stadt",
+      "Stimmen",
+      "Menschen",
+      "Ecken",
+      "Geschichten",
+      "Puls"
     ]
   },
   "challenge": {
-    "id": "freestyle-zirkel",
-    "title": "Freestyle-Zirkel",
-    "task": "Freestyle 8 Bars über „Spiegelbild“ – nutze alle Wörter aus dem Wortpaket „Gefühl & Bewegung“ mindestens einmal.",
-    "constraint": "Jede vierte Zeile beginnt mit demselben Wort.",
-    "bars": 8,
-    "bpm": 91
+    "id": "vokal-fessel",
+    "title": "Vokal-Fessel",
+    "task": "Schreibe 12 Bars über „Marktplatz“, in denen jede Zeile auf denselben Vokalklang endet.",
+    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
+    "bars": 12,
+    "bpm": 150
   },
   "wordPacks": [
     {
-      "id": "spiegelbild-thema",
-      "title": "Thema: Spiegelbild",
+      "id": "marktplatz-thema",
+      "title": "Thema: Marktplatz",
       "words": [
-        "Kern",
-        "Wandel",
-        "Spiegel",
-        "Zweifel",
-        "Stolz",
-        "Wahrheit"
+        "Ecken",
+        "Puls",
+        "Geschichten",
+        "Menschen",
+        "Stadt",
+        "Stimmen"
       ]
     },
     {
-      "id": "2026-10-01-bilder",
+      "id": "2026-10-02-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Schatten",
-        "Neonlicht",
-        "Leuchtturm",
-        "Satellit",
-        "Kompass",
-        "Tinte"
+        "Magnet",
+        "Fundament",
+        "Antenne",
+        "Echo",
+        "Radar",
+        "Anker"
       ]
     },
     {
-      "id": "2026-10-01-energie",
+      "id": "2026-10-02-energie",
       "title": "Gefühl & Bewegung",
       "words": [
+        "Balance",
         "Haltung",
-        "Hunger",
-        "Frieden",
-        "kreisen",
-        "pushen",
-        "tauchen"
+        "Glut",
+        "klettern",
+        "sprinten",
+        "driften"
       ]
     }
   ],
@@ -69,54 +69,54 @@
       "b": "Verstand"
     },
     {
-      "a": "Stein",
-      "b": "allein"
+      "a": "Meer",
+      "b": "schwer"
     },
     {
-      "a": "Druck",
-      "b": "Ruck"
+      "a": "Welle",
+      "b": "Schwelle"
     },
     {
-      "a": "Nebel",
-      "b": "Pegel"
+      "a": "Glut",
+      "b": "Mut"
     },
     {
-      "a": "Fluss",
-      "b": "Schluss"
+      "a": "Wind",
+      "b": "geschwind"
     },
     {
-      "a": "Kette",
-      "b": "Wette"
+      "a": "Leben",
+      "b": "geben"
     }
   ],
   "starterBars": [
     {
-      "line": "Aus Wahrheit wird ein Plan, aus dem Plan wird ein Schritt",
+      "line": "Stimmen als Kompass und die Snare gibt den Takt",
       "syllables": 12
     },
     {
-      "line": "Leuchtturm auf Repeat, bis die Hook von alleine läuft",
-      "syllables": 13
+      "line": "Aus Stimmen wird ein Plan, aus dem Plan wird ein Schritt",
+      "syllables": 12
     },
     {
-      "line": "Ich stapel Silben auf Wahrheit, bis der Pegel sich häuft",
+      "line": "Ich stapel Silben auf Stimmen, bis der Pegel sich häuft",
       "syllables": 14
     },
     {
-      "line": "Mit Leuchtturm in der Stimme klingt selbst Stille wie ein Ruf",
-      "syllables": 14
+      "line": "Stimmen im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 11
     }
   ],
   "flowTip": {
-    "id": "vokal-farben",
-    "title": "Vokalfarben mischen",
-    "tip": "Dunkle Vokale (o, u) klingen schwer, helle (i, e) schnell. Wähle Reimwörter passend zur Stimmung."
+    "id": "pausen-power",
+    "title": "Pausen sind Punchlines",
+    "tip": "Eine gut gesetzte Pause vor der Punchline verdoppelt ihre Wirkung. Stille ist Teil des Flows."
   },
-  "quote": "Ein ruhiger Atem ist die beste Punchline-Versicherung.",
+  "quote": "Jede krumme Bar von heute ist das Fundament der geraden von morgen.",
   "beatPreset": {
-    "bpm": 91,
-    "pattern": "Boom Bap",
-    "energy": "mittel"
+    "bpm": 150,
+    "pattern": "Double-Time Drill",
+    "energy": "hoch"
   },
   "editorial": {
     "score": 100,
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-01",
+    "latestEdition": "2026-10-02",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

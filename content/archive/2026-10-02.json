@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-08-30",
-  "generatedAt": "2026-08-30T10:29:35.199Z",
+  "edition": "2026-10-02",
+  "generatedAt": "2026-10-02T11:07:04.350Z",
   "attempt": 0,
   "theme": {
     "id": "marktplatz",
@@ -18,11 +18,11 @@
     ]
   },
   "challenge": {
-    "id": "storytelling-run",
-    "title": "Storytelling-Run",
-    "task": "Erzähle in 8 Bars eine Mini-Geschichte über „Marktplatz“ mit Anfang, Wendepunkt und Schlusszeile.",
-    "constraint": "Die Hook-Zeile muss eine Frage sein.",
-    "bars": 8,
+    "id": "vokal-fessel",
+    "title": "Vokal-Fessel",
+    "task": "Schreibe 12 Bars über „Marktplatz“, in denen jede Zeile auf denselben Vokalklang endet.",
+    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
+    "bars": 12,
     "bpm": 150
   },
   "wordPacks": [
@@ -31,92 +31,92 @@
       "title": "Thema: Marktplatz",
       "words": [
         "Ecken",
-        "Geschichten",
-        "Stadt",
-        "Stimmen",
         "Puls",
-        "Menschen"
+        "Geschichten",
+        "Menschen",
+        "Stadt",
+        "Stimmen"
       ]
     },
     {
-      "id": "2026-08-30-bilder",
+      "id": "2026-10-02-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Spiegel",
         "Magnet",
-        "Leuchtturm",
-        "Skyline",
+        "Fundament",
+        "Antenne",
         "Echo",
-        "Tinte"
+        "Radar",
+        "Anker"
       ]
     },
     {
-      "id": "2026-08-30-energie",
+      "id": "2026-10-02-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Feuer",
         "Balance",
-        "Geduld",
-        "grinden",
-        "schweben",
-        "landen"
+        "Haltung",
+        "Glut",
+        "klettern",
+        "sprinten",
+        "driften"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Weite",
-      "b": "Seite"
-    },
-    {
-      "a": "Spur",
-      "b": "pur"
-    },
-    {
-      "a": "Wind",
-      "b": "geschwind"
+      "a": "Hand",
+      "b": "Verstand"
     },
     {
       "a": "Meer",
       "b": "schwer"
     },
     {
-      "a": "Rauch",
-      "b": "auch"
+      "a": "Welle",
+      "b": "Schwelle"
     },
     {
-      "a": "Takt",
-      "b": "exakt"
+      "a": "Glut",
+      "b": "Mut"
+    },
+    {
+      "a": "Wind",
+      "b": "geschwind"
+    },
+    {
+      "a": "Leben",
+      "b": "geben"
     }
   ],
   "starterBars": [
     {
-      "line": "Geschichten im Blick, ich bleib ruhig auf der Eins",
+      "line": "Stimmen als Kompass und die Snare gibt den Takt",
       "syllables": 12
     },
     {
-      "line": "Menschen in der Hand und der Zweifel wird kleiner",
+      "line": "Aus Stimmen wird ein Plan, aus dem Plan wird ein Schritt",
       "syllables": 12
     },
     {
-      "line": "Geschichten als Kompass und die Snare gibt den Takt",
-      "syllables": 13
+      "line": "Ich stapel Silben auf Stimmen, bis der Pegel sich häuft",
+      "syllables": 14
     },
     {
-      "line": "Menschen bleibt der Anker, wenn der Offbeat mich ruft",
-      "syllables": 12
+      "line": "Stimmen im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 11
     }
   ],
   "flowTip": {
-    "id": "tempo-treppe",
-    "title": "Tempo-Treppe",
-    "tip": "Trainiere denselben Text bei 85, 95 und 110 BPM. Wer die Treppe hochkommt, sitzt bei jedem Beat."
+    "id": "pausen-power",
+    "title": "Pausen sind Punchlines",
+    "tip": "Eine gut gesetzte Pause vor der Punchline verdoppelt ihre Wirkung. Stille ist Teil des Flows."
   },
-  "quote": "Talent startet den Motor, Routine fährt die Strecke.",
+  "quote": "Jede krumme Bar von heute ist das Fundament der geraden von morgen.",
   "beatPreset": {
     "bpm": 150,
-    "pattern": "Trap Halftime",
-    "energy": "mittel"
+    "pattern": "Double-Time Drill",
+    "energy": "hoch"
   },
   "editorial": {
     "score": 100,
@@ -156,11 +156,12 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-08-30",
+    "latestEdition": "2026-10-02",
     "archivedEditions": 30,
-    "prunedEditions": 0,
+    "prunedEditions": 1,
     "notes": [
-      "Archiv ist aktuell und vollständig."
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
     ]
   }
 }

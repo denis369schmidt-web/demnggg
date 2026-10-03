@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-10-03T10:25:13.366Z",
+    "edition": "2026-10-03",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 24,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Gewitterfront“, West Coast Bounce @ 102 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Punchline-Schmiede“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-10-03 veröffentlicht (Hash 1e4c794c)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-10-02T11:07:04.350Z",
     "edition": "2026-10-02",
     "attempt": 0,
@@ -1851,46 +1886,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-08-13 veröffentlicht (Hash e01c236f)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-08-12T06:42:34.276Z",
-    "edition": "2026-08-12",
-    "attempt": 1,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 21,
-    "stages": [
-      {
-        "name": "Editor",
-        "ok": false,
-        "summary": "Versuch 1 abgelehnt (Frische)."
-      },
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Vollgas“, Trap Halftime @ 144 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Punchline-Schmiede“ (16 Bars), Versuch 2."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 12 Editionen, 0 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-08-12 veröffentlicht (Hash f4bf78f2)."
       }
     ]
   }

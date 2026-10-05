@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-09-02",
-  "generatedAt": "2026-09-02T09:38:38.256Z",
+  "edition": "2026-10-05",
+  "generatedAt": "2026-10-05T12:17:20.215Z",
   "attempt": 1,
   "theme": {
     "id": "heimathafen",
@@ -18,108 +18,108 @@
     ]
   },
   "challenge": {
-    "id": "freestyle-zirkel",
-    "title": "Freestyle-Zirkel",
-    "task": "Freestyle 16 Bars über „Heimathafen“ – nutze alle Wörter aus dem Wortpaket „Gefühl & Bewegung“ mindestens einmal.",
-    "constraint": "Baue genau eine bewusste Pause von einem halben Takt ein.",
-    "bars": 16,
-    "bpm": 92
+    "id": "leiser-lauter",
+    "title": "Leiser & Lauter",
+    "task": "Performe 12 Bars über „Heimathafen“ und steigere die Dynamik von Flüstern bis volle Energie.",
+    "constraint": "Verwende mindestens ein Bild aus der Natur.",
+    "bars": 12,
+    "bpm": 156
   },
   "wordPacks": [
     {
       "id": "heimathafen-thema",
       "title": "Thema: Heimathafen",
       "words": [
-        "Wurzeln",
+        "Anker",
         "Block",
         "Erinnerung",
-        "Heimat",
         "Familie",
-        "Anker"
+        "Heimat",
+        "Wurzeln"
       ]
     },
     {
-      "id": "2026-09-02-bilder",
+      "id": "2026-10-05-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Fundament",
         "Spiegel",
-        "Anker",
-        "Silhouette",
-        "Tinte",
-        "Kompass"
+        "Radar",
+        "Magnet",
+        "Antenne",
+        "Neonlicht",
+        "Leuchtturm"
       ]
     },
     {
-      "id": "2026-09-02-energie",
+      "id": "2026-10-05-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Ruhe",
         "Instinkt",
-        "Mut",
-        "klettern",
-        "tauchen",
+        "Hunger",
+        "Glut",
+        "sprinten",
+        "pushen",
         "landen"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Meer",
-      "b": "schwer"
-    },
-    {
-      "a": "Herz",
-      "b": "Schmerz"
-    },
-    {
-      "a": "Kern",
-      "b": "fern"
-    },
-    {
       "a": "Beben",
       "b": "schweben"
     },
     {
-      "a": "Wind",
-      "b": "geschwind"
+      "a": "Spur",
+      "b": "pur"
     },
     {
-      "a": "Licht",
-      "b": "Sicht"
+      "a": "Zeit",
+      "b": "bereit"
+    },
+    {
+      "a": "Stein",
+      "b": "allein"
+    },
+    {
+      "a": "Hallen",
+      "b": "knallen"
+    },
+    {
+      "a": "Wind",
+      "b": "geschwind"
     }
   ],
   "starterBars": [
     {
-      "line": "Der Tag war Heimat, doch die Nacht macht ihn zu meinem",
-      "syllables": 13
-    },
-    {
-      "line": "Mit Fundament in der Stimme klingt selbst Stille wie ein Ruf",
+      "line": "Ich stapel Silben auf Familie, bis der Pegel sich häuft",
       "syllables": 15
     },
     {
-      "line": "Heimat im Blick, ich bleib ruhig auf der Eins",
+      "line": "Block bleibt der Anker, wenn der Offbeat mich ruft",
       "syllables": 11
     },
     {
-      "line": "Ich stapel Silben auf Heimat, bis der Pegel sich häuft",
-      "syllables": 14
+      "line": "Asphalt auf Repeat, bis die Hook von alleine läuft",
+      "syllables": 13
+    },
+    {
+      "line": "Familie als Kompass und die Snare gibt den Takt",
+      "syllables": 13
     }
   ],
   "flowTip": {
-    "id": "pausen-power",
-    "title": "Pausen sind Punchlines",
-    "tip": "Eine gut gesetzte Pause vor der Punchline verdoppelt ihre Wirkung. Stille ist Teil des Flows."
+    "id": "tempo-treppe",
+    "title": "Tempo-Treppe",
+    "tip": "Trainiere denselben Text bei 85, 95 und 110 BPM. Wer die Treppe hochkommt, sitzt bei jedem Beat."
   },
-  "quote": "Lieber acht ehrliche Bars als sechzehn geliehene.",
+  "quote": "Große Hooks entstehen oft aus kleinen Selbstgesprächen.",
   "beatPreset": {
-    "bpm": 92,
-    "pattern": "Boom Bap",
-    "energy": "mittel"
+    "bpm": 156,
+    "pattern": "Double-Time Drill",
+    "energy": "hoch"
   },
   "editorial": {
-    "score": 99,
+    "score": 100,
     "gates": [
       {
         "gate": "Vollständigkeit",
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-09-02",
+    "latestEdition": "2026-10-05",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

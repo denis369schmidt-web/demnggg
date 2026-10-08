@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-10-08T12:02:28.916Z",
+    "edition": "2026-10-08",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 25,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Fokus-Modus“, Double-Time Drill @ 145 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Cypher-Staffel“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-10-08 veröffentlicht (Hash 6d547b4f)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-10-07T11:47:52.794Z",
     "edition": "2026-10-07",
     "attempt": 0,
@@ -1831,41 +1866,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-08-18 veröffentlicht (Hash 3f3cfa46)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-08-17T05:51:08.814Z",
-    "edition": "2026-08-17",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 22,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Spiegelbild“, Uptempo Battle @ 116 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Vokal-Fessel“ (12 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 17 Editionen, 0 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-08-17 veröffentlicht (Hash fdc27c48)."
       }
     ]
   }

@@ -1,122 +1,122 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-09-06",
-  "generatedAt": "2026-09-06T09:27:04.796Z",
-  "attempt": 2,
+  "edition": "2026-10-09",
+  "generatedAt": "2026-10-09T11:54:35.326Z",
+  "attempt": 0,
   "theme": {
-    "id": "fokus-modus",
-    "title": "Fokus-Modus",
-    "mood": "ruhig",
-    "description": "Alles ausblenden, nur der Beat und du.",
+    "id": "marktplatz",
+    "title": "Marktplatz",
+    "mood": "wach",
+    "description": "Beobachtungen aus der Stadt – Storytelling in Echtzeit.",
     "keywords": [
-      "Fokus",
-      "Ruhe",
-      "Atem",
-      "Ziel",
-      "Klarheit",
-      "Disziplin"
+      "Stadt",
+      "Stimmen",
+      "Menschen",
+      "Ecken",
+      "Geschichten",
+      "Puls"
     ]
   },
   "challenge": {
     "id": "punchline-schmiede",
     "title": "Punchline-Schmiede",
-    "task": "Baue in 16 Bars mindestens vier Punchlines zum Thema „Fokus-Modus“ – jede zweite Zeile muss sitzen.",
-    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
-    "bars": 16,
-    "bpm": 96
+    "task": "Baue in 8 Bars mindestens vier Punchlines zum Thema „Marktplatz“ – jede zweite Zeile muss sitzen.",
+    "constraint": "Nutze mindestens einen internen Reim pro Doppelzeile.",
+    "bars": 8,
+    "bpm": 156
   },
   "wordPacks": [
     {
-      "id": "fokus-modus-thema",
-      "title": "Thema: Fokus-Modus",
+      "id": "marktplatz-thema",
+      "title": "Thema: Marktplatz",
       "words": [
-        "Ruhe",
-        "Klarheit",
-        "Ziel",
-        "Atem",
-        "Fokus",
-        "Disziplin"
+        "Puls",
+        "Stimmen",
+        "Menschen",
+        "Geschichten",
+        "Stadt",
+        "Ecken"
       ]
     },
     {
-      "id": "2026-09-06-bilder",
+      "id": "2026-10-09-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Skyline",
-        "Echo",
-        "Spiegel",
         "Leuchtturm",
-        "Fundament",
-        "Radar"
+        "Satellit",
+        "Tresor",
+        "Echo",
+        "Magnet",
+        "Antenne"
       ]
     },
     {
-      "id": "2026-09-06-energie",
+      "id": "2026-10-09-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Respekt",
-        "Haltung",
-        "Glut",
-        "schweben",
-        "klettern",
-        "starten"
+        "Frieden",
+        "Mut",
+        "Zweifel",
+        "grinden",
+        "steigen",
+        "landen"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Wind",
-      "b": "geschwind"
+      "a": "Druck",
+      "b": "Ruck"
     },
     {
-      "a": "Zeit",
-      "b": "bereit"
+      "a": "Feuer",
+      "b": "teuer"
+    },
+    {
+      "a": "Spur",
+      "b": "pur"
     },
     {
       "a": "Hand",
       "b": "Verstand"
     },
     {
-      "a": "Nebel",
-      "b": "Pegel"
+      "a": "Leben",
+      "b": "geben"
     },
     {
-      "a": "Fluss",
-      "b": "Schluss"
-    },
-    {
-      "a": "Nacht",
-      "b": "gemacht"
+      "a": "Zeit",
+      "b": "bereit"
     }
   ],
   "starterBars": [
-    {
-      "line": "Zwischen Ziel und Silhouette find ich Raum für den Reim",
-      "syllables": 13
-    },
     {
       "line": "Mit Silhouette in der Stimme klingt selbst Stille wie ein Ruf",
       "syllables": 15
     },
     {
-      "line": "Der Tag war Ruhe, doch die Nacht macht ihn zu meinem",
-      "syllables": 13
+      "line": "Menschen bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 12
     },
     {
-      "line": "Silhouette auf Repeat, bis die Hook von alleine läuft",
+      "line": "Zwischen Menschen und Silhouette find ich Raum für den Reim",
       "syllables": 14
+    },
+    {
+      "line": "Menschen in der Hand und der Zweifel wird kleiner",
+      "syllables": 12
     }
   ],
   "flowTip": {
-    "id": "call-response",
-    "title": "Call & Response",
-    "tip": "Lass Zeile 2 auf Zeile 1 antworten – Frage/Antwort-Strukturen halten Zuhörer automatisch im Takt."
+    "id": "pausen-power",
+    "title": "Pausen sind Punchlines",
+    "tip": "Eine gut gesetzte Pause vor der Punchline verdoppelt ihre Wirkung. Stille ist Teil des Flows."
   },
-  "quote": "Deine Stimme ist das einzige Instrument, das du immer dabei hast.",
+  "quote": "Schreib die Zeile, die du morgen hören willst.",
   "beatPreset": {
-    "bpm": 96,
-    "pattern": "West Coast Bounce",
-    "energy": "mittel"
+    "bpm": 156,
+    "pattern": "Double-Time Drill",
+    "energy": "hoch"
   },
   "editorial": {
     "score": 100,
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-09-06",
+    "latestEdition": "2026-10-09",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

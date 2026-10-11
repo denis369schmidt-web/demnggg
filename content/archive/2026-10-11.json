@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-10-11",
+  "generatedAt": "2026-10-11T11:24:55.973Z",
+  "attempt": 0,
+  "theme": {
+    "id": "labyrinth",
+    "title": "Labyrinth",
+    "mood": "suchend",
+    "description": "Verwinkelte Gedanken, aber der Flow findet den Ausgang.",
+    "keywords": [
+      "Labyrinth",
+      "Wege",
+      "Nebel",
+      "Kompass",
+      "Suche",
+      "Ausgang"
+    ]
+  },
+  "challenge": {
+    "id": "flip-the-beat",
+    "title": "Flip the Beat",
+    "task": "Rappe 8 Bars zu „Labyrinth“ einmal on-beat und direkt danach bewusst im Offbeat – vergleiche beide Takes.",
+    "constraint": "Verwende mindestens ein Bild aus der Natur.",
+    "bars": 8,
+    "bpm": 108
+  },
+  "wordPacks": [
+    {
+      "id": "labyrinth-thema",
+      "title": "Thema: Labyrinth",
+      "words": [
+        "Kompass",
+        "Wege",
+        "Nebel",
+        "Labyrinth",
+        "Suche",
+        "Ausgang"
+      ]
+    },
+    {
+      "id": "2026-10-11-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Skyline",
+        "Neonlicht",
+        "Magnet",
+        "Tinte",
+        "Satellit",
+        "Silhouette"
+      ]
+    },
+    {
+      "id": "2026-10-11-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Ruhe",
+        "Stolz",
+        "Fokus",
+        "starten",
+        "klettern",
+        "driften"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Ton",
+      "b": "davon"
+    },
+    {
+      "a": "Meer",
+      "b": "schwer"
+    },
+    {
+      "a": "Nacht",
+      "b": "gemacht"
+    },
+    {
+      "a": "Welle",
+      "b": "Schwelle"
+    },
+    {
+      "a": "Kern",
+      "b": "fern"
+    },
+    {
+      "a": "Zeilen",
+      "b": "eilen"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Ich stapel Silben auf Ausgang, bis der Pegel sich häuft",
+      "syllables": 14
+    },
+    {
+      "line": "Zwischen Kompass und Antenne find ich Raum für den Reim",
+      "syllables": 14
+    },
+    {
+      "line": "Ich zähl die Beats wie Kompass, alles landet exakt",
+      "syllables": 13
+    },
+    {
+      "line": "Antenne in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 14
+    }
+  ],
+  "flowTip": {
+    "id": "aufnahme-check",
+    "title": "Der 24-Stunden-Check",
+    "tip": "Höre jede Aufnahme erst am nächsten Tag erneut. Frische Ohren erkennen Timing-Fehler sofort."
+  },
+  "quote": "Bleib im Takt, auch wenn der Tag es nicht ist.",
+  "beatPreset": {
+    "bpm": 108,
+    "pattern": "Uptempo Battle",
+    "energy": "hoch"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-10-11",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

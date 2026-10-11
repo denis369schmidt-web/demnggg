@@ -1,125 +1,125 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-10",
-  "generatedAt": "2026-10-10T11:11:31.123Z",
+  "edition": "2026-10-11",
+  "generatedAt": "2026-10-11T11:24:55.973Z",
   "attempt": 0,
   "theme": {
-    "id": "strassen-traeume",
-    "title": "Straßenträume",
-    "mood": "hungrig",
-    "description": "Vom Bordstein zur Skyline – Zeilen über den Weg nach oben.",
+    "id": "labyrinth",
+    "title": "Labyrinth",
+    "mood": "suchend",
+    "description": "Verwinkelte Gedanken, aber der Flow findet den Ausgang.",
     "keywords": [
-      "Straße",
-      "Träume",
-      "Asphalt",
-      "Skyline",
-      "Aufstieg",
-      "Beton"
+      "Labyrinth",
+      "Wege",
+      "Nebel",
+      "Kompass",
+      "Suche",
+      "Ausgang"
     ]
   },
   "challenge": {
-    "id": "storytelling-run",
-    "title": "Storytelling-Run",
-    "task": "Erzähle in 8 Bars eine Mini-Geschichte über „Straßenträume“ mit Anfang, Wendepunkt und Schlusszeile.",
-    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
+    "id": "flip-the-beat",
+    "title": "Flip the Beat",
+    "task": "Rappe 8 Bars zu „Labyrinth“ einmal on-beat und direkt danach bewusst im Offbeat – vergleiche beide Takes.",
+    "constraint": "Verwende mindestens ein Bild aus der Natur.",
     "bars": 8,
-    "bpm": 100
+    "bpm": 108
   },
   "wordPacks": [
     {
-      "id": "strassen-traeume-thema",
-      "title": "Thema: Straßenträume",
+      "id": "labyrinth-thema",
+      "title": "Thema: Labyrinth",
       "words": [
-        "Beton",
-        "Asphalt",
-        "Skyline",
-        "Straße",
-        "Aufstieg",
-        "Träume"
+        "Kompass",
+        "Wege",
+        "Nebel",
+        "Labyrinth",
+        "Suche",
+        "Ausgang"
       ]
     },
     {
-      "id": "2026-10-10-bilder",
+      "id": "2026-10-11-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Asphalt",
-        "Funken",
         "Skyline",
-        "Kompass",
-        "Antenne",
-        "Radar"
+        "Neonlicht",
+        "Magnet",
+        "Tinte",
+        "Satellit",
+        "Silhouette"
       ]
     },
     {
-      "id": "2026-10-10-energie",
+      "id": "2026-10-11-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Glut",
-        "Zweifel",
-        "Geduld",
-        "pushen",
-        "kreisen",
-        "klettern"
+        "Ruhe",
+        "Stolz",
+        "Fokus",
+        "starten",
+        "klettern",
+        "driften"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Blick",
-      "b": "Genick"
+      "a": "Ton",
+      "b": "davon"
+    },
+    {
+      "a": "Meer",
+      "b": "schwer"
     },
     {
       "a": "Nacht",
       "b": "gemacht"
     },
     {
-      "a": "Takt",
-      "b": "exakt"
+      "a": "Welle",
+      "b": "Schwelle"
+    },
+    {
+      "a": "Kern",
+      "b": "fern"
     },
     {
       "a": "Zeilen",
       "b": "eilen"
-    },
-    {
-      "a": "Leben",
-      "b": "geben"
-    },
-    {
-      "a": "Welle",
-      "b": "Schwelle"
     }
   ],
   "starterBars": [
     {
-      "line": "Antenne in den Zeilen, jede Silbe nimmt mich mit",
+      "line": "Ich stapel Silben auf Ausgang, bis der Pegel sich häuft",
       "syllables": 14
     },
     {
-      "line": "Ich zähl die Beats wie Straße, alles landet exakt",
+      "line": "Zwischen Kompass und Antenne find ich Raum für den Reim",
+      "syllables": 14
+    },
+    {
+      "line": "Ich zähl die Beats wie Kompass, alles landet exakt",
       "syllables": 13
     },
     {
-      "line": "Antenne auf Repeat, bis die Hook von alleine läuft",
-      "syllables": 14
-    },
-    {
-      "line": "Zwischen Straße und Antenne find ich Raum für den Reim",
+      "line": "Antenne in den Zeilen, jede Silbe nimmt mich mit",
       "syllables": 14
     }
   ],
   "flowTip": {
-    "id": "doppelreim-leiter",
-    "title": "Doppelreim-Leiter",
-    "tip": "Übe Reimketten: ein Wort, dann zwei Silben, dann drei. Mehrsilbige Reime heben jeden Flow an."
+    "id": "aufnahme-check",
+    "title": "Der 24-Stunden-Check",
+    "tip": "Höre jede Aufnahme erst am nächsten Tag erneut. Frische Ohren erkennen Timing-Fehler sofort."
   },
-  "quote": "Große Hooks entstehen oft aus kleinen Selbstgesprächen.",
+  "quote": "Bleib im Takt, auch wenn der Tag es nicht ist.",
   "beatPreset": {
-    "bpm": 100,
-    "pattern": "West Coast Bounce",
-    "energy": "mittel"
+    "bpm": 108,
+    "pattern": "Uptempo Battle",
+    "energy": "hoch"
   },
   "editorial": {
-    "score": 99,
+    "score": 100,
     "gates": [
       {
         "gate": "Vollständigkeit",
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-10",
+    "latestEdition": "2026-10-11",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

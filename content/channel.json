@@ -1,122 +1,122 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-13",
-  "generatedAt": "2026-10-13T12:43:19.311Z",
-  "attempt": 0,
+  "edition": "2026-10-14",
+  "generatedAt": "2026-10-14T10:13:55.293Z",
+  "attempt": 4,
   "theme": {
-    "id": "zeitkapsel",
-    "title": "Zeitkapsel",
-    "mood": "nostalgisch",
-    "description": "Briefe an das frühere und das zukünftige Ich.",
+    "id": "spiegelbild",
+    "title": "Spiegelbild",
+    "mood": "ehrlich",
+    "description": "Selbstreflexion ohne Filter – die härteste Battle-Runde.",
     "keywords": [
-      "Zeit",
-      "Kapsel",
-      "Brief",
-      "Jugend",
-      "Morgen",
-      "Spuren"
+      "Spiegel",
+      "Wahrheit",
+      "Zweifel",
+      "Stolz",
+      "Wandel",
+      "Kern"
     ]
   },
   "challenge": {
-    "id": "doubletime-drill",
-    "title": "Double-Time-Drill",
-    "task": "Rappe 8 Bars zu „Zeitkapsel“: erst halbes Tempo, ab der Hälfte Double-Time ohne Textänderung.",
-    "constraint": "Die Hook-Zeile muss eine Frage sein.",
+    "id": "vokal-fessel",
+    "title": "Vokal-Fessel",
+    "task": "Schreibe 8 Bars über „Spiegelbild“, in denen jede Zeile auf denselben Vokalklang endet.",
+    "constraint": "Wechsle einmal die Perspektive (Ich → Du oder Wir).",
     "bars": 8,
-    "bpm": 111
+    "bpm": 73
   },
   "wordPacks": [
     {
-      "id": "zeitkapsel-thema",
-      "title": "Thema: Zeitkapsel",
+      "id": "spiegelbild-thema",
+      "title": "Thema: Spiegelbild",
       "words": [
-        "Jugend",
-        "Brief",
-        "Zeit",
-        "Morgen",
-        "Spuren",
-        "Kapsel"
+        "Spiegel",
+        "Stolz",
+        "Wahrheit",
+        "Kern",
+        "Wandel",
+        "Zweifel"
       ]
     },
     {
-      "id": "2026-10-13-bilder",
+      "id": "2026-10-14-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Asphalt",
         "Satellit",
-        "Funken",
+        "Neonlicht",
+        "Schatten",
         "Fundament",
-        "Skyline",
-        "Schatten"
+        "Magnet",
+        "Silhouette"
       ]
     },
     {
-      "id": "2026-10-13-energie",
+      "id": "2026-10-14-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Ruhe",
-        "Zweifel",
-        "Respekt",
-        "kreisen",
-        "schweben",
-        "driften"
+        "Geduld",
+        "Haltung",
+        "Frieden",
+        "starten",
+        "landen",
+        "klettern"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Wort",
-      "b": "Ort"
+      "a": "Hallen",
+      "b": "knallen"
     },
     {
-      "a": "Stein",
-      "b": "allein"
+      "a": "Welle",
+      "b": "Schwelle"
     },
     {
-      "a": "Nebel",
-      "b": "Pegel"
+      "a": "Druck",
+      "b": "Ruck"
+    },
+    {
+      "a": "Herz",
+      "b": "Schmerz"
+    },
+    {
+      "a": "Takt",
+      "b": "exakt"
     },
     {
       "a": "Kette",
       "b": "Wette"
-    },
-    {
-      "a": "Boden",
-      "b": "Methoden"
-    },
-    {
-      "a": "Hallen",
-      "b": "knallen"
     }
   ],
   "starterBars": [
     {
-      "line": "Morgen als Kompass und die Snare gibt den Takt",
+      "line": "Asphalt auf Repeat, bis die Hook von alleine läuft",
+      "syllables": 13
+    },
+    {
+      "line": "Ich stapel Silben auf Wahrheit, bis der Pegel sich häuft",
+      "syllables": 14
+    },
+    {
+      "line": "Aus Wahrheit wird ein Plan, aus dem Plan wird ein Schritt",
       "syllables": 12
     },
     {
-      "line": "Magnet auf Repeat, bis die Hook von alleine läuft",
-      "syllables": 13
-    },
-    {
-      "line": "Zwischen Jugend und Magnet find ich Raum für den Reim",
-      "syllables": 13
-    },
-    {
-      "line": "Mit Magnet in der Stimme klingt selbst Stille wie ein Ruf",
-      "syllables": 14
+      "line": "Wahrheit im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 11
     }
   ],
   "flowTip": {
-    "id": "vokal-farben",
-    "title": "Vokalfarben mischen",
-    "tip": "Dunkle Vokale (o, u) klingen schwer, helle (i, e) schnell. Wähle Reimwörter passend zur Stimmung."
+    "id": "stimme-instrument",
+    "title": "Stimme als Instrument",
+    "tip": "Variiere Tonhöhe pro Abschnitt: Strophe tief, Pre-Hook mittig, Hook oben. Melodie entsteht nebenbei."
   },
-  "quote": "Jede krumme Bar von heute ist das Fundament der geraden von morgen.",
+  "quote": "Schreib die Zeile, die du morgen hören willst.",
   "beatPreset": {
-    "bpm": 111,
-    "pattern": "Uptempo Battle",
-    "energy": "hoch"
+    "bpm": 73,
+    "pattern": "Lo-Fi Chill",
+    "energy": "chill"
   },
   "editorial": {
     "score": 100,
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-13",
+    "latestEdition": "2026-10-14",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

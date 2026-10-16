@@ -1,125 +1,125 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-15",
-  "generatedAt": "2026-10-15T09:55:18.322Z",
+  "edition": "2026-10-16",
+  "generatedAt": "2026-10-16T09:50:15.200Z",
   "attempt": 0,
   "theme": {
-    "id": "nachtschicht",
-    "title": "Nachtschicht",
-    "mood": "fokussiert",
-    "description": "Wenn die Stadt schläft, läuft dein Mic heiß.",
+    "id": "neon-horizont",
+    "title": "Neon-Horizont",
+    "mood": "verträumt",
+    "description": "Zukunftsbilder zwischen Synthesizern und Stadtlichtern.",
     "keywords": [
-      "Nacht",
-      "Neonlicht",
-      "Schatten",
-      "Stille",
-      "Mond",
-      "Session"
+      "Neon",
+      "Horizont",
+      "Zukunft",
+      "Lichter",
+      "Vision",
+      "Signal"
     ]
   },
   "challenge": {
-    "id": "freestyle-zirkel",
-    "title": "Freestyle-Zirkel",
-    "task": "Freestyle 12 Bars über „Nachtschicht“ – nutze alle Wörter aus dem Wortpaket „Gefühl & Bewegung“ mindestens einmal.",
-    "constraint": "Mindestens zwei Zeilen enthalten einen Doppelreim.",
+    "id": "leiser-lauter",
+    "title": "Leiser & Lauter",
+    "task": "Performe 12 Bars über „Neon-Horizont“ und steigere die Dynamik von Flüstern bis volle Energie.",
+    "constraint": "Kein Wort darf doppelt als Zeilenende vorkommen.",
     "bars": 12,
-    "bpm": 104
+    "bpm": 99
   },
   "wordPacks": [
     {
-      "id": "nachtschicht-thema",
-      "title": "Thema: Nachtschicht",
+      "id": "neon-horizont-thema",
+      "title": "Thema: Neon-Horizont",
       "words": [
-        "Mond",
-        "Nacht",
-        "Schatten",
-        "Session",
-        "Stille",
+        "Signal",
+        "Lichter",
+        "Vision",
+        "Neon",
+        "Zukunft",
+        "Horizont"
+      ]
+    },
+    {
+      "id": "2026-10-16-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Tresor",
+        "Echo",
+        "Kompass",
+        "Skyline",
+        "Anker",
         "Neonlicht"
       ]
     },
     {
-      "id": "2026-10-15-bilder",
-      "title": "Bilder & Metaphern",
-      "words": [
-        "Neonlicht",
-        "Funken",
-        "Echo",
-        "Skyline",
-        "Tresor",
-        "Asphalt"
-      ]
-    },
-    {
-      "id": "2026-10-15-energie",
+      "id": "2026-10-16-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Frieden",
+        "Ruhe",
+        "Stolz",
         "Haltung",
-        "Balance",
+        "klettern",
         "starten",
-        "pushen",
-        "schweben"
+        "gleiten"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Stein",
-      "b": "allein"
+      "a": "Nacht",
+      "b": "gemacht"
     },
     {
-      "a": "Spur",
-      "b": "pur"
+      "a": "Kette",
+      "b": "Wette"
     },
     {
-      "a": "Ton",
-      "b": "davon"
+      "a": "Traum",
+      "b": "Raum"
     },
     {
       "a": "Leben",
       "b": "geben"
     },
     {
-      "a": "Blick",
-      "b": "Genick"
+      "a": "Welle",
+      "b": "Schwelle"
     },
     {
-      "a": "Beben",
-      "b": "schweben"
+      "a": "Zeit",
+      "b": "bereit"
     }
   ],
   "starterBars": [
     {
-      "line": "Ich zähl die Beats wie Schatten, alles landet exakt",
+      "line": "Der Tag war Signal, doch die Nacht macht ihn zu meinem",
       "syllables": 13
     },
     {
-      "line": "Aus Neonlicht wird ein Plan, aus dem Plan wird ein Schritt",
+      "line": "Zwischen Vision und Asphalt find ich Raum für den Reim",
+      "syllables": 13
+    },
+    {
+      "line": "Vision bleibt der Anker, wenn der Offbeat mich ruft",
       "syllables": 12
     },
     {
-      "line": "Mit Skyline in der Stimme klingt selbst Stille wie ein Ruf",
-      "syllables": 15
-    },
-    {
-      "line": "Der Tag war Neonlicht, doch die Nacht macht ihn zu meinem",
-      "syllables": 13
+      "line": "Ich stapel Silben auf Signal, bis der Pegel sich häuft",
+      "syllables": 14
     }
   ],
   "flowTip": {
-    "id": "call-response",
-    "title": "Call & Response",
-    "tip": "Lass Zeile 2 auf Zeile 1 antworten – Frage/Antwort-Strukturen halten Zuhörer automatisch im Takt."
+    "id": "tempo-treppe",
+    "title": "Tempo-Treppe",
+    "tip": "Trainiere denselben Text bei 85, 95 und 110 BPM. Wer die Treppe hochkommt, sitzt bei jedem Beat."
   },
-  "quote": "Der Beat wartet nicht – aber er verzeiht jedem, der wiederkommt.",
+  "quote": "Der Unterschied zwischen Probe und Performance ist nur das Publikum.",
   "beatPreset": {
-    "bpm": 104,
-    "pattern": "Uptempo Battle",
-    "energy": "hoch"
+    "bpm": 99,
+    "pattern": "West Coast Bounce",
+    "energy": "mittel"
   },
   "editorial": {
-    "score": 99,
+    "score": 100,
     "gates": [
       {
         "gate": "Vollständigkeit",
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-15",
+    "latestEdition": "2026-10-16",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

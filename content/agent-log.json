@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-10-17T09:22:00.193Z",
+    "edition": "2026-10-17",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 16,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Straßenträume“, Double-Time Drill @ 159 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Hook-Labor“ (16 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-10-17 veröffentlicht (Hash a9c5a029)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-10-16T09:50:15.200Z",
     "edition": "2026-10-16",
     "attempt": 0,
@@ -1831,46 +1866,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-08-27 veröffentlicht (Hash 5aad4433)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-08-26T05:52:13.850Z",
-    "edition": "2026-08-26",
-    "attempt": 1,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 18,
-    "stages": [
-      {
-        "name": "Editor",
-        "ok": false,
-        "summary": "Versuch 1 abgelehnt (Frische)."
-      },
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Neon-Horizont“, Lo-Fi Chill @ 77 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Freestyle-Zirkel“ (8 Bars), Versuch 2."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 26 Editionen, 0 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-08-26 veröffentlicht (Hash 754bf8f8)."
       }
     ]
   }

@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-10-18",
+  "generatedAt": "2026-10-18T09:38:34.455Z",
+  "attempt": 0,
+  "theme": {
+    "id": "heimathafen",
+    "title": "Heimathafen",
+    "mood": "warm",
+    "description": "Wurzeln, alte Freunde und der Block, der dich geprägt hat.",
+    "keywords": [
+      "Heimat",
+      "Wurzeln",
+      "Block",
+      "Familie",
+      "Erinnerung",
+      "Anker"
+    ]
+  },
+  "challenge": {
+    "id": "punchline-schmiede",
+    "title": "Punchline-Schmiede",
+    "task": "Baue in 8 Bars mindestens vier Punchlines zum Thema „Heimathafen“ – jede zweite Zeile muss sitzen.",
+    "constraint": "Kein Wort darf doppelt als Zeilenende vorkommen.",
+    "bars": 8,
+    "bpm": 73
+  },
+  "wordPacks": [
+    {
+      "id": "heimathafen-thema",
+      "title": "Thema: Heimathafen",
+      "words": [
+        "Erinnerung",
+        "Wurzeln",
+        "Anker",
+        "Familie",
+        "Heimat",
+        "Block"
+      ]
+    },
+    {
+      "id": "2026-10-18-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Echo",
+        "Silhouette",
+        "Radar",
+        "Satellit",
+        "Tresor",
+        "Magnet"
+      ]
+    },
+    {
+      "id": "2026-10-18-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Fokus",
+        "Balance",
+        "Stolz",
+        "pushen",
+        "grinden",
+        "kreisen"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Feuer",
+      "b": "teuer"
+    },
+    {
+      "a": "Meer",
+      "b": "schwer"
+    },
+    {
+      "a": "Kette",
+      "b": "Wette"
+    },
+    {
+      "a": "Boden",
+      "b": "Methoden"
+    },
+    {
+      "a": "Traum",
+      "b": "Raum"
+    },
+    {
+      "a": "Kern",
+      "b": "fern"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Heimat im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 11
+    },
+    {
+      "line": "Block in der Hand und der Zweifel wird kleiner",
+      "syllables": 11
+    },
+    {
+      "line": "Block bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 11
+    },
+    {
+      "line": "Ich stapel Silben auf Heimat, bis der Pegel sich häuft",
+      "syllables": 14
+    }
+  ],
+  "flowTip": {
+    "id": "vokal-farben",
+    "title": "Vokalfarben mischen",
+    "tip": "Dunkle Vokale (o, u) klingen schwer, helle (i, e) schnell. Wähle Reimwörter passend zur Stimmung."
+  },
+  "quote": "Talent startet den Motor, Routine fährt die Strecke.",
+  "beatPreset": {
+    "bpm": 73,
+    "pattern": "Lo-Fi Chill",
+    "energy": "chill"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-10-18",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

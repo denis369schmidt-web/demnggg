@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-10-19",
+  "generatedAt": "2026-10-19T10:47:20.109Z",
+  "attempt": 0,
+  "theme": {
+    "id": "vollgas",
+    "title": "Vollgas",
+    "mood": "hoch",
+    "description": "Double-Time, keine Bremsen, der Takt gibt die Richtung.",
+    "keywords": [
+      "Tempo",
+      "Motor",
+      "Turbo",
+      "Strecke",
+      "Adrenalin",
+      "Start"
+    ]
+  },
+  "challenge": {
+    "id": "silben-sprint",
+    "title": "Silben-Sprint",
+    "task": "Schreibe 8 Bars zum Thema „Vollgas“ und lande jede Punchline exakt auf der Snare (Zählzeit 3).",
+    "constraint": "Die Hook-Zeile muss eine Frage sein.",
+    "bars": 8,
+    "bpm": 145
+  },
+  "wordPacks": [
+    {
+      "id": "vollgas-thema",
+      "title": "Thema: Vollgas",
+      "words": [
+        "Strecke",
+        "Adrenalin",
+        "Start",
+        "Tempo",
+        "Turbo",
+        "Motor"
+      ]
+    },
+    {
+      "id": "2026-10-19-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Radar",
+        "Skyline",
+        "Magnet",
+        "Spiegel",
+        "Fundament",
+        "Silhouette"
+      ]
+    },
+    {
+      "id": "2026-10-19-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Respekt",
+        "Stolz",
+        "Hunger",
+        "schweben",
+        "driften",
+        "starten"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Meer",
+      "b": "schwer"
+    },
+    {
+      "a": "Beben",
+      "b": "schweben"
+    },
+    {
+      "a": "Rauch",
+      "b": "auch"
+    },
+    {
+      "a": "Nacht",
+      "b": "gemacht"
+    },
+    {
+      "a": "Fluss",
+      "b": "Schluss"
+    },
+    {
+      "a": "Leben",
+      "b": "geben"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Strecke im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 11
+    },
+    {
+      "line": "Ich zähl die Beats wie Motor, alles landet exakt",
+      "syllables": 13
+    },
+    {
+      "line": "Zwischen Motor und Tresor find ich Raum für den Reim",
+      "syllables": 13
+    },
+    {
+      "line": "Tresor auf Repeat, bis die Hook von alleine läuft",
+      "syllables": 13
+    }
+  ],
+  "flowTip": {
+    "id": "hook-erst",
+    "title": "Hook zuerst",
+    "tip": "Schreibe die Hook vor den Strophen. Sie definiert Tempo, Ton und Thema – die Bars folgen ihr."
+  },
+  "quote": "Erst kommt die Übung, dann der Flow, dann der Moment, in dem beides verschwindet.",
+  "beatPreset": {
+    "bpm": 145,
+    "pattern": "Trap Halftime",
+    "energy": "mittel"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-10-19",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

@@ -1,122 +1,122 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-18",
-  "generatedAt": "2026-10-18T09:38:34.455Z",
+  "edition": "2026-10-19",
+  "generatedAt": "2026-10-19T10:47:20.109Z",
   "attempt": 0,
   "theme": {
-    "id": "heimathafen",
-    "title": "Heimathafen",
-    "mood": "warm",
-    "description": "Wurzeln, alte Freunde und der Block, der dich geprägt hat.",
+    "id": "vollgas",
+    "title": "Vollgas",
+    "mood": "hoch",
+    "description": "Double-Time, keine Bremsen, der Takt gibt die Richtung.",
     "keywords": [
-      "Heimat",
-      "Wurzeln",
-      "Block",
-      "Familie",
-      "Erinnerung",
-      "Anker"
+      "Tempo",
+      "Motor",
+      "Turbo",
+      "Strecke",
+      "Adrenalin",
+      "Start"
     ]
   },
   "challenge": {
-    "id": "punchline-schmiede",
-    "title": "Punchline-Schmiede",
-    "task": "Baue in 8 Bars mindestens vier Punchlines zum Thema „Heimathafen“ – jede zweite Zeile muss sitzen.",
-    "constraint": "Kein Wort darf doppelt als Zeilenende vorkommen.",
+    "id": "silben-sprint",
+    "title": "Silben-Sprint",
+    "task": "Schreibe 8 Bars zum Thema „Vollgas“ und lande jede Punchline exakt auf der Snare (Zählzeit 3).",
+    "constraint": "Die Hook-Zeile muss eine Frage sein.",
     "bars": 8,
-    "bpm": 73
+    "bpm": 145
   },
   "wordPacks": [
     {
-      "id": "heimathafen-thema",
-      "title": "Thema: Heimathafen",
+      "id": "vollgas-thema",
+      "title": "Thema: Vollgas",
       "words": [
-        "Erinnerung",
-        "Wurzeln",
-        "Anker",
-        "Familie",
-        "Heimat",
-        "Block"
+        "Strecke",
+        "Adrenalin",
+        "Start",
+        "Tempo",
+        "Turbo",
+        "Motor"
       ]
     },
     {
-      "id": "2026-10-18-bilder",
+      "id": "2026-10-19-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Echo",
-        "Silhouette",
         "Radar",
-        "Satellit",
-        "Tresor",
-        "Magnet"
+        "Skyline",
+        "Magnet",
+        "Spiegel",
+        "Fundament",
+        "Silhouette"
       ]
     },
     {
-      "id": "2026-10-18-energie",
+      "id": "2026-10-19-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Fokus",
-        "Balance",
+        "Respekt",
         "Stolz",
-        "pushen",
-        "grinden",
-        "kreisen"
+        "Hunger",
+        "schweben",
+        "driften",
+        "starten"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Feuer",
-      "b": "teuer"
-    },
-    {
       "a": "Meer",
       "b": "schwer"
     },
     {
-      "a": "Kette",
-      "b": "Wette"
+      "a": "Beben",
+      "b": "schweben"
     },
     {
-      "a": "Boden",
-      "b": "Methoden"
+      "a": "Rauch",
+      "b": "auch"
     },
     {
-      "a": "Traum",
-      "b": "Raum"
+      "a": "Nacht",
+      "b": "gemacht"
     },
     {
-      "a": "Kern",
-      "b": "fern"
+      "a": "Fluss",
+      "b": "Schluss"
+    },
+    {
+      "a": "Leben",
+      "b": "geben"
     }
   ],
   "starterBars": [
     {
-      "line": "Heimat im Blick, ich bleib ruhig auf der Eins",
+      "line": "Strecke im Blick, ich bleib ruhig auf der Eins",
       "syllables": 11
     },
     {
-      "line": "Block in der Hand und der Zweifel wird kleiner",
-      "syllables": 11
+      "line": "Ich zähl die Beats wie Motor, alles landet exakt",
+      "syllables": 13
     },
     {
-      "line": "Block bleibt der Anker, wenn der Offbeat mich ruft",
-      "syllables": 11
+      "line": "Zwischen Motor und Tresor find ich Raum für den Reim",
+      "syllables": 13
     },
     {
-      "line": "Ich stapel Silben auf Heimat, bis der Pegel sich häuft",
-      "syllables": 14
+      "line": "Tresor auf Repeat, bis die Hook von alleine läuft",
+      "syllables": 13
     }
   ],
   "flowTip": {
-    "id": "vokal-farben",
-    "title": "Vokalfarben mischen",
-    "tip": "Dunkle Vokale (o, u) klingen schwer, helle (i, e) schnell. Wähle Reimwörter passend zur Stimmung."
+    "id": "hook-erst",
+    "title": "Hook zuerst",
+    "tip": "Schreibe die Hook vor den Strophen. Sie definiert Tempo, Ton und Thema – die Bars folgen ihr."
   },
-  "quote": "Talent startet den Motor, Routine fährt die Strecke.",
+  "quote": "Erst kommt die Übung, dann der Flow, dann der Moment, in dem beides verschwindet.",
   "beatPreset": {
-    "bpm": 73,
-    "pattern": "Lo-Fi Chill",
-    "energy": "chill"
+    "bpm": 145,
+    "pattern": "Trap Halftime",
+    "energy": "mittel"
   },
   "editorial": {
     "score": 100,
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-18",
+    "latestEdition": "2026-10-19",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

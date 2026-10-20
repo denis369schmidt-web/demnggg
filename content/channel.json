@@ -1,121 +1,121 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-19",
-  "generatedAt": "2026-10-19T10:47:20.109Z",
-  "attempt": 0,
+  "edition": "2026-10-20",
+  "generatedAt": "2026-10-20T10:05:29.932Z",
+  "attempt": 4,
   "theme": {
-    "id": "vollgas",
-    "title": "Vollgas",
-    "mood": "hoch",
-    "description": "Double-Time, keine Bremsen, der Takt gibt die Richtung.",
+    "id": "fokus-modus",
+    "title": "Fokus-Modus",
+    "mood": "ruhig",
+    "description": "Alles ausblenden, nur der Beat und du.",
     "keywords": [
-      "Tempo",
-      "Motor",
-      "Turbo",
-      "Strecke",
-      "Adrenalin",
-      "Start"
+      "Fokus",
+      "Ruhe",
+      "Atem",
+      "Ziel",
+      "Klarheit",
+      "Disziplin"
     ]
   },
   "challenge": {
-    "id": "silben-sprint",
-    "title": "Silben-Sprint",
-    "task": "Schreibe 8 Bars zum Thema „Vollgas“ und lande jede Punchline exakt auf der Snare (Zählzeit 3).",
-    "constraint": "Die Hook-Zeile muss eine Frage sein.",
-    "bars": 8,
-    "bpm": 145
+    "id": "storytelling-run",
+    "title": "Storytelling-Run",
+    "task": "Erzähle in 12 Bars eine Mini-Geschichte über „Fokus-Modus“ mit Anfang, Wendepunkt und Schlusszeile.",
+    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
+    "bars": 12,
+    "bpm": 95
   },
   "wordPacks": [
     {
-      "id": "vollgas-thema",
-      "title": "Thema: Vollgas",
+      "id": "fokus-modus-thema",
+      "title": "Thema: Fokus-Modus",
       "words": [
-        "Strecke",
-        "Adrenalin",
-        "Start",
-        "Tempo",
-        "Turbo",
-        "Motor"
+        "Ruhe",
+        "Ziel",
+        "Fokus",
+        "Disziplin",
+        "Atem",
+        "Klarheit"
       ]
     },
     {
-      "id": "2026-10-19-bilder",
+      "id": "2026-10-20-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Radar",
         "Skyline",
-        "Magnet",
+        "Kompass",
+        "Neonlicht",
+        "Antenne",
         "Spiegel",
-        "Fundament",
-        "Silhouette"
+        "Satellit"
       ]
     },
     {
-      "id": "2026-10-19-energie",
+      "id": "2026-10-20-energie",
       "title": "Gefühl & Bewegung",
       "words": [
+        "Mut",
         "Respekt",
-        "Stolz",
-        "Hunger",
-        "schweben",
-        "driften",
-        "starten"
+        "Balance",
+        "steigen",
+        "pushen",
+        "driften"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Meer",
-      "b": "schwer"
+      "a": "Traum",
+      "b": "Raum"
     },
     {
-      "a": "Beben",
-      "b": "schweben"
+      "a": "Zeilen",
+      "b": "eilen"
     },
     {
-      "a": "Rauch",
-      "b": "auch"
+      "a": "Stein",
+      "b": "allein"
     },
     {
-      "a": "Nacht",
-      "b": "gemacht"
+      "a": "Hand",
+      "b": "Verstand"
     },
     {
-      "a": "Fluss",
-      "b": "Schluss"
+      "a": "Herz",
+      "b": "Schmerz"
     },
     {
-      "a": "Leben",
-      "b": "geben"
+      "a": "Welle",
+      "b": "Schwelle"
     }
   ],
   "starterBars": [
     {
-      "line": "Strecke im Blick, ich bleib ruhig auf der Eins",
-      "syllables": 11
-    },
-    {
-      "line": "Ich zähl die Beats wie Motor, alles landet exakt",
+      "line": "Aus Disziplin wird ein Plan, aus dem Plan wird ein Schritt",
       "syllables": 13
     },
     {
-      "line": "Zwischen Motor und Tresor find ich Raum für den Reim",
+      "line": "Anker auf Repeat, bis die Hook von alleine läuft",
       "syllables": 13
     },
     {
-      "line": "Tresor auf Repeat, bis die Hook von alleine läuft",
+      "line": "Ruhe bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 12
+    },
+    {
+      "line": "Anker in den Zeilen, jede Silbe nimmt mich mit",
       "syllables": 13
     }
   ],
   "flowTip": {
-    "id": "hook-erst",
-    "title": "Hook zuerst",
-    "tip": "Schreibe die Hook vor den Strophen. Sie definiert Tempo, Ton und Thema – die Bars folgen ihr."
+    "id": "stimme-instrument",
+    "title": "Stimme als Instrument",
+    "tip": "Variiere Tonhöhe pro Abschnitt: Strophe tief, Pre-Hook mittig, Hook oben. Melodie entsteht nebenbei."
   },
-  "quote": "Erst kommt die Übung, dann der Flow, dann der Moment, in dem beides verschwindet.",
+  "quote": "Der Unterschied zwischen Probe und Performance ist nur das Publikum.",
   "beatPreset": {
-    "bpm": 145,
-    "pattern": "Trap Halftime",
+    "bpm": 95,
+    "pattern": "West Coast Bounce",
     "energy": "mittel"
   },
   "editorial": {
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-19",
+    "latestEdition": "2026-10-20",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

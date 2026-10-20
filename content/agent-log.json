@@ -1,5 +1,60 @@
 [
   {
+    "runAt": "2026-10-20T10:05:29.932Z",
+    "edition": "2026-10-20",
+    "attempt": 4,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 23,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 2 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 3 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 4 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Fokus-Modus“, West Coast Bounce @ 95 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Storytelling-Run“ (12 Bars), Versuch 5."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-10-20 veröffentlicht (Hash 74e611f2)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-10-19T10:47:20.109Z",
     "edition": "2026-10-19",
     "attempt": 0,
@@ -1826,41 +1881,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-08-30 veröffentlicht (Hash c05ec940)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-08-29T11:40:15.760Z",
-    "edition": "2026-08-29",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 33,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Phönix“, Double-Time Drill @ 155 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Ein-Wort-Anker“ (16 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 29 Editionen, 0 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-08-29 veröffentlicht (Hash ccc89bcb)."
       }
     ]
   }

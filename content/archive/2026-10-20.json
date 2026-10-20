@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-10-20",
+  "generatedAt": "2026-10-20T10:05:29.932Z",
+  "attempt": 4,
+  "theme": {
+    "id": "fokus-modus",
+    "title": "Fokus-Modus",
+    "mood": "ruhig",
+    "description": "Alles ausblenden, nur der Beat und du.",
+    "keywords": [
+      "Fokus",
+      "Ruhe",
+      "Atem",
+      "Ziel",
+      "Klarheit",
+      "Disziplin"
+    ]
+  },
+  "challenge": {
+    "id": "storytelling-run",
+    "title": "Storytelling-Run",
+    "task": "Erzähle in 12 Bars eine Mini-Geschichte über „Fokus-Modus“ mit Anfang, Wendepunkt und Schlusszeile.",
+    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
+    "bars": 12,
+    "bpm": 95
+  },
+  "wordPacks": [
+    {
+      "id": "fokus-modus-thema",
+      "title": "Thema: Fokus-Modus",
+      "words": [
+        "Ruhe",
+        "Ziel",
+        "Fokus",
+        "Disziplin",
+        "Atem",
+        "Klarheit"
+      ]
+    },
+    {
+      "id": "2026-10-20-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Skyline",
+        "Kompass",
+        "Neonlicht",
+        "Antenne",
+        "Spiegel",
+        "Satellit"
+      ]
+    },
+    {
+      "id": "2026-10-20-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Mut",
+        "Respekt",
+        "Balance",
+        "steigen",
+        "pushen",
+        "driften"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Traum",
+      "b": "Raum"
+    },
+    {
+      "a": "Zeilen",
+      "b": "eilen"
+    },
+    {
+      "a": "Stein",
+      "b": "allein"
+    },
+    {
+      "a": "Hand",
+      "b": "Verstand"
+    },
+    {
+      "a": "Herz",
+      "b": "Schmerz"
+    },
+    {
+      "a": "Welle",
+      "b": "Schwelle"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Aus Disziplin wird ein Plan, aus dem Plan wird ein Schritt",
+      "syllables": 13
+    },
+    {
+      "line": "Anker auf Repeat, bis die Hook von alleine läuft",
+      "syllables": 13
+    },
+    {
+      "line": "Ruhe bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 12
+    },
+    {
+      "line": "Anker in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 13
+    }
+  ],
+  "flowTip": {
+    "id": "stimme-instrument",
+    "title": "Stimme als Instrument",
+    "tip": "Variiere Tonhöhe pro Abschnitt: Strophe tief, Pre-Hook mittig, Hook oben. Melodie entsteht nebenbei."
+  },
+  "quote": "Der Unterschied zwischen Probe und Performance ist nur das Publikum.",
+  "beatPreset": {
+    "bpm": 95,
+    "pattern": "West Coast Bounce",
+    "energy": "mittel"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-10-20",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

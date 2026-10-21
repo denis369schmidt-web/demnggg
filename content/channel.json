@@ -1,63 +1,63 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-20",
-  "generatedAt": "2026-10-20T10:05:29.932Z",
-  "attempt": 4,
+  "edition": "2026-10-21",
+  "generatedAt": "2026-10-21T10:09:01.985Z",
+  "attempt": 0,
   "theme": {
-    "id": "fokus-modus",
-    "title": "Fokus-Modus",
-    "mood": "ruhig",
-    "description": "Alles ausblenden, nur der Beat und du.",
+    "id": "nachtschicht",
+    "title": "Nachtschicht",
+    "mood": "fokussiert",
+    "description": "Wenn die Stadt schläft, läuft dein Mic heiß.",
     "keywords": [
-      "Fokus",
-      "Ruhe",
-      "Atem",
-      "Ziel",
-      "Klarheit",
-      "Disziplin"
+      "Nacht",
+      "Neonlicht",
+      "Schatten",
+      "Stille",
+      "Mond",
+      "Session"
     ]
   },
   "challenge": {
-    "id": "storytelling-run",
-    "title": "Storytelling-Run",
-    "task": "Erzähle in 12 Bars eine Mini-Geschichte über „Fokus-Modus“ mit Anfang, Wendepunkt und Schlusszeile.",
-    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
-    "bars": 12,
-    "bpm": 95
+    "id": "cypher-staffel",
+    "title": "Cypher-Staffel",
+    "task": "Nimm 8 Bars zu „Nachtschicht“ auf, höre sie an und antworte dir selbst mit 8 Kontra-Bars.",
+    "constraint": "Kein Wort darf doppelt als Zeilenende vorkommen.",
+    "bars": 8,
+    "bpm": 100
   },
   "wordPacks": [
     {
-      "id": "fokus-modus-thema",
-      "title": "Thema: Fokus-Modus",
+      "id": "nachtschicht-thema",
+      "title": "Thema: Nachtschicht",
       "words": [
-        "Ruhe",
-        "Ziel",
-        "Fokus",
-        "Disziplin",
-        "Atem",
-        "Klarheit"
+        "Stille",
+        "Neonlicht",
+        "Schatten",
+        "Nacht",
+        "Mond",
+        "Session"
       ]
     },
     {
-      "id": "2026-10-20-bilder",
+      "id": "2026-10-21-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Skyline",
-        "Kompass",
-        "Neonlicht",
-        "Antenne",
+        "Magnet",
+        "Fundament",
+        "Echo",
         "Spiegel",
-        "Satellit"
+        "Tinte",
+        "Tresor"
       ]
     },
     {
-      "id": "2026-10-20-energie",
+      "id": "2026-10-21-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Mut",
-        "Respekt",
-        "Balance",
-        "steigen",
+        "Stolz",
+        "Zweifel",
+        "Ruhe",
+        "landen",
         "pushen",
         "driften"
       ]
@@ -65,56 +65,56 @@
   ],
   "rhymePairs": [
     {
-      "a": "Traum",
-      "b": "Raum"
-    },
-    {
-      "a": "Zeilen",
-      "b": "eilen"
-    },
-    {
-      "a": "Stein",
-      "b": "allein"
-    },
-    {
-      "a": "Hand",
-      "b": "Verstand"
-    },
-    {
       "a": "Herz",
       "b": "Schmerz"
     },
     {
+      "a": "Beben",
+      "b": "schweben"
+    },
+    {
       "a": "Welle",
       "b": "Schwelle"
+    },
+    {
+      "a": "Spur",
+      "b": "pur"
+    },
+    {
+      "a": "Boden",
+      "b": "Methoden"
+    },
+    {
+      "a": "Feuer",
+      "b": "teuer"
     }
   ],
   "starterBars": [
     {
-      "line": "Aus Disziplin wird ein Plan, aus dem Plan wird ein Schritt",
+      "line": "Ich zähl die Beats wie Stille, alles landet exakt",
       "syllables": 13
     },
     {
-      "line": "Anker auf Repeat, bis die Hook von alleine läuft",
+      "line": "Kompass in den Zeilen, jede Silbe nimmt mich mit",
       "syllables": 13
     },
     {
-      "line": "Ruhe bleibt der Anker, wenn der Offbeat mich ruft",
+      "line": "Mond im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 10
+    },
+    {
+      "line": "Stille bleibt der Anker, wenn der Offbeat mich ruft",
       "syllables": 12
-    },
-    {
-      "line": "Anker in den Zeilen, jede Silbe nimmt mich mit",
-      "syllables": 13
     }
   ],
   "flowTip": {
-    "id": "stimme-instrument",
-    "title": "Stimme als Instrument",
-    "tip": "Variiere Tonhöhe pro Abschnitt: Strophe tief, Pre-Hook mittig, Hook oben. Melodie entsteht nebenbei."
+    "id": "silben-budget",
+    "title": "Silben-Budget",
+    "tip": "Zähle Silben pro Zeile: 10–14 bei mittlerem Tempo. Über 16 wird es Double-Time, darunter entsteht Raum."
   },
-  "quote": "Der Unterschied zwischen Probe und Performance ist nur das Publikum.",
+  "quote": "Bleib im Takt, auch wenn der Tag es nicht ist.",
   "beatPreset": {
-    "bpm": 95,
+    "bpm": 100,
     "pattern": "West Coast Bounce",
     "energy": "mittel"
   },
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-20",
+    "latestEdition": "2026-10-21",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-10-21",
+  "generatedAt": "2026-10-21T10:09:01.985Z",
+  "attempt": 0,
+  "theme": {
+    "id": "nachtschicht",
+    "title": "Nachtschicht",
+    "mood": "fokussiert",
+    "description": "Wenn die Stadt schläft, läuft dein Mic heiß.",
+    "keywords": [
+      "Nacht",
+      "Neonlicht",
+      "Schatten",
+      "Stille",
+      "Mond",
+      "Session"
+    ]
+  },
+  "challenge": {
+    "id": "cypher-staffel",
+    "title": "Cypher-Staffel",
+    "task": "Nimm 8 Bars zu „Nachtschicht“ auf, höre sie an und antworte dir selbst mit 8 Kontra-Bars.",
+    "constraint": "Kein Wort darf doppelt als Zeilenende vorkommen.",
+    "bars": 8,
+    "bpm": 100
+  },
+  "wordPacks": [
+    {
+      "id": "nachtschicht-thema",
+      "title": "Thema: Nachtschicht",
+      "words": [
+        "Stille",
+        "Neonlicht",
+        "Schatten",
+        "Nacht",
+        "Mond",
+        "Session"
+      ]
+    },
+    {
+      "id": "2026-10-21-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Magnet",
+        "Fundament",
+        "Echo",
+        "Spiegel",
+        "Tinte",
+        "Tresor"
+      ]
+    },
+    {
+      "id": "2026-10-21-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Stolz",
+        "Zweifel",
+        "Ruhe",
+        "landen",
+        "pushen",
+        "driften"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Herz",
+      "b": "Schmerz"
+    },
+    {
+      "a": "Beben",
+      "b": "schweben"
+    },
+    {
+      "a": "Welle",
+      "b": "Schwelle"
+    },
+    {
+      "a": "Spur",
+      "b": "pur"
+    },
+    {
+      "a": "Boden",
+      "b": "Methoden"
+    },
+    {
+      "a": "Feuer",
+      "b": "teuer"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Ich zähl die Beats wie Stille, alles landet exakt",
+      "syllables": 13
+    },
+    {
+      "line": "Kompass in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 13
+    },
+    {
+      "line": "Mond im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 10
+    },
+    {
+      "line": "Stille bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 12
+    }
+  ],
+  "flowTip": {
+    "id": "silben-budget",
+    "title": "Silben-Budget",
+    "tip": "Zähle Silben pro Zeile: 10–14 bei mittlerem Tempo. Über 16 wird es Double-Time, darunter entsteht Raum."
+  },
+  "quote": "Bleib im Takt, auch wenn der Tag es nicht ist.",
+  "beatPreset": {
+    "bpm": 100,
+    "pattern": "West Coast Bounce",
+    "energy": "mittel"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-10-21",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

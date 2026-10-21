@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-10-21T10:09:01.985Z",
+    "edition": "2026-10-21",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 26,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Nachtschicht“, West Coast Bounce @ 100 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Cypher-Staffel“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-10-21 veröffentlicht (Hash 69c364ff)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-10-20T10:05:29.932Z",
     "edition": "2026-10-20",
     "attempt": 4,
@@ -1846,41 +1881,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-08-31 veröffentlicht (Hash 5301969e)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-08-30T10:29:35.199Z",
-    "edition": "2026-08-30",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 18,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Marktplatz“, Trap Halftime @ 150 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Storytelling-Run“ (8 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 0 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-08-30 veröffentlicht (Hash c05ec940)."
       }
     ]
   }

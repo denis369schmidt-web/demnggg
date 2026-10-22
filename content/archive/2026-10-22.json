@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-10-22",
+  "generatedAt": "2026-10-22T10:11:29.454Z",
+  "attempt": 2,
+  "theme": {
+    "id": "gewitterfront",
+    "title": "Gewitterfront",
+    "mood": "energisch",
+    "description": "Druck ablassen – jede Silbe ein Donnerschlag.",
+    "keywords": [
+      "Gewitter",
+      "Blitz",
+      "Druck",
+      "Sturm",
+      "Energie",
+      "Beben"
+    ]
+  },
+  "challenge": {
+    "id": "leiser-lauter",
+    "title": "Leiser & Lauter",
+    "task": "Performe 16 Bars über „Gewitterfront“ und steigere die Dynamik von Flüstern bis volle Energie.",
+    "constraint": "Verwende mindestens ein Bild aus der Natur.",
+    "bars": 16,
+    "bpm": 116
+  },
+  "wordPacks": [
+    {
+      "id": "gewitterfront-thema",
+      "title": "Thema: Gewitterfront",
+      "words": [
+        "Blitz",
+        "Sturm",
+        "Beben",
+        "Gewitter",
+        "Druck",
+        "Energie"
+      ]
+    },
+    {
+      "id": "2026-10-22-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Schatten",
+        "Silhouette",
+        "Spiegel",
+        "Antenne",
+        "Anker",
+        "Satellit"
+      ]
+    },
+    {
+      "id": "2026-10-22-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Balance",
+        "Glut",
+        "Feuer",
+        "starten",
+        "kreisen",
+        "landen"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Beben",
+      "b": "schweben"
+    },
+    {
+      "a": "Hand",
+      "b": "Verstand"
+    },
+    {
+      "a": "Klang",
+      "b": "Drang"
+    },
+    {
+      "a": "Leben",
+      "b": "geben"
+    },
+    {
+      "a": "Feuer",
+      "b": "teuer"
+    },
+    {
+      "a": "Kern",
+      "b": "fern"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Aus Beben wird ein Plan, aus dem Plan wird ein Schritt",
+      "syllables": 12
+    },
+    {
+      "line": "Beben als Kompass und die Snare gibt den Takt",
+      "syllables": 12
+    },
+    {
+      "line": "Radar in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 13
+    },
+    {
+      "line": "Ich stapel Silben auf Beben, bis der Pegel sich häuft",
+      "syllables": 14
+    }
+  ],
+  "flowTip": {
+    "id": "vokal-farben",
+    "title": "Vokalfarben mischen",
+    "tip": "Dunkle Vokale (o, u) klingen schwer, helle (i, e) schnell. Wähle Reimwörter passend zur Stimmung."
+  },
+  "quote": "Jede krumme Bar von heute ist das Fundament der geraden von morgen.",
+  "beatPreset": {
+    "bpm": 116,
+    "pattern": "Uptempo Battle",
+    "energy": "hoch"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-10-22",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

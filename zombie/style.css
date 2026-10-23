@@ -33,6 +33,13 @@ html, body {
 
 canvas { display: block; background: #121a16; touch-action: none; }
 
+/* Spielfläche: 3D-Szene (WebGL) unten, 2D-Ebene für HUD & Zahlen darüber */
+#view { position: relative; flex: none; }
+#view canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+#game3d { display: none; pointer-events: none; background: #05080a; }
+#view.three.ingame #game3d { display: block; }
+#view.three.ingame #game { background: transparent; }
+
 .hidden { display: none !important; }
 
 .overlay {

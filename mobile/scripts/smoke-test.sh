@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Emulator-Smoke-Test: installiert die Debug-APK, startet die App und prüft,
-# dass sie nicht abstürzt, das Spiel-JS läuft und AdMob initialisiert.
+# dass sie nicht abstürzt, das Spiel-JS läuft, 3D (WebGL) startet und AdMob initialisiert.
 set -uo pipefail
 APK="$1"
 PKG=de.outbreakhero.game
@@ -22,6 +22,8 @@ if grep -q "FATAL EXCEPTION" logcat.txt; then echo "::error::App ist abgestürzt
 if ! grep -q "\[Outbreak\] Spiel gestartet" logcat.txt; then echo "::error::Spiel-JS wurde nicht gestartet"; fail=1; fi
 if ! grep -q "\[Outbreak\] Plattform: android" logcat.txt; then echo "::error::Native Plattform nicht erkannt"; fail=1; fi
 if grep -q "\[Outbreak\] JS-Fehler" logcat.txt; then echo "::error::JavaScript-Fehler in der App"; fail=1; fi
+if grep -q "\[Outbreak\] 3D-Fehler" logcat.txt; then echo "::error::3D-Renderer ist abgestürzt"; fail=1; fi
+if grep -q "\[Outbreak\] 3D bereit" logcat.txt; then echo "3D (WebGL): OK"; else echo "::warning::3D nicht verfügbar – App läuft im 2D-Modus"; fi
 if grep -q "\[Outbreak\] AdMob bereit" logcat.txt; then echo "AdMob: OK"; else echo "::warning::AdMob nicht initialisiert"; fi
 if grep -q "\[Outbreak\] Rewarded-Video geladen" logcat.txt; then echo "Rewarded-Test-Video: geladen"; else echo "::warning::Rewarded-Video nicht geladen (im Emulator ohne Netz/Play-Dienste möglich)"; fi
 [ "$fail" = 0 ] && echo "Smoke-Test bestanden"

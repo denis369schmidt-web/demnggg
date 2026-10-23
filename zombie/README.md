@@ -9,7 +9,8 @@ Läuft im Browser, als installierbare PWA und als Android-App ([`../mobile`](../
 - **24 Skills** pro Run, **8 Zombie-Typen** (inkl. Zombie-Hunde und gepanzerte Riot-Zombies), **2 Bosse** mit Phase 2
 - **Kapitel à 20 Räume** mit Versorgungsräumen (5, 15) und Bossen (10, 20), danach endlos skalierend
 - **3 Welten** im Wechsel: Straße → Krankenhaus → Geheimlabor
-- **Grafik**: prozedurale, gecachte Sprites mit Laufanimation, dynamisches Licht (Taschenlampe, Mündungsfeuer, Explosionen), additive Leuchteffekte, Blut/Hülsen/Brandspuren bleiben am Boden, Zeitlupe beim Boss-Sieg, automatische Grafikqualität je nach Gerät
+- **3D-Grafik** (WebGL über Three.js): schräge Kamera wie bei Archero, Low-Poly-Modelle für alle Zombies, Bosse, Waffen und Hindernisse, Echtzeit-Schatten, Taschenlampe und Punktlichter (Mündungsfeuer, Explosionen, Feuer, Blitze), Blut/Hülsen/Brandspuren bleiben am Boden
+- **3 Grafikstufen** mit automatischer Anpassung: „3D + Schatten“ → „3D“ → „2D (schnell)“; ohne WebGL läuft das Spiel mit dem klassischen 2D-Renderer
 - **Meta-Progression**: Talente, Waffen-Upgrades, 7-Tage-Login-Bonus, Shop
 - **Monetarisierung** (Android): Rewarded Videos (Wiederbeleben, Münzen ×2, Skill neu würfeln, Gratis-Münzen, Tagesbonus ×2),
   Interstitial jede 3. Runde, In-App-Käufe (Starterpaket, Werbefrei, Münzpakete)
@@ -23,8 +24,10 @@ Läuft im Browser, als installierbare PWA und als Android-App ([`../mobile`](../
 | `config.js` | Versionsnummer, AdMob-IDs, Produkt-IDs (für Android aus Secrets erzeugt) |
 | `i18n.js` | Übersetzungen (Deutsch ist Schlüssel, Englisch für alle anderen Sprachen) |
 | `sprites.js` | Sprite-Engine: zeichnet Zombies, Spieler, Waffen, Hindernisse, Böden und Effekte prozedural und cacht sie in Geräteauflösung |
+| `render3d.js` | 3D-Renderer: baut Modelle aus Grundformen, synchronisiert sie jedes Frame mit dem Spielzustand, Licht/Schatten/Partikel |
+| `vendor/three.min.js` | Three.js (MIT), nur die benötigten Teile – neu bauen mit `npm run build:three` in `../mobile` |
 | `platform.js` | Werbung, Käufe, native Funktionen – Web und Android hinter einer Schnittstelle |
-| `game.js` | Spiel-Logik, Rendering, Meta-Progression |
+| `game.js` | Spiel-Logik, 2D-Rendering & HUD, Meta-Progression |
 | `privacy.html` | Datenschutzerklärung (vor Release ausfüllen!) |
 | `sw.js`, `manifest.webmanifest`, `icons/` | PWA / Offline |
 

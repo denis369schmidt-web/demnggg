@@ -31,7 +31,7 @@ Pistole, Schrotflinte, Maschinenpistole, Armbrust, Flammenwerfer, Scharfschütze
 Schlurfer, Sprinter, Kriecher, giftspuckende Spucker, explodierende Bomber, Zombie-Hunde im Rudel, gepanzerte Riot-Zombies und der gewaltige Koloss.
 
 🌆 3 WELTEN
-Kämpf dich durch nächtliche Straßen, ein verlassenes Krankenhaus und ein geheimes Labor – mit dynamischem Licht, Taschenlampe und spritzenden Effekten.
+Kämpf dich in 3D durch nächtliche Straßen, ein verlassenes Krankenhaus und ein geheimes Labor – mit Echtzeit-Schatten, Taschenlampe, dynamischem Licht und spritzenden Effekten. Läuft auch auf älteren Handys flüssig dank automatischer Grafikanpassung.
 
 👹 EPISCHE BOSSKÄMPFE
 Die Abscheulichkeit stürmt auf dich zu und feuert Projektil-Ringe, die Brutmutter ruft Horden von Kriechern. Unter 50 % Leben mutieren sie und werden noch gefährlicher.
@@ -74,7 +74,7 @@ Pistol, shotgun, SMG, crossbow, flamethrower, sniper rifle, grenade launcher, a 
 Walkers, sprinters, crawlers, acid spitters, exploding bombers, zombie dog packs, armored riot zombies and the massive brute.
 
 🌆 3 WORLDS
-Fight through night-time streets, an abandoned hospital and a secret lab – with dynamic lighting, a flashlight and juicy effects.
+Fight in 3D through night-time streets, an abandoned hospital and a secret lab – with real-time shadows, a flashlight, dynamic lighting and juicy effects. Runs smoothly even on older phones thanks to automatic graphics scaling.
 
 👹 EPIC BOSS FIGHTS
 The Abomination charges at you and fires rings of projectiles, the Brood Mother summons swarms of crawlers. Below 50% health they mutate and get even deadlier.

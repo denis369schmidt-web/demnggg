@@ -15,7 +15,10 @@
 </head>
 <body>
   <div id="stage">
-    <canvas id="game"></canvas>
+    <div id="view">
+      <canvas id="game3d"></canvas>
+      <canvas id="game"></canvas>
+    </div>
 
     <button id="pauseBtn" class="icon-btn hidden" aria-label="Pause">II</button>
 
@@ -127,6 +130,8 @@
   <script src="config.js"></script>
   <script src="i18n.js"></script>
   <script src="sprites.js"></script>
+  <script src="vendor/three.min.js"></script>
+  <script src="render3d.js"></script>
   <script src="platform.js"></script>
   <script src="game.js"></script>
 </body>

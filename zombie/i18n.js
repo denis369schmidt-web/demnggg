@@ -122,6 +122,8 @@ window.I18N = (() => {
     "Hoch": "High",
     "Mittel": "Medium",
     "Niedrig": "Low",
+    "2D (schnell)": "2D (fast)",
+    "3D + Schatten": "3D + shadows",
     "an": "on",
     "aus": "off",
   };

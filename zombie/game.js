@@ -57,7 +57,7 @@
     freeCoins: { day: "", n: 0 },
     tutorialDone: false,
     reviewAsked: false,
-    gfx: 2, // Grafikqualität 0–2, wird automatisch an die Geräteleistung angepasst
+    gfx: 2, // Grafik: 2 = 3D + Schatten, 1 = 3D, 0 = 2D; passt sich automatisch an die Geräteleistung an
   });
   function loadSave() {
     const d = defaultSave();
@@ -79,6 +79,8 @@
     return d;
   }
   const save = loadSave();
+  // Mit Einführung von 3D bekommt jeder einmal die höchste Stufe (die Auto-Anpassung regelt bei Bedarf herunter)
+  if (save.gfxV !== 2) { save.gfx = 2; save.gfxV = 2; }
   function persist() {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch { /* ignorieren */ }
   }
@@ -173,6 +175,8 @@
   const $ = (id) => document.getElementById(id);
   const canvas = $("game");
   const ctx = canvas.getContext("2d");
+  const view = $("view");
+  const canvas3d = $("game3d");
   const ui = {
     menu: $("menu"), armory: $("armory"), talents: $("talents"), skillPick: $("skillPick"),
     pause: $("pause"), over: $("over"), pauseBtn: $("pauseBtn"),
@@ -186,18 +190,41 @@
 
   let scale = 1;
   let dpr = 1;
-  // Grafikqualität: 2 = hoch, 1 = mittel, 0 = niedrig (Auflösung & Partikelmenge)
+  // Grafikqualität: 2 = 3D mit Schatten, 1 = 3D ohne Schatten, 0 = klassisches 2D.
+  // Ohne WebGL bleiben es drei 2D-Stufen (Auflösung & Partikelmenge).
   let quality = Math.max(0, Math.min(2, save.gfx ?? 2));
+  let gfxLocked = false; // für Tests: keine automatische Anpassung
   const QUALITY_DPR = [1, 1.5, 2];
   const QUALITY_PARTICLES = [350, 600, 900];
+  // 3D (WebGL) wird beim ersten Bedarf gestartet; schlägt das fehl, läuft das Spiel in 2D.
+  let webgl = null;
+  let mode3d = false;
+  function init3d() {
+    if (webgl === null) {
+      webgl = false;
+      try { webgl = !!(window.Render3D && Render3D.init(canvas3d, { W, H, L, T, R, B, DOOR_W })); } catch (e) { console.warn("[Outbreak] 3D-Start fehlgeschlagen", e); }
+    }
+    return webgl;
+  }
+  // Verliert Android den WebGL-Kontext (z. B. App im Hintergrund), solange 2D zeichnen
+  let glLost = false;
+  canvas3d.addEventListener("webglcontextlost", () => { glLost = true; resize(); console.warn("[Outbreak] WebGL-Kontext verloren – 2D bis zur Wiederherstellung"); });
+  canvas3d.addEventListener("webglcontextrestored", () => { glLost = false; resize(); });
   function resize() {
+    mode3d = quality > 0 && !glLost && init3d();
     dpr = Math.min(window.devicePixelRatio || 1, QUALITY_DPR[quality]);
     scale = Math.min(window.innerWidth / W, window.innerHeight / H);
-    canvas.style.width = `${W * scale}px`;
-    canvas.style.height = `${H * scale}px`;
+    view.style.width = `${W * scale}px`;
+    view.style.height = `${H * scale}px`;
     canvas.width = Math.round(W * scale * dpr);
     canvas.height = Math.round(H * scale * dpr);
     Sprites.setRes(scale * dpr);
+    view.classList.toggle("three", mode3d);
+    if (mode3d) {
+      Render3D.setQuality(quality);
+      // 3D-Auflösung bewusst begrenzt: Füllrate ist auf Handys der Engpass, das HUD bleibt trotzdem scharf
+      Render3D.resize(W * scale, H * scale, Math.min(window.devicePixelRatio || 1, quality >= 2 ? 1.5 : 1));
+    }
   }
   window.addEventListener("resize", resize);
   resize();
@@ -299,6 +326,7 @@
       adRevived: false, adWatched: false, earned: 0,
     };
     player = newPlayer();
+    if (webgl) Render3D.clear();
     nextRoom();
     show(null);
     state = "play";
@@ -373,14 +401,17 @@
   }
 
   // Dauerhafte Spuren auf dem Boden (Blut, Hülsen, Brandflecken …)
+  let floorDirty = false;
   function stamp(spr, x, y, ang = 0, sc = 1, alpha = 1) {
     if (!floorCtx) return;
+    floorDirty = true;
     floorCtx.globalAlpha = alpha;
     Sprites.draw(floorCtx, spr, x, y, ang, sc);
     floorCtx.globalAlpha = 1;
   }
   function stampDot(x, y, r, color) {
     if (!floorCtx || x < L || x > R || y < T || y > B) return;
+    floorDirty = true;
     floorCtx.globalAlpha = 0.85;
     floorCtx.fillStyle = color;
     floorCtx.beginPath(); floorCtx.arc(x, y, r, 0, TAU); floorCtx.fill();
@@ -964,7 +995,7 @@
     fxBlood(e.x, e.y, e.hitAng, def.boss ? 40 : 12, def.blood, def.boss ? 320 : 220);
     fxGibs(e.x, e.y, def.boss ? 14 : randi(2, 4), def.blood);
     splatter(e.x, e.y, e.hitAng, def.boss ? 2.4 : 0.7 + e.r / 40, def.blood);
-    corpses.push({ type: e.type, v: e.variant, f: Math.floor(e.anim) % Sprites.FRAMES, x: e.x, y: e.y, face: e.face, sc: e.scale, t: 0, blood: def.blood, boss: def.boss, dir: Math.random() < 0.5 ? -1 : 1 });
+    corpses.push({ type: e.type, v: e.variant, f: Math.floor(e.anim) % Sprites.FRAMES, x: e.x, y: e.y, face: e.face, sc: e.scale, t: 0, blood: def.blood, boss: def.boss, dir: Math.random() < 0.5 ? -1 : 1, ref: e });
     sfx(def.boss ? "boom" : "kill");
     if (def.boss) {
       shake = 18;
@@ -1459,13 +1490,51 @@
   const hurtVignette = vignetteCanvas("200,0,0", 0.38, 0.6);
   const actorList = [];
 
+  // Schnittstelle für den 3D-Renderer (nur lesend)
+  const world3d = {
+    get state() { return state; }, get run() { return run; }, get player() { return player; },
+    get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; },
+    get orbs() { return orbs; }, get particles() { return particles; }, get corpses() { return corpses; },
+    get zaps() { return zaps; }, get ambient() { return ambient; }, get roomLights() { return roomLights; },
+    get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },
+    get theme() { return theme(); }, get isBossRoom() { return !!(run && BOSS_ROOMS[run.room]); },
+    consumeFloorDirty() { const d = floorDirty; floorDirty = false; return d; },
+    muzzlePoint: () => muzzlePoint(player),
+    dronePos,
+  };
+  // Welt-Position → Bildschirmpunkt (2D: identisch, 3D: über die Kamera)
+  const flatPt = { x: 0, y: 0 };
+  function scr(x, y, h) {
+    if (mode3d) return Render3D.project(x, y, h);
+    flatPt.x = x; flatPt.y = y;
+    return flatPt;
+  }
+
+  let ingame = null;
   function draw() {
     ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
+    if (ingame !== !!run) { ingame = !!run; view.classList.toggle("ingame", ingame); }
+    if (!run) { ctx.fillStyle = "#0d1210"; ctx.fillRect(0, 0, W, H); drawMenuBg(); return; }
+    if (mode3d) {
+      ctx.clearRect(0, 0, W, H);
+      try {
+        Render3D.render(world3d, frameDt, shake);
+      } catch (e) {
+        // Lieber in 2D weiterspielen als ein schwarzer Bildschirm
+        console.error("[Outbreak] 3D-Fehler – wechsle zu 2D", e);
+        webgl = false;
+        resize();
+        return;
+      }
+      drawBars();
+      drawTexts();
+      drawOverlay();
+      return;
+    }
     ctx.fillStyle = "#0d1210";
     ctx.fillRect(0, 0, W, H);
-    if (!run) { drawMenuBg(); return; }
 
     ctx.save();
     if (shake > 0) ctx.translate(rand(-shake, shake), rand(-shake, shake));
@@ -1493,7 +1562,10 @@
     drawBars();
     drawTexts();
     ctx.restore();
+    drawOverlay();
+  }
 
+  function drawOverlay() {
     drawScreenFx();
     drawHud();
     if (state === "play" && joy.active) drawJoystick();
@@ -1920,18 +1992,21 @@
   function drawBars() {
     for (const e of enemies) {
       if (e.def.boss || e.spawnT > 0 || e.hp >= e.maxHp) continue;
-      const w = Math.max(20, e.r * 2), y = e.y - e.r * e.scale - 13;
-      ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(e.x - w / 2 - 1, y - 1, w + 2, 5);
-      ctx.fillStyle = e.def.armor ? "#7fb4ff" : "#e5383b"; ctx.fillRect(e.x - w / 2, y, w * Math.max(0, e.hp / e.maxHp), 3);
+      const w = Math.max(20, e.r * 2);
+      const q = scr(e.x, e.y, mode3d ? Render3D.heightOf(e) + 6 : 0);
+      const x = q.x, y = mode3d ? q.y - 6 : e.y - e.r * e.scale - 13;
+      ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 5);
+      ctx.fillStyle = e.def.armor ? "#7fb4ff" : "#e5383b"; ctx.fillRect(x - w / 2, y, w * Math.max(0, e.hp / e.maxHp), 3);
     }
-    const p = player, bw = 56, k = Math.max(0, p.hp / p.maxHp), y = p.y - 40;
-    ctx.fillStyle = "rgba(0,0,0,0.75)"; roundRect(p.x - bw / 2 - 2, y - 2, bw + 4, 10, 4); ctx.fill();
-    ctx.fillStyle = k > 0.3 ? "#4ad66d" : "#e5383b"; roundRect(p.x - bw / 2, y, Math.max(3, bw * k), 6, 3); ctx.fill();
+    const p = player, bw = 56, k = Math.max(0, p.hp / p.maxHp);
+    const q = scr(p.x, p.y, 54), px = q.x, y = mode3d ? q.y - 8 : p.y - 40;
+    ctx.fillStyle = "rgba(0,0,0,0.75)"; roundRect(px - bw / 2 - 2, y - 2, bw + 4, 10, 4); ctx.fill();
+    ctx.fillStyle = k > 0.3 ? "#4ad66d" : "#e5383b"; roundRect(px - bw / 2, y, Math.max(3, bw * k), 6, 3); ctx.fill();
     const seg = (100 / p.maxHp) * bw;
     ctx.fillStyle = "rgba(0,0,0,0.45)";
-    if (seg > 4) for (let x = seg; x < bw * k; x += seg) ctx.fillRect(p.x - bw / 2 + x, y, 1, 6);
+    if (seg > 4) for (let x = seg; x < bw * k; x += seg) ctx.fillRect(px - bw / 2 + x, y, 1, 6);
     ctx.fillStyle = "#fff"; ctx.font = "800 11px system-ui"; ctx.textAlign = "center";
-    ctx.fillText(Math.ceil(p.hp), p.x, y - 4);
+    ctx.fillText(Math.ceil(p.hp), px, y - 4);
   }
 
   function drawTexts() {
@@ -1943,9 +2018,10 @@
       ctx.font = `900 ${Math.round(t.size * pop)}px system-ui`;
       ctx.lineWidth = t.crit ? 5 : 3.5;
       ctx.strokeStyle = "rgba(0,0,0,0.85)";
-      ctx.strokeText(t.txt, t.x, t.y);
+      const q = scr(t.x, t.y, 30);
+      ctx.strokeText(t.txt, q.x, q.y);
       ctx.fillStyle = t.color;
-      ctx.fillText(t.txt, t.x, t.y);
+      ctx.fillText(t.txt, q.x, q.y);
     }
     ctx.globalAlpha = 1;
   }
@@ -2066,7 +2142,7 @@
     if (perf.t < 3000) return;
     const avg = perf.sum / perf.n;
     perf.t = perf.sum = perf.n = 0;
-    if (avg > 22 && quality > 0) {
+    if (avg > 22 && quality > 0 && !gfxLocked) {
       quality--;
       save.gfx = quality;
       persist();
@@ -2324,7 +2400,8 @@
     $("soundBtn2").textContent = tr("Sound: {v}", { v: tr(save.sound ? "an" : "aus") });
     $("vibBtn").textContent = tr("Vibration: {v}", { v: tr(save.vibration ? "an" : "aus") });
     $("langBtn").textContent = tr("Sprache: {v}", { v: I18N.lang === "de" ? "Deutsch" : "English" });
-    $("gfxBtn").textContent = tr("Grafik: {v}", { v: tr(["Niedrig", "Mittel", "Hoch"][quality]) });
+    const gfxNames = init3d() ? ["2D (schnell)", "3D", "3D + Schatten"] : ["Niedrig", "Mittel", "Hoch"];
+    $("gfxBtn").textContent = tr("Grafik: {v}", { v: tr(gfxNames[quality]) });
     $("privacyOptsBtn").classList.toggle("hidden", !Platform.isNative);
     $("privacyLink").href = Platform.cfg.privacyUrl || "privacy.html";
     // In der App im selben WebView öffnen: externe Links leitet Capacitor an den Browser weiter,
@@ -2351,6 +2428,7 @@
   function toMenu() {
     state = "menu";
     run = null;
+    if (webgl) Render3D.clear();
     refreshMenu();
     const st = dailyState();
     $("dailyBadge").classList.toggle("hidden", st.claimedToday);
@@ -2447,5 +2525,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, get mode3d() { return mode3d; }, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

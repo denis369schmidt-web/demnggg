@@ -31,10 +31,10 @@ The static app has no build step. The agent system uses Deno (install via `curl 
 CI (`.github/workflows/deno.yml`) runs `deno lint` and `deno test -A` on pushes/PRs to `main`.
 
 ### Outbreak Hero (Zombie-Spiel)
-- `zombie/` — eigenständiges Canvas-Spiel (Vanilla JS, keine Abhängigkeiten): `game.js` (Logik + Render-Pipeline), `sprites.js` (prozedurale, gecachte Grafiken), `platform.js` (Werbung/Käufe/native Funktionen hinter `window.Platform`), `i18n.js` (DE/EN), `config.js`. Lokal: `http://localhost:8080/zombie/` – auf localhost erscheint Test-Werbung statt AdMob.
+- `zombie/` — eigenständiges Canvas-Spiel (Vanilla JS, keine Abhängigkeiten): `game.js` (Logik, 2D-Renderer, HUD), `render3d.js` (3D-Renderer mit Three.js aus `vendor/three.min.js`, gebaut per `npm run build:three` in `mobile/`), `sprites.js` (prozedurale, gecachte Grafiken), `platform.js` (Werbung/Käufe/native Funktionen hinter `window.Platform`), `i18n.js` (DE/EN), `config.js`. Lokal: `http://localhost:8080/zombie/` – auf localhost erscheint Test-Werbung statt AdMob.
 - `mobile/` — Capacitor-8-Android-Projekt (Node 22, JDK 21). `npm ci && npm run sync` kopiert `zombie/` nach `mobile/www` und bündelt die Plugins. Ein Android-SDK ist in der Cloud-VM nicht verfügbar; gebaut und im Emulator getestet wird über `.github/workflows/android.yml`.
 - `mobile/` ist per `deno.json` von Deno ausgeschlossen; `zombie/` von Lint/Format.
-- Test-Hook im Browser: `window.__outbreak` (state, run, player, enemies, bullets, particles, zaps, save, hurt, spawn, freeze). Headless-Chromium rastert ohne GPU – niedrige FPS dort sind kein Maßstab für echte Geräte; das Spiel senkt die Grafikqualität (`save.gfx`) automatisch.
+- Test-Hook im Browser: `window.__outbreak` (state, run, player, enemies, bullets, particles, zaps, save, hurt, spawn, freeze, mode3d, setGfx(q, lock)). Grafikstufen `save.gfx`: 2 = 3D + Schatten, 1 = 3D, 0 = 2D; das Spiel senkt sie bei niedriger FPS automatisch (`setGfx(q, true)` sperrt das für Tests). Headless-Chromium rendert WebGL nur per SwiftShader (CPU) – für 3D-Screenshots mit `--use-angle=swiftshader --enable-unsafe-swiftshader` starten; die FPS dort sind kein Maßstab für echte Geräte. `Render3D.debug` gibt Szene, Kamera und Renderer frei.
 
 ### Non-obvious notes
 - Core flows that work headlessly in-browser: entering keywords -> "Text generieren" generates timed lyrics, and "Beat starten" plays a synthesized beat with a live `Takt-Position` counter.

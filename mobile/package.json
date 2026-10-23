@@ -1,11 +1,12 @@
 {
   "name": "outbreak-hero-mobile",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "description": "Android-Build (Capacitor) für Outbreak Hero",
   "type": "module",
   "scripts": {
     "build:web": "node scripts/build-web.mjs",
+    "build:three": "node scripts/build-three.mjs",
     "sync": "npm run build:web && cap sync android",
     "apk:debug": "npm run sync && cd android && ./gradlew assembleDebug",
     "aab:release": "npm run sync && cd android && ./gradlew bundleRelease",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.2",
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "three": "^0.186.1"
   }
 }

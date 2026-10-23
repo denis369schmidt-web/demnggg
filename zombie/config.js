@@ -2,7 +2,7 @@
 // Für den Android-Build erzeugt mobile/scripts/build-web.mjs diese Datei neu –
 // die Werte kommen dann aus Umgebungsvariablen bzw. GitHub-Secrets.
 window.OUTBREAK_CONFIG = {
-  version: "1.1.0",
+  version: "1.2.0",
   // Link zur Play-Store-Seite (für den "Hol dir die App"-Button der Web-Version).
   playStoreUrl: "",
   privacyUrl: "privacy.html",

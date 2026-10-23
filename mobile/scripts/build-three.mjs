@@ -11,7 +11,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const version = JSON.parse(readFileSync(join(root, "node_modules/three/package.json"), "utf8")).version;
 const names = [
   "WebGLRenderer", "Scene", "PerspectiveCamera", "Group", "Mesh", "InstancedMesh", "Object3D", "Vector3", "Color", "Fog",
-  "HemisphereLight", "DirectionalLight", "SpotLight", "PointLight", "MeshLambertMaterial", "MeshBasicMaterial",
+  "HemisphereLight", "DirectionalLight", "SpotLight", "PointLight", "MeshLambertMaterial", "MeshBasicMaterial", "MeshPhongMaterial", "Vector2",
   "BoxGeometry", "CylinderGeometry", "IcosahedronGeometry", "CapsuleGeometry", "ConeGeometry", "TorusGeometry",
   "PlaneGeometry", "BufferGeometry", "BufferAttribute", "CanvasTexture", "SRGBColorSpace", "RepeatWrapping",
   "AdditiveBlending", "NormalBlending", "DoubleSide", "BackSide", "PCFShadowMap", "ACESFilmicToneMapping", "DynamicDrawUsage",

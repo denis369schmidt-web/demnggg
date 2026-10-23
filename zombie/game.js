@@ -28,6 +28,8 @@
   };
   const ROTATABLE = { car: true, bed: true };
   const GLOWING = { barrels: "150,255,60", tank: "120,255,80" };
+  // Zerstörbar: Giftfässer explodieren (Kettenreaktion!), Kisten zersplittern und lassen Beute fallen
+  const DESTRUCT = { barrels: 70, crate: 45, medcrate: 45, labcrate: 60 };
   const TAU = Math.PI * 2;
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -293,6 +295,10 @@
   let ambient = [];
   let roomLights = [];
   let slowMo = 0;
+  let hitStop = 0; // Sekundenbruchteile Standbild bei wuchtigen Treffern
+  let roomFade = 0; // Abblende beim Raumwechsel (1 → 0)
+  let cineT = 0; // Kinobalken-Zeit nach Boss-Tod
+  let cine = 0; // sichtbare Kinobalken (0–1)
   let shake = 0;
   let banner = null;
   const volleyQueue = [];
@@ -328,6 +334,7 @@
     player = newPlayer();
     if (webgl) Render3D.clear();
     nextRoom();
+    roomFade = 0; // beim Start übernimmt der Kameraflug aus dem Menü die Überblendung
     show(null);
     state = "play";
   }
@@ -345,6 +352,7 @@
       showBanner(tr("KAPITEL {n} ÜBERLEBT", { n: run.chapter - 1 }), tr("+{b} 💰 · Die Seuche wird stärker…", { b: bonus }));
     }
     enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; zaps = []; volleyQueue.length = 0;
+    roomFade = 1;
     run.doorK = 0;
     supplyCrate = null;
     player.x = W / 2; player.y = B - 70; player.vx = player.vy = 0;
@@ -355,7 +363,7 @@
     const isSupply = SUPPLY_ROOMS.includes(run.room);
     obstacles = isSupply ? [] : genObstacles(isBoss ? randi(0, 2) : randi(2, 5));
     floorCanvas = makeFloor();
-    roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3 }));
+    roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     initAmbient();
 
     if (isSupply) {
@@ -383,6 +391,7 @@
       const vert = ROTATABLE[kind] && Math.random() < 0.4;
       if (vert) [w, h] = [h, w];
       const o = { kind, w, h, vert, seed: randi(1, 1e9) };
+      if (DESTRUCT[kind]) o.hp = DESTRUCT[kind] * (1 + 0.3 * ((run ? run.chapter : 1) - 1));
       o.x = rand(L + 30, R - 30 - o.w);
       o.y = rand(T + 130, B - 220 - o.h);
       const m = 60;
@@ -799,6 +808,7 @@
     addText(p.x + rand(-10, 10), p.y - 58, `-${Math.round(dmg)}`, "#ff5a5a", 18);
     fxBlood(p.x, p.y, rand(0, TAU), 8, RED, 160);
     p.hurtT = 0.35;
+    hitStop = Math.max(hitStop, 0.05);
     sfx("hurt");
     if (save.vibration) Platform.vibrate(30);
     if (p.hp <= 0) {
@@ -873,6 +883,7 @@
       // Hindernisse
       for (const o of obstacles) {
         if (b.dead || !pointInRect(b.x, b.y, o)) continue;
+        if (o.hp) hitObstacle(o, b.kind === "flame" ? b.dmg * 0.5 : b.dmg);
         if (b.wall > 0) {
           if (px <= o.x || px >= o.x + o.w) b.vx *= -1; else b.vy *= -1;
           b.x = px; b.y = py; bounced = true;
@@ -925,21 +936,57 @@
     eBullets = eBullets.filter((b) => !b.dead);
   }
 
+  function hitObstacle(o, dmg) {
+    if (!o.hp || o.dead) return;
+    o.hp -= dmg;
+    if (o.hp <= 0) destroyObstacle(o);
+  }
+  function destroyObstacle(o) {
+    o.dead = true;
+    obstacles = obstacles.filter((q) => q !== o);
+    roomLights = roomLights.filter((l) => l.src !== o);
+    const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+    if (o.kind === "barrels") {
+      splatter(cx, cy, rand(0, TAU), 1.6, GREEN);
+      for (let i = 0; i < 6; i++) fxBubble(cx + rand(-20, 20), cy + rand(-20, 20));
+      explode(cx, cy, 100, player.power * 4, true);
+    } else {
+      const col = o.kind === "crate" ? "#7a5a34" : o.kind === "medcrate" ? "#dfe2dc" : "#56606a";
+      fxDebris(cx, cy, 0, Math.PI, 22, col);
+      fxDebris(cx, cy, 0, Math.PI, 8, "#4e3820");
+      fxSmoke(cx, cy, 4, 0.9, 0.9);
+      shake = Math.max(shake, 5);
+      hitStop = Math.max(hitStop, 0.04);
+      sfx("kill");
+      for (let i = randi(2, 4); i > 0; i--) orbs.push(makeOrb(cx, cy, "coin", 1));
+      if (o.kind === "medcrate" || Math.random() < 0.25) orbs.push(makeOrb(cx, cy, "heal", 0.15));
+    }
+  }
+
   function explode(x, y, radius, dmg, byPlayer) {
     shake = Math.max(shake, 9);
+    hitStop = Math.max(hitStop, 0.06);
+    if (save.vibration) Platform.vibrate(25);
     sfx("boom");
     fxFlash(x, y, radius * 1.7, "255,190,90", 0.28);
     fxRing(x, y, radius, "255,200,120", 0.35);
     for (let i = 0; i < 12; i++) fxFire(x + rand(-radius, radius) * 0.45, y + rand(-radius, radius) * 0.45, 2.2, rand(0.35, 0.6));
     fxSmoke(x, y, 7, 1.8, rand(1.2, 1.8));
     fxSparks(x, y, 0, Math.PI, 16, "255,200,120", 420);
-    fxDebris(x, y, 0, Math.PI, 8, "#3a3028");
+    fxDebris(x, y, 0, Math.PI, 12, "#3a3028");
+    // Feuerball (nur 3D zeichnet ihn; immer anlegen, unabhängig vom Partikel-Limit)
+    particles.push({ t: "boom", x, y, r: radius, life: 0.75, max: 0.75 });
     stamp(Sprites.scorch(), x, y, rand(0, TAU), radius / 40, 0.85);
     for (const e of enemies) {
       if (e.dead || e.spawnT > 0) continue;
       if (Math.sqrt(dist2(e, { x, y })) < radius + e.r) { e.hitAng = Math.atan2(e.y - y, e.x - x); damageEnemy(e, byPlayer ? dmg : dmg * 2, { aoe: true }); }
     }
     if (!byPlayer && Math.sqrt(dist2(player, { x, y })) < radius + player.r) hurtPlayer(dmg);
+    for (const o of obstacles.slice()) {
+      if (!o.hp || o.dead) continue;
+      const cx = clamp(x, o.x, o.x + o.w), cy = clamp(y, o.y, o.y + o.h);
+      if ((cx - x) ** 2 + (cy - y) ** 2 < radius * radius) hitObstacle(o, Math.max(dmg, 40) * 2);
+    }
   }
 
   function acidSplash(b) {
@@ -984,7 +1031,7 @@
       addText(e.x + rand(-8, 8), e.y - e.r - 4, Math.max(1, Math.round(dmg)) + (crit ? "!" : ""), crit ? "#ffb84a" : "#ffffff", crit ? 24 : 15, crit);
       sfx("hit");
     }
-    if (e.hp <= 0) killEnemy(e);
+    if (e.hp <= 0) { if (crit) hitStop = Math.max(hitStop, 0.03); killEnemy(e); }
   }
 
   function killEnemy(e) {
@@ -1002,6 +1049,8 @@
       slowMo = 0.9;
       fxFlash(e.x, e.y, 320, "255,240,200", 0.5);
       fxRing(e.x, e.y, 160, "255,220,160", 0.6);
+      particles.push({ t: "boom", x: e.x, y: e.y, r: 110, life: 1.1, max: 1.1 });
+      cineT = 2.2;
     }
 
     const xpVal = def.xp * (1 + run.room * 0.04) * (1 + (run.chapter - 1) * 0.5);
@@ -1194,6 +1243,7 @@
       if (d < p.r + 6) {
         o.dead = true;
         if (o.type === "xp") addXp(o.val);
+        else if (o.type === "heal") { healPlayer(p.maxHp * o.val); fxRing(p.x, p.y, 40, "120,255,140", 0.35); sfx("coin"); }
         else { run.coins += o.val * run.greed; sfx("coin"); }
       }
     }
@@ -1210,6 +1260,7 @@
       run.pendingPicks++;
       fxRing(p.x, p.y, 70, "255,230,120", 0.5);
       fxFlash(p.x, p.y, 120, "255,230,120", 0.3);
+      particles.push({ t: "lvl", x: p.x, y: p.y, life: 1.3, max: 1.3 });
       fxSparks(p.x, p.y, -Math.PI / 2, 0.9, 14, "255,230,120", 300);
     }
   }
@@ -1404,6 +1455,8 @@
     updateAmbient(dt);
     if (banner) { banner.life -= dt; if (banner.life <= 0) banner = null; }
     shake = Math.max(0, shake - dt * 30);
+    roomFade = Math.max(0, roomFade - frameDt * 2.2);
+    cineT = Math.max(0, cineT - frameDt);
   }
 
   // ============================================================
@@ -1418,7 +1471,12 @@
     updateOrbs(dt);
     if (supplyCrate) supplyCrate.bob += dt;
     if (run.cleared) run.doorK = Math.min(1, (run.doorK || 0) + dt * 1.8);
-    if (state === "play" && run.pendingPicks > 0) openSkillPick();
+    // Level-up: kurze Zeitlupe mit Lichtsäule, dann erst die Skill-Karten
+    if (state === "play" && run.pendingPicks > 0) {
+      if (run.pickDelay === undefined) { run.pickDelay = 0.2; slowMo = Math.max(slowMo, 0.75); player.invuln = Math.max(player.invuln, 1); }
+      run.pickDelay -= dt;
+      if (run.pickDelay <= 0) { run.pickDelay = undefined; openSkillPick(); }
+    }
   }
 
   function togglePause() {
@@ -1498,7 +1556,7 @@
     get orbs() { return orbs; }, get particles() { return particles; }, get corpses() { return corpses; },
     get zaps() { return zaps; }, get ambient() { return ambient; }, get roomLights() { return roomLights; },
     get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },
-    get theme() { return theme(); }, get isBossRoom() { return !!(run && BOSS_ROOMS[run.room]); },
+    get theme() { return theme(); }, get isBossRoom() { return !!(run && BOSS_ROOMS[run.room]); }, get intro() { return roomFade; },
     consumeFloorDirty() { const d = floorDirty; floorDirty = false; return d; },
     muzzlePoint: () => muzzlePoint(player),
     dronePos,
@@ -1629,6 +1687,15 @@
   function drawOverlay() {
     drawScreenFx();
     drawHud();
+    // Kinobalken bei Boss-Auftritt und Boss-Tod
+    const bossIntro = enemies.some((e) => e.def.boss && e.spawnT > 0);
+    cine += ((bossIntro || cineT > 0 ? 1 : 0) - cine) * Math.min(1, frameDt * 5);
+    if (cine > 0.01) {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, W, 92 * cine);
+      ctx.fillRect(0, H - 92 * cine, W, 92 * cine);
+    }
+    if (roomFade > 0) { ctx.globalAlpha = Math.min(1, roomFade * 1.4); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
     if (state === "play" && joy.active) drawJoystick();
     if (banner) drawBanner();
     if (!save.tutorialDone && run.room === 1 && (state === "play" || state === "pick")) drawTutorial();
@@ -1752,7 +1819,13 @@
 
   function drawOrbs() {
     const t = run.time;
-    for (const o of orbs) if (o.type === "coin") Sprites.draw(ctx, Sprites.coin(Math.floor(t * 12 + o.x * 0.1)), o.x, o.y);
+    for (const o of orbs) {
+      if (o.type === "coin") Sprites.draw(ctx, Sprites.coin(Math.floor(t * 12 + o.x * 0.1)), o.x, o.y);
+      else if (o.type === "heal") {
+        ctx.fillStyle = "#f2f2ec"; roundRect(o.x - 8, o.y - 7, 16, 14, 3); ctx.fill();
+        ctx.fillStyle = "#e5383b"; ctx.fillRect(o.x - 1.8, o.y - 5, 3.6, 10); ctx.fillRect(o.x - 5, o.y - 1.8, 10, 3.6);
+      }
+    }
   }
 
   function drawAmbient(glowPass) {
@@ -2218,7 +2291,9 @@
     // Zeitlupe nach Boss-Sieg
     const dt = slowMo > 0 ? real * 0.3 : real;
     if (slowMo > 0) slowMo -= real;
-    if (state === "play") { update(dt); trackPerformance(now - lastFrameAt); }
+    if (hitStop > 0) hitStop -= real;
+    else if (state === "play") update(dt);
+    if (state === "play") trackPerformance(now - lastFrameAt);
     lastFrameAt = now;
     if (run) updateFx(state === "play" ? dt : dt * 0.15);
     draw();
@@ -2586,5 +2661,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, get mode3d() { return mode3d; }, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), levelUp: () => addXp(player.xpNeed - player.xp), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

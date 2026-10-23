@@ -1372,7 +1372,8 @@
 
   function bakeCorpse(c) {
     splatter(c.x, c.y, c.face + Math.PI, c.boss ? 2.6 : 0.8, c.blood);
-    stamp(Sprites.zombieFx(c.type, c.f, c.v, "corpse"), c.x, c.y, c.face + c.dir * 0.4, c.sc * 0.88, 0.75);
+    // In 3D bleibt der Körper als Modell liegen und versinkt – nur in 2D als Bild auf den Boden
+    if (!mode3d) stamp(Sprites.zombieFx(c.type, c.f, c.v, "corpse"), c.x, c.y, c.face + c.dir * 0.4, c.sc * 0.88, 0.75);
   }
 
   // Umgebungs-Partikel: Asche (Straße), Staub (Krankenhaus), Sporen (Labor)
@@ -1510,24 +1511,84 @@
     return flatPt;
   }
 
-  let ingame = null;
+  // 3D-Hauptmenü: der Held sucht mit der Taschenlampe die nächtliche Straße ab,
+  // Zombies schlurfen heran und umkreisen ihn (reine Kulisse, keine Spiellogik)
+  let menu3d = null;
+  function menuWorld() {
+    if (!menu3d) {
+      const p = { x: W / 2, y: (T + B) / 2 + 80, r: 16, aim: -Math.PI / 2, moving: false, walkT: 0, kick: 0, barrel: 0, orbit: 0, orbitAng: 0, drones: 0, muzzle: 0, invuln: 0, hp: 1, maxHp: 1 };
+      const types = ["walker", "runner", "walker", "crawler", "brute", "spitter", "dog", "walker", "bomber", "armored", "walker", "walker"];
+      const enemies = types.map((type, i) => {
+        const def = ZOMBIES[type], a = (i / types.length) * TAU, d = rand(170, 330);
+        return {
+          type, def, r: def.r, variant: i % 3, scale: rand(0.95, 1.05), x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.8,
+          face: a + Math.PI, anim: rand(0, 8), wob: rand(0, TAU), spawnT: 0, spawnMax: 1, hitT: 0, mode: "walk", aiT: 0, dirX: 0, dirY: 0,
+          burnT: 0, slowT: 0, phase2: false, ang: a, dist: d, spd: def.speed * 0.25, want: rand(120, 200),
+        };
+      });
+      const obs = [
+        { kind: "car", x: L + 40, y: T + 150, w: 104, h: 54, vert: false, seed: 7 },
+        { kind: "barrels", x: R - 110, y: T + 300, w: 56, h: 56, seed: 3 },
+        { kind: "crate", x: L + 70, y: B - 260, w: 48, h: 48, seed: 5 },
+        { kind: "barricade", x: R - 170, y: B - 180, w: 120, h: 26, seed: 9 },
+        { kind: "dumpster", x: W / 2 + 40, y: T + 60, w: 92, h: 50, seed: 11 },
+      ];
+      menu3d = {
+        state: "menu", run: { doorK: 0 }, player: p, enemies, bullets: [], eBullets: [], orbs: [], particles: [], corpses: [], zaps: [],
+        ambient: Array.from({ length: 28 }, () => ({ x: rand(L, R), y: rand(T, B), size: rand(1, 2.4), ph: rand(0, TAU) })),
+        roomLights: obs.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3 })),
+        obstacles: obs, supplyCrate: null, floorCanvas: Sprites.floor("street", { W, H, L, T, R, B }, 4242),
+        theme: "street", isBossRoom: false, consumeFloorDirty: () => false,
+        muzzlePoint: () => muzzlePoint(p), dronePos: () => ({ x: p.x, y: p.y }), menuCam: true, t: 0,
+      };
+    }
+    return menu3d;
+  }
+  function updateMenuWorld(dt) {
+    const w = menuWorld(), p = w.player;
+    w.t += dt;
+    p.weaponId = save.equipped; p.weapon = WEAPONS[save.equipped]; p.tier = weaponTier(save.weapons[save.equipped] || 1);
+    p.aim = -Math.PI / 2 + Math.sin(w.t * 0.45) * 1.1 + Math.sin(w.t * 1.3) * 0.12;
+    for (const e of w.enemies) {
+      // langsam enger kreisen, dann wieder zurückweichen
+      e.dist += (e.want - e.dist) * dt * 0.15;
+      if (Math.abs(e.dist - e.want) < 6) e.want = rand(120, 320);
+      e.ang += (e.spd / Math.max(80, e.dist)) * dt * (e.variant % 2 ? 1 : -1);
+      const nx = p.x + Math.cos(e.ang) * e.dist, ny = p.y + Math.sin(e.ang) * e.dist * 0.8;
+      e.face = Math.atan2(p.y - ny, p.x - nx);
+      e.anim += dt * 4;
+      e.x = nx; e.y = ny;
+    }
+    for (const a of w.ambient) { a.ph += dt; a.x += (Math.sin(a.ph * 0.7) * 8 + 6) * dt; a.y += 14 * dt; if (a.y > B) a.y = T; if (a.x > R) a.x = L; }
+  }
+  function render3d(w, shk) {
+    try {
+      Render3D.render(w, frameDt, shk);
+      return true;
+    } catch (e) {
+      // Lieber in 2D weiterspielen als ein schwarzer Bildschirm
+      console.error("[Outbreak] 3D-Fehler – wechsle zu 2D", e);
+      webgl = false;
+      resize();
+      return false;
+    }
+  }
+
   function draw() {
     ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
-    if (ingame !== !!run) { ingame = !!run; view.classList.toggle("ingame", ingame); }
-    if (!run) { ctx.fillStyle = "#0d1210"; ctx.fillRect(0, 0, W, H); drawMenuBg(); return; }
+    if (!run) {
+      if (mode3d) {
+        ctx.clearRect(0, 0, W, H);
+        updateMenuWorld(frameDt);
+        if (render3d(menuWorld(), 0)) { ctx.drawImage(vignette, 0, 0, vignette.width * LS, vignette.height * LS); return; }
+      }
+      ctx.fillStyle = "#0d1210"; ctx.fillRect(0, 0, W, H); drawMenuBg(); return;
+    }
     if (mode3d) {
       ctx.clearRect(0, 0, W, H);
-      try {
-        Render3D.render(world3d, frameDt, shake);
-      } catch (e) {
-        // Lieber in 2D weiterspielen als ein schwarzer Bildschirm
-        console.error("[Outbreak] 3D-Fehler – wechsle zu 2D", e);
-        webgl = false;
-        resize();
-        return;
-      }
+      if (!render3d(world3d, shake)) return;
       drawBars();
       drawTexts();
       drawOverlay();

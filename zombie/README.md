@@ -9,7 +9,7 @@ Läuft im Browser, als installierbare PWA und als Android-App ([`../mobile`](../
 - **24 Skills** pro Run, **8 Zombie-Typen** (inkl. Zombie-Hunde und gepanzerte Riot-Zombies), **2 Bosse** mit Phase 2
 - **Kapitel à 20 Räume** mit Versorgungsräumen (5, 15) und Bossen (10, 20), danach endlos skalierend
 - **3 Welten** im Wechsel: Straße → Krankenhaus → Geheimlabor
-- **3D-Grafik** (WebGL über Three.js): schräge Kamera wie bei Archero, Low-Poly-Modelle für alle Zombies, Bosse, Waffen und Hindernisse, Echtzeit-Schatten, Taschenlampe und Punktlichter (Mündungsfeuer, Explosionen, Feuer, Blitze), Blut/Hülsen/Brandspuren bleiben am Boden
+- **3D-Grafik** (WebGL über Three.js): schräge Kamera wie bei Archero, Low-Poly-Modelle mit Cartoon-Umrissen für alle Zombies, Bosse, Waffen und Hindernisse, Echtzeit-Schatten, Taschenlampe mit Lichtkegel, Wandlampen, Punktlichter (Mündungsfeuer, Explosionen, Feuer, Blitze), umkippende und versinkende Zombies, Kamerafahrt beim Boss-Auftritt, 3D-Hauptmenü mit Kamerafahrt; Blut/Hülsen/Brandspuren bleiben am Boden
 - **3 Grafikstufen** mit automatischer Anpassung: „3D + Schatten“ → „3D“ → „2D (schnell)“; ohne WebGL läuft das Spiel mit dem klassischen 2D-Renderer
 - **Meta-Progression**: Talente, Waffen-Upgrades, 7-Tage-Login-Bonus, Shop
 - **Monetarisierung** (Android): Rewarded Videos (Wiederbeleben, Münzen ×2, Skill neu würfeln, Gratis-Münzen, Tagesbonus ×2),

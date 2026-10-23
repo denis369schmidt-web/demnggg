@@ -198,7 +198,7 @@ window.Render3D = (() => {
   // ------------------------------------------------------------------
   let hemi, moon, fill, flashlight, beam, outlineMat;
   const pool = [];
-  const CAM = { elev: 60 * Math.PI / 180, dist: 1200, fov: 34, tx: 0, tz: 0, offY: 0, fx: 0, fz: 0 };
+  const CAM = { elev: 60 * Math.PI / 180, dist: 1200, fov: 34, tx: 0, tz: 0, offY: 0, fx: 0, fz: 0, boss: 0 };
   // Figuren wirken in 3D kleiner als Sprites → sichtbar größer als ihr Kollisionskreis
   const CHAR_SCALE = 1.45, BOSS_SCALE = 1.12, PLAYER_SCALE = 1.5;
 
@@ -273,7 +273,19 @@ window.Render3D = (() => {
     return true;
   }
 
+  // Menü: langsame Kamerafahrt um den Helden, flacher Blickwinkel
+  let menuMode = false;
+  function placeMenuCamera(t, w) {
+    if (!menuMode) { menuMode = true; camera.clearViewOffset(); camera.fov = 40; camera.updateProjectionMatrix(); }
+    // Held im unteren Bilddrittel (unter den Menü-Buttons), Horde dahinter
+    const yaw = Math.sin(t * 0.06) * 0.7, elev = 0.58, d = 430;
+    const tx = w.player.x, tz = w.player.y;
+    camera.position.set(tx + Math.sin(yaw) * d * Math.cos(elev), Math.sin(elev) * d, tz + Math.cos(yaw) * d * Math.cos(elev));
+    camera.lookAt(tx - Math.sin(yaw) * 300, 0, tz - Math.cos(yaw) * 300);
+    camera.updateMatrixWorld();
+  }
   function placeCamera(dist, sx = 0, sz = 0) {
+    if (menuMode) { menuMode = false; camera.fov = CAM.fov; camera.setViewOffset(D.W, D.H, 0, CAM.offY, D.W, D.H); camera.updateProjectionMatrix(); }
     camera.position.set(CAM.tx + sx, Math.sin(CAM.elev) * dist, CAM.tz + Math.cos(CAM.elev) * dist + sz);
     camera.lookAt(CAM.tx + sx, 0, CAM.tz + sz);
     camera.updateMatrixWorld();
@@ -513,6 +525,8 @@ window.Render3D = (() => {
   }
 
   function buildRoom(w) {
+    for (const [, d] of dying) releaseModel(d.M);
+    dying.clear();
     if (room) {
       scene.remove(room.group);
       disposeTree(room.group);
@@ -635,8 +649,6 @@ window.Render3D = (() => {
     room = { group: g, floorTex, door, lamps, lampRgb };
     builtFloor = fc;
     renderer.shadowMap.needsUpdate = true;
-    // Spielerfigur ggf. für neue Waffe neu bauen
-    if (playerModel && (playerModel.weaponId !== w.player.weaponId || playerModel.tier !== w.player.tier)) { scene.remove(playerModel.root); disposeTree(playerModel.root); playerModel = null; }
   }
 
   // ------------------------------------------------------------------
@@ -1109,7 +1121,7 @@ window.Render3D = (() => {
   let lastFloorUpload = 0;
   let frame = 0;
 
-  function syncEnemies(w, t) {
+  function syncEnemies(w, t, dt) {
     const seen = new Set();
     for (const e of w.enemies) {
       let M = models.get(e);
@@ -1127,25 +1139,32 @@ window.Render3D = (() => {
       animate(M, e, t, near);
       tint(M, e, t);
     }
-    // Gestorbene → Todesanimation, Rest freigeben
+    // Gestorbene: umkippen, kurz liegen bleiben, dann im Boden versinken
     for (const c of w.corpses) {
-      if (c.ref && models.has(c.ref) && !seen.has(c.ref)) { dying.set(c, models.get(c.ref)); models.delete(c.ref); }
+      if (c.ref && models.has(c.ref) && !seen.has(c.ref)) {
+        dying.set(c, { M: models.get(c.ref), x: c.x, y: c.y, face: c.face, dir: c.dir, sc: c.sc * (c.boss ? BOSS_SCALE : CHAR_SCALE), t: 0, life: c.boss ? 5 : 2.6 });
+        models.delete(c.ref);
+      }
     }
     for (const [e, M] of models) if (!seen.has(e)) { releaseModel(M); models.delete(e); }
-    const live = new Set(w.corpses);
-    for (const [c, M] of dying) {
-      if (!live.has(c)) { releaseModel(M); dying.delete(c); continue; }
-      const k = Math.min(1, c.t / 0.5);
-      M.root.position.set(c.x, -k * M.height * 0.12, c.y);
-      M.root.scale.setScalar(c.sc * (c.boss ? BOSS_SCALE : CHAR_SCALE));
-      M.root.rotation.set(c.dir * k * 0.25, -c.face, k * 1.35);
-      const dark = 1 - k * 0.6;
+    if (dying.size > 40) for (const [c, d] of dying) { releaseModel(d.M); dying.delete(c); if (dying.size <= 40) break; }
+    for (const [c, d] of dying) {
+      d.t += dt;
+      if (d.t >= d.life) { releaseModel(d.M); dying.delete(c); continue; }
+      const M = d.M, k = Math.min(1, d.t / 0.45), fall = k * k * (3 - 2 * k);
+      const sink = Math.max(0, (d.t - (d.life - 1)) / 1);
+      M.root.position.set(d.x, -fall * M.height * 0.1 - sink * M.height * 0.5 * d.sc, d.y);
+      M.root.scale.setScalar(d.sc);
+      M.root.rotation.set(d.dir * fall * 0.25, -d.face, fall * 1.4);
+      const dark = 1 - fall * 0.55;
       for (const m of M.mats) { m.color.copy(m.userData.base).multiplyScalar(dark); m.emissive.setRGB(0, 0, 0); }
     }
   }
 
   function syncPlayer(w, t) {
     const p = w.player;
+    // Spielerfigur bei Waffenwechsel neu bauen
+    if (playerModel && (playerModel.weaponId !== p.weaponId || playerModel.tier !== p.tier)) { scene.remove(playerModel.root); disposeTree(playerModel.root); playerModel = null; }
     if (!playerModel) playerModel = buildPlayer(w);
     const M = playerModel;
     M.root.position.set(p.x, 0, p.y);
@@ -1409,8 +1428,13 @@ window.Render3D = (() => {
     const k = Math.min(1, dt * 3);
     CAM.fx += ((w.player.x - D.W / 2) * 0.025 - CAM.fx) * k;
     CAM.fz += ((w.player.y - (D.T + D.B) / 2) * 0.06 - CAM.fz) * k;
-    placeCamera(CAM.dist, sx + CAM.fx, sz + CAM.fz);
-    syncEnemies(w, t);
+    // Boss-Auftritt: Kamera fährt kurz an den Boss heran
+    let bossK = 0, bx = 0, bz = 0;
+    for (const e of w.enemies) if (e.def.boss && e.spawnT > 0) { bossK = Math.sin(Math.min(1, 1 - e.spawnT / e.spawnMax) * Math.PI); bx = e.x - CAM.tx; bz = e.y - CAM.tz; }
+    CAM.boss += (bossK - CAM.boss) * Math.min(1, dt * 5);
+    if (w.menuCam) placeMenuCamera(t, w);
+    else placeCamera(CAM.dist * (1 - 0.3 * CAM.boss), sx + CAM.fx + bx * 0.6 * CAM.boss, sz + CAM.fz + bz * 0.6 * CAM.boss);
+    syncEnemies(w, t, dt);
     syncPlayer(w, t);
     syncDoor(w);
     syncSupply(w);
@@ -1436,7 +1460,7 @@ window.Render3D = (() => {
     if (!ready) return;
     for (const [, M] of models) releaseModel(M);
     models.clear();
-    for (const [, M] of dying) releaseModel(M);
+    for (const [, d] of dying) releaseModel(d.M);
     dying.clear();
     if (playerModel) { scene.remove(playerModel.root); disposeTree(playerModel.root); playerModel = null; }
     sawMeshes.forEach((s) => { s.visible = false; });

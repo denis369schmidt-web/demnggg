@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-10-23",
+  "generatedAt": "2026-10-23T10:34:15.487Z",
+  "attempt": 0,
+  "theme": {
+    "id": "eiszeit",
+    "title": "Eiszeit",
+    "mood": "kalt",
+    "description": "Kühler Kopf, messerscharfe Punchlines.",
+    "keywords": [
+      "Eis",
+      "Frost",
+      "Kälte",
+      "Klinge",
+      "Kristall",
+      "Atemwolke"
+    ]
+  },
+  "challenge": {
+    "id": "atem-marathon",
+    "title": "Atem-Marathon",
+    "task": "Performe 16 Bars über „Eiszeit“ mit maximal einem Atemzug pro zwei Zeilen – Pausen bewusst setzen.",
+    "constraint": "Eine Zeile darf maximal zehn Silben haben – finde sie beim Proben.",
+    "bars": 16,
+    "bpm": 138
+  },
+  "wordPacks": [
+    {
+      "id": "eiszeit-thema",
+      "title": "Thema: Eiszeit",
+      "words": [
+        "Eis",
+        "Kristall",
+        "Frost",
+        "Atemwolke",
+        "Klinge",
+        "Kälte"
+      ]
+    },
+    {
+      "id": "2026-10-23-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Magnet",
+        "Echo",
+        "Tresor",
+        "Kompass",
+        "Spiegel",
+        "Funken"
+      ]
+    },
+    {
+      "id": "2026-10-23-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Zweifel",
+        "Hunger",
+        "Ruhe",
+        "kreisen",
+        "grinden",
+        "driften"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Wind",
+      "b": "geschwind"
+    },
+    {
+      "a": "Meer",
+      "b": "schwer"
+    },
+    {
+      "a": "Feuer",
+      "b": "teuer"
+    },
+    {
+      "a": "Beben",
+      "b": "schweben"
+    },
+    {
+      "a": "Wort",
+      "b": "Ort"
+    },
+    {
+      "a": "Nebel",
+      "b": "Pegel"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Ich stapel Silben auf Atemwolke, bis der Pegel sich häuft",
+      "syllables": 16
+    },
+    {
+      "line": "Atemwolke im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 13
+    },
+    {
+      "line": "Aus Atemwolke wird ein Plan, aus dem Plan wird ein Schritt",
+      "syllables": 14
+    },
+    {
+      "line": "Zwischen Eis und Echo find ich Raum für den Reim",
+      "syllables": 12
+    }
+  ],
+  "flowTip": {
+    "id": "stimme-instrument",
+    "title": "Stimme als Instrument",
+    "tip": "Variiere Tonhöhe pro Abschnitt: Strophe tief, Pre-Hook mittig, Hook oben. Melodie entsteht nebenbei."
+  },
+  "quote": "Wer den Takt fühlt, muss ihn nicht mehr zählen.",
+  "beatPreset": {
+    "bpm": 138,
+    "pattern": "Trap Halftime",
+    "energy": "mittel"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-10-23",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

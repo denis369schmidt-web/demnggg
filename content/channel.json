@@ -1,122 +1,122 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-22",
-  "generatedAt": "2026-10-22T10:11:29.454Z",
-  "attempt": 2,
+  "edition": "2026-10-23",
+  "generatedAt": "2026-10-23T10:34:15.487Z",
+  "attempt": 0,
   "theme": {
-    "id": "gewitterfront",
-    "title": "Gewitterfront",
-    "mood": "energisch",
-    "description": "Druck ablassen – jede Silbe ein Donnerschlag.",
+    "id": "eiszeit",
+    "title": "Eiszeit",
+    "mood": "kalt",
+    "description": "Kühler Kopf, messerscharfe Punchlines.",
     "keywords": [
-      "Gewitter",
-      "Blitz",
-      "Druck",
-      "Sturm",
-      "Energie",
-      "Beben"
+      "Eis",
+      "Frost",
+      "Kälte",
+      "Klinge",
+      "Kristall",
+      "Atemwolke"
     ]
   },
   "challenge": {
-    "id": "leiser-lauter",
-    "title": "Leiser & Lauter",
-    "task": "Performe 16 Bars über „Gewitterfront“ und steigere die Dynamik von Flüstern bis volle Energie.",
-    "constraint": "Verwende mindestens ein Bild aus der Natur.",
+    "id": "atem-marathon",
+    "title": "Atem-Marathon",
+    "task": "Performe 16 Bars über „Eiszeit“ mit maximal einem Atemzug pro zwei Zeilen – Pausen bewusst setzen.",
+    "constraint": "Eine Zeile darf maximal zehn Silben haben – finde sie beim Proben.",
     "bars": 16,
-    "bpm": 116
+    "bpm": 138
   },
   "wordPacks": [
     {
-      "id": "gewitterfront-thema",
-      "title": "Thema: Gewitterfront",
+      "id": "eiszeit-thema",
+      "title": "Thema: Eiszeit",
       "words": [
-        "Blitz",
-        "Sturm",
-        "Beben",
-        "Gewitter",
-        "Druck",
-        "Energie"
+        "Eis",
+        "Kristall",
+        "Frost",
+        "Atemwolke",
+        "Klinge",
+        "Kälte"
       ]
     },
     {
-      "id": "2026-10-22-bilder",
+      "id": "2026-10-23-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Schatten",
-        "Silhouette",
+        "Magnet",
+        "Echo",
+        "Tresor",
+        "Kompass",
         "Spiegel",
-        "Antenne",
-        "Anker",
-        "Satellit"
+        "Funken"
       ]
     },
     {
-      "id": "2026-10-22-energie",
+      "id": "2026-10-23-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Balance",
-        "Glut",
-        "Feuer",
-        "starten",
+        "Zweifel",
+        "Hunger",
+        "Ruhe",
         "kreisen",
-        "landen"
+        "grinden",
+        "driften"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Beben",
-      "b": "schweben"
+      "a": "Wind",
+      "b": "geschwind"
     },
     {
-      "a": "Hand",
-      "b": "Verstand"
-    },
-    {
-      "a": "Klang",
-      "b": "Drang"
-    },
-    {
-      "a": "Leben",
-      "b": "geben"
+      "a": "Meer",
+      "b": "schwer"
     },
     {
       "a": "Feuer",
       "b": "teuer"
     },
     {
-      "a": "Kern",
-      "b": "fern"
+      "a": "Beben",
+      "b": "schweben"
+    },
+    {
+      "a": "Wort",
+      "b": "Ort"
+    },
+    {
+      "a": "Nebel",
+      "b": "Pegel"
     }
   ],
   "starterBars": [
     {
-      "line": "Aus Beben wird ein Plan, aus dem Plan wird ein Schritt",
-      "syllables": 12
+      "line": "Ich stapel Silben auf Atemwolke, bis der Pegel sich häuft",
+      "syllables": 16
     },
     {
-      "line": "Beben als Kompass und die Snare gibt den Takt",
-      "syllables": 12
-    },
-    {
-      "line": "Radar in den Zeilen, jede Silbe nimmt mich mit",
+      "line": "Atemwolke im Blick, ich bleib ruhig auf der Eins",
       "syllables": 13
     },
     {
-      "line": "Ich stapel Silben auf Beben, bis der Pegel sich häuft",
+      "line": "Aus Atemwolke wird ein Plan, aus dem Plan wird ein Schritt",
       "syllables": 14
+    },
+    {
+      "line": "Zwischen Eis und Echo find ich Raum für den Reim",
+      "syllables": 12
     }
   ],
   "flowTip": {
-    "id": "vokal-farben",
-    "title": "Vokalfarben mischen",
-    "tip": "Dunkle Vokale (o, u) klingen schwer, helle (i, e) schnell. Wähle Reimwörter passend zur Stimmung."
+    "id": "stimme-instrument",
+    "title": "Stimme als Instrument",
+    "tip": "Variiere Tonhöhe pro Abschnitt: Strophe tief, Pre-Hook mittig, Hook oben. Melodie entsteht nebenbei."
   },
-  "quote": "Jede krumme Bar von heute ist das Fundament der geraden von morgen.",
+  "quote": "Wer den Takt fühlt, muss ihn nicht mehr zählen.",
   "beatPreset": {
-    "bpm": 116,
-    "pattern": "Uptempo Battle",
-    "energy": "hoch"
+    "bpm": 138,
+    "pattern": "Trap Halftime",
+    "energy": "mittel"
   },
   "editorial": {
     "score": 100,
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-22",
+    "latestEdition": "2026-10-23",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

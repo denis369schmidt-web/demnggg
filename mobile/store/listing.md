@@ -1,7 +1,7 @@
 # Play-Store-Eintrag – Outbreak Hero
 
 Texte zum Kopieren in die Play Console (Hauptseite des Store-Eintrags).
-Grafiken: `de/` und `en/` (Screenshots 1080×1920, Feature-Grafik 1024×500),
+Grafiken: `de/` und `en/` (6 Screenshots 1080×1920, Feature-Grafik 1024×500),
 App-Symbol 512×512: `../../zombie/icons/icon-512.png`.
 
 ---
@@ -24,8 +24,14 @@ Ziehe mit einem Finger, um auszuweichen. Bleib stehen und dein Held feuert autom
 ⚡ 24 SKILLS – JEDER RUN IST ANDERS
 Mehrfachschuss, Querschläger, Kreissägen, Kampfdrohne, Brand-, Kryo- und Toxin-Munition, Zweites Leben … Bei jedem Level-Up wählst du 1 von 3 Skills und baust dir deinen eigenen unaufhaltsamen Build.
 
-🔫 7 WAFFEN
-Pistole, Schrotflinte, Maschinenpistole, Armbrust, Flammenwerfer, Scharfschützengewehr und Granatwerfer – jede spielt sich komplett anders und lässt sich bis Stufe 10 aufrüsten.
+🔫 9 WAFFEN
+Pistole, Schrotflinte, Maschinenpistole, Armbrust, Flammenwerfer, Scharfschützengewehr, Granatwerfer, Tesla-Gewehr mit Kettenblitz und eine Minigun, die sich warmläuft – jede spielt sich komplett anders und lässt sich bis Stufe 10 aufrüsten. Ab Stufe 5 glänzt sie in Gold.
+
+🧟 8 ZOMBIE-ARTEN
+Schlurfer, Sprinter, Kriecher, giftspuckende Spucker, explodierende Bomber, Zombie-Hunde im Rudel, gepanzerte Riot-Zombies und der gewaltige Koloss.
+
+🌆 3 WELTEN
+Kämpf dich durch nächtliche Straßen, ein verlassenes Krankenhaus und ein geheimes Labor – mit dynamischem Licht, Taschenlampe und spritzenden Effekten.
 
 👹 EPISCHE BOSSKÄMPFE
 Die Abscheulichkeit stürmt auf dich zu und feuert Projektil-Ringe, die Brutmutter ruft Horden von Kriechern. Unter 50 % Leben mutieren sie und werden noch gefährlicher.
@@ -61,8 +67,14 @@ Drag with one finger to dodge. Stand still and your hero automatically fires at 
 ⚡ 24 SKILLS – EVERY RUN IS DIFFERENT
 Multishot, ricochet, buzzsaws, combat drone, incendiary, cryo and toxin rounds, second life … Pick 1 of 3 skills on every level-up and build your own unstoppable loadout.
 
-🔫 7 WEAPONS
-Pistol, shotgun, SMG, crossbow, flamethrower, sniper rifle and grenade launcher – each plays completely differently and can be upgraded to level 10.
+🔫 9 WEAPONS
+Pistol, shotgun, SMG, crossbow, flamethrower, sniper rifle, grenade launcher, a chain-lightning Tesla rifle and a spin-up minigun – each plays completely differently and can be upgraded to level 10. From level 5 it shines in gold.
+
+🧟 8 KINDS OF ZOMBIES
+Walkers, sprinters, crawlers, acid spitters, exploding bombers, zombie dog packs, armored riot zombies and the massive brute.
+
+🌆 3 WORLDS
+Fight through night-time streets, an abandoned hospital and a secret lab – with dynamic lighting, a flashlight and juicy effects.
 
 👹 EPIC BOSS FIGHTS
 The Abomination charges at you and fires rings of projectiles, the Brood Mother summons swarms of crawlers. Below 50% health they mutate and get even deadlier.

@@ -86,6 +86,7 @@ window.I18N = (() => {
     "Stehenbleiben = auf den nächsten Zombie feuern": "Stand still = fire at the nearest zombie",
     "Ausgerüstet: {w} (Stufe {n})": "Equipped: {w} (level {n})",
     " · Stufe {n}": " · Lv {n}",
+    "Stufe {n}": "Level {n}",
     "Kaufen {p}💰": "Buy {p}💰",
     "Ausrüsten": "Equip",
     // Shop
@@ -117,6 +118,10 @@ window.I18N = (() => {
     "Sound: {v}": "Sound: {v}",
     "Vibration: {v}": "Vibration: {v}",
     "Sprache: {v}": "Language: {v}",
+    "Grafik: {v}": "Graphics: {v}",
+    "Hoch": "High",
+    "Mittel": "Medium",
+    "Niedrig": "Low",
     "an": "on",
     "aus": "off",
   };
@@ -131,6 +136,8 @@ window.I18N = (() => {
       flame: { name: "Flamethrower", desc: "Short range, sets everything on fire." },
       sniper: { name: "Sniper Rifle", desc: "Massive damage, pierces 4 targets, +20% crit." },
       grenade: { name: "Grenade Launcher", desc: "Explodes and hits whole hordes." },
+      tesla: { name: "Tesla Rifle", desc: "Chain lightning jumps to 3 more zombies." },
+      minigun: { name: "Minigun", desc: "Spins up while you stand still – then a storm of lead." },
     },
     talents: {
       hp: { name: "Constitution", desc: "+8% max HP per level" },

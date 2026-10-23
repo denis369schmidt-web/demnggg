@@ -42,9 +42,12 @@ canvas { display: block; background: #121a16; touch-action: none; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  /* "safe": bei zu hohem Inhalt scrollbar statt oben abgeschnitten (ältere WebViews ignorieren die Zeile) */
+  justify-content: safe center;
   gap: 12px;
   padding: 24px 16px;
-  background: radial-gradient(circle at 50% 30%, #1b2a20 0%, var(--bg) 70%);
+  /* halbtransparent: dahinter läuft die animierte Zombie-Straße (Canvas) */
+  background: radial-gradient(circle at 50% 32%, rgba(13, 18, 16, 0.25) 0%, rgba(13, 18, 16, 0.82) 72%);
   overflow-y: auto;
   z-index: 10;
 }
@@ -107,7 +110,7 @@ h2 { margin: 0 0 4px; font-size: 28px; letter-spacing: 1px; }
 .list { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 8px; }
 .item {
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
@@ -117,10 +120,16 @@ h2 { margin: 0 0 4px; font-size: 28px; letter-spacing: 1px; }
 }
 .item.active { border-color: var(--toxic); box-shadow: 0 0 0 1px var(--toxic) inset; }
 .item .ico { font-size: 28px; text-align: center; }
+.item .ico img { width: 58px; height: auto; display: block; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6)); }
+.equipped { display: flex; align-items: center; gap: 8px; }
+.eq-ico { width: 64px; height: auto; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6)); }
 .item .name { font-weight: 800; }
 .item .desc { font-size: 12px; color: var(--muted); }
 .item .acts { display: flex; flex-direction: column; gap: 4px; }
-.item .acts .btn { min-width: 96px; padding: 6px 10px; font-size: 13px; }
+.item .acts .btn { min-width: 84px; padding: 6px 8px; font-size: 13px; }
+.item .name { font-size: 15px; overflow-wrap: break-word; hyphens: auto; }
+.item .lvl { font-size: 12px; font-weight: 800; color: #9fd8ff; }
+.item .lvl.gold { color: var(--gold); }
 
 .cards { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 380px; }
 .card {

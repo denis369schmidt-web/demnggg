@@ -267,6 +267,7 @@ window.Render3D = (() => {
     outlineMat = new T3.MeshBasicMaterial({ color: 0x07090b, side: T3.BackSide, fog: false });
     outlineMat.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n  transformed += normal * 1.0;"); };
     setupInstanced();
+    setupCorpseBatch();
     fitCamera();
     ready = true;
     console.log(`[Outbreak] 3D bereit (Three.js ${T3.REVISION})`);
@@ -629,6 +630,7 @@ window.Render3D = (() => {
   function buildRoom(w) {
     for (const [, d] of dying) releaseModel(d.M);
     dying.clear();
+    resetCorpseBatch();
     if (room) {
       scene.remove(room.group);
       disposeTree(room.group);
@@ -762,8 +764,32 @@ window.Render3D = (() => {
   // Figuren
   // ------------------------------------------------------------------
   const PAL = {
-    walker: [{ shirt: "#5d6e7e", pants: "#2f3b52", skin: "#8fa67a", hair: "#2a1d14" }, { shirt: "#7d5f45", pants: "#3a3328", skin: "#94a37c", ribs: true }, { shirt: "#6b3f57", pants: "#2b2f3a", skin: "#87a184", hair: "#5a4630", torn: true }],
-    runner: [{ shirt: "#8a2a2a", pants: "#1f2126", skin: "#a9b59c", hood: true, lean: 0.28, torn: true }],
+    // Walker-Outfits (Index = WALKER_LOOKS in game.js): Zivil ×3, Polizist, Bauarbeiter, Anzug, Patient, Ärztin, Pfleger, Forscher, Soldat, Schutzanzug
+    walker: [
+      { shirt: "#5d6e7e", pants: "#2f3b52", skin: "#8fa67a", hair: "#2a1d14" },
+      { shirt: "#7d5f45", pants: "#3a3328", skin: "#94a37c", ribs: true },
+      { shirt: "#6b3f57", pants: "#2b2f3a", skin: "#87a184", hair: "#5a4630", torn: true },
+      { shirt: "#24324f", pants: "#1b2338", skin: "#8fa67a", hat: "police", badge: true },
+      { shirt: "#e8701a", pants: "#3a3a40", skin: "#93a47c", hat: "hardhat", hivis: true, torn: true },
+      { shirt: "#2b2d33", pants: "#24262b", skin: "#9aa684", tie: "#a01818", hair: "#1a1410" },
+      { shirt: "#a9c3cf", pants: "#a9c3cf", skin: "#a3ad92", bandage: true, ribs: true },
+      { shirt: "#e8ecea", pants: "#5f7a8a", skin: "#99a88a", coat: true, mask: true, hair: "#3a2a1a" },
+      { shirt: "#5f9a8a", pants: "#4f8678", skin: "#8fa67a", hat: "scrub", mask: true },
+      { shirt: "#e4e6e0", pants: "#3a3d44", skin: "#8aa07c", coat: true, goggles: true, hair: "#8a8a8a" },
+      { shirt: "#4f5a38", pants: "#3e4630", skin: "#8a9c74", hat: "helmet", tactical: true },
+      { shirt: "#d9c21a", pants: "#c9b218", skin: "#7d9070", hazmat: true },
+    ],
+    runner: [
+      { shirt: "#8a2a2a", pants: "#1f2126", skin: "#a9b59c", hood: true, lean: 0.28, torn: true },
+      { shirt: "#3a7a9a", pants: "#1a1a22", skin: "#a3ae94", lean: 0.28, headband: "#e5383b" },
+      { shirt: "#1a1a1a", pants: "#2a2a3a", skin: "#9caa8a", lean: 0.28, mohawk: "#e5383b", torn: true },
+    ],
+    leaper: [{ shirt: "#3d3a44", pants: "#2a2730", skin: "#9fae8e", lean: 0.45, claws: true, thin: true, longArms: true, torn: true }],
+    burner: [{ shirt: "#2a1c14", pants: "#1c1612", skin: "#3a2a20", eye: "#ffb03a", burning: true }],
+    screamer: [{ shirt: "#cfd8dc", pants: "#cfd8dc", skin: "#b9c4ad", eye: "#ff4af0", thin: true, scream: true, longHair: "#16130f" }],
+    splitter: [{ shirt: "#5a3a62", pants: "#3a2a40", skin: "#8a6a9a", bloat: true, pustules: "#ff6ad5", eye: "#ff6ad5" }],
+    electro: [{ shirt: "#e4e6e0", pants: "#2a2f3a", skin: "#7f9474", eye: "#7fe7ff", coat: true, coils: true, goggles: true }],
+    rat: [{ shirt: "#5a5048", skin: "#8a6a6a" }],
     spitter: [{ shirt: "#5d7c3a", pants: "#4a3d2a", skin: "#7d9a48", bloat: true, eye: "#eaff00" }],
     bomber: [{ shirt: "#e8701a", pants: "#2e3440", skin: "#8fa27a", vest: true }],
     brute: [{ shirt: "#5a615b", pants: "#3a3a33", skin: "#7c8c6a", brute: true }],
@@ -777,6 +803,7 @@ window.Render3D = (() => {
   // Jede Figur bekommt eigene Materialien für Treffer-Blitz/Eis/Wut (emissive)
   function makeModel(kind) {
     const root = group();
+    root.rotation.order = "YXZ"; // erst umkippen (z), dann um die Körperachse rollen (x), dann drehen (y)
     const body = group();
     root.add(body);
     return { root, body, mats: [], legs: [], arms: [], extra: {}, height: 40, kind };
@@ -786,7 +813,8 @@ window.Render3D = (() => {
 
   function buildHumanoid(type, r, P) {
     const M = makeModel(type);
-    const bulk = P.brute ? 1.18 : P.bloat ? 1.1 : 1;
+    const bulk = P.brute ? 1.18 : P.pustules ? 1.28 : P.bloat ? 1.1 : P.thin ? 0.84 : 1;
+    const la = P.longArms ? 1.3 : 1;
     const shirt = flashMat(M, P.shirt), pants = flashMat(M, P.pants), skin = flashMat(M, P.skin);
     const dark = slam("#1a1a1a");
     // Beine (Pivot an der Hüfte)
@@ -823,10 +851,11 @@ window.Render3D = (() => {
     // Arme nach vorn (Zombie-Griff)
     for (const s of [-1, 1]) {
       const sh = group(0.04 * r, 1.86 * r, s * 0.66 * r * bulk);
-      const arm = mesh(cap(0.15 * r * bulk, 0.72 * r), P.armor ? slam("#1b2433") : P.brute || P.bloat ? skin : shirt, 0.5 * r, 0, 0);
+      const arm = mesh(cap(0.15 * r * bulk, 0.72 * r * la), P.armor ? slam("#1b2433") : P.brute || P.bloat || P.claws ? skin : shirt, 0.5 * r * la, 0, 0);
       arm.rotation.z = -Math.PI / 2;
       sh.add(arm);
-      sh.add(mesh(ico(0.17 * r * bulk * (P.brute ? 1.35 : 1), 0), P.armor ? slam("#1d2330") : skin, 1.04 * r, 0, 0));
+      sh.add(mesh(ico(0.17 * r * bulk * (P.brute ? 1.35 : 1), 0), P.armor ? slam("#1d2330") : skin, 1.04 * r * la, 0, 0));
+      if (P.claws) for (let k = -1; k <= 1; k++) { const cl = mesh(cone(0.05 * r, 0.42 * r, 4), slam("#e8e0c8"), 1.3 * r * la, 0, k * 0.09 * r); cl.rotation.z = -Math.PI / 2; sh.add(cl); }
       sh.rotation.y = s * 0.18;
       M.body.add(sh);
       M.arms.push({ g: sh, s });
@@ -862,11 +891,94 @@ window.Render3D = (() => {
       flap.rotation.x = (i - 1.5) * 0.25; flap.rotation.z = 0.2 * Math.sin(i * 2.3);
       M.body.add(flap);
     }
+    accessories(M, P, r, head, hr, shirt, skin);
     M.body.add(head);
     M.extra.head = head;
     M.body.rotation.z = -(P.lean || 0);
     M.lean = -(P.lean || 0);
     M.height = 2.9 * r;
+    return M;
+  }
+
+  // Kleidung & Ausrüstung je Outfit – macht aus einem Grundmodell viele verschiedene Zombies
+  function accessories(M, P, r, head, hr, shirt, skin) {
+    const B = M.body;
+    if (P.hat === "police") {
+      head.add(mesh(cyl(hr * 1.02, hr * 1.06, 0.24 * r, 10), slam("#1b2338"), -0.02 * r, hr * 0.78, 0));
+      head.add(mesh(box(0.34 * r, 0.04 * r, 0.62 * r), slam("#0f1424"), hr * 0.7, hr * 0.62, 0));
+      head.add(mesh(box(0.04 * r, 0.1 * r, 0.12 * r), sbasic("#e8c64a"), hr * 1.0, hr * 0.8, 0));
+    } else if (P.hat === "hardhat") {
+      const h = mesh(ico(hr * 1.14, 1), slam("#f2c81a"), -0.02 * r, 0.12 * r, 0); h.scale.set(1, 0.62, 1); head.add(h);
+      head.add(mesh(cyl(hr * 1.32, hr * 1.32, 0.04 * r, 12), slam("#e0b818"), 0.04 * r, 0.06 * r, 0));
+    } else if (P.hat === "helmet") {
+      const h = mesh(ico(hr * 1.18, 1), slam("#4a5530"), -0.03 * r, 0.1 * r, 0); h.scale.set(1.04, 0.72, 1.06); head.add(h);
+      head.add(mesh(box(0.06 * r, 0.06 * r, 0.7 * r), slam("#2a2e1c"), hr * 0.2, -0.24 * r, 0));
+    } else if (P.hat === "scrub") {
+      const h = mesh(ico(hr * 1.06, 1), slam(P.shirt), -0.04 * r, 0.12 * r, 0); h.scale.set(1, 0.55, 1); head.add(h);
+    }
+    if (P.mask) head.add(mesh(box(0.06 * r, 0.2 * r, 0.5 * r), slam("#dfe9ee"), hr * 0.92, -0.1 * r, 0));
+    if (P.goggles) {
+      head.add(mesh(box(0.08 * r, 0.13 * r, 0.56 * r), sbasic("#9fe8ff"), hr * 0.92, 0.08 * r, 0));
+      head.add(mesh(box(0.5 * r, 0.06 * r, 0.62 * r), slam("#222222"), 0, 0.08 * r, 0));
+    }
+    if (P.bandage) { const t2 = mesh(torus(hr * 1.02, 0.05 * r), slam("#e8e4d8"), 0, 0.12 * r, 0); t2.rotation.x = Math.PI / 2; head.add(t2); head.add(mesh(ico(0.06 * r, 0), slam("#8a1a1a"), hr * 0.98, 0.14 * r, 0.1 * r)); }
+    if (P.headband) { const t2 = mesh(torus(hr * 1.02, 0.045 * r), slam(P.headband), 0, 0.14 * r, 0); t2.rotation.x = Math.PI / 2; head.add(t2); }
+    if (P.mohawk) for (let i = 0; i < 6; i++) { const m = mesh(cone(0.07 * r, 0.32 * r, 4), slam(P.mohawk), hr * 0.5 - i * 0.12 * r, hr * 0.95, 0); m.rotation.z = 0.25; head.add(m); }
+    if (P.longHair) {
+      const cap2 = mesh(ico(hr * 1.08, 1), slam(P.longHair), -0.06 * r, 0.08 * r, 0); cap2.scale.set(1, 0.7, 1.06); head.add(cap2);
+      head.add(mesh(box(0.14 * r, 0.75 * r, 0.62 * r), slam(P.longHair), -0.28 * r, -0.3 * r, 0));
+    }
+    if (P.scream) { const mouth = mesh(ico(0.16 * r, 1), basic(0x1a0204), hr * 0.86, -0.12 * r, 0); mouth.scale.set(0.6, 1.5, 1); head.add(mouth); }
+    if (P.hazmat) {
+      const hood = mesh(ico(hr * 1.22, 1), slam(P.shirt), -0.05 * r, 0.02 * r, 0); hood.scale.set(1.02, 1.05, 1.04); head.add(hood);
+      head.add(mesh(box(0.08 * r, 0.3 * r, 0.5 * r), sbasic("#7fd8ff"), hr * 1.08, 0.08 * r, 0));
+      const snout = mesh(cyl(0.12 * r, 0.14 * r, 0.22 * r, 8), slam("#222222"), hr * 1.12, -0.2 * r, 0); snout.rotation.z = Math.PI / 2; head.add(snout);
+      for (const s of [-1, 1]) { const f = mesh(cyl(0.09 * r, 0.09 * r, 0.16 * r, 8), slam("#3a3a3a"), hr * 1.0, -0.26 * r, s * 0.24 * r); f.rotation.x = s * 0.9; head.add(f); }
+    }
+    if (P.tie) {
+      B.add(mesh(box(0.05 * r, 0.52 * r, 0.11 * r), slam(P.tie), 0.36 * r, 1.58 * r, 0));
+      B.add(mesh(box(0.06 * r, 0.12 * r, 0.36 * r), slam("#e8e8e0"), 0.33 * r, 1.88 * r, 0));
+    }
+    if (P.badge) {
+      B.add(mesh(box(0.04 * r, 0.12 * r, 0.1 * r), sbasic("#e8c64a"), 0.36 * r, 1.66 * r, 0.22 * r));
+      const belt = mesh(cyl(0.42 * r, 0.42 * r, 0.12 * r, 10), slam("#111111"), 0, 1.12 * r, 0); belt.scale.set(0.84, 1, 1.32); B.add(belt);
+    }
+    if (P.hivis) for (const y of [1.4, 1.7]) B.add(mesh(box(0.72 * r, 0.08 * r, 1.12 * r), slam("#e8e8c8"), 0, y * r, 0));
+    if (P.tactical) B.add(mesh(box(0.56 * r, 0.7 * r, 0.96 * r), slam("#3a4230"), 0.04 * r, 1.58 * r, 0));
+    if (P.coat) { const c2 = mesh(box(0.62 * r, 0.7 * r, 0.96 * r), slam(P.shirt), -0.02 * r, 0.98 * r, 0); B.add(c2); }
+    if (P.pustules) for (let i = 0; i < 10; i++) { const a = i * 2.39; B.add(mesh(ico(0.07 * r + (i % 3) * 0.03 * r, 0), sbasic(P.pustules), 0.42 * r * Math.cos(a), 1.1 * r + (i % 4) * 0.22 * r, 0.5 * r * Math.sin(a))); }
+    if (P.burning) {
+      for (let i = 0; i < 8; i++) { const a = i * 2.1; B.add(mesh(box(0.05 * r, 0.24 * r, 0.04 * r), sbasic("#ff8a2a"), 0.36 * r * Math.cos(a), 1.2 * r + (i % 4) * 0.2 * r, 0.48 * r * Math.sin(a))); }
+      B.add(mesh(box(0.34 * r, 0.5 * r, 0.22 * r), slam("#a01818"), -0.44 * r, 1.6 * r, 0));
+    }
+    if (P.coils) for (const s of [-1, 1]) {
+      B.add(mesh(cyl(0.1 * r, 0.1 * r, 0.7 * r, 8), sbasic("#7fe7ff"), -0.46 * r, 1.75 * r, s * 0.22 * r));
+      for (let k = 0; k < 3; k++) { const t2 = mesh(torus(0.13 * r, 0.03 * r), slam("#c87533"), -0.46 * r, 1.5 * r + k * 0.22 * r, s * 0.22 * r); t2.rotation.x = Math.PI / 2; B.add(t2); }
+    }
+  }
+
+  // Seuchenratte: klein, flink, langer Schwanz
+  function buildRat(r, P) {
+    const M = makeModel("rat");
+    const fur = flashMat(M, P.shirt), skin = flashMat(M, P.skin);
+    const body = mesh(cap(0.55 * r, 0.9 * r), fur, 0, 0.7 * r, 0); body.rotation.z = Math.PI / 2; body.scale.set(1, 1, 0.9); M.body.add(body);
+    for (const [x, ph] of [[0.5, 0], [-0.5, Math.PI]]) for (const s of [-1, 1]) {
+      const hip = group(x * r, 0.55 * r, s * 0.35 * r);
+      hip.add(mesh(cap(0.12 * r, 0.3 * r), skin, 0, -0.3 * r, 0));
+      M.body.add(hip); M.legs.push({ g: hip, s, ph: ph + (s > 0 ? 0.6 : 0) });
+    }
+    const head = group(0.95 * r, 0.8 * r, 0);
+    const snout = mesh(cone(0.38 * r, 0.9 * r, 6), fur, 0.3 * r, 0, 0); snout.rotation.z = -Math.PI / 2; head.add(snout);
+    head.add(mesh(ico(0.08 * r, 0), skin, 0.78 * r, 0, 0));
+    for (const s of [-1, 1]) {
+      head.add(mesh(ico(0.18 * r, 1), skin, -0.05 * r, 0.3 * r, s * 0.25 * r));
+      head.add(mesh(ico(0.07 * r, 0), sbasic("#ff3030"), 0.25 * r, 0.14 * r, s * 0.17 * r));
+    }
+    M.body.add(head); M.extra.head = head;
+    const tail = group(-0.95 * r, 0.6 * r, 0);
+    const tl = mesh(cyl(0.05 * r, 0.1 * r, 1.6 * r, 5), skin, -0.8 * r, 0, 0); tl.rotation.z = Math.PI / 2 + 0.2; tail.add(tl);
+    M.body.add(tail); M.extra.tail = tail;
+    M.height = 1.3 * r;
     return M;
   }
 
@@ -1069,7 +1181,7 @@ window.Render3D = (() => {
     M.mats = [lit, ...M.mats.filter((m) => [...keep].some((k) => k.material === m))];
   }
 
-  const builders = { crawler: buildCrawler, dog: buildDog, abom: buildAbom, mother: buildMother };
+  const builders = { crawler: buildCrawler, dog: buildDog, rat: buildRat, abom: buildAbom, mother: buildMother };
   const pools = new Map();
   function acquireModel(type, r, variant) {
     const pal = PAL[type] || PAL.walker, pi = variant % pal.length;
@@ -1085,6 +1197,7 @@ window.Render3D = (() => {
       cast(M.root);
     }
     M.root.visible = true;
+    if (M.extra.head) M.extra.head.visible = true;
     M.root.rotation.set(0, 0, 0);
     M.root.position.set(0, 0, 0);
     M.mats.forEach((m) => { m.color.copy(m.userData.base); m.emissive.setRGB(0, 0, 0); });
@@ -1117,6 +1230,12 @@ window.Render3D = (() => {
       const rush = e.mode === "lunge" || e.mode === "charge" ? -0.35 : 0;
       M.body.rotation.x = Math.sin(ph) * 0.07;
       M.body.rotation.z = (M.lean || 0) + rush + Math.min(0.1, e.hitT) * 3.2;
+      if (e.mode === "crouch") { M.body.position.y = -0.22 * e.r; M.body.rotation.z -= 0.35; for (const L of M.legs) L.g.rotation.z = L.s * 0.5; }
+      else if (e.mode === "leap") { M.body.rotation.z -= 0.6; for (const L of M.legs) L.g.rotation.z = -0.9; for (const A of M.arms) A.g.rotation.z = 0.9; }
+      else if (e.mode === "scream") { if (M.extra.head) M.extra.head.rotation.z = 0.55; for (const A of M.arms) { A.g.rotation.y = A.s * 1.1; A.g.rotation.z = 0.5; } M.body.rotation.z += 0.2; }
+      else if (e.mode === "zap") { for (const A of M.arms) A.g.rotation.z = 1.25 + Math.random() * 0.2; M.body.rotation.x += (Math.random() - 0.5) * 0.2; }
+      if (e.mode !== "scream" && M.extra.head) M.extra.head.rotation.z = 0;
+      if (e.mode !== "scream") for (const A of M.arms) if (!A.crawl) A.g.rotation.y = A.s * 0.18;
     }
     if (M.extra.blink) M.extra.blink.visible = Math.sin(t * 14 + e.wob) > 0;
     if (M.extra.sac) M.extra.sac.scale.setScalar(1 + 0.15 * Math.sin(ph * 2));
@@ -1129,9 +1248,11 @@ window.Render3D = (() => {
   function tint(M, e, t) {
     let r = 0, g = 0, b = 0;
     if (e.hitT > 0) { const k = Math.min(1, e.hitT / 0.1) * 0.9; r = g = b = k; }
-    else if (e.phase2) { const k = 0.35 + 0.25 * Math.sin(t * 10); r = k; g = 0.02; b = 0.06; }
+    else if (e.phase2 || e.rageT > 0) { const k = 0.35 + 0.25 * Math.sin(t * 10); r = k; g = 0.02; b = 0.06; }
+    else if (e.mode === "zap") { const k = Math.random() < 0.5 ? 0.7 : 0.2; r = k * 0.4; g = k * 0.9; b = k; }
     else if (e.slowT > 0) { r = 0.15; g = 0.4; b = 0.7; }
-    else if (e.burnT > 0) { const k = 0.3 + 0.2 * Math.sin(t * 20); r = k; g = k * 0.4; }
+    else if (e.burnT > 0 || e.type === "burner") { const k = 0.3 + 0.2 * Math.sin(t * 20 + e.wob); r = k; g = k * 0.4; }
+    else if (e.elite) { const k = 0.18 + 0.1 * Math.sin(t * 5); r = k; g = k * 0.75; }
     for (const m of M.mats) m.emissive.setRGB(r, g, b);
   }
 
@@ -1163,6 +1284,38 @@ window.Render3D = (() => {
         for (const x of [12, 17, 22]) { const c = add(mesh(torus(4.2, 1.1), smat("copper", () => new T3.MeshLambertMaterial({ color: 0xc87533, emissive: 0x2a1000 })), x, 0.5, 0)); c.rotation.y = Math.PI / 2; }
         len = 29; break;
       }
+      case "magnum": {
+        add(mesh(box(8, 6, 3.4), slam("#3a2a1c"), -2, -2.5, 0)); add(mesh(box(8, 5, 4), steel2, 4, 0.8, 0));
+        add(along(mesh(cyl(2.6, 2.6, 5, 8), steel, 9, 0.6, 0))); add(along(mesh(cyl(1.3, 1.3, 12, 6), slam("#5a5f66"), 17, 1.2, 0)));
+        len = 23; break;
+      }
+      case "rifle": {
+        add(mesh(box(12, 4.6, 3), slam("#3a3328"), -8, -0.5, 0)); add(mesh(box(14, 5.5, 3.8), steel, 5, 0, 0));
+        add(mesh(box(3, 8, 3), slam("#c9a043"), 7, -5.5, 0)); add(along(mesh(cyl(1.1, 1.1, 14, 6), steel2, 18, 0.6, 0)));
+        add(mesh(box(8, 2.6, 2.6), slam("#16181b"), 4, 3.8, 0)); len = 25; break;
+      }
+      case "disc": {
+        add(mesh(box(18, 6, 5), slam("#4a5562"), 2, 0, 0));
+        const blade = add(mesh(cyl(6.5, 6.5, 1.2, 14), smat("saw", () => new T3.MeshLambertMaterial({ color: 0xc9d1d9, emissive: 0x222222 })), 16, 1, 0)); blade.rotation.x = Math.PI / 2;
+        add(mesh(cyl(1.8, 1.8, 2, 8), sbasic("#e5383b"), 16, 1, 0)).rotation.x = Math.PI / 2;
+        len = 22; break;
+      }
+      case "cryo": {
+        add(along(mesh(cyl(4, 4, 18, 10), slam("#cfd8de"), 4, 0, 0))); add(along(mesh(cyl(1.6, 2.2, 12, 8), steel2, 19, 0, 0)));
+        for (const x of [0, 6]) { const r2 = add(mesh(torus(4.3, 0.8), sbasic("#9fe8ff"), x, 0, 0)); r2.rotation.y = Math.PI / 2; }
+        add(mesh(ico(1.4, 0), sbasic("#e8fbff"), 25.5, 0, 0)); len = 26; break;
+      }
+      case "rocket": {
+        add(along(mesh(cyl(3.8, 3.8, 34, 10), slam("#4d5a2a"), 8, 2, 0))); add(mesh(box(4, 6, 3), slam("#2a3018"), 0, -3.5, 0));
+        add(along(mesh(cone(4.6, 6, 10), slam("#e5383b"), 27, 2, 0))); add(mesh(box(6, 3, 3), slam("#16181b"), 4, 6.3, 0));
+        len = 30; break;
+      }
+      case "laser": {
+        add(mesh(box(18, 6.5, 5), slam("#1e2228"), 2, 0, 0)); add(along(mesh(cyl(1.6, 1.6, 18, 8), steel2, 19, 0.5, 0)));
+        add(mesh(box(14, 1.4, 5.2), sbasic("#ff4a4a"), 2, 1.5, 0));
+        for (const x of [14, 19, 24]) add(mesh(box(1.8, 5, 5), slam("#596270"), x, 0.5, 0));
+        add(mesh(ico(1.4, 0), sbasic("#ffb0b0"), 28.5, 0.5, 0)); len = 29; break;
+      }
       case "minigun": {
         add(mesh(box(16, 9, 9), slam("#33363b"), 2, 0, 0)); add(mesh(box(6, 6, 4), slam("#c9a043"), 2, -3, 6));
         const barrels = group(14, 0.5, 0);
@@ -1177,72 +1330,235 @@ window.Render3D = (() => {
     return g;
   }
 
+  // Spieler-Skins: Farben + Ausrüstungsteile (Katalog mit Preisen in game.js)
+  const SKINS = {
+    soldier: { torso: "#71894a", pants: "#4a5638", boots: "#1e211b", arm: "#64784a", pads: "#617346", pouch: "#5a6b3c", pack: "#4d5a3a", roll: "#7a6a48", helmet: "#7d9156", visor: "#6fe3ff", face: "#c9a07a", belt: "#2a241c", glow: "#8cff4a" },
+    police: { torso: "#1e2a44", pants: "#1a2236", boots: "#0f1012", arm: "#22304e", pads: "#2a3a5c", pouch: "#141c2c", pack: "#18213a", roll: "#2a3550", helmet: "#151a24", visor: "#7fd8ff", face: "#c9a07a", belt: "#0e0f12", glow: "#3a8cff", riot: true },
+    firefighter: { torso: "#c9a043", pants: "#a8862f", boots: "#1a1a1a", arm: "#c9a043", pads: "#a0802f", pouch: "#7a5a20", pack: "#b01c18", roll: "#7a5a20", helmet: "#c0201a", visor: "#ffd36a", face: "#c9a07a", belt: "#2a2a2a", glow: "#ff8a2a", stripes: "#e8f0a0", tank: true },
+    hazmat: { torso: "#e8c21a", pants: "#d9b218", boots: "#222222", arm: "#e8c21a", pads: "#c9a818", pouch: "#2a2a2a", pack: "#6a6a6a", roll: "#3a3a3a", helmet: "#e8c21a", visor: "#7fd8ff", face: "#222222", belt: "#2a2a2a", glow: "#8cff4a", gasmask: true, hood: true },
+    ninja: { torso: "#16161a", pants: "#121216", boots: "#0a0a0a", arm: "#16161a", pads: "#202024", pouch: "#2a0a0a", pack: "#1a1a1e", roll: "#2a0a0a", helmet: "#141418", visor: "#ff2a2a", face: "#141418", belt: "#a01818", glow: "#ff2a2a", scarf: "#c0201a", hood: true },
+    cyber: { torso: "#1a1f2a", pants: "#14181f", boots: "#0c0e12", arm: "#1f2632", pads: "#2a3344", pouch: "#11151c", pack: "#1c2230", roll: "#2a3344", helmet: "#20283a", visor: "#2bf0ff", face: "#1a1f2a", belt: "#0c0e12", glow: "#2bf0ff", neon: "#2bf0ff" },
+    plague: { torso: "#1a1816", pants: "#151311", boots: "#0e0c0a", arm: "#1a1816", pads: "#2a2622", pouch: "#3a2a1a", pack: "#2a2016", roll: "#3a2a1a", helmet: "#121010", visor: "#e8c64a", face: "#d8cdb8", belt: "#3a2a1a", glow: "#e8c64a", beak: true, hat: true },
+    gold: { torso: "#d4a52a", pants: "#a07a1a", boots: "#3a2a0a", arm: "#c9982a", pads: "#f2c84a", pouch: "#8a6a1a", pack: "#b08a2a", roll: "#8a6a1a", helmet: "#f2c84a", visor: "#fff2b0", face: "#c9a07a", belt: "#5a3a0a", glow: "#fff2b0", shiny: true },
+  };
   function buildPlayer(w) {
-    const p = w.player, r = 16;
+    const p = w.player;
+    const M = buildPlayerModel(p.skin || "soldier", p.weaponId, p.tier, p.weaponId === "flame");
+    scene.add(M.root);
+    return M;
+  }
+  function buildPlayerModel(skinId, weaponId, tier, tanks = false) {
+    const r = 16, S = SKINS[skinId] || SKINS.soldier;
     const M = makeModel("player");
-    const olive = slam("#71894a"), pants = slam("#4a5638"), dark = slam("#1e211b");
+    const C = (k) => S.shiny ? smat(`gold:${S[k]}`, () => new T3.MeshLambertMaterial({ color: S[k], emissive: 0x3a2600, flatShading: true })) : slam(S[k]);
+    const torsoMat = C("torso"), pants = C("pants"), dark = C("boots");
     for (const s of [-1, 1]) {
       const hip = group(-0.05 * r, 0.92 * r, s * 0.3 * r);
       hip.add(mesh(cap(0.2 * r, 0.48 * r), pants, 0, -0.44 * r, 0));
       hip.add(mesh(box(0.48 * r, 0.2 * r, 0.32 * r), dark, 0.1 * r, -0.86 * r, 0));
       M.body.add(hip); M.legs.push({ g: hip, s });
     }
-    const torso = mesh(cap(0.42 * r, 0.42 * r), olive, 0, 1.52 * r, 0); torso.scale.set(0.84, 1, 1.32); M.body.add(torso);
-    for (let i = -1; i <= 1; i++) M.body.add(mesh(box(0.2 * r, 0.24 * r, 0.24 * r), slam("#5a6b3c"), 0.33 * r, 1.45 * r, i * 0.3 * r));
-    M.body.add(mesh(ico(0.07 * r, 0), sbasic("#8cff4a"), 0.05 * r, 2.0 * r, -0.62 * r));
-    if (p.weaponId === "flame") {
+    const torso = mesh(cap(0.42 * r, 0.42 * r), torsoMat, 0, 1.52 * r, 0); torso.scale.set(0.84, 1, 1.32); M.body.add(torso);
+    for (let i = -1; i <= 1; i++) M.body.add(mesh(box(0.2 * r, 0.24 * r, 0.24 * r), C("pouch"), 0.33 * r, 1.45 * r, i * 0.3 * r));
+    M.body.add(mesh(ico(0.07 * r, 0), sbasic(S.glow), 0.05 * r, 2.0 * r, -0.62 * r));
+    if (tanks) {
       for (const s of [-1, 1]) M.body.add(mesh(cyl(0.2 * r, 0.2 * r, 0.9 * r, 8), slam("#a3312a"), -0.5 * r, 1.6 * r, s * 0.24 * r));
+    } else if (S.tank) {
+      M.body.add(mesh(cyl(0.26 * r, 0.26 * r, 1.0 * r, 10), C("pack"), -0.52 * r, 1.6 * r, 0));
+      M.body.add(mesh(cyl(0.1 * r, 0.1 * r, 0.2 * r, 6), slam("#9aa3ab"), -0.52 * r, 2.15 * r, 0));
     } else {
-      M.body.add(mesh(box(0.42 * r, 0.9 * r, 0.8 * r), slam("#4d5a3a"), -0.52 * r, 1.6 * r, 0));
-      const roll = mesh(cyl(0.16 * r, 0.16 * r, 0.82 * r, 8), slam("#7a6a48"), -0.55 * r, 2.12 * r, 0); roll.rotation.x = Math.PI / 2; M.body.add(roll);
+      M.body.add(mesh(box(0.42 * r, 0.9 * r, 0.8 * r), C("pack"), -0.52 * r, 1.6 * r, 0));
+      const roll = mesh(cyl(0.16 * r, 0.16 * r, 0.82 * r, 8), C("roll"), -0.55 * r, 2.12 * r, 0); roll.rotation.x = Math.PI / 2; M.body.add(roll);
     }
-    for (const s of [-1, 1]) M.body.add(mesh(ico(0.26 * r, 1), slam("#617346"), 0, 1.9 * r, s * 0.66 * r));
+    for (const s of [-1, 1]) M.body.add(mesh(ico(0.26 * r, 1), C("pads"), 0, 1.9 * r, s * 0.66 * r));
     // Ausrüstung: Gürtel mit Taschen, Knieschoner, Holster, Funkantenne
-    const belt = mesh(cyl(0.4 * r, 0.4 * r, 0.14 * r, 12), slam("#2a241c"), 0, 1.12 * r, 0); belt.scale.set(0.84, 1, 1.3); M.body.add(belt);
+    const belt = mesh(cyl(0.4 * r, 0.4 * r, 0.14 * r, 12), C("belt"), 0, 1.12 * r, 0); belt.scale.set(0.84, 1, 1.3); M.body.add(belt);
     M.body.add(mesh(box(0.12 * r, 0.12 * r, 0.1 * r), slam("#c9a043"), 0.33 * r, 1.12 * r, 0));
-    for (const z of [-0.36, 0.36]) M.body.add(mesh(box(0.2 * r, 0.22 * r, 0.18 * r), slam("#3f4a2e"), 0.12 * r, 1.08 * r, z * r));
-    for (const L2 of M.legs) L2.g.add(mesh(ico(0.13 * r, 0), slam("#2b2f2a"), 0.14 * r, -0.4 * r, 0));
+    for (const z of [-0.36, 0.36]) M.body.add(mesh(box(0.2 * r, 0.22 * r, 0.18 * r), C("pouch"), 0.12 * r, 1.08 * r, z * r));
+    for (const L2 of M.legs) L2.g.add(mesh(ico(0.13 * r, 0), C("boots"), 0.14 * r, -0.4 * r, 0));
     M.legs[1].g.add(mesh(box(0.16 * r, 0.3 * r, 0.12 * r), slam("#1c1d1b"), 0, -0.22 * r, 0.2 * r));
-    if (p.weaponId !== "flame") {
+    if (!tanks && !S.tank && !S.hood) {
       const ant = mesh(cyl(0.02 * r, 0.02 * r, 0.9 * r, 4), slam("#111111"), -0.66 * r, 2.4 * r, -0.26 * r); ant.rotation.z = 0.25; M.body.add(ant);
       M.body.add(mesh(ico(0.04 * r, 0), sbasic("#ff3a2a"), -0.77 * r, 2.84 * r, -0.26 * r));
+    }
+    // Skin-Details am Körper
+    if (S.stripes) for (const y of [1.3, 1.75]) M.body.add(mesh(box(0.74 * r, 0.07 * r, 1.14 * r), sbasic(S.stripes), 0, y * r, 0));
+    if (S.neon) {
+      for (const z of [-0.3, 0.3]) M.body.add(mesh(box(0.72 * r, 0.05 * r, 0.05 * r), sbasic(S.neon), 0.02 * r, 1.52 * r, z * r * 1.5));
+      M.body.add(mesh(box(0.05 * r, 0.6 * r, 0.05 * r), sbasic(S.neon), 0.36 * r, 1.52 * r, 0));
+    }
+    if (S.scarf) {
+      const sc2 = mesh(torus(0.34 * r, 0.09 * r), slam(S.scarf), 0.04 * r, 2.06 * r, 0); sc2.rotation.x = Math.PI / 2; M.body.add(sc2);
+      for (const z of [-0.08, 0.08]) { const tail = mesh(box(0.06 * r, 0.6 * r, 0.12 * r), slam(S.scarf), -0.42 * r, 1.82 * r, z * r); tail.rotation.z = 0.6; M.body.add(tail); }
     }
     // Arme zur Waffe
     const grip = new T3.Vector3(0.72 * r, 1.45 * r, 0.12 * r);
     for (const [s, tgt] of [[1, grip], [-1, new T3.Vector3(1.15 * r, 1.5 * r, 0.05 * r)]]) {
       const sh = new T3.Vector3(0.02 * r, 1.86 * r, s * 0.64 * r);
       const dir = tgt.clone().sub(sh), len = dir.length();
-      const arm = mesh(cap(0.14 * r, len - 0.2 * r), slam("#64784a"), 0, 0, 0);
+      const arm = mesh(cap(0.14 * r, len - 0.2 * r), C("arm"), 0, 0, 0);
       arm.position.copy(sh.clone().add(tgt).multiplyScalar(0.5));
       arm.quaternion.setFromUnitVectors(new T3.Vector3(0, 1, 0), dir.normalize());
       M.body.add(arm);
       M.body.add(mesh(ico(0.15 * r, 0), slam("#1f1f1f"), tgt.x, tgt.y, tgt.z));
     }
-    // Helm mit Brille
+    // Kopf: Helm/Kapuze/Hut je Skin
     const head = group(0.08 * r, 2.4 * r, 0);
-    head.add(mesh(ico(0.36 * r, 1), slam("#c9a07a")));
-    const helmet = mesh(ico(0.46 * r, 1), slam("#7d9156"), -0.03 * r, 0.1 * r, 0); helmet.scale.set(1, 0.8, 1); head.add(helmet);
-    head.add(mesh(box(0.1 * r, 0.16 * r, 0.6 * r), sbasic("#6fe3ff"), 0.36 * r, -0.02 * r, 0));
+    head.add(mesh(ico(0.36 * r, 1), slam(S.face)));
+    if (S.hood) {
+      const hood = mesh(ico(0.48 * r, 1), C("helmet"), -0.05 * r, 0.04 * r, 0); hood.scale.set(1.02, 1.04, 1); head.add(hood);
+      head.add(mesh(box(0.1 * r, S.gasmask ? 0.26 * r : 0.1 * r, 0.56 * r), sbasic(S.visor), 0.4 * r, S.gasmask ? 0.06 * r : 0.04 * r, 0));
+    } else if (S.hat) {
+      head.add(mesh(cyl(0.62 * r, 0.62 * r, 0.05 * r, 14), C("helmet"), 0, 0.32 * r, 0));
+      head.add(mesh(cyl(0.34 * r, 0.38 * r, 0.32 * r, 12), C("helmet"), 0, 0.5 * r, 0));
+    } else {
+      const helmet = mesh(ico(0.46 * r, 1), C("helmet"), -0.03 * r, 0.1 * r, 0); helmet.scale.set(1, 0.8, 1); head.add(helmet);
+      if (S.riot) head.add(mesh(box(0.06 * r, 0.36 * r, 0.7 * r), new T3.MeshBasicMaterial({ color: S.visor, transparent: true, opacity: 0.55 }), 0.44 * r, -0.04 * r, 0));
+      else head.add(mesh(box(0.1 * r, 0.16 * r, 0.6 * r), sbasic(S.visor), 0.36 * r, -0.02 * r, 0));
+      if (S.tank) head.add(mesh(box(0.3 * r, 0.04 * r, 0.7 * r), C("helmet"), -0.32 * r, -0.04 * r, 0));
+    }
+    if (S.gasmask) {
+      const sn = mesh(cyl(0.12 * r, 0.15 * r, 0.22 * r, 8), slam("#222222"), 0.42 * r, -0.2 * r, 0); sn.rotation.z = Math.PI / 2; head.add(sn);
+      for (const s of [-1, 1]) { const f = mesh(cyl(0.09 * r, 0.09 * r, 0.16 * r, 8), slam("#3a3a3a"), 0.3 * r, -0.26 * r, s * 0.24 * r); f.rotation.x = s * 0.9; head.add(f); }
+    }
+    if (S.beak) {
+      const bk = mesh(cone(0.14 * r, 0.6 * r, 6), slam(S.face), 0.62 * r, -0.12 * r, 0); bk.rotation.z = -Math.PI / 2 - 0.25; head.add(bk);
+      for (const s of [-1, 1]) head.add(mesh(ico(0.07 * r, 0), sbasic(S.visor), 0.32 * r, 0.06 * r, s * 0.14 * r));
+    }
     M.body.add(head);
     // Waffe
-    const wpn = weaponModel(p.weaponId, p.tier);
+    const wpn = weaponModel(weaponId, tier);
     wpn.position.copy(grip);
     M.body.add(wpn);
     M.extra.weapon = wpn;
     M.extra.gripX = grip.x;
-    M.weaponId = p.weaponId;
-    M.tier = p.tier;
+    M.weaponId = weaponId;
+    M.tier = tier;
+    M.skin = skinId;
     M.height = 2.9 * r;
     bake(M);
     cast(M.root);
-    scene.add(M.root);
     return M;
+  }
+
+  // Drehende 3D-Vorschau eines Skins im Shop (eigener kleiner Renderer)
+  let pv3 = null;
+  function preview(canvas, skinId, weaponId, tier) {
+    if (!ready) return false;
+    if (!pv3 || pv3.canvas !== canvas) {
+      let r;
+      try { r = new T3.WebGLRenderer({ canvas, antialias: true, alpha: true }); } catch { return false; }
+      r.toneMapping = T3.ACESFilmicToneMapping; r.toneMappingExposure = 1.25;
+      const sc = new T3.Scene();
+      sc.add(new T3.HemisphereLight(0xcfe0ff, 0x302820, 2.4));
+      const key = new T3.DirectionalLight(0xffffff, 2.8); key.position.set(90, 140, 120); sc.add(key);
+      const rim = new T3.DirectionalLight(0x8cff4a, 2.6); rim.position.set(-140, 80, -90); sc.add(rim);
+      const ground = mesh(cyl(34, 34, 2, 32), new T3.MeshLambertMaterial({ color: 0x1a2a1e }), 0, -1, 0); sc.add(ground);
+      const ring = mesh(torus(33, 1.2, TAU), sbasic("#8cff4a"), 0, 0.2, 0); ring.rotation.x = Math.PI / 2; sc.add(ring);
+      const cam = new T3.PerspectiveCamera(30, 1, 10, 2000);
+      cam.position.set(120, 62, 0); cam.lookAt(0, 24, 0);
+      pv3 = { r, sc, cam, canvas, M: null, key: "", raf: 0, last: 0 };
+    }
+    const k = `${skinId}:${weaponId}:${tier}`;
+    if (pv3.key !== k) {
+      if (pv3.M) { pv3.sc.remove(pv3.M.root); disposeTree(pv3.M.root); }
+      pv3.M = buildPlayerModel(skinId, weaponId, tier, weaponId === "flame");
+      pv3.M.root.position.set(-4, 0, 0);
+      pv3.sc.add(pv3.M.root);
+      pv3.key = k;
+    }
+    const w = canvas.clientWidth || 300, h = canvas.clientHeight || 200;
+    pv3.r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    pv3.r.setSize(w, h, false);
+    pv3.cam.aspect = w / h; pv3.cam.updateProjectionMatrix();
+    cancelAnimationFrame(pv3.raf);
+    const loop = (now) => {
+      const dt = Math.min(0.05, (now - (pv3.last || now)) / 1000); pv3.last = now;
+      pv3.M.root.rotation.y += dt * 0.9;
+      pv3.r.render(pv3.sc, pv3.cam);
+      pv3.raf = requestAnimationFrame(loop);
+    };
+    pv3.raf = requestAnimationFrame(loop);
+    return true;
+  }
+  function stopPreview() { if (pv3) { cancelAnimationFrame(pv3.raf); pv3.last = 0; } }
+
+  // Einzelbild-Renderer für Store-Grafiken (App-Symbol, Promo-Artwork):
+  // dieselben Modelle wie im Spiel, aber freie Kamera, Posen und Filmlicht
+  function showcase(canvas, spec) {
+    const r = new T3.WebGLRenderer({ canvas, antialias: true, alpha: !!spec.alpha, preserveDrawingBuffer: true });
+    r.setPixelRatio(1);
+    r.setSize(spec.w, spec.h, false);
+    r.toneMapping = T3.ACESFilmicToneMapping;
+    r.toneMappingExposure = spec.exposure || 1.2;
+    r.shadowMap.enabled = true;
+    r.shadowMap.type = T3.PCFShadowMap;
+    if (!spec.alpha) r.setClearColor(spec.bg ?? 0x070b09, 1); else r.setClearColor(0x000000, 0);
+    const sc = new T3.Scene();
+    if (spec.fog) sc.fog = new T3.Fog(spec.fog[0], spec.fog[1], spec.fog[2]);
+    sc.add(new T3.HemisphereLight(0x46586e, 0x120e0a, spec.hemi ?? 1.4));
+    const dl = (c, i, x, y, z, shadow) => { const l = new T3.DirectionalLight(c, i); l.position.set(x, y, z); if (shadow) { l.castShadow = true; l.shadow.mapSize.set(2048, 2048); Object.assign(l.shadow.camera, { left: -400, right: 400, top: 400, bottom: -400, near: 10, far: 3000 }); l.shadow.bias = -0.0005; } sc.add(l); return l; };
+    for (const L of spec.lights || []) dl(L[0], L[1], L[2], L[3], L[4], L[5]);
+    for (const P of spec.points || []) { const l = new T3.PointLight(P[0], P[1], P[2], 0); l.position.set(P[3], P[4], P[5]); sc.add(l); }
+    if (spec.floor) {
+      const t = new T3.CanvasTexture(spec.floor); t.colorSpace = T3.SRGBColorSpace; t.anisotropy = 8;
+      const n = new T3.CanvasTexture(normalCanvas(spec.floor, 2.4, 1024));
+      const f = mesh(new T3.PlaneGeometry(spec.floorSize[0], spec.floorSize[1]), new T3.MeshPhongMaterial({ map: t, normalMap: n, color: 0xb4b4b4, specular: 0x4a5058, shininess: 60, specularMap: spec.floor.gloss ? new T3.CanvasTexture(spec.floor.gloss) : null }), 0, 0, 0);
+      f.rotation.x = -Math.PI / 2; f.receiveShadow = true; sc.add(f);
+    }
+    // Blutlachen: ein paar überlappende Scheiben ergeben eine unregelmäßige Form
+    const poolMat = new T3.MeshBasicMaterial({ color: 0x3a0406, transparent: true, opacity: 0.88, depthWrite: false });
+    for (const P of spec.pools || []) {
+      for (let i = 0; i < 5; i++) {
+        const a = i * 2.4 + P.x * 0.01, d = i ? P.r * 0.55 : 0, rr = P.r * (i ? 0.5 + ((i * 37) % 10) / 25 : 0.85);
+        sc.add(mesh(cyl(rr, rr, 0.2, 20), poolMat, P.x + Math.cos(a) * d, 0.4 + i * 0.01, P.z + Math.sin(a) * d * 0.7));
+      }
+    }
+    const place = (M, o) => {
+      M.root.position.set(o.x || 0, o.y || 0, o.z || 0);
+      // fall/roll wie poseCorpse: liegende Leichen im Bild
+      M.root.rotation.set(o.roll || 0, o.rot || 0, o.fall || 0);
+      M.root.scale.setScalar(o.scale || 1);
+      for (const A of M.arms) A.g.rotation.z = o.reach ?? 0.5;
+      M.legs.forEach((L, i) => { if (!L.spider) L.g.rotation.z = (i % 2 ? 1 : -1) * (o.stride ?? 0.3); });
+      if (o.lean !== undefined) M.body.rotation.z = o.lean;
+      if (o.glow) for (const m of M.mats) m.emissive.set(o.glow);
+      if (o.dark) for (const m of M.mats) m.color.multiplyScalar(o.dark);
+      if (o.headless && M.extra.head) M.extra.head.visible = false;
+      // Nahaufnahmen: Cartoon-Umrisse wären viel zu dick
+      if (spec.noOutline) M.root.traverse((c) => { if (c.userData.outline) c.visible = false; });
+      sc.add(M.root);
+      return M;
+    };
+    if (spec.hero) { const h = spec.hero, M = buildPlayerModel(h.skin || "soldier", h.weapon || "shotgun", h.tier ?? 1); place(M, { ...h, reach: undefined }); M.root.traverse((c) => { if (c.isMesh && !c.userData.outline) c.castShadow = true; }); }
+    for (const z of spec.zombies || []) {
+      const pal = PAL[z.type] || PAL.walker, P = pal[(z.variant || 0) % pal.length];
+      const M = (builders[z.type] || ((rr, pp) => buildHumanoid(z.type, rr, pp)))(z.r || 15, P);
+      bake(M); cast(M.root);
+      place(M, z);
+    }
+    // Leuchtpunkte (Mündungsfeuer, Augen, Glut) als additive Billboards zur Kamera
+    const cam = new T3.PerspectiveCamera(spec.cam.fov || 35, spec.w / spec.h, 1, 6000);
+    cam.position.set(...spec.cam.pos); cam.lookAt(...spec.cam.look);
+    if (spec.cam.offset) cam.setViewOffset(spec.w, spec.h, spec.cam.offset[0], spec.cam.offset[1], spec.w, spec.h);
+    cam.updateMatrixWorld();
+    const glowTex = canvasTex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.2, "rgba(255,255,255,0.6)"); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
+    for (const G of spec.glows || []) {
+      const m = mesh(new T3.PlaneGeometry(G.size, G.size), new T3.MeshBasicMaterial({ map: glowTex, color: G.color, transparent: true, opacity: G.opacity ?? 1, blending: T3.AdditiveBlending, depthWrite: false, depthTest: !!G.depth, fog: false }), G.x, G.y, G.z);
+      m.quaternion.copy(cam.quaternion); m.renderOrder = 50; sc.add(m);
+    }
+    r.render(sc, cam);
+    // Bild sichern, dann alles freigeben – Browser erlauben nur ~16 WebGL-Kontexte
+    const url = canvas.toDataURL("image/png");
+    disposeTree(sc);
+    r.dispose(); r.forceContextLoss();
+    return url;
   }
 
   // ------------------------------------------------------------------
   // Instanzen: Schatten, Münzen, Projektile
   // ------------------------------------------------------------------
-  let blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, pillar, doorBeam;
+  let blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, headIM, limbIM, rocketIM, discIM, pillar, doorBeam;
   const booms = [];
   const dummy = new T3.Object3D();
   function setupInstanced() {
@@ -1271,8 +1587,21 @@ window.Render3D = (() => {
     const cpos = [...crossGeo.toNonIndexed().attributes.position.array, ...cross2.toNonIndexed().attributes.position.array];
     const cg2 = new T3.BufferGeometry(); cg2.setAttribute("position", new T3.BufferAttribute(new Float32Array(cpos), 3)); cg2.computeVertexNormals();
     healCrossIM = new T3.InstancedMesh(cg2, new T3.MeshBasicMaterial({ color: 0xff3a3a }), 20);
-    for (const im of [blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM]) { im.frustumCulled = false; im.count = 0; scene.add(im); }
+    // Rakete (Körper + rote Spitze als ein Mesh) und Sägeblatt
+    const rb = new T3.CylinderGeometry(2.6, 2.6, 16, 8).toNonIndexed(); rb.rotateZ(-Math.PI / 2);
+    const rt = new T3.ConeGeometry(2.6, 6, 8).toNonIndexed(); rt.rotateZ(-Math.PI / 2); rt.translate(11, 0, 0);
+    const rocketGeo = new T3.BufferGeometry();
+    rocketGeo.setAttribute("position", new T3.BufferAttribute(new Float32Array([...rb.attributes.position.array, ...rt.attributes.position.array]), 3));
+    const rcol = []; for (let i = 0; i < rb.attributes.position.count; i++) rcol.push(0.75, 0.77, 0.8); for (let i = 0; i < rt.attributes.position.count; i++) rcol.push(0.8, 0.12, 0.1);
+    rocketGeo.setAttribute("color", new T3.BufferAttribute(new Float32Array(rcol), 3)); rocketGeo.computeVertexNormals();
+    rocketIM = new T3.InstancedMesh(rocketGeo, new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true }), 40);
+    discIM = new T3.InstancedMesh(new T3.CylinderGeometry(9, 9, 1.4, 16), new T3.MeshLambertMaterial({ color: 0xd8dee4, emissive: 0x303438, flatShading: true }), 60);
+    for (const im of [blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, rocketIM, discIM]) { im.frustumCulled = false; im.count = 0; scene.add(im); }
     healIM.castShadow = true;
+    // abgetrennte Köpfe und Gliedmaßen
+    headIM = new T3.InstancedMesh(new T3.IcosahedronGeometry(1, 1), new T3.MeshLambertMaterial({ flatShading: true }), 100);
+    limbIM = new T3.InstancedMesh(new T3.CapsuleGeometry(0.5, 1.6, 2, 6), new T3.MeshLambertMaterial({ flatShading: true }), 100);
+    for (const im of [headIM, limbIM]) { im.setColorAt(0, tmpColor.setRGB(1, 1, 1)); im.frustumCulled = false; im.count = 0; im.castShadow = true; scene.add(im); }
     coinsIM.castShadow = true;
     chunkIM.castShadow = true;
     // Explosionen: Feuerball (additiv), heißer Kern, aufsteigender Rauchpilz
@@ -1326,7 +1655,8 @@ window.Render3D = (() => {
       let y = 0, s = sc;
       if (e.spawnT > 0) { const k = Math.max(0, 1 - e.spawnT / e.spawnMax); y = -(1 - k) * M.height * 0.9; s = sc * (0.6 + 0.4 * k); }
       let x = e.x, z = e.y;
-      if (e.mode === "wind") { x += (Math.random() - 0.5) * 3; z += (Math.random() - 0.5) * 3; }
+      if (e.mode === "wind" || e.mode === "zap") { x += (Math.random() - 0.5) * 3; z += (Math.random() - 0.5) * 3; }
+      y += e.jumpZ || 0;
       M.root.position.set(x, y, z);
       M.root.rotation.set(0, -e.face, 0);
       const near = (e.x - w.player.x) ** 2 + (e.y - w.player.y) ** 2 < (e.r + 46) ** 2;
@@ -1334,32 +1664,95 @@ window.Render3D = (() => {
       animate(M, e, t, near);
       tint(M, e, t);
     }
-    // Gestorbene: umkippen, kurz liegen bleiben, dann im Boden versinken
+    // Gestorbene: Pose und Flugbahn kommen aus der Körper-Physik des Spiels
     for (const c of w.corpses) {
-      if (c.ref && models.has(c.ref) && !seen.has(c.ref)) {
-        dying.set(c, { M: models.get(c.ref), x: c.x, y: c.y, face: c.face, dir: c.dir, sc: c.sc * (c.boss ? BOSS_SCALE : CHAR_SCALE), t: 0, life: c.boss ? 5 : 2.6, boss: !!c.boss });
+      if (c.ref && models.has(c.ref) && !seen.has(c.ref) && !dying.has(c)) {
+        const M = models.get(c.ref);
         models.delete(c.ref);
+        if (c.headless && M.extra.head) M.extra.head.visible = false;
+        dying.set(c, { M, sc: c.sc * (c.boss ? BOSS_SCALE : CHAR_SCALE), boss: !!c.boss });
       }
     }
     for (const [e, M] of models) if (!seen.has(e)) { releaseModel(M); models.delete(e); }
-    if (dying.size > 40) for (const [c, d] of dying) { releaseModel(d.M); dying.delete(c); if (dying.size <= 40) break; }
+    const live = new Set(w.corpses);
     for (const [c, d] of dying) {
-      d.t += dt;
-      if (d.t >= d.life) { releaseModel(d.M); dying.delete(c); continue; }
-      const M = d.M, k = Math.min(1, d.t / 0.45), fall = k * k * (3 - 2 * k);
-      const sink = Math.max(0, (d.t - (d.life - 1)) / 1);
-      M.root.position.set(d.x, -fall * M.height * 0.1 - sink * M.height * 0.5 * d.sc, d.y);
-      M.root.scale.setScalar(d.sc);
-      M.root.rotation.set(d.dir * fall * 0.25, -d.face, fall * 1.4);
-      const dark = 1 - fall * 0.55;
-      for (const m of M.mats) { m.color.copy(m.userData.base).multiplyScalar(dark); m.emissive.setRGB(0, 0, 0); }
+      if (!live.has(c)) {
+        // eingebackene Leichen bleiben als Teil des Sammel-Meshes liegen, zersprungene verschwinden
+        if (c.baked) bakeCorpseMesh(d.M);
+        releaseModel(d.M); dying.delete(c); continue;
+      }
+      poseCorpse(c, d, t);
     }
+  }
+  const ICE = new T3.Color(0.55, 0.82, 1.0), CHAR = new T3.Color(0.09, 0.07, 0.06);
+  function poseCorpse(c, d, t) {
+    const M = d.M, f = c.fall, k = f * f * (3 - 2 * f);
+    let pitch = c.fallDir * 1.42 * k, roll = c.roll, yaw = -c.face;
+    if (c.death === "freeze") pitch = 0;
+    if (c.death === "shock" && c.t < 0.6) { pitch = (Math.random() - 0.5) * 0.35; roll = (Math.random() - 0.5) * 0.3; }
+    if (c.death === "burn") { pitch *= 0.95; roll += c.side * 0.4 * k; }
+    M.root.position.set(c.x, c.z + k * M.height * 0.07 * d.sc, c.y);
+    M.root.scale.setScalar(d.sc);
+    M.root.rotation.set(roll, yaw, pitch);
+    for (const m of M.mats) {
+      m.color.copy(m.userData.base);
+      m.emissive.setRGB(0, 0, 0);
+      switch (c.death) {
+        case "burn": { const b = Math.min(1, c.t / 1.2); m.color.lerp(CHAR, b * 0.9); const g = Math.max(0, 1 - c.t / 1.6) * (0.5 + 0.3 * Math.sin(t * 30)); m.emissive.setRGB(g, g * 0.35, 0); break; }
+        case "freeze": m.color.lerp(ICE, 0.75); m.emissive.setRGB(0.12, 0.3, 0.45); break;
+        case "shock": if (c.t < 0.6) { const g = Math.random() < 0.5 ? 0.9 : 0.1; m.emissive.setRGB(g * 0.4, g * 0.9, g); } else m.color.lerp(CHAR, 0.45); break;
+        default: m.color.multiplyScalar(1 - k * 0.45);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Sammel-Mesh für liegende Leichen: ruhende Körper werden einmal in einen
+  // großen Vertex-Puffer kopiert → beliebig viele Leichen für 1 Draw Call
+  // ------------------------------------------------------------------
+  const CORPSE_MAXV = 180000;
+  let corpseBatch = null, corpseN = 0;
+  const cbN = new T3.Vector3(), cbP = new T3.Vector3(), cbC = new T3.Color(), cbNm = new T3.Matrix3();
+  function setupCorpseBatch() {
+    const g = new T3.BufferGeometry();
+    for (const [name, size] of [["position", 3], ["normal", 3], ["color", 3]]) g.setAttribute(name, new T3.BufferAttribute(new Float32Array(CORPSE_MAXV * size), size).setUsage(T3.DynamicDrawUsage));
+    g.setDrawRange(0, 0);
+    corpseBatch = new T3.Mesh(g, new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+    corpseBatch.frustumCulled = false;
+    corpseBatch.receiveShadow = true;
+    scene.add(corpseBatch);
+  }
+  function resetCorpseBatch() { corpseN = 0; if (corpseBatch) corpseBatch.geometry.setDrawRange(0, 0); }
+  function bakeCorpseMesh(M) {
+    if (!corpseBatch) return;
+    M.root.updateMatrixWorld(true);
+    const g = corpseBatch.geometry, P = g.attributes.position, N = g.attributes.normal, C = g.attributes.color, start = corpseN;
+    M.root.traverseVisible((o) => {
+      if (!o.isMesh || o.userData.outline) return;
+      const src = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry;
+      const sp = src.attributes.position, sn = src.attributes.normal, sc = src.attributes.color, n = sp.count;
+      if (corpseN + n > CORPSE_MAXV) return;
+      const tint = o.material.color || cbC.setRGB(1, 1, 1);
+      cbNm.getNormalMatrix(o.matrixWorld);
+      for (let i = 0; i < n; i++) {
+        cbP.fromBufferAttribute(sp, i).applyMatrix4(o.matrixWorld);
+        P.setXYZ(corpseN + i, cbP.x, cbP.y, cbP.z);
+        if (sn) { cbN.fromBufferAttribute(sn, i).applyMatrix3(cbNm).normalize(); N.setXYZ(corpseN + i, cbN.x, cbN.y, cbN.z); }
+        const r = sc ? sc.getX(i) : 1, gg = sc ? sc.getY(i) : 1, b = sc ? sc.getZ(i) : 1;
+        C.setXYZ(corpseN + i, r * tint.r, gg * tint.g, b * tint.b);
+      }
+      if (src !== o.geometry) src.dispose();
+      corpseN += n;
+    });
+    if (corpseN === start) return;
+    for (const a of [P, N, C]) { a.clearUpdateRanges(); a.addUpdateRange(start * 3, (corpseN - start) * 3); a.needsUpdate = true; }
+    g.setDrawRange(0, corpseN);
   }
 
   function syncPlayer(w, t) {
     const p = w.player;
     // Spielerfigur bei Waffenwechsel neu bauen
-    if (playerModel && (playerModel.weaponId !== p.weaponId || playerModel.tier !== p.tier)) { scene.remove(playerModel.root); disposeTree(playerModel.root); playerModel = null; }
+    if (playerModel && (playerModel.weaponId !== p.weaponId || playerModel.tier !== p.tier || playerModel.skin !== (p.skin || "soldier"))) { scene.remove(playerModel.root); disposeTree(playerModel.root); playerModel = null; }
     if (!playerModel) playerModel = buildPlayer(w);
     const M = playerModel;
     M.root.position.set(p.x, 0, p.y);
@@ -1446,7 +1839,7 @@ window.Render3D = (() => {
     const blob = (x, z, r) => { if (n < 160) inst(blobShadows, n++, x, 0.6, z, 0, 0, r * 2.6, 1, r * 1.9); };
     for (const e of w.enemies) if (e.spawnT <= 0) blob(e.x, e.y, e.r * e.scale);
     blob(w.player.x, w.player.y, 16);
-    for (const b of w.bullets) if (b.kind === "grenade") blob(b.x, b.y, 5);
+    for (const b of w.bullets) if (b.kind === "grenade" || b.kind === "rocket" || b.kind === "disc") blob(b.x, b.y, b.kind === "disc" ? 8 : 5);
     blobShadows.count = n; blobShadows.instanceMatrix.needsUpdate = true;
     blobShadows.material.opacity = quality >= 2 ? 0.55 : 1;
     // Münzen
@@ -1454,7 +1847,7 @@ window.Render3D = (() => {
     for (const o of w.orbs) if (o.type === "coin" && n < 300) inst(coinsIM, n++, o.x, 8 + Math.sin(t * 5 + o.x) * 1.5, o.y, t * 4 + o.x, Math.PI / 2);
     coinsIM.count = n; coinsIM.instanceMatrix.needsUpdate = true;
     // Gegner-Projektile, Granaten, Bolzen
-    let a = 0, pk = 0, gr = 0, bo = 0;
+    let a = 0, pk = 0, gr = 0, bo = 0, rk = 0, dk = 0;
     for (const b of w.eBullets) {
       const s = b.r * 1.1;
       if (b.pink) { if (pk < 200) inst(pinkIM, pk++, b.x, 18, b.y, 0, 0, s, s, s); } else if (a < 200) inst(acidIM, a++, b.x, 18, b.y, 0, 0, s, s, s);
@@ -1462,9 +1855,11 @@ window.Render3D = (() => {
     for (const b of w.bullets) {
       if (b.kind === "grenade" && gr < 60) { const k = 1 - b.life / b.maxLife; inst(grenadeIM, gr++, b.x, 14 + Math.sin(k * Math.PI) * 60, b.y, b.spin, b.spin * 0.7); }
       else if (b.kind === "bolt" && bo < 120) inst(boltIM, bo++, b.x, 22, b.y, -Math.atan2(b.vy, b.vx));
+      else if (b.kind === "rocket" && rk < 40) inst(rocketIM, rk++, b.x, 22, b.y, -Math.atan2(b.vy, b.vx));
+      else if (b.kind === "disc" && dk < 60) inst(discIM, dk++, b.x, 16, b.y, b.spin);
     }
-    acidIM.count = a; pinkIM.count = pk; grenadeIM.count = gr; boltIM.count = bo;
-    for (const im of [acidIM, pinkIM, grenadeIM, boltIM]) im.instanceMatrix.needsUpdate = true;
+    acidIM.count = a; pinkIM.count = pk; grenadeIM.count = gr; boltIM.count = bo; rocketIM.count = rk; discIM.count = dk;
+    for (const im of [acidIM, pinkIM, grenadeIM, boltIM, rocketIM, discIM]) im.instanceMatrix.needsUpdate = true;
     // Medikits
     let hk = 0;
     for (const o of w.orbs) if (o.type === "heal" && hk < 20) { const y = 7 + Math.sin(t * 4 + o.x) * 2; inst(healIM, hk, o.x, y, o.y, t * 1.5); inst(healCrossIM, hk++, o.x, y, o.y, t * 1.5); }
@@ -1484,10 +1879,31 @@ window.Render3D = (() => {
       }
     }
     chunkIM.count = ch; casingIM.count = cs;
+    // Köpfe & Gliedmaßen
+    let hd = 0, lb = 0;
+    for (const q of w.pieces || []) {
+      const s2 = q.sc * CHAR_SCALE * 15;
+      if (q.kind === "head" && hd < 100) {
+        inst(headIM, hd, q.x, q.z + s2 * 0.38, q.y, q.ry, q.rx, s2 * 0.4, s2 * 0.4, s2 * 0.4);
+        headIM.setColorAt(hd++, pieceColor(q, "skin"));
+      } else if (q.kind === "limb" && lb < 100) {
+        inst(limbIM, lb, q.x, q.z + s2 * 0.14, q.y, q.ry, q.rx + Math.PI / 2, s2 * 0.3, s2 * 0.45, s2 * 0.3);
+        limbIM.setColorAt(lb++, pieceColor(q, lb % 2 ? "shirt" : "skin"));
+      }
+    }
+    headIM.count = hd; limbIM.count = lb;
+    for (const im of [headIM, limbIM]) { im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }
     chunkIM.instanceMatrix.needsUpdate = true; casingIM.instanceMatrix.needsUpdate = true;
     if (chunkIM.instanceColor) chunkIM.instanceColor.needsUpdate = true;
   }
   const GIB = { "#3f6e1a": new T3.Color(0x4a7a2a), "#5a0f2a": new T3.Color(0x6e2a4a) }, GIB_RED = new T3.Color(0x7a1f22);
+  const pieceCols = new Map();
+  function pieceColor(q, part) {
+    const pal = PAL[q.type] || PAL.walker, P = pal[q.v % pal.length], key = `${q.type}:${q.v % pal.length}:${part}`;
+    let c = pieceCols.get(key);
+    if (!c) { c = new T3.Color(P[part] || P.skin || "#8fa67a"); pieceCols.set(key, c); }
+    return c;
+  }
   const gibColor = (trail) => GIB[trail] || GIB_RED;
 
   // Explosionen, Level-up-Säule, Tür-Lichtvorhang
@@ -1534,6 +1950,7 @@ window.Render3D = (() => {
   }
 
   const FIRE = ["200,60,20", "255,140,40", "255,220,120"];
+  const EYE = { spitter: "234,255,0", abom: "234,255,0", armored: "80,170,230", burner: "255,176,58", screamer: "255,74,240", splitter: "255,106,213", electro: "127,231,255" };
   const fireRgb = (k) => FIRE[k > 0.6 ? 2 : k > 0.3 ? 1 : 0];
 
   function fillBatches(w, t) {
@@ -1575,6 +1992,18 @@ window.Render3D = (() => {
         bill(addB, b.x, 14 + Math.sin(k * Math.PI) * 60, b.y, 9, CELL.glow, "255,80,40", Math.sin(t * 20) > 0 ? 0.9 : 0.3);
       } else if (b.kind === "bolt") {
         bill(addB, b.x, 22, b.y, 9, CELL.glow, b.tracer, 0.5);
+      } else if (b.kind === "rocket") {
+        const a = Math.atan2(b.vy, b.vx), tx = b.x - Math.cos(a) * 11, tz = b.y - Math.sin(a) * 11;
+        bill(addB, tx, 22, tz, 12 + Math.random() * 4, CELL.glow, "255,170,60", 1);
+        bill(addB, tx, 22, tz, 5, CELL.glow, "255,250,210", 1);
+      } else if (b.kind === "disc") {
+        bill(addB, b.x, 16, b.y, 16, CELL.glow, "220,235,255", 0.3);
+      } else if (b.kind === "laser") {
+        const sp = Math.hypot(b.vx, b.vy) || 1, len = 150, ang = Math.atan2(b.vy, b.vx);
+        const cx = b.x - (b.vx / sp) * len * 0.5, cz = b.y - (b.vy / sp) * len * 0.5;
+        flat(addB, cx, 22, cz, ang, len * 0.5, 5, CELL.streak, "255,40,40", 0.9);
+        flat(addB, cx, 22.2, cz, ang, len * 0.5, 1.4, CELL.streak, "255,235,235", 1);
+        bill(addB, b.x, 22, b.y, 12, CELL.glow, "255,70,70", 0.8);
       } else {
         const sp = Math.hypot(b.vx, b.vy) || 1, len = b.long ? 90 : Math.min(42, Math.max(14, sp * 0.035));
         const ang = Math.atan2(b.vy, b.vx);
@@ -1609,11 +2038,16 @@ window.Render3D = (() => {
       const M = models.get(e);
       const hh = heightOf(e) * 0.84;
       const fx = Math.cos(e.face), fy = Math.sin(e.face);
-      const eye = e.type === "spitter" || e.type === "abom" ? "234,255,0" : e.type === "armored" ? "80,170,230" : "255,40,30";
+      const eye = EYE[e.type] || "255,40,30";
       bill(addB, e.x + fx * e.r * 0.5, hh, e.y + fy * e.r * 0.5, e.def.boss ? e.r * 0.4 : e.r * 0.55, CELL.glow, eye, 0.5);
       if (e.type === "bomber" && Math.sin(t * 14 + e.wob) > 0) bill(addB, e.x - fx * e.r * 0.4, hh * 0.85, e.y - fy * e.r * 0.4, 14, CELL.glow, "255,40,20", 0.9);
       if (e.type === "mother") bill(addB, e.x - fx * e.r * 0.4, e.r * 1.2, e.y - fy * e.r * 0.4, e.r * 1.2, CELL.glow, "150,255,80", 0.3);
-      if (e.phase2) bill(addB, e.x, e.r, e.y, e.r * 1.8, CELL.glow, "255,40,60", 0.22 + 0.12 * Math.sin(t * 10));
+      if (e.phase2 || e.rageT > 0) bill(addB, e.x, e.r, e.y, e.r * 1.8, CELL.glow, "255,40,60", 0.22 + 0.12 * Math.sin(t * 10));
+      if (e.elite) { flat(floorB, e.x, 1, e.y, 0, e.r * 2.6, e.r * 2.6, CELL.glow, "255,200,80", 0.45 + 0.15 * Math.sin(t * 5)); flat(floorB, e.x, 1.1, e.y, t, e.r * 1.8, e.r * 1.8, CELL.ring, "255,215,110", 0.6); }
+      if (e.type === "burner") bill(addB, e.x, hh * 0.6 + (e.jumpZ || 0), e.y, e.r * 2.2, CELL.glow, "255,140,40", 0.45 + 0.15 * Math.sin(t * 17 + e.wob));
+      if (e.type === "electro") bill(addB, e.x - fx * e.r * 0.5, hh * 0.75, e.y - fy * e.r * 0.5, e.r * (e.mode === "zap" ? 2.4 : 1.1), CELL.glow, "127,231,255", e.mode === "zap" ? 0.8 : 0.35);
+      if (e.mode === "crouch") { const a = Math.atan2(e.dirY, e.dirX), L = 200; flat(normB, e.x + Math.cos(a) * L / 2, 1.2, e.y + Math.sin(a) * L / 2, a, L / 2, e.r * 0.8, CELL.band, "255,70,50", 0.3 + 0.25 * Math.sin(t * 30)); }
+      if (e.mode === "zap") { const rr = 150 * (1 - Math.max(0, e.aiT) / 0.75 * 0.4); flat(floorB, e.x, 1.3, e.y, 0, rr, rr, CELL.ring, "127,231,255", 0.55 + 0.3 * Math.sin(t * 25)); }
       // Warnfläche vor Sturmangriff
       if (e.mode === "wind") {
         const kk = 1 - Math.max(0, e.aiT) / 0.65, L = e.type === "abom" ? 380 : 260, a = Math.atan2(e.dirY, e.dirX);
@@ -1625,7 +2059,7 @@ window.Render3D = (() => {
     const mz = w.muzzlePoint();
     if (p.muzzle > 0 && p.weapon.flash) {
       const sc = (0.75 + Math.random() * 0.35) * (p.weapon.flash === "flame" ? 0.6 : p.weapon.flash === "big" ? 1.3 : 1);
-      bill(addB, mz.x, 24, mz.y, 16 * sc, CELL.star, p.weapon.flash === "tesla" ? "160,240,255" : "255,230,150", 1, Math.random() * TAU);
+      bill(addB, mz.x, 24, mz.y, 16 * sc, CELL.star, p.weapon.flash === "tesla" ? "160,240,255" : p.weapon.flash === "laser" ? "255,120,120" : "255,230,150", 1, Math.random() * TAU);
       bill(addB, mz.x, 24, mz.y, 34, CELL.glow, p.weapon.tracer, 0.75);
     }
     if (p.weapon.kind === "flame") bill(addB, mz.x, 22, mz.y, 5, CELL.glow, "110,200,255", 0.9);
@@ -1670,7 +2104,11 @@ window.Render3D = (() => {
       else if (q.t === "lvl") lightCands.push([w.player.x, 60, w.player.y, "255,225,130", 3 * (q.life / q.max), 260, 10]);
     }
     for (const z of w.zaps) lightCands.push([z.x2, 30, z.y2, "127,231,255", 2.2 * (z.life / z.max), 200, 8]);
-    for (const e of w.enemies) if (e.burnT > 0) lightCands.push([e.x, 26, e.y, "255,140,40", 1.4, 140, 4]);
+    for (const e of w.enemies) {
+      if (e.burnT > 0 || e.type === "burner") lightCands.push([e.x, 26, e.y, "255,140,40", 1.4, 150, 4]);
+      if (e.mode === "zap") lightCands.push([e.x, 40, e.y, "127,231,255", 2.2, 200, 7]);
+    }
+    for (const b of w.bullets) if (b.kind === "rocket") lightCands.push([b.x, 26, b.y, "255,160,60", 2, 160, 6]);
     let fires = 0;
     for (const b of w.bullets) if (b.kind === "flame" && fires++ % 6 === 0) lightCands.push([b.x, 22, b.y, "255,150,50", 1.8, 160, 5]);
     for (const l of w.roomLights) lightCands.push([l.x, 50, l.y, l.rgb, 1.3 + 0.2 * Math.sin(t * 3 + l.x), l.r * 1.8, 2]);
@@ -1709,7 +2147,7 @@ window.Render3D = (() => {
     // Boss-Auftritt und Boss-Tod: Kamera fährt an den Boss heran
     let bossK = 0, bx = 0, bz = 0;
     for (const e of w.enemies) if (e.def.boss && e.spawnT > 0) { bossK = Math.sin(Math.min(1, 1 - e.spawnT / e.spawnMax) * Math.PI); bx = e.x - CAM.tx; bz = e.y - CAM.tz; }
-    for (const [, d] of dying) if (d.boss && d.t < 2) { bossK = Math.sin(Math.min(1, d.t / 2) * Math.PI) * 0.9; bx = d.x - CAM.tx; bz = d.y - CAM.tz; }
+    for (const [c, d] of dying) if (d.boss && c.t < 2) { bossK = Math.sin(Math.min(1, c.t / 2) * Math.PI) * 0.9; bx = c.x - CAM.tx; bz = c.y - CAM.tz; }
     CAM.boss += (bossK - CAM.boss) * Math.min(1, dt * 5);
     // Raumwechsel: Kamera setzt aus etwas größerer Höhe auf
     const intro = w.intro || 0;
@@ -1745,6 +2183,7 @@ window.Render3D = (() => {
     models.clear();
     for (const [, d] of dying) releaseModel(d.M);
     dying.clear();
+    resetCorpseBatch();
     if (playerModel) { scene.remove(playerModel.root); disposeTree(playerModel.root); playerModel = null; }
     sawMeshes.forEach((s) => { s.visible = false; });
     if (crate) crate.visible = false;
@@ -1752,7 +2191,7 @@ window.Render3D = (() => {
   }
 
   return {
-    init, resize, render, project, heightOf, setQuality, clear,
+    init, resize, render, project, heightOf, setQuality, clear, preview, stopPreview, showcase,
     get ready() { return ready; },
     get debug() { return { scene, camera, renderer, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
   };

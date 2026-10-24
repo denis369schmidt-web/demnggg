@@ -33,6 +33,15 @@ html, body {
 
 canvas { display: block; background: #121a16; touch-action: none; }
 
+/* Shop: Tabs, Skin-Vorschau */
+.tabs { display: flex; gap: 6px; width: min(420px, 100%); margin: 4px 0 8px; }
+.tab { flex: 1; font: inherit; cursor: pointer; padding: 9px 6px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,0.04); color: var(--muted); font-weight: 800; font-size: 14px; }
+.tab.active { background: rgba(140,255,74,0.16); color: var(--toxic); border-color: rgba(140,255,74,0.6); }
+#skinPreview { width: min(420px, 100%); height: 190px; border-radius: 16px; background: radial-gradient(circle at 50% 70%, #24402c, #0d1210 70%); border: 1px solid var(--line); flex: none; }
+.item.pickable { cursor: pointer; }
+.item.selected { border-color: rgba(140,255,74,0.7); box-shadow: 0 0 0 1px rgba(140,255,74,0.35) inset; }
+.skin-line { color: var(--muted); font-size: 13px; margin: -4px 0 8px; text-align: center; }
+
 /* Spielfläche: 3D-Szene (WebGL) unten, 2D-Ebene für HUD & Zahlen darüber */
 #view { position: relative; flex: none; }
 #view canvas { position: absolute; inset: 0; width: 100%; height: 100%; }

@@ -1,8 +1,9 @@
 # Play-Store-Eintrag – Outbreak Hero
 
 Texte zum Kopieren in die Play Console (Hauptseite des Store-Eintrags).
-Grafiken: `de/` und `en/` (6 Screenshots 1080×1920, Feature-Grafik 1024×500),
+Grafiken: `de/` und `en/` (7 Screenshots 1080×1920, Feature-Grafik 1024×500),
 App-Symbol 512×512: `../../zombie/icons/icon-512.png`.
+Promo-Poster für Stories/TikTok/Reels (1080×1920): `promo/poster-de.png`, `promo/poster-en.png`.
 
 ---
 
@@ -24,11 +25,17 @@ Ziehe mit einem Finger, um auszuweichen. Bleib stehen und dein Held feuert autom
 ⚡ 24 SKILLS – JEDER RUN IST ANDERS
 Mehrfachschuss, Querschläger, Kreissägen, Kampfdrohne, Brand-, Kryo- und Toxin-Munition, Zweites Leben … Bei jedem Level-Up wählst du 1 von 3 Skills und baust dir deinen eigenen unaufhaltsamen Build.
 
-🔫 9 WAFFEN
-Pistole, Schrotflinte, Maschinenpistole, Armbrust, Flammenwerfer, Scharfschützengewehr, Granatwerfer, Tesla-Gewehr mit Kettenblitz und eine Minigun, die sich warmläuft – jede spielt sich komplett anders und lässt sich bis Stufe 10 aufrüsten. Ab Stufe 5 glänzt sie in Gold.
+🔫 15 WAFFEN
+Pistole, Schrotflinte, Maschinenpistole, Magnum, Armbrust, Flammenwerfer, Sturmgewehr, Scharfschützengewehr, Sägeblattwerfer, Granatwerfer, Kryo-Kanone, Tesla-Gewehr mit Kettenblitz, zielsuchender Raketenwerfer, eine Minigun, die sich warmläuft, und die Laserkanone – jede spielt sich komplett anders und lässt sich bis Stufe 10 aufrüsten. Ab Stufe 5 glänzt sie in Gold.
 
-🧟 8 ZOMBIE-ARTEN
-Schlurfer, Sprinter, Kriecher, giftspuckende Spucker, explodierende Bomber, Zombie-Hunde im Rudel, gepanzerte Riot-Zombies und der gewaltige Koloss.
+🧟 14 ZOMBIE-ARTEN & ELITE-GEGNER
+Schlurfer in Dutzenden Outfits, Sprinter, Kriecher, Spucker, Bomber, Zombie-Hunde, Riot-Zombies, der Koloss – und neu: Springer, die dich anspringen, Brenner mit Feuerspur, Kreischer, die die Horde rasend machen, Teiler, Elektro-Zombies und Seuchenratten. Elite-Zombies mit goldener Aura halten dreimal so viel aus und lassen mehr Beute fallen.
+
+💥 ECHTE PHYSIK – JEDER TOD IST ANDERS
+Zombies fliegen durch den Raum, prallen von Wänden ab und bleiben liegen, bis du den nächsten Raum betrittst. Kopfschuss, Explosion, Feuer, Eis, Strom oder Sägeblatt – jede Waffe hat ihren eigenen spektakulären Tod.
+
+🥷 SKINS & SHOP
+Spiel als SWAT, Feuerwehrmann, Biohazard-Spezialist, Schatten-Ninja, Cyber-Agent, Seuchendoktor oder Goldener Held – mit 3D-Vorschau im Shop. Dazu Boosts für den nächsten Run und die Mystery-Kiste.
 
 🌆 3 WELTEN
 Kämpf dich in 3D durch nächtliche Straßen, ein verlassenes Krankenhaus und ein geheimes Labor – mit Echtzeit-Schatten, Taschenlampe, nassen Straßen, die im Licht glänzen, und gewaltigen Explosionen. Jag Giftfässer in die Luft, zerschieß Kisten für Beute und erlebe Bosskämpfe wie im Kino. Läuft auch auf älteren Handys flüssig dank automatischer Grafikanpassung.
@@ -67,11 +74,17 @@ Drag with one finger to dodge. Stand still and your hero automatically fires at 
 ⚡ 24 SKILLS – EVERY RUN IS DIFFERENT
 Multishot, ricochet, buzzsaws, combat drone, incendiary, cryo and toxin rounds, second life … Pick 1 of 3 skills on every level-up and build your own unstoppable loadout.
 
-🔫 9 WEAPONS
-Pistol, shotgun, SMG, crossbow, flamethrower, sniper rifle, grenade launcher, a chain-lightning Tesla rifle and a spin-up minigun – each plays completely differently and can be upgraded to level 10. From level 5 it shines in gold.
+🔫 15 WEAPONS
+Pistol, shotgun, SMG, magnum, crossbow, flamethrower, assault rifle, sniper rifle, saw launcher, grenade launcher, cryo cannon, a chain-lightning Tesla rifle, a homing rocket launcher, a spin-up minigun and the laser cannon – each plays completely differently and can be upgraded to level 10. From level 5 it shines in gold.
 
-🧟 8 KINDS OF ZOMBIES
-Walkers, sprinters, crawlers, acid spitters, exploding bombers, zombie dog packs, armored riot zombies and the massive brute.
+🧟 14 KINDS OF ZOMBIES & ELITES
+Walkers in dozens of outfits, sprinters, crawlers, spitters, bombers, zombie dogs, riot zombies, the brute – and new: leapers that pounce, burners leaving trails of fire, screamers that send the horde into a frenzy, splitters, electro zombies and plague rats. Elite zombies with a golden aura take three times the damage and drop more loot.
+
+💥 REAL PHYSICS – EVERY DEATH IS DIFFERENT
+Zombies fly across the room, bounce off walls and stay down until you enter the next room. Headshot, explosion, fire, ice, electricity or saw blade – every weapon has its own spectacular death.
+
+🥷 SKINS & SHOP
+Play as SWAT, firefighter, biohazard specialist, shadow ninja, cyber agent, plague doctor or golden hero – with a 3D preview in the shop. Plus boosts for your next run and the mystery crate.
 
 🌆 3 WORLDS
 Fight in 3D through night-time streets, an abandoned hospital and a secret lab – with real-time shadows, a flashlight, rain-soaked streets that glisten in the light and massive explosions. Blow up toxic barrels, shoot crates for loot and experience cinematic boss fights. Runs smoothly even on older phones thanks to automatic graphics scaling.

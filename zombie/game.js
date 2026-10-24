@@ -28,6 +28,9 @@
   };
   const ROTATABLE = { car: true, bed: true };
   const GLOWING = { barrels: "150,255,60", tank: "120,255,80" };
+  // Walker-Outfits je Welt (Index in die Paletten von sprites.js/render3d.js):
+  // 0–2 Zivil, 3 Polizist, 4 Bauarbeiter, 5 Anzug, 6 Patient, 7 Ärztin, 8 Pfleger, 9 Forscher, 10 Soldat, 11 Schutzanzug
+  const WALKER_LOOKS = { street: [0, 1, 2, 3, 4, 5, 0, 3], hospital: [6, 6, 7, 8, 0, 2], lab: [9, 9, 10, 11, 1, 10] };
   // Zerstörbar: Giftfässer explodieren (Kettenreaktion!), Kisten zersplittern und lassen Beute fallen
   const DESTRUCT = { barrels: 70, crate: 45, medcrate: 45, labcrate: 60 };
   const TAU = Math.PI * 2;
@@ -60,6 +63,9 @@
     tutorialDone: false,
     reviewAsked: false,
     gfx: 2, // Grafik: 2 = 3D + Schatten, 1 = 3D, 0 = 2D; passt sich automatisch an die Geräteleistung an
+    skin: "soldier",
+    skins: { soldier: true },
+    boosts: { hp: 0, coins: 0, skill: 0, revive: 0 }, // Vorrat, wird beim nächsten Run verbraucht
   });
   function loadSave() {
     const d = defaultSave();
@@ -74,6 +80,8 @@
           best: { ...d.best, ...s.best },
           daily: { ...d.daily, ...s.daily },
           freeCoins: { ...d.freeCoins, ...s.freeCoins },
+          skins: { ...d.skins, ...s.skins },
+          boosts: { ...d.boosts, ...s.boosts },
           txns: Array.isArray(s.txns) ? s.txns : [],
         };
       }
@@ -95,12 +103,18 @@
     pistol: { name: "Pistole", icon: "🔫", desc: "Ausgewogen und präzise.", price: 0, dmg: 22, rate: 2.5, speed: 760, pellets: 1, spread: 0, jitter: 0.02, range: 900, pierce: 0, r: 4, color: "#ffe08a", flash: "std", casing: 1, kick: 2.5, shake: 0, tracer: "255,224,138" },
     shotgun: { name: "Schrotflinte", icon: "💥", desc: "5 Schrotkugeln, brutal auf kurze Distanz.", price: 250, dmg: 11, rate: 1.25, speed: 700, pellets: 5, spread: 0.5, jitter: 0.05, range: 380, pierce: 0, r: 3, color: "#ffb36b", flash: "big", casing: 2, kick: 6, shake: 3, tracer: "255,179,107", knock: 12 },
     smg: { name: "Maschinenpistole", icon: "⚡", desc: "Extrem hohe Feuerrate.", price: 350, dmg: 9, rate: 6.5, speed: 820, pellets: 1, spread: 0, jitter: 0.1, range: 800, pierce: 0, r: 3, color: "#9ee6ff", flash: "std", casing: 1, kick: 1.5, shake: 0, tracer: "158,230,255" },
+    magnum: { name: "Magnum", icon: "🤠", desc: "Schwerer Revolver: durchschlägt, schleudert Zombies weg, Krits lassen sie zerplatzen.", price: 700, dmg: 68, rate: 1.15, speed: 1150, pellets: 1, spread: 0, jitter: 0.01, range: 1000, pierce: 1, r: 4, color: "#ffd08a", crit: 0.1, flash: "big", casing: 0, kick: 7, shake: 3, tracer: "255,200,120", knock: 18, big: true },
     crossbow: { name: "Armbrust", icon: "🏹", desc: "Bolzen durchschlagen 2 Zombies.", price: 500, dmg: 36, rate: 1.4, speed: 940, pellets: 1, spread: 0, jitter: 0, range: 1000, pierce: 2, r: 5, color: "#c9ff9e", kind: "bolt", flash: "", casing: 0, kick: 2, shake: 0, tracer: "201,255,158" },
     flame: { name: "Flammenwerfer", icon: "🔥", desc: "Kurze Reichweite, setzt alles in Brand.", price: 800, dmg: 4.5, rate: 14, speed: 430, pellets: 1, spread: 0, jitter: 0.28, range: 240, pierce: 99, r: 9, color: "#ff7b2e", kind: "flame", burn: true, flash: "flame", casing: 0, kick: 0.5, shake: 0, tracer: "255,123,46" },
+    rifle: { name: "Sturmgewehr", icon: "🪖", desc: "Präzises Dauerfeuer mit ordentlich Wumms.", price: 950, dmg: 14, rate: 7, speed: 980, pellets: 1, spread: 0, jitter: 0.06, range: 900, pierce: 0, r: 3, color: "#ffe6a0", flash: "std", casing: 1, kick: 2, shake: 0.4, tracer: "255,230,160", knock: 3 },
     sniper: { name: "Scharfschützengewehr", icon: "🎯", desc: "Riesiger Schaden, durchschlägt 4 Ziele, +20% Krit.", price: 1100, dmg: 85, rate: 0.75, speed: 1500, pellets: 1, spread: 0, jitter: 0, range: 1400, pierce: 4, r: 3, color: "#ffffff", crit: 0.2, flash: "big", casing: 1, kick: 7, shake: 4, tracer: "230,245,255", long: true, knock: 14 },
+    disc: { name: "Sägeblattwerfer", icon: "🪚", desc: "Sägeblätter zerteilen alles und prallen 3× von Wänden ab.", price: 1250, dmg: 24, rate: 1.6, speed: 560, pellets: 1, spread: 0, jitter: 0.02, range: 1300, pierce: 99, r: 9, color: "#d8dee4", kind: "disc", bounces: 3, flash: "", casing: 0, kick: 3, shake: 0.5, tracer: "220,230,240", knock: 6 },
     grenade: { name: "Granatwerfer", icon: "💣", desc: "Explodiert und trifft ganze Horden.", price: 1400, dmg: 42, rate: 1.0, speed: 520, pellets: 1, spread: 0, jitter: 0, range: 520, pierce: 0, r: 7, color: "#b7ff4a", kind: "grenade", aoe: 75, flash: "big", casing: 0, kick: 5, shake: 2, tracer: "183,255,74" },
+    cryo: { name: "Kryo-Kanone", icon: "❄️", desc: "Eisgeschosse frieren Zombies ein – gefroren zerspringen sie.", price: 1600, dmg: 13, rate: 3.2, speed: 680, pellets: 1, spread: 0, jitter: 0.04, range: 700, pierce: 1, r: 6, color: "#9fe8ff", cryo: true, flash: "tesla", casing: 0, kick: 2, shake: 0, tracer: "160,230,255", knock: 2 },
     tesla: { name: "Tesla-Gewehr", icon: "🌩️", desc: "Kettenblitz springt auf 3 weitere Zombies.", price: 2000, dmg: 22, rate: 1.7, speed: 0, pellets: 1, spread: 0, jitter: 0, range: 430, pierce: 0, r: 0, color: "#7fe7ff", kind: "tesla", chain: 3, flash: "tesla", casing: 0, kick: 1.5, shake: 1, tracer: "127,231,255" },
+    rocket: { name: "Raketenwerfer", icon: "🚀", desc: "Zielsuchende Raketen mit riesiger Explosion.", price: 2300, dmg: 60, rate: 0.7, speed: 380, pellets: 1, spread: 0, jitter: 0, range: 900, pierce: 0, r: 7, color: "#ffb36b", kind: "rocket", aoe: 95, flash: "big", casing: 0, kick: 8, shake: 3, tracer: "255,170,90" },
     minigun: { name: "Minigun", icon: "🌀", desc: "Läuft im Stand warm – dann ein Bleigewitter.", price: 2600, dmg: 8, rate: 13, speed: 900, pellets: 1, spread: 0, jitter: 0.11, range: 820, pierce: 0, r: 3, color: "#ffd36a", spin: true, flash: "big", casing: 1, kick: 1.2, shake: 0.6, tracer: "255,211,106" },
+    laser: { name: "Laserkanone", icon: "🔴", desc: "Gebündelte Energie durchbohrt jede Reihe und verbrennt Zombies.", price: 3200, dmg: 17, rate: 4.2, speed: 2600, pellets: 1, spread: 0, jitter: 0.015, range: 1300, pierce: 99, r: 2.5, color: "#ff4a4a", kind: "laser", long: true, flash: "laser", casing: 0, kick: 1, shake: 0, tracer: "255,70,70" },
   };
   const WEAPON_MAX_LVL = 10;
   const weaponUpgradeCost = (lvl) => 80 * lvl;
@@ -164,6 +178,12 @@
     dog: { name: "Zombie-Hund", r: 12, hp: 30, speed: 165, dmg: 9, xp: 2, coins: [0, 1], cost: 1.1, pack: 2, blood: RED },
     brute: { name: "Koloss", r: 25, hp: 280, speed: 45, dmg: 24, xp: 6, coins: [2, 5], cost: 4, blood: RED },
     armored: { name: "Riot-Zombie", r: 17, hp: 170, speed: 50, dmg: 18, xp: 5, coins: [1, 3], cost: 3, armor: 0.35, blood: RED },
+    rat: { name: "Seuchenratte", r: 7, hp: 10, speed: 175, dmg: 5, xp: 1, coins: [0, 1], cost: 0.45, pack: 5, blood: RED },
+    leaper: { name: "Springer", r: 14, hp: 55, speed: 85, dmg: 16, xp: 3, coins: [1, 2], cost: 2, blood: RED },
+    burner: { name: "Brenner", r: 15, hp: 75, speed: 78, dmg: 14, xp: 3, coins: [1, 3], cost: 2.5, blood: RED, fireproof: true },
+    screamer: { name: "Kreischer", r: 14, hp: 70, speed: 70, dmg: 10, xp: 3, coins: [1, 2], cost: 2.5, blood: RED },
+    splitter: { name: "Teiler", r: 19, hp: 110, speed: 48, dmg: 16, xp: 4, coins: [1, 3], cost: 3, split: 3, blood: PURPLE },
+    electro: { name: "Elektro-Zombie", r: 15, hp: 95, speed: 58, dmg: 14, xp: 4, coins: [1, 3], cost: 3, blood: GREEN },
     abom: { name: "ABSCHEULICHKEIT", r: 48, hp: 2200, speed: 60, dmg: 30, xp: 40, coins: [40, 60], boss: true, blood: PURPLE },
     mother: { name: "BRUTMUTTER", r: 52, hp: 2700, speed: 34, dmg: 28, xp: 50, coins: [50, 80], boss: true, blood: GREEN },
   };
@@ -290,7 +310,9 @@
   let supplyCrate = null;
   let floorCanvas = null;
   let floorCtx = null;
-  let corpses = [];
+  let corpses = []; // Leichen mit Physik – bleiben bis zum nächsten Raum
+  let pieces = []; // abgetrennte Köpfe/Gliedmaßen
+  let hazards = []; // brennende Pfützen am Boden
   let zaps = [];
   let ambient = [];
   let roomLights = [];
@@ -321,7 +343,7 @@
       lifesteal: 0, orbit: 0, drones: 0, dodge: 0, headshot: 0, revives: 0, deathBlast: 0,
       skills: {}, aim: -Math.PI / 2, fireCd: 0.3, invuln: 0, moving: false,
       orbitAng: 0, droneCd: 0, muzzle: 0, walkT: 0,
-      tier: weaponTier(wlvl), kick: 0, spin: 0, barrel: 0, hurtT: 0,
+      tier: weaponTier(wlvl), kick: 0, spin: 0, barrel: 0, hurtT: 0, skin: save.skin,
     };
   }
 
@@ -332,9 +354,20 @@
       adRevived: false, adWatched: false, earned: 0,
     };
     player = newPlayer();
+    // Goldener Held: +10 % Münzen
+    if (save.skin === "gold") run.greed *= 1.1;
+    // Gekaufte Boosts für diesen Run verbrauchen
+    const used = [];
+    const b = save.boosts;
+    if (b.hp > 0) { b.hp--; player.maxHp = Math.round(player.maxHp * 1.3); player.hp = player.maxHp; used.push("❤️"); }
+    if (b.coins > 0) { b.coins--; run.greed *= 1.5; used.push("🍀"); }
+    if (b.revive > 0) { b.revive--; player.revives++; used.push("😇"); }
+    if (b.skill > 0) { b.skill--; run.pendingPicks++; used.push("🎁"); }
+    if (used.length) persist();
     if (webgl) Render3D.clear();
     nextRoom();
     roomFade = 0; // beim Start übernimmt der Kameraflug aus dem Menü die Überblendung
+    if (used.length) setTimeout(() => toast(`${tr("Boosts aktiv")}: ${used.join(" ")}`), 300);
     show(null);
     state = "play";
   }
@@ -351,7 +384,7 @@
       run.room = 1;
       showBanner(tr("KAPITEL {n} ÜBERLEBT", { n: run.chapter - 1 }), tr("+{b} 💰 · Die Seuche wird stärker…", { b: bonus }));
     }
-    enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; zaps = []; volleyQueue.length = 0;
+    enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; hazards = []; zaps = []; volleyQueue.length = 0;
     roomFade = 1;
     run.doorK = 0;
     supplyCrate = null;
@@ -440,6 +473,13 @@
     if (room >= 6 || ch > 1) pool.push("bomber");
     if (room >= 8 || ch > 1) pool.push("brute");
     if (room >= 11 || ch > 1) pool.push("armored");
+    const th = theme();
+    if (room >= 3 || ch > 1) pool.push("rat");
+    if (room >= 5 || ch > 1) pool.push("leaper");
+    if (room >= 7 || ch > 1) pool.push("burner", ...(th === "street" ? ["burner"] : []));
+    if (room >= 9 || ch > 1) pool.push("screamer", ...(th === "hospital" ? ["screamer"] : []));
+    if (room >= 12 || ch > 1) pool.push("splitter");
+    if (room >= 14 || ch > 1) pool.push("electro", ...(th === "lab" ? ["electro", "electro"] : []));
     const maxCount = 14 + ch * 2;
     let count = 0;
     while (budget > 0.5 && count < maxCount) {
@@ -473,9 +513,14 @@
       spawnT: def.boss ? 1.2 : rand(0.4, 0.8), hitT: 0, dead: false,
       burnT: 0, burnDps: 0, poisonDps: 0, slowT: 0,
       aiT: rand(1, 2.5), mode: "walk", cd: rand(1, 2.2), dirX: 0, dirY: 0,
-      blocked: 0, side: Math.random() < 0.5 ? -1 : 1, bladeCd: 0, wob: rand(0, 6), phase2: false,
-      face: Math.PI / 2, anim: rand(0, 8), variant: randi(0, 2), scale: def.boss ? 1 : rand(0.93, 1.08), hitAng: rand(0, TAU),
+      blocked: 0, side: Math.random() < 0.5 ? -1 : 1, bladeCd: 0, wob: rand(0, 6), phase2: false, kvx: 0, kvy: 0, lastHit: null,
+      face: Math.PI / 2, anim: rand(0, 8), variant: type === "walker" ? pick(WALKER_LOOKS[theme()]) : randi(0, 2), scale: def.boss ? 1 : rand(0.93, 1.08), hitAng: rand(0, TAU),
+      rageT: 0, jumpZ: 0, elite: false,
     };
+    // Elite: goldene Aura, dreifaches Leben, mehr Beute (ab Raum 4, häufiger in späteren Kapiteln)
+    if (!def.boss && !def.pack && (room >= 4 || ch > 1) && Math.random() < 0.04 + 0.03 * (ch - 1)) {
+      e.elite = true; e.hp *= 3; e.maxHp *= 3; e.dmg *= 1.3; e.scale *= 1.22;
+    }
     e.spawnMax = e.spawnT;
     e.face = Math.atan2(player.y - e.y, player.x - e.x);
     enemies.push(e);
@@ -648,7 +693,7 @@
             e.bladeCd = 0.35;
             e.hitAng = a + Math.PI / 2;
             fxSparks(bx, by, a + Math.PI / 2, 0.6, 4, "255,230,170", 260);
-            damageEnemy(e, p.power * 0.8, {});
+            damageEnemy(e, p.power * 0.8, { saw: true });
           }
         }
       }
@@ -723,9 +768,10 @@
         const a = d.a + s + rand(-w.jitter, w.jitter);
         bullets.push(makeBullet(gx + px, gy + py, a, {
           dmg: w.dmg * p.dmgMul, speed: w.speed * (w.kind === "flame" ? rand(0.85, 1.15) : 1), r: w.r, color: w.color,
-          life: w.range / w.speed, pierce: w.pierce + p.pierce, wall: p.wall, rico: p.ricochet,
-          kind: w.kind, aoe: w.aoe, burn: w.burn ? 1 + p.burn : p.burn, freeze: p.freeze, poison: p.poison, player: true,
-          tracer: w.tracer, long: w.long, knock: w.knock,
+          life: w.range / w.speed, pierce: w.pierce + p.pierce, wall: p.wall + (w.bounces || 0), rico: p.ricochet,
+          kind: w.kind, aoe: w.aoe, burn: w.burn ? 1 + p.burn : p.burn, freeze: w.cryo ? 1.5 + p.freeze : p.freeze, poison: p.poison, player: true,
+          tracer: w.tracer, long: w.long, knock: w.knock, wid: p.weaponId, big: !!(w.big || w.long || w.pellets > 1),
+          cryo: !!w.cryo, bounces: w.bounces || 0,
         }));
       }
     }
@@ -734,7 +780,7 @@
       const c = Math.cos(aim), sn = Math.sin(aim);
       fxCasing(p.x + c * 8 - sn * 6, p.y + sn * 8 + c * 6, aim + Math.PI / 2 + rand(-0.4, 0.4), w.casing === 2);
     }
-    if (w.kind === "grenade") fxSmoke(mz.x, mz.y, 2, 0.6, 0.6);
+    if (w.kind === "grenade" || w.kind === "rocket") fxSmoke(mz.x, mz.y, 2, 0.6, 0.6);
     if (w.kind !== "flame" || Math.random() < 0.25) sfx("shoot");
   }
 
@@ -783,7 +829,8 @@
       x, y, vx: Math.cos(a) * o.speed, vy: Math.sin(a) * o.speed, r: o.r || 5, color: o.color || "#fff",
       dmg: o.dmg, life: o.life || 1.5, maxLife: o.life || 1.5, pierce: o.pierce || 0, wall: o.wall || 0, rico: o.rico || 0,
       kind: o.kind || "bullet", aoe: o.aoe || 0, burn: o.burn || 0, freeze: o.freeze || 0, poison: o.poison || 0,
-      hit: new Set(), dead: false, tracer: o.tracer || "255,240,200", long: !!o.long, knock: o.knock || 0, spin: rand(0, TAU),
+      hit: new Set(), dead: false, tracer: o.tracer || "255,240,200", long: !!o.long, knock: o.knock || 0, spin: rand(0, TAU), wid: o.wid || "", big: !!o.big,
+      cryo: !!o.cryo, target: null,
     };
   }
 
@@ -868,13 +915,23 @@
       const px = b.x, py = b.y;
       b.x += b.vx * dt; b.y += b.vy * dt;
       b.life -= dt;
-      b.spin += dt * 14;
+      b.spin += dt * (b.kind === "disc" ? 26 : 14);
+      if (b.kind === "rocket") {
+        // Zielsuche: sanft auf den nächsten Zombie eindrehen und beschleunigen
+        if (!b.target || b.target.dead) b.target = nearestEnemy(b);
+        const sp = Math.min(760, Math.hypot(b.vx, b.vy) + 520 * dt);
+        let a = Math.atan2(b.vy, b.vx);
+        if (b.target) { let da = Math.atan2(b.target.y - b.y, b.target.x - b.x) - a; while (da > Math.PI) da -= TAU; while (da < -Math.PI) da += TAU; a += clamp(da, -4 * dt, 4 * dt); }
+        b.vx = Math.cos(a) * sp; b.vy = Math.sin(a) * sp;
+        if (Math.random() < 0.7) fxSmoke(b.x - Math.cos(a) * 10, b.y - Math.sin(a) * 10, 1, 0.45, 0.6);
+        if (Math.random() < 0.6) fxFire(b.x - Math.cos(a) * 8, b.y - Math.sin(a) * 8, 0.5, 0.18);
+      }
       if (b.kind === "flame") {
         if (Math.random() < 0.15 + 0.15 * quality) fxFire(b.x + rand(-6, 6), b.y + rand(-6, 6), 0.9, 0.3);
         if (Math.random() < 0.25) fxEmber(b.x, b.y);
         if (Math.random() < 0.06) fxSmoke(b.x, b.y, 1, 0.5, 0.7);
       }
-      if (b.life <= 0) { if (b.kind === "grenade") explode(b.x, b.y, b.aoe, b.dmg, true); b.dead = true; continue; }
+      if (b.life <= 0) { if (b.aoe) explode(b.x, b.y, b.aoe, b.dmg, true); b.dead = true; continue; }
 
       // Arena-Wände
       let bounced = false;
@@ -896,13 +953,13 @@
           }
         }
       }
-      if (bounced) { b.wall--; b.hit.clear(); }
-      if (b.dead) { if (b.kind === "grenade") explode(b.x, b.y, b.aoe, b.dmg, true); continue; }
+      if (bounced) { b.wall--; b.hit.clear(); if (b.kind === "disc") { fxSparks(b.x, b.y, rand(0, TAU), Math.PI, 8, "255,230,170", 260); sfx("hit"); } }
+      if (b.dead) { if (b.aoe) explode(b.x, b.y, b.aoe, b.dmg, true); continue; }
 
       for (const e of enemies) {
         if (e.dead || e.spawnT > 0 || b.hit.has(e)) continue;
         if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 > (e.r + b.r) ** 2) continue;
-        if (b.kind === "grenade") { explode(b.x, b.y, b.aoe, b.dmg, true); b.dead = true; break; }
+        if (b.aoe) { explode(b.x, b.y, b.aoe, b.dmg, true); b.dead = true; break; }
         b.hit.add(e);
         damageEnemy(e, b.dmg, { bullet: b });
         if (b.rico > 0) {
@@ -936,6 +993,19 @@
     eBullets = eBullets.filter((b) => !b.dead);
   }
 
+  function addHazard(x, y, r, life, dmg) {
+    if (hazards.length > 40) hazards.shift();
+    hazards.push({ x, y, r, life, max: life, dmg });
+    if (Math.random() < 0.5) stamp(Sprites.scorch(), x, y, rand(0, TAU), r / 40, 0.35);
+  }
+  function updateHazards(dt) {
+    for (const h of hazards) {
+      h.life -= dt;
+      if (Math.random() < 0.3) fxFire(h.x + rand(-h.r, h.r) * 0.6, h.y + rand(-h.r, h.r) * 0.6, 0.7, 0.45);
+      if ((player.x - h.x) ** 2 + (player.y - h.y) ** 2 < (h.r + player.r * 0.5) ** 2) hurtPlayer(h.dmg);
+    }
+    hazards = hazards.filter((h) => h.life > 0);
+  }
   function hitObstacle(o, dmg) {
     if (!o.hp || o.dead) return;
     o.hp -= dmg;
@@ -979,9 +1049,15 @@
     stamp(Sprites.scorch(), x, y, rand(0, TAU), radius / 40, 0.85);
     for (const e of enemies) {
       if (e.dead || e.spawnT > 0) continue;
-      if (Math.sqrt(dist2(e, { x, y })) < radius + e.r) { e.hitAng = Math.atan2(e.y - y, e.x - x); damageEnemy(e, byPlayer ? dmg : dmg * 2, { aoe: true }); }
+      const d = Math.sqrt(dist2(e, { x, y }));
+      if (d < radius + e.r) {
+        e.hitAng = Math.atan2(e.y - y, e.x - x);
+        if (!e.def.boss) { const f = 520 * (1 - d / (radius + e.r)) * (e.type === "brute" ? 0.35 : 1); e.kvx += Math.cos(e.hitAng) * f; e.kvy += Math.sin(e.hitAng) * f; }
+        damageEnemy(e, byPlayer ? dmg : dmg * 2, { aoe: true });
+      }
     }
     if (!byPlayer && Math.sqrt(dist2(player, { x, y })) < radius + player.r) hurtPlayer(dmg);
+    blastBodies(x, y, radius * 1.6);
     for (const o of obstacles.slice()) {
       if (!o.hp || o.dead) continue;
       const cx = clamp(x, o.x, o.x + o.w), cy = clamp(y, o.y, o.y + o.h);
@@ -1012,15 +1088,21 @@
     const b = o.bullet;
     if (b) {
       e.hitAng = Math.atan2(b.vy, b.vx);
-      if (b.burn) { e.burnT = 2.5; e.burnDps = Math.max(e.burnDps, p.power * 0.35 * b.burn); }
-      if (b.freeze) e.slowT = 1.2 + 0.6 * b.freeze;
+      if (b.burn && !e.def.fireproof) { e.burnT = 2.5; e.burnDps = Math.max(e.burnDps, p.power * 0.35 * b.burn); }
+      if (b.freeze) { e.slowT = 1.2 + 0.6 * b.freeze; if (b.cryo && Math.random() < 0.5) fxIce(e.x + rand(-e.r, e.r), e.y + rand(-e.r, e.r)); }
       if (b.poison) e.poisonDps = Math.min(e.poisonDps + p.power * 0.08 * b.poison, p.power * 1.5 * b.poison);
       if (!e.def.boss && b.kind !== "flame") {
-        const k = (e.type === "brute" || e.type === "armored" ? 2 : 6) + (b.knock || 0) * (e.type === "brute" ? 0.3 : 1);
+        // Rückstoß als Geschwindigkeit (klingt in updateEnemies ab) – schwere Zombies wanken weniger
+        const heavy = e.type === "brute" || e.type === "armored";
+        const k = (heavy ? 35 : 90) + (b.knock || 0) * (heavy ? 3 : 10);
         const len = Math.hypot(b.vx, b.vy) || 1;
-        e.x += (b.vx / len) * k; e.y += (b.vy / len) * k;
+        e.kvx += (b.vx / len) * k; e.kvy += (b.vy / len) * k;
       }
     }
+    e.lastHit = {
+      kind: o.aoe ? "blast" : o.saw || (b && b.kind === "disc") ? "slice" : b ? (b.kind === "tesla" ? "shock" : b.kind === "flame" || b.kind === "laser" ? "burn" : b.cryo ? "cryo" : "shot") : "other",
+      crit, big: !!(b && b.big), force: b ? 140 + (b.knock || 0) * 14 : o.aoe ? 420 : 160, ang: e.hitAng,
+    };
     e.hp -= dmg;
     e.hitT = 0.1;
     if (!o.silent && (!b || b.kind !== "flame")) {
@@ -1042,7 +1124,7 @@
     fxBlood(e.x, e.y, e.hitAng, def.boss ? 40 : 12, def.blood, def.boss ? 320 : 220);
     fxGibs(e.x, e.y, def.boss ? 14 : randi(2, 4), def.blood);
     splatter(e.x, e.y, e.hitAng, def.boss ? 2.4 : 0.7 + e.r / 40, def.blood);
-    corpses.push({ type: e.type, v: e.variant, f: Math.floor(e.anim) % Sprites.FRAMES, x: e.x, y: e.y, face: e.face, sc: e.scale, t: 0, blood: def.blood, boss: def.boss, dir: Math.random() < 0.5 ? -1 : 1, ref: e });
+    spawnCorpse(e);
     sfx(def.boss ? "boom" : "kill");
     if (def.boss) {
       shake = 18;
@@ -1060,6 +1142,9 @@
     for (let i = 0; i < nc; i++) orbs.push(makeOrb(e.x, e.y, "coin", 1));
 
     if (player.lifesteal > 0) healPlayer(player.maxHp * player.lifesteal);
+    if (def.split) for (let i = 0; i < def.split; i++) { const q = spawnEnemy("crawler", e.x + rand(-14, 14), e.y + rand(-14, 14)); q.spawnT = 0.12; q.kvx = rand(-260, 260); q.kvy = rand(-260, 260); }
+    if (e.type === "burner") { for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU; addHazard(e.x + Math.cos(a) * 26, e.y + Math.sin(a) * 26, 16, 2.6, e.dmg * 0.6); } fxFlash(e.x, e.y, 120, "255,140,40", 0.2); }
+    if (e.elite) { for (let i = 0; i < nc * 2 + 3; i++) orbs.push(makeOrb(e.x, e.y, "coin", 1)); fxRing(e.x, e.y, 60, "255,210,90", 0.4); }
     if (e.type === "bomber") explode(e.x, e.y, 70, e.dmg, false);
     else if (player.deathBlast > 0) explode(e.x, e.y, 45 + 15 * player.deathBlast, player.power * 1.2 * player.deathBlast, true);
     if (e.type === "abom" || e.type === "mother") {
@@ -1093,11 +1178,21 @@
       if (e.hp <= 0) { killEnemy(e); continue; }
       const slow = e.slowT > 0 ? 0.45 : 1;
       e.slowT = Math.max(0, e.slowT - dt);
+      // Rückstoß / Druckwelle: Körper wird weggeschoben und taumelt kurz
+      let stagger = 1;
+      if (e.kvx || e.kvy) {
+        e.x += e.kvx * dt; e.y += e.kvy * dt;
+        const f = Math.exp(-9 * dt), kv = Math.hypot(e.kvx, e.kvy);
+        e.kvx *= f; e.kvy *= f;
+        if (kv < 4) e.kvx = e.kvy = 0;
+        if (kv > 110) stagger = 0.25;
+      }
 
       const dx = p.x - e.x, dy = p.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
       let mx = dx / d, my = dy / d;
-      let sp = e.speed * slow;
+      let sp = e.speed * slow * stagger;
+      if (e.rageT > 0) { e.rageT -= dt; sp *= 1.55; }
 
       switch (e.type) {
         case "spitter": {
@@ -1108,6 +1203,55 @@
         }
         case "bomber": {
           if (d < e.r + p.r + 14) { e.hp = 0; killEnemy(e); continue; }
+          break;
+        }
+        case "leaper": {
+          // duckt sich, dann weiter Sprung auf den Spieler (Warnlinie während des Duckens)
+          e.cd -= dt;
+          if (e.mode === "leap") {
+            mx = e.dirX; my = e.dirY; sp = 400 * slow; e.aiT -= dt;
+            e.jumpZ = Math.sin(Math.min(1, 1 - e.aiT / 0.5) * Math.PI) * 55;
+            if (e.aiT <= 0) { e.mode = "walk"; e.jumpZ = 0; fxDebris(e.x, e.y, 0, Math.PI, 6, "#5a4a3a"); fxRing(e.x, e.y, 34, "200,200,200", 0.25); shake = Math.max(shake, 2); }
+          } else if (e.mode === "crouch") {
+            sp = 0; e.aiT -= dt; e.dirX = mx; e.dirY = my;
+            if (e.aiT <= 0) { e.mode = "leap"; e.aiT = 0.5; }
+          } else if (d < 330 && d > 90 && e.cd <= 0) { e.mode = "crouch"; e.aiT = 0.45; e.cd = rand(2.2, 3.2); }
+          break;
+        }
+        case "burner": {
+          // brennt dauerhaft und hinterlässt Feuerpfützen
+          e.cd -= dt;
+          if (Math.random() < 0.4) fxFire(e.x + rand(-6, 6), e.y + rand(-6, 6), 0.8, 0.4);
+          if (e.cd <= 0) { e.cd = 0.55; addHazard(e.x, e.y, 15, 3.2, e.dmg * 0.6); }
+          break;
+        }
+        case "screamer": {
+          // hält Abstand; Schrei macht Zombies in der Nähe rasend (schneller)
+          if (d < 190) { mx = -mx; my = -my; } else if (d < 310) { const t = mx; mx = -my * e.side; my = t * e.side; sp *= 0.5; }
+          e.cd -= dt;
+          if (e.mode === "scream") { sp = 0; e.aiT -= dt; if (e.aiT <= 0) e.mode = "walk"; }
+          else if (e.cd <= 0) {
+            e.cd = rand(3.8, 5.2); e.mode = "scream"; e.aiT = 0.7;
+            fxRing(e.x, e.y, 230, "210,120,255", 0.6); fxRing(e.x, e.y, 130, "255,150,255", 0.45);
+            shake = Math.max(shake, 3); sfx("hurt");
+            for (const q of enemies) if (q !== e && !q.def.boss && dist2(q, e) < 230 * 230) q.rageT = 3.2;
+          }
+          break;
+        }
+        case "electro": {
+          // lädt sich auf (Warnkreis), dann Stromschlag im Umkreis
+          e.cd -= dt;
+          if (e.mode === "zap") {
+            sp = 0; e.aiT -= dt;
+            if (Math.random() < 0.5) fxSparks(e.x + rand(-10, 10), e.y + rand(-10, 10), rand(0, TAU), 1, 2, "127,231,255", 200);
+            if (e.aiT <= 0) {
+              e.mode = "walk";
+              fxRing(e.x, e.y, 150, "127,231,255", 0.35); fxFlash(e.x, e.y, 140, "127,231,255", 0.15);
+              for (let i = 0; i < 4; i++) { const a = rand(0, TAU), r2 = rand(60, 150); zaps.push({ x1: e.x, y1: e.y, x2: e.x + Math.cos(a) * r2, y2: e.y + Math.sin(a) * r2, life: 0.2, max: 0.2 }); }
+              if (d < 150 + p.r) { zaps.push({ x1: e.x, y1: e.y, x2: p.x, y2: p.y, life: 0.25, max: 0.25 }); hurtPlayer(e.dmg * 1.4); }
+              sfx("zap");
+            }
+          } else if (d < 175 && e.cd <= 0) { e.mode = "zap"; e.aiT = 0.75; e.cd = rand(2.6, 3.6); }
           break;
         }
         case "dog": {
@@ -1185,8 +1329,8 @@
         if (e.mode === "charge") { e.mode = "walk"; e.aiT = rand(1.5, 2.5); shake = Math.max(shake, 4); }
       }
 
-      // Kontaktschaden
-      if ((p.x - e.x) ** 2 + (p.y - e.y) ** 2 < (p.r + e.r - 2) ** 2) hurtPlayer(e.dmg);
+      // Kontaktschaden (nicht mitten im Sprung)
+      if (e.jumpZ < 20 && (p.x - e.x) ** 2 + (p.y - e.y) ** 2 < (p.r + e.r - 2) ** 2) hurtPlayer(e.dmg);
     }
 
     // Gegenseitiges Wegschieben
@@ -1421,10 +1565,185 @@
     banner = { title, sub, life: dur, max: dur };
   }
 
+  // ============================================================
+  // Tode & Körper-Physik
+  // ============================================================
+  // Todesart nach Ursache: Kopfschuss, Zerplatzen, durch die Luft geschleudert, verkohlt,
+  // eingefroren & zersprungen, Stromschlag, zersägt – oder einfach umgerissen.
+  const MAX_LIVE_CORPSES = 14; // ältere, ruhende Leichen werden "eingebacken" (2D: Boden, 3D: Sammel-Mesh)
+  function deathOf(e) {
+    const h = e.lastHit || {}, def = e.def;
+    if (def.boss) return "boss";
+    if (e.type === "bomber") return "burst";
+    if (h.kind === "blast") return Math.random() < 0.35 ? "burst" : "blast";
+    if (h.kind === "shock") return "shock";
+    if (e.slowT > 0 && (h.kind === "cryo" || Math.random() < 0.6)) return "freeze";
+    if (h.kind === "burn" || e.burnT > 0.3) return "burn";
+    if (h.kind === "slice") return "slice";
+    if (h.crit && (h.big || e.r < 11)) return "burst";
+    if (h.crit && e.type !== "crawler") return "headshot";
+    return "shot";
+  }
+  function spawnCorpse(e) {
+    const death = deathOf(e), h = e.lastHit || {}, ang = h.ang ?? e.hitAng;
+    const zh = e.r * 2.4 * e.scale; // ungefähre Kopfhöhe
+    if (death === "burst") {
+      fxGibs(e.x, e.y, 9, e.def.blood);
+      fxBlood(e.x, e.y, ang, 26, e.def.blood, 300);
+      splatter(e.x, e.y, ang, 1.5 + e.r / 30, e.def.blood);
+      fxFlash(e.x, e.y, 60, "160,20,20", 0.12);
+      for (let i = 0; i < 3; i++) addPiece(e, i === 0 && Math.random() < 0.6 ? "head" : "limb", ang + rand(-1.2, 1.2), rand(160, 320), rand(180, 360));
+      shake = Math.max(shake, 5);
+      return;
+    }
+    const c = {
+      type: e.type, v: e.variant, f: Math.floor(e.anim) % Sprites.FRAMES, x: e.x, y: e.y, z: 0, r: e.r * 0.8,
+      face: e.face, sc: e.scale, t: 0, blood: e.def.blood, boss: e.def.boss, ref: e, death,
+      vx: 0, vy: 0, vz: 0, spin: rand(-1, 1), roll: 0, rollV: 0, fall: 0, settled: false, headless: false,
+      // umkippen in Schussrichtung: Treffer von vorn → nach hinten, von hinten → nach vorn
+      fallDir: Math.cos(ang - e.face) < 0 ? 1 : -1, side: Math.random() < 0.5 ? -1 : 1,
+    };
+    const push = (f, up = 0) => { c.vx = Math.cos(ang) * f; c.vy = Math.sin(ang) * f; c.vz = up; };
+    switch (death) {
+      case "headshot":
+        c.headless = true;
+        push(h.force * 0.8);
+        addPiece(e, "head", ang + rand(-0.4, 0.4), rand(180, 280), rand(260, 380), zh);
+        for (let i = 0; i < 14; i++) addP({ t: "blood", x: e.x, y: e.y, z: zh * 0.85, vx: rand(-50, 50), vy: rand(-50, 50), vz: rand(160, 320), life: 1.5, max: 1.5, color: e.def.blood, size: rand(1.6, 3) });
+        break;
+      case "blast":
+        push(rand(260, 420), rand(320, 520));
+        c.spin = rand(-9, 9); c.rollV = rand(-8, 8);
+        if (Math.random() < 0.5) addPiece(e, "limb", ang + rand(-1, 1), rand(200, 380), rand(300, 480), zh * 0.6);
+        if (Math.random() < 0.25) { c.headless = true; addPiece(e, "head", ang + rand(-0.8, 0.8), rand(200, 380), rand(320, 500), zh); }
+        break;
+      case "burn":
+        push(40);
+        for (let i = 0; i < 8; i++) fxFire(e.x + rand(-e.r, e.r) * 0.6, e.y + rand(-e.r, e.r) * 0.6, 1 + e.r / 30, rand(0.5, 0.9));
+        fxSmoke(e.x, e.y, 3, 0.8, 1.4);
+        break;
+      case "freeze":
+        for (let i = 0; i < 6; i++) fxIce(e.x + rand(-e.r, e.r), e.y + rand(-e.r, e.r));
+        break;
+      case "shock":
+        fxSparks(e.x, e.y, 0, Math.PI, 10, "160,240,255", 260);
+        break;
+      case "slice":
+        push(h.force * 1.4); c.spin = rand(-14, 14);
+        fxBlood(e.x, e.y, ang + Math.PI / 2, 14, e.def.blood, 260);
+        if (Math.random() < 0.5) addPiece(e, "limb", ang + Math.PI / 2 * c.side, rand(150, 260), rand(120, 220), zh * 0.6);
+        break;
+      case "boss":
+        push(60, 0);
+        break;
+      default:
+        push(h.force || 150, h.force > 250 ? 120 : 0);
+    }
+    corpses.push(c);
+  }
+  // Kopf oder Gliedmaße als eigenes Physik-Objekt
+  function addPiece(e, kind, ang, speed, up, z = e.r * 1.6) {
+    if (pieces.length > 90) pieces.shift();
+    pieces.push({
+      kind, type: e.type, v: e.variant, sc: e.scale * (e.r / 15), blood: e.def.blood,
+      x: e.x, y: e.y, z, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, vz: up,
+      rx: rand(0, TAU), ry: rand(0, TAU), wx: rand(-14, 14), wy: rand(-14, 14), settled: false, t: 0,
+    });
+  }
+  // Druckwelle schleudert Leichen und Körperteile weg
+  function blastBodies(x, y, radius) {
+    for (const c of corpses) {
+      const d = Math.hypot(c.x - x, c.y - y);
+      if (d > radius || c.death === "freeze") continue;
+      const k = 1 - d / radius, a = Math.atan2(c.y - y, c.x - x);
+      c.vx += Math.cos(a) * 420 * k; c.vy += Math.sin(a) * 420 * k; c.vz += 300 * k;
+      c.spin += rand(-8, 8) * k; c.rollV += rand(-6, 6) * k; c.settled = false;
+    }
+    for (const q of pieces) {
+      const d = Math.hypot(q.x - x, q.y - y);
+      if (d > radius) continue;
+      const k = 1 - d / radius, a = Math.atan2(q.y - y, q.x - x);
+      q.vx += Math.cos(a) * 480 * k; q.vy += Math.sin(a) * 480 * k; q.vz += 380 * k; q.wx += rand(-10, 10); q.settled = false;
+    }
+  }
+  // Physik: Flug mit Schwerkraft, Aufprall mit Blut, Rutschen mit Reibung, Abprallen an Wänden
+  const bodyProbe = { x: 0, y: 0, r: 8 };
+  function moveBody(b, dt, r, bounce) {
+    b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt;
+    b.vz -= GRAVITY * dt;
+    let landed = false;
+    if (b.z <= 0) {
+      b.z = 0;
+      if (b.vz < -160) { landed = true; b.vz = -b.vz * bounce; } else b.vz = 0;
+    }
+    if (b.z === 0) { const f = Math.exp(-5.5 * dt); b.vx *= f; b.vy *= f; }
+    bodyProbe.x = b.x; bodyProbe.y = b.y; bodyProbe.r = r;
+    const ox = b.x, oy = b.y;
+    collideWorld(bodyProbe);
+    // abprallen: Geschwindigkeit an der Kontaktnormalen spiegeln – die Normale ist die
+    // Verschiebung durchs Herausdrücken (Hindernisse UND Raumwände, die collideWorld nur klemmt)
+    const nx = bodyProbe.x - ox, ny = bodyProbe.y - oy, nl = Math.hypot(nx, ny);
+    if (nl > 0.01) {
+      const vn = (b.vx * nx + b.vy * ny) / nl;
+      if (vn < 0) { b.vx -= 1.6 * vn * nx / nl; b.vy -= 1.6 * vn * ny / nl; }
+    }
+    b.x = bodyProbe.x; b.y = bodyProbe.y;
+    return landed;
+  }
+  function updateCorpses(dt) {
+    for (const c of corpses) {
+      c.t += dt;
+      if (c.death === "freeze") {
+        // kurz als Eisstatue stehen, dann zerspringen
+        if (c.t > 0.55) {
+          c.gone = true;
+          fxDebris(c.x, c.y, 0, Math.PI, 18, "#bfe9ff");
+          fxDebris(c.x, c.y, 0, Math.PI, 8, "#6fa8c8");
+          for (let i = 0; i < 8; i++) fxIce(c.x + rand(-14, 14), c.y + rand(-14, 14));
+          fxSparks(c.x, c.y, 0, Math.PI, 10, "200,240,255", 240);
+          sfx("hit");
+        }
+        continue;
+      }
+      if (c.death === "shock" && c.t < 0.6) { if (Math.random() < 0.4) fxSparks(c.x + rand(-8, 8), c.y + rand(-8, 8), rand(0, TAU), 1, 2, "160,240,255", 160); continue; }
+      const fallTime = c.death === "burn" ? 1.1 : c.death === "shock" ? 1.0 : c.death === "boss" ? 1.4 : 0.42;
+      c.fall = Math.min(1, c.t / fallTime);
+      if (c.death === "burn" && c.t < 2.5 && Math.random() < 0.3) { fxFire(c.x + rand(-8, 8), c.y + rand(-8, 8), 0.7, 0.5); if (Math.random() < 0.3) fxEmber(c.x, c.y); }
+      if (c.headless && c.t < 1.2 && Math.random() < 0.5) addP({ t: "blood", x: c.x, y: c.y, z: 8 + (1 - c.fall) * 20, vx: rand(-40, 40), vy: rand(-40, 40), vz: rand(60, 200), life: 1, max: 1, color: c.blood, size: rand(1.2, 2.4) });
+      if (c.settled) continue;
+      const fast = Math.hypot(c.vx, c.vy);
+      if (moveBody(c, dt, c.r, 0.25)) { splatter(c.x, c.y, Math.atan2(c.vy, c.vx), 0.5 + c.r / 40, c.blood); shake = Math.max(shake, 2); }
+      if (c.z > 0) c.roll += c.rollV * dt; else { c.rollV *= Math.exp(-6 * dt); c.roll += (Math.round(c.roll / Math.PI) * Math.PI - c.roll) * Math.min(1, dt * 6); }
+      c.face += c.spin * dt;
+      c.spin *= c.z > 0 ? 1 : Math.exp(-5 * dt);
+      // Blutspur beim Rutschen
+      if (c.z === 0 && fast > 60 && Math.random() < 0.6) stampDot(c.x + rand(-3, 3), c.y + rand(-3, 3), rand(1.5, 3), c.blood);
+      if (c.z === 0 && fast < 8 && c.t > fallTime) c.settled = true;
+    }
+    // Spieler schiebt herumliegende Körper beim Laufen etwas an
+    if (player && player.moving) {
+      for (const c of corpses) {
+        if (!c.settled || c.death === "freeze") continue;
+        const dx = c.x - player.x, dy = c.y - player.y, d = Math.hypot(dx, dy);
+        if (d < c.r + player.r && d > 0.1) { c.vx += (dx / d) * 90; c.vy += (dy / d) * 90; c.spin += rand(-2, 2); c.settled = false; }
+      }
+    }
+    for (const q of pieces) {
+      if (q.settled) continue;
+      q.t += dt;
+      if (moveBody(q, dt, 4, 0.45)) { stampDot(q.x, q.y, 2.5, q.blood); q.wx *= 0.6; q.wy *= 0.6; }
+      q.rx += q.wx * dt; q.ry += q.wy * dt;
+      if (q.z === 0) { q.wx *= Math.exp(-6 * dt); q.wy *= Math.exp(-6 * dt); if (Math.random() < 0.3) stampDot(q.x, q.y, 1.4, q.blood); }
+      if (q.z === 0 && Math.hypot(q.vx, q.vy) < 6 && q.t > 0.4) q.settled = true;
+    }
+    // Zu viele Leichen: die ältesten ruhenden einbacken (bleiben sichtbar, kosten aber nichts mehr)
+    let live = corpses.length;
+    for (const c of corpses) { if (live <= MAX_LIVE_CORPSES) break; if (c.settled && !c.gone) { bakeCorpse(c); c.baked = true; live--; } }
+    corpses = corpses.filter((c) => !c.gone && !c.baked);
+  }
   function bakeCorpse(c) {
-    splatter(c.x, c.y, c.face + Math.PI, c.boss ? 2.6 : 0.8, c.blood);
-    // In 3D bleibt der Körper als Modell liegen und versinkt – nur in 2D als Bild auf den Boden
-    if (!mode3d) stamp(Sprites.zombieFx(c.type, c.f, c.v, "corpse"), c.x, c.y, c.face + c.dir * 0.4, c.sc * 0.88, 0.75);
+    // In 3D übernimmt der Renderer den Körper in sein Sammel-Mesh – nur in 2D als Bild auf den Boden
+    if (!mode3d) stamp(Sprites.zombieFx(c.type, c.f, c.v, "corpse"), c.x, c.y, c.face + c.fallDir * 0.4, c.sc * 0.88, 0.8);
   }
 
   // Umgebungs-Partikel: Asche (Straße), Staub (Krankenhaus), Sporen (Labor)
@@ -1448,8 +1767,7 @@
     updateParticles(dt);
     for (const t of texts) { t.life -= dt; t.y -= 34 * dt; }
     texts = texts.filter((t) => t.life > 0);
-    for (const c of corpses) { c.t += dt; if (c.t >= 0.5) bakeCorpse(c); }
-    corpses = corpses.filter((c) => c.t < 0.5);
+    updateCorpses(dt);
     for (const z of zaps) z.life -= dt;
     zaps = zaps.filter((z) => z.life > 0);
     updateAmbient(dt);
@@ -1467,6 +1785,7 @@
     updatePlayer(dt);
     if (state !== "play") return;
     updateEnemies(dt);
+    updateHazards(dt);
     updateBullets(dt);
     updateOrbs(dt);
     if (supplyCrate) supplyCrate.bob += dt;
@@ -1553,7 +1872,7 @@
   const world3d = {
     get state() { return state; }, get run() { return run; }, get player() { return player; },
     get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; },
-    get orbs() { return orbs; }, get particles() { return particles; }, get corpses() { return corpses; },
+    get orbs() { return orbs; }, get particles() { return particles; }, get corpses() { return corpses; }, get pieces() { return pieces; },
     get zaps() { return zaps; }, get ambient() { return ambient; }, get roomLights() { return roomLights; },
     get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },
     get theme() { return theme(); }, get isBossRoom() { return !!(run && BOSS_ROOMS[run.room]); }, get intro() { return roomFade; },
@@ -1605,7 +1924,7 @@
   function updateMenuWorld(dt) {
     const w = menuWorld(), p = w.player;
     w.t += dt;
-    p.weaponId = save.equipped; p.weapon = WEAPONS[save.equipped]; p.tier = weaponTier(save.weapons[save.equipped] || 1);
+    p.weaponId = save.equipped; p.weapon = WEAPONS[save.equipped]; p.tier = weaponTier(save.weapons[save.equipped] || 1); p.skin = save.skin;
     p.aim = -Math.PI / 2 + Math.sin(w.t * 0.45) * 1.1 + Math.sin(w.t * 1.3) * 0.12;
     for (const e of w.enemies) {
       // langsam enger kreisen, dann wieder zurückweichen
@@ -1841,14 +2160,27 @@
 
   function drawCorpses() {
     for (const c of corpses) {
-      const k = Math.min(1, c.t / 0.5);
-      const ang = c.face + c.dir * 0.4 * k, sc = c.sc * (1 - 0.12 * k);
-      Sprites.draw(ctx, Sprites.zombie(c.type, c.f, c.v), c.x, c.y, ang, sc);
-      ctx.globalAlpha = k * 0.85;
-      Sprites.draw(ctx, Sprites.zombieFx(c.type, c.f, c.v, "corpse"), c.x, c.y, ang, sc);
+      const k = c.death === "freeze" ? 0 : c.fall;
+      const ang = c.face + c.fallDir * 0.4 * k + c.roll * 0.3, sc = c.sc * (1 - 0.12 * k) * (1 + c.z / 260);
+      if (c.z > 2) drawShadow(c.x, c.y, c.r);
+      const y = c.y - c.z;
+      Sprites.draw(ctx, Sprites.zombie(c.type, c.f, c.v), c.x, y, ang, sc);
+      const fx = c.death === "freeze" ? "ice" : c.death === "shock" && c.t < 0.6 && Math.random() < 0.5 ? "hit" : "corpse";
+      ctx.globalAlpha = fx === "corpse" ? k * (c.death === "burn" ? 1 : 0.85) : 0.9;
+      Sprites.draw(ctx, Sprites.zombieFx(c.type, c.f, c.v, fx), c.x, y, ang, sc);
       ctx.globalAlpha = 1;
     }
+    for (const q of pieces) {
+      const y = q.y - q.z, s = 3 + q.sc * 3;
+      if (q.z > 2) drawShadow(q.x, q.y, s);
+      ctx.save(); ctx.translate(q.x, y); ctx.rotate(q.rx);
+      ctx.fillStyle = q.kind === "head" ? "#8fa67a" : "#5d6e7e";
+      if (q.kind === "head") { ctx.beginPath(); ctx.arc(0, 0, s, 0, TAU); ctx.fill(); } else ctx.fillRect(-s * 1.4, -s * 0.5, s * 2.8, s);
+      ctx.fillStyle = "#7a1418"; ctx.beginPath(); ctx.arc(q.kind === "head" ? s * 0.6 : s * 1.3, 0, s * 0.45, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
   }
+
 
   function drawActors() {
     actorList.length = 0;
@@ -1868,12 +2200,13 @@
       return;
     }
     drawShadow(e.x, e.y, e.r * e.scale);
-    let x = e.x, y = e.y;
-    if (e.mode === "wind") { x += rand(-1.5, 1.5); y += rand(-1.5, 1.5); }
+    let x = e.x, y = e.y - e.jumpZ;
+    if (e.mode === "wind" || e.mode === "zap") { x += rand(-1.5, 1.5); y += rand(-1.5, 1.5); }
+    if (e.elite) glowAt("255,200,80", e.x, e.y, e.r * 2.2, 0.35 + 0.15 * Math.sin(run.time * 5));
     const sc = e.scale * (1 + Math.sin(e.anim * 0.8) * 0.015);
     Sprites.draw(ctx, Sprites.zombie(e.type, f, e.variant), x, y, e.face, sc);
     if (e.slowT > 0) { ctx.globalAlpha = 0.8; Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "ice"), x, y, e.face, sc); }
-    if (e.phase2) { ctx.globalAlpha = 0.35 + 0.25 * Math.sin(run.time * 10); Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "rage"), x, y, e.face, sc); }
+    if (e.phase2 || e.rageT > 0) { ctx.globalAlpha = 0.35 + 0.25 * Math.sin(run.time * 10); Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "rage"), x, y, e.face, sc); }
     if (e.hitT > 0) { ctx.globalAlpha = Math.min(1, e.hitT / 0.1); Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "hit"), x, y, e.face, sc); }
     ctx.globalAlpha = 1;
   }
@@ -1889,7 +2222,7 @@
     }
     drawShadow(p.x, p.y, 16);
     const pack = p.weaponId === "flame" ? "tanks" : "pack";
-    const body = Sprites.playerBody(p.moving ? Math.floor(p.walkT) % Sprites.FRAMES : -1, pack);
+    const body = Sprites.playerBody(p.moving ? Math.floor(p.walkT) % Sprites.FRAMES : -1, pack, p.skin);
     const ws = Sprites.weapon(p.weaponId, p.tier, Math.floor(p.barrel));
     ctx.save();
     ctx.translate(p.x, p.y);
@@ -1915,6 +2248,13 @@
         const k = 1 - b.life / b.maxLife, z = Math.sin(k * Math.PI) * 38;
         drawShadow(b.x, b.y - 3, 5);
         Sprites.draw(ctx, Sprites.grenadeShell(), b.x, b.y - z, b.spin);
+      } else if (b.kind === "disc") {
+        drawShadow(b.x, b.y + 4, 8);
+        Sprites.draw(ctx, Sprites.saw(), b.x, b.y, b.spin, 0.8);
+      } else if (b.kind === "rocket") {
+        ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Math.atan2(b.vy, b.vx));
+        ctx.fillStyle = "#c9ccd0"; ctx.fillRect(-9, -3, 14, 6); ctx.fillStyle = "#e5383b"; ctx.beginPath(); ctx.moveTo(5, -3); ctx.lineTo(10, 0); ctx.lineTo(5, 3); ctx.fill();
+        ctx.fillStyle = "#555"; ctx.fillRect(-11, -5, 4, 10); ctx.restore();
       }
     }
   }
@@ -2070,6 +2410,11 @@
         glowAt("255,80,40", b.x, b.y - z, 8, Math.sin(t * 20) > 0 ? 0.9 : 0.3);
       } else if (b.kind === "bolt") {
         glowAt(b.tracer, b.x, b.y, 10, 0.5);
+      } else if (b.kind === "disc") {
+        glowAt("220,230,255", b.x, b.y, 14, 0.25);
+      } else if (b.kind === "rocket") {
+        const a = Math.atan2(b.vy, b.vx);
+        glowAt("255,160,60", b.x - Math.cos(a) * 12, b.y - Math.sin(a) * 12, 14, 0.9);
       } else {
         const sp = Math.hypot(b.vx, b.vy) || 1;
         const len = b.long ? 90 : Math.min(42, Math.max(14, sp * 0.035));
@@ -2107,6 +2452,13 @@
 
   function drawTelegraphs() {
     for (const e of enemies) {
+      if (e.mode === "crouch") {
+        ctx.strokeStyle = `rgba(255,80,60,${0.35 + 0.3 * Math.sin(run.time * 30)})`; ctx.lineWidth = 3; ctx.setLineDash([8, 6]);
+        ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + e.dirX * 190, e.y + e.dirY * 190); ctx.stroke(); ctx.setLineDash([]);
+      } else if (e.mode === "zap") {
+        ctx.strokeStyle = `rgba(127,231,255,${0.3 + 0.3 * Math.sin(run.time * 25)})`; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(e.x, e.y, 150 * (1 - Math.max(0, e.aiT) / 0.75 * 0.4), 0, TAU); ctx.stroke();
+      }
       if (e.mode !== "wind") continue;
       const k = 1 - Math.max(0, e.aiT) / 0.65;
       const len = e.type === "abom" ? 380 : 260;
@@ -2309,11 +2661,14 @@
     $("menuBest").textContent = save.best.chapter ? tr("Kapitel {c} · Raum {r}", { c: save.best.chapter, r: save.best.room }) : "–";
     const w = WEAPONS[save.equipped], lvl = save.weapons[save.equipped];
     $("menuEquipped").innerHTML = `<img class="eq-ico" src="${Sprites.weaponIcon(save.equipped, weaponTier(lvl))}" alt=""><span>${tr("Ausgerüstet: {w} (Stufe {n})", { w: w.name, n: lvl })}</span>`;
+    const sk = SKINS.find((q) => q.id === save.skin) || SKINS[0];
+    const bs = BOOSTS.filter((q) => save.boosts[q.id] > 0).map((q) => `${q.icon}×${save.boosts[q.id]}`).join(" ");
+    $("menuSkin").textContent = `${sk.icon} ${sk.name}${bs ? ` · ${tr("Boosts")}: ${bs}` : ""}`;
     for (const el of document.querySelectorAll(".coinsVal")) el.textContent = save.coins;
   }
 
   // Weiche Trennstellen für lange deutsche Komposita (schmale Handys)
-  const softHyphen = (name) => name.replace(/(Maschinen|Scharfschützen|Flammen|Granat)/g, "$1\u00AD");
+  const softHyphen = (name) => name.replace(/(Maschinen|Scharfschützen|Flammen|Granat|Sägeblatt|Raketen|Sturm|Laser)/g, "$1\u00AD");
 
   function renderArmory() {
     const list = $("weaponList");
@@ -2385,6 +2740,40 @@
     { id: IDS.coinsSmall, icon: "💰", name: tr("Münzbeutel"), desc: tr("1.200 Münzen") },
     { id: IDS.coinsBig, icon: "🏆", name: tr("Münztruhe"), desc: tr("7.000 Münzen"), tag: tr("+45% MEHR") },
   ];
+  // Skins: reine Optik (Goldener Held zusätzlich +10 % Münzen, nur per In-App-Kauf)
+  const SKINS = [
+    { id: "soldier", icon: "🪖", name: tr("Soldat"), price: 0 },
+    { id: "police", icon: "🛡️", name: tr("SWAT"), price: 1500 },
+    { id: "firefighter", icon: "🚒", name: tr("Feuerwehr"), price: 2500 },
+    { id: "hazmat", icon: "☣️", name: tr("Biohazard"), price: 3500 },
+    { id: "ninja", icon: "🥷", name: tr("Schatten-Ninja"), price: 5000 },
+    { id: "cyber", icon: "🤖", name: tr("Cyber-Agent"), price: 8000 },
+    { id: "plague", icon: "🎭", name: tr("Seuchendoktor"), price: 12000 },
+    { id: "gold", icon: "👑", name: tr("Goldener Held"), iap: IDS.goldSkin, desc: tr("Premium-Skin · +10% Münzen") },
+  ];
+  const BOOSTS = [
+    { id: "hp", icon: "❤️", name: tr("Zähigkeit+"), desc: tr("+30% max. HP im nächsten Run"), price: 300 },
+    { id: "coins", icon: "🍀", name: tr("Glücksbringer"), desc: tr("+50% Münzen im nächsten Run"), price: 400 },
+    { id: "skill", icon: "🎁", name: tr("Startvorteil"), desc: tr("Starte mit einem zusätzlichen Skill"), price: 500 },
+    { id: "revive", icon: "😇", name: tr("Schutzengel"), desc: tr("Einmal wiederbeleben im nächsten Run"), price: 800 },
+  ];
+  const MYSTERY_PRICE = 1500;
+  function openMystery() {
+    if (save.coins < MYSTERY_PRICE) return;
+    save.coins -= MYSTERY_PRICE;
+    const skins = SKINS.filter((q) => q.price && !save.skins[q.id]);
+    const weapons = Object.keys(WEAPONS).filter((id) => !save.weapons[id]);
+    const r = Math.random();
+    let msg;
+    if (r < 0.15 && skins.length) { const q = pick(skins); save.skins[q.id] = true; msg = `${q.icon} ${tr("Neuer Skin")}: ${q.name}!`; }
+    else if (r < 0.35 && weapons.length) { const id = pick(weapons); save.weapons[id] = 1; msg = `${WEAPONS[id].icon} ${tr("Neue Waffe")}: ${WEAPONS[id].name}!`; }
+    else if (r < 0.6) { const a = pick(BOOSTS), b2 = pick(BOOSTS); save.boosts[a.id]++; save.boosts[b2.id]++; msg = `${a.icon} ${a.name} + ${b2.icon} ${b2.name}`; }
+    else { const c = randi(8, 26) * 100; save.coins += c; msg = `+${c} 💰`; }
+    persist();
+    sfx("level");
+    if (save.vibration) Platform.vibrate(40);
+    toast(`🎁 ${msg}`);
+  }
   const DAILY = [100, 150, 200, 300, 400, 500, 1000];
   const FREE_COINS_PER_DAY = 5;
 
@@ -2418,6 +2807,10 @@
         save.coins += 3000;
         if (!save.weapons.crossbow) save.weapons.crossbow = 1;
       }
+    } else if (id === IDS.goldSkin) {
+      changed = !save.skins.gold;
+      save.skins.gold = true;
+      if (changed && !restore) save.skin = "gold";
     } else if (COIN_PACKS[id] && !restore) {
       save.coins += COIN_PACKS[id];
       changed = true;
@@ -2436,9 +2829,40 @@
   }
   const freeCoinAmount = () => 150 + 50 * save.best.chapter;
 
+  let shopTab = "offers", previewSkin = null;
   function renderShop() {
+    for (const b of document.querySelectorAll("#shopTabs button")) b.classList.toggle("active", b.dataset.tab === shopTab);
     const list = $("shopList");
     list.innerHTML = "";
+    // 3D-Vorschau des Skins (nur mit WebGL)
+    const pv = $("skinPreview"), showPv = shopTab === "skins" && !!webgl;
+    pv.classList.toggle("hidden", !showPv);
+    if (showPv) Render3D.preview(pv, previewSkin || save.skin, save.equipped, weaponTier(save.weapons[save.equipped] || 1));
+    else if (webgl) Render3D.stopPreview();
+    if (shopTab === "skins") renderSkinList(list);
+    else if (shopTab === "boosts") renderBoostList(list);
+    else renderOffers(list);
+    const iapReady = Platform.iap.available;
+    $("shopNote").textContent = Platform.isNative
+      ? (iapReady ? tr("Zahlung sicher über Google Play.") : tr("Verbinde mit Google Play …"))
+      : tr("Käufe sind in der Android-App verfügbar.");
+    $("restoreBtn").classList.toggle("hidden", !Platform.isNative || shopTab !== "offers");
+    refreshMenu();
+  }
+  // Preis-Knopf für einen In-App-Kauf
+  function iapRow(icon, name, desc, tag, id, owned) {
+    if (owned) return shopRow(icon, name, desc, tag, tr("✓ Gekauft"), false, null);
+    const iapReady = Platform.iap.available;
+    const prod = iapReady ? Platform.iap.product(id) : null;
+    const label = prod && prod.price ? prod.price : iapReady ? "…" : tr("In der App");
+    return shopRow(icon, name, desc, tag, label, !!(prod && prod.canPurchase), async (btn) => {
+      btn.disabled = true;
+      const ok = await Platform.iap.buy(id);
+      if (!ok) toast(tr("Kauf abgebrochen"));
+      btn.disabled = false;
+    });
+  }
+  function renderOffers(list) {
     if (Platform.ads.available) {
       const left = freeCoinsLeft();
       list.appendChild(shopRow("🎬", tr("Gratis-Münzen"), tr("Kurzes Video ansehen: +{x} Münzen ({l}/{n} heute)", { x: freeCoinAmount(), l: left, n: FREE_COINS_PER_DAY }), "", left > 0 ? tr("▶ Gratis") : tr("Morgen wieder"), left > 0, async (btn) => {
@@ -2455,26 +2879,37 @@
         renderShop();
       }, "ad"));
     }
-    const iapReady = Platform.iap.available;
-    for (const it of SHOP_ITEMS) {
-      if (it.owned && it.owned()) {
-        list.appendChild(shopRow(it.icon, it.name, it.desc, it.tag, tr("✓ Gekauft"), false, null));
-        continue;
-      }
-      const prod = iapReady ? Platform.iap.product(it.id) : null;
-      const label = prod && prod.price ? prod.price : iapReady ? "…" : tr("In der App");
-      list.appendChild(shopRow(it.icon, it.name, it.desc, it.tag, label, !!(prod && prod.canPurchase), async (btn) => {
-        btn.disabled = true;
-        const ok = await Platform.iap.buy(it.id);
-        if (!ok) toast(tr("Kauf abgebrochen"));
-        btn.disabled = false;
+    list.appendChild(shopRow("🎁", tr("Überraschungskiste"), tr("Zufällig: Skin, Waffe, Boosts oder bis zu 2.600 Münzen"), tr("NEU"), tr("Kaufen {p}💰", { p: MYSTERY_PRICE }), save.coins >= MYSTERY_PRICE, () => { openMystery(); renderShop(); }));
+    const gold = SKINS.find((q) => q.id === "gold");
+    list.appendChild(iapRow(gold.icon, gold.name, gold.desc, tr("PREMIUM"), gold.iap, save.skins.gold));
+    for (const it of SHOP_ITEMS) list.appendChild(iapRow(it.icon, it.name, it.desc, it.tag, it.id, it.owned && it.owned()));
+  }
+  function renderSkinList(list) {
+    for (const q of SKINS) {
+      const owned = !!save.skins[q.id], active = save.skin === q.id;
+      let row;
+      if (q.iap && !owned) row = iapRow(q.icon, q.name, q.desc, tr("PREMIUM"), q.iap, false);
+      else if (owned) row = shopRow(q.icon, q.name, active ? tr("Ausgerüstet") : tr("Im Besitz"), "", active ? tr("✓ Aktiv") : tr("Ausrüsten"), !active, () => { save.skin = q.id; previewSkin = q.id; persist(); sfx("coin"); renderShop(); });
+      else row = shopRow(q.icon, q.name, tr("Nur Optik – zeig, wer du bist."), "", tr("Kaufen {p}💰", { p: q.price }), save.coins >= q.price, () => {
+        if (save.coins < q.price) return;
+        save.coins -= q.price; save.skins[q.id] = true; save.skin = q.id; previewSkin = q.id;
+        persist(); sfx("level"); toast(`${q.icon} ${q.name}!`); renderShop();
+      });
+      // Antippen der Zeile zeigt den Skin in der Vorschau
+      row.classList.add("pickable");
+      if ((previewSkin || save.skin) === q.id) row.classList.add("selected");
+      row.addEventListener("click", (ev) => { if (ev.target.tagName === "BUTTON") return; previewSkin = q.id; renderShop(); });
+      list.appendChild(row);
+    }
+  }
+  function renderBoostList(list) {
+    for (const q of BOOSTS) {
+      const n = save.boosts[q.id] || 0;
+      list.appendChild(shopRow(q.icon, `${q.name}${n ? ` ×${n}` : ""}`, q.desc, n ? tr("BEREIT") : "", tr("Kaufen {p}💰", { p: q.price }), save.coins >= q.price, () => {
+        if (save.coins < q.price) return;
+        save.coins -= q.price; save.boosts[q.id] = n + 1; persist(); sfx("coin"); renderShop();
       }));
     }
-    $("shopNote").textContent = Platform.isNative
-      ? (iapReady ? tr("Zahlung sicher über Google Play.") : tr("Verbinde mit Google Play …"))
-      : tr("Käufe sind in der Android-App verfügbar.");
-    $("restoreBtn").classList.toggle("hidden", !Platform.isNative);
-    refreshMenu();
   }
 
   function shopRow(icon, name, desc, tag, label, enabled, onClick, cls = "") {
@@ -2564,6 +2999,7 @@
   function toMenu() {
     state = "menu";
     run = null;
+    if (webgl) Render3D.stopPreview();
     if (webgl) Render3D.clear();
     refreshMenu();
     const st = dailyState();
@@ -2580,7 +3016,8 @@
   $("menuBtn").addEventListener("click", () => leaveOver(toMenu));
   $("armoryBtn").addEventListener("click", () => { ensureAudio(); renderArmory(); show(ui.armory); });
   $("talentBtn").addEventListener("click", () => { ensureAudio(); renderTalents(); show(ui.talents); });
-  $("shopBtn").addEventListener("click", () => { ensureAudio(); renderShop(); show(ui.shop); });
+  $("shopBtn").addEventListener("click", () => { ensureAudio(); previewSkin = null; show(ui.shop); renderShop(); });
+  for (const b of document.querySelectorAll("#shopTabs button")) b.addEventListener("click", () => { shopTab = b.dataset.tab; renderShop(); });
   $("dailyBtn").addEventListener("click", () => { ensureAudio(); openDaily(); });
   $("settingsBtn").addEventListener("click", () => { renderSettings(); show(ui.settings); });
   for (const b of document.querySelectorAll("[data-back]")) b.addEventListener("click", toMenu);
@@ -2661,5 +3098,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), levelUp: () => addXp(player.xpNeed - player.xp), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), levelUp: () => addXp(player.xpNeed - player.xp), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

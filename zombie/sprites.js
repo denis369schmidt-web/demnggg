@@ -177,7 +177,22 @@ window.Sprites = (() => {
       { shirt: "#5d6e7e", pants: "#2f3b52", skin: "#8fa67a" },
       { shirt: "#7d5f45", pants: "#3a3328", skin: "#94a37c" },
       { shirt: "#6b3f57", pants: "#2b2f3a", skin: "#87a184" },
+      { shirt: "#24324f", pants: "#1b2338", skin: "#8fa67a" },
+      { shirt: "#e8701a", pants: "#3a3a40", skin: "#93a47c" },
+      { shirt: "#2b2d33", pants: "#24262b", skin: "#9aa684" },
+      { shirt: "#a9c3cf", pants: "#a9c3cf", skin: "#a3ad92" },
+      { shirt: "#e8ecea", pants: "#5f7a8a", skin: "#99a88a" },
+      { shirt: "#5f9a8a", pants: "#4f8678", skin: "#8fa67a" },
+      { shirt: "#e4e6e0", pants: "#3a3d44", skin: "#8aa07c" },
+      { shirt: "#4f5a38", pants: "#3e4630", skin: "#8a9c74" },
+      { shirt: "#d9c21a", pants: "#c9b218", skin: "#7d9070" },
     ],
+    rat: [{ shirt: "#5a5048", skin: "#8a6a6a" }],
+    leaper: [{ shirt: "#3d3a44", pants: "#2a2730", skin: "#9fae8e", lean: 0.22, sleeveless: true }],
+    burner: [{ shirt: "#2a1c14", pants: "#1c1612", skin: "#3a2a20", eye: "#ffb03a" }],
+    screamer: [{ shirt: "#cfd8dc", pants: "#cfd8dc", skin: "#b9c4ad", eye: "#ff4af0" }],
+    splitter: [{ shirt: "#5a3a62", pants: "#3a2a40", skin: "#8a6a9a", bloat: true, sleeveless: true, eye: "#ff6ad5" }],
+    electro: [{ shirt: "#e4e6e0", pants: "#2a2f3a", skin: "#7f9474", eye: "#7fe7ff" }],
     runner: [{ shirt: "#8a2a2a", pants: "#1f2126", skin: "#a9b59c", hood: true, lean: 0.14 }],
     spitter: [{ shirt: "#5d7c3a", pants: "#4a3d2a", skin: "#7d9a48", bloat: true, sleeveless: true, eye: "#eaff00" }],
     bomber: [{ shirt: "#e8701a", pants: "#2e3440", skin: "#8fa27a", vest: true }],
@@ -189,7 +204,7 @@ window.Sprites = (() => {
     mother: [{ skin: "#3f5a3a" }],
   };
   // Sprite-Größe relativ zum Kollisionsradius
-  const SPAN = { crawler: 4.4, dog: 4.8, abom: 3.6, mother: 4.0 };
+  const SPAN = { crawler: 4.4, dog: 4.8, rat: 5.2, abom: 3.6, mother: 4.0 };
   const variants = (type) => (PAL[type] || PAL.walker).length;
 
   function humanoid(g, c, r, f, P, R) {
@@ -475,7 +490,7 @@ window.Sprites = (() => {
     const r = Z_R[type] || 15;
     const S = r * (SPAN[type] || 3.7);
     const P = (PAL[type] || PAL.walker)[v];
-    const fn = type === "crawler" ? crawler : type === "dog" ? dog : type === "abom" ? abom : type === "mother" ? mother : humanoid;
+    const fn = type === "crawler" ? crawler : type === "dog" || type === "rat" ? dog : type === "abom" ? abom : type === "mother" ? mother : humanoid;
     return get(key, S, S, outlined((g) => fn(g, S / 2, r, f, P, rng(hash(type) + v * 977)), r > 30 ? 2 : 1.2));
   }
   // Radien (müssen zu ZOMBIES in game.js passen; werden dort per register gesetzt)
@@ -492,15 +507,27 @@ window.Sprites = (() => {
   // ------------------------------------------------------------------
   // Spieler & Waffen
   // ------------------------------------------------------------------
-  function playerBody(frame, pack) {
-    const key = `p:${frame}:${pack}`;
+  // Skin-Farben für die 2D-Darstellung (3D-Details in render3d.js)
+  const SKIN2D = {
+    soldier: { torso: "#556640", pants: "#3a4430", pack: "#3d4630", pouch: "#46542f", pads: "#4c5a38", arm: "#4a5636", helmet: "#5d6e44", visor: "#6fe3ff", glow: "#8cff4a" },
+    police: { torso: "#1e2a44", pants: "#1a2236", pack: "#18213a", pouch: "#141c2c", pads: "#2a3a5c", arm: "#22304e", helmet: "#151a24", visor: "#7fd8ff", glow: "#3a8cff" },
+    firefighter: { torso: "#c9a043", pants: "#a8862f", pack: "#b01c18", pouch: "#7a5a20", pads: "#a0802f", arm: "#c9a043", helmet: "#c0201a", visor: "#ffd36a", glow: "#ff8a2a" },
+    hazmat: { torso: "#e8c21a", pants: "#d9b218", pack: "#6a6a6a", pouch: "#2a2a2a", pads: "#c9a818", arm: "#e8c21a", helmet: "#e8c21a", visor: "#7fd8ff", glow: "#8cff4a" },
+    ninja: { torso: "#16161a", pants: "#121216", pack: "#1a1a1e", pouch: "#2a0a0a", pads: "#202024", arm: "#16161a", helmet: "#141418", visor: "#ff2a2a", glow: "#ff2a2a" },
+    cyber: { torso: "#1a1f2a", pants: "#14181f", pack: "#1c2230", pouch: "#11151c", pads: "#2a3344", arm: "#1f2632", helmet: "#20283a", visor: "#2bf0ff", glow: "#2bf0ff" },
+    plague: { torso: "#1a1816", pants: "#151311", pack: "#2a2016", pouch: "#3a2a1a", pads: "#2a2622", arm: "#1a1816", helmet: "#121010", visor: "#e8c64a", glow: "#e8c64a" },
+    gold: { torso: "#d4a52a", pants: "#a07a1a", pack: "#b08a2a", pouch: "#8a6a1a", pads: "#f2c84a", arm: "#c9982a", helmet: "#f2c84a", visor: "#fff2b0", glow: "#fff2b0" },
+  };
+  function playerBody(frame, pack, skin = "soldier") {
+    const S = SKIN2D[skin] || SKIN2D.soldier;
+    const key = `p:${frame}:${pack}:${skin}`;
     return get(key, 72, 72, outlined((g) => {
       const c = 36, r = 16;
       const sw = frame < 0 ? 0 : Math.sin((frame / FRAMES) * TAU);
       // Beine & Stiefel
       for (const s of [-1, 1]) {
         const lx = c - r * 0.1 + sw * s * r * 0.42, ly = c + s * r * 0.34;
-        g.fillStyle = "#3a4430"; ell(g, lx, ly, r * 0.36, r * 0.21); g.fill();
+        g.fillStyle = S.pants; ell(g, lx, ly, r * 0.36, r * 0.21); g.fill();
         g.fillStyle = "#1e211b"; ell(g, lx + r * 0.27, ly, r * 0.17, r * 0.16); g.fill();
       }
       // Rucksack bzw. Treibstofftanks
@@ -511,31 +538,31 @@ window.Sprites = (() => {
           g.fillStyle = "#9aa3ab"; circ(g, c - r * 1.12, c + s * r * 0.32, r * 0.1); g.fill();
         }
       } else {
-        g.fillStyle = vol(g, c - r * 0.8, c, r * 0.6, "#3d4630");
+        g.fillStyle = vol(g, c - r * 0.8, c, r * 0.6, S.pack);
         rr(g, c - r * 1.15, c - r * 0.55, r * 0.75, r * 1.1, r * 0.2); g.fill();
         g.fillStyle = "#59633f"; rr(g, c - r * 1.22, c - r * 0.42, r * 0.28, r * 0.84, r * 0.12); g.fill(); // Schlafsack
         g.fillStyle = "#2c3322"; g.fillRect(c - r * 0.95, c - r * 0.5, r * 0.08, r * 1.0);
       }
       // Weste mit Taschen
-      g.fillStyle = vol(g, c, c, r * 0.95, "#556640"); ell(g, c, c, r * 0.52, r * 0.9); g.fill();
-      g.fillStyle = "#46542f";
+      g.fillStyle = vol(g, c, c, r * 0.95, S.torso); ell(g, c, c, r * 0.52, r * 0.9); g.fill();
+      g.fillStyle = S.pouch;
       for (let i = -1; i <= 1; i++) { rr(g, c + r * 0.1, c + i * r * 0.36 - r * 0.13, r * 0.3, r * 0.26, r * 0.06); g.fill(); }
-      g.fillStyle = "#8cff4a"; circ(g, c - r * 0.05, c - r * 0.78, r * 0.07); g.fill(); // Schulterlicht
-      for (const s of [-1, 1]) { g.fillStyle = vol(g, c, c + s * r * 0.78, r * 0.3, "#4c5a38"); circ(g, c, c + s * r * 0.76, r * 0.27); g.fill(); }
+      g.fillStyle = S.glow; circ(g, c - r * 0.05, c - r * 0.78, r * 0.07); g.fill(); // Schulterlicht
+      for (const s of [-1, 1]) { g.fillStyle = vol(g, c, c + s * r * 0.78, r * 0.3, S.pads); circ(g, c, c + s * r * 0.76, r * 0.27); g.fill(); }
       // Arme zum Waffengriff
       const arm = (sx, sy, ex, ey, hx, hy) => {
-        limb(g, sx, sy, ex, ey, r * 0.3, "#4a5636");
-        limb(g, ex, ey, hx, hy, r * 0.25, "#4a5636");
+        limb(g, sx, sy, ex, ey, r * 0.3, S.arm);
+        limb(g, ex, ey, hx, hy, r * 0.25, S.arm);
         g.fillStyle = "#1f1f1f"; circ(g, hx, hy, r * 0.16); g.fill();
       };
       arm(c, c + r * 0.72, c + r * 0.4, c + r * 0.72, c + r * 0.72, c + r * 0.22);
       arm(c, c - r * 0.72, c + r * 0.62, c - r * 0.5, c + r * 1.15, c + r * 0.12);
       // Helm mit Brille
       const hx = c + r * 0.08;
-      g.fillStyle = vol(g, hx, c, r * 0.52, "#5d6e44"); circ(g, hx, c, r * 0.5); g.fill();
+      g.fillStyle = vol(g, hx, c, r * 0.52, S.helmet); circ(g, hx, c, r * 0.5); g.fill();
       g.strokeStyle = "#3f4b2d"; g.lineWidth = r * 0.06; circ(g, hx, c, r * 0.36); g.stroke();
       g.fillStyle = "#1b1f22"; g.beginPath(); g.arc(hx, c, r * 0.5, -0.9, 0.9); g.arc(hx, c, r * 0.3, 0.9, -0.9, true); g.closePath(); g.fill();
-      g.fillStyle = "#6fe3ff"; g.beginPath(); g.arc(hx, c, r * 0.47, -0.75, 0.75); g.arc(hx, c, r * 0.36, 0.75, -0.75, true); g.closePath(); g.fill();
+      g.fillStyle = S.visor; g.beginPath(); g.arc(hx, c, r * 0.47, -0.75, 0.75); g.arc(hx, c, r * 0.36, 0.75, -0.75, true); g.closePath(); g.fill();
       g.fillStyle = "rgba(255,255,255,0.85)"; g.beginPath(); g.arc(hx, c, r * 0.46, -0.6, -0.25); g.arc(hx, c, r * 0.4, -0.25, -0.6, true); g.closePath(); g.fill();
     }, 1.2));
   }
@@ -551,6 +578,12 @@ window.Sprites = (() => {
     grenade: { len: 40, grip: 13, muzzle: 40 },
     tesla: { len: 42, grip: 13, muzzle: 42 },
     minigun: { len: 48, grip: 15, muzzle: 48 },
+    magnum: { len: 30, grip: 8, muzzle: 30 },
+    rifle: { len: 46, grip: 14, muzzle: 46 },
+    disc: { len: 40, grip: 12, muzzle: 38 },
+    cryo: { len: 42, grip: 13, muzzle: 42 },
+    rocket: { len: 54, grip: 18, muzzle: 54 },
+    laser: { len: 48, grip: 14, muzzle: 48 },
   };
   const TIER_COLOR = ["#7c8590", "#ffcf4a", "#ffcf4a"];
 
@@ -602,6 +635,32 @@ window.Sprites = (() => {
         for (const x of [26, 31, 36]) { g.strokeStyle = "#c87533"; g.lineWidth = 2.4; ell(g, x, y, 1.6, 6.5); g.stroke(); g.strokeStyle = "#f0a860"; g.lineWidth = 0.8; ell(g, x - 0.4, y, 1.2, 5.6); g.stroke(); }
         g.strokeStyle = "#9aa3ab"; g.lineWidth = 1.2; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(39, y + s * 2.5); g.lineTo(42, y + s * 1.2); g.stroke(); }
         stripe(6, 16); gem(14); break;
+      case "magnum":
+        steel(2, 9, 8, "#3a2a1c"); steel(9, 9, 9, "#4a4f56");
+        g.fillStyle = "#2a2d31"; for (const o of [-2.5, 0, 2.5]) { circ(g, 13.5, y + o, 1.4); g.fill(); }
+        steel(17, 13, 4, "#5a5f66"); g.fillStyle = "#111"; circ(g, 29.5, y, 1.2); g.fill(); stripe(18, 10); gem(13); break;
+      case "rifle":
+        steel(0, 13, 6, "#3a3328"); steel(12, 16, 7, "#2c3037"); steel(27, 17, 3, "#3d4148");
+        g.fillStyle = "#1e2024"; g.fillRect(18, y + 3, 4, 8); g.fillStyle = "#c9a043"; g.fillRect(19, y + 4, 2, 6);
+        g.fillStyle = "#16181b"; rr(g, 15, y - 6.5, 9, 3, 1); g.fill(); stripe(13, 12); gem(20); break;
+      case "disc":
+        steel(2, 22, 8, "#4a5562"); g.fillStyle = vol(g, 30, y, 8, "#c9d1d9"); circ(g, 30, y, 8); g.fill();
+        g.fillStyle = "#e5383b"; circ(g, 30, y, 2.2); g.fill();
+        g.strokeStyle = "#8a939b"; g.lineWidth = 1; for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU; g.beginPath(); g.moveTo(30 + Math.cos(a) * 6, y + Math.sin(a) * 6); g.lineTo(30 + Math.cos(a + 0.4) * 9, y + Math.sin(a + 0.4) * 9); g.stroke(); }
+        stripe(4, 16); gem(12); break;
+      case "cryo":
+        steel(4, 20, 9, "#cfd8de"); g.fillStyle = "rgba(60,140,200,0.5)"; g.fillRect(8, y - 4.5, 12, 9);
+        steel(23, 14, 5, "#596270"); g.fillStyle = "#9fe8ff"; g.fillRect(24, y - 1, 16, 2); g.fillStyle = "#e8fbff"; circ(g, 40, y, 2.2); g.fill();
+        for (const x of [10, 15]) { g.fillStyle = "#9fe8ff"; g.fillRect(x, y - 6, 2, 12); } stripe(6, 14); gem(14); break;
+      case "rocket":
+        steel(0, 40, 9, "#4d5a2a"); g.fillStyle = "#2a3018"; g.fillRect(14, y + 4.5, 5, 7); g.fillRect(24, y - 9, 6, 4.5);
+        steel(39, 8, 11, "#3a4026"); g.fillStyle = "#e5383b"; g.beginPath(); g.moveTo(47, y - 4); g.lineTo(53, y); g.lineTo(47, y + 4); g.fill();
+        stripe(6, 20); gem(18); break;
+      case "laser":
+        steel(4, 22, 10, "#1e2228"); steel(25, 20, 4, "#3d4148");
+        g.fillStyle = "#ff4a4a"; g.fillRect(8, y - 1.2, 16, 2.4); g.fillRect(26, y - 0.6, 20, 1.2);
+        for (const x of [28, 34, 40]) { g.fillStyle = "#596270"; g.fillRect(x, y - 3.5, 2.5, 7); }
+        g.fillStyle = "#ffb0b0"; circ(g, 46.5, y, 1.8); g.fill(); stripe(6, 16); gem(14); break;
       case "minigun": {
         steel(4, 20, 12, "#33363b"); g.fillStyle = "#24262a"; rr(g, 8, y - 9, 10, 4, 1); g.fill();
         g.fillStyle = "#c9a043"; for (let i = 0; i < 5; i++) g.fillRect(6 + i * 3, y + 5.5, 2, 4);
@@ -654,7 +713,7 @@ window.Sprites = (() => {
 
   function muzzleFlash(kind) {
     return get(`flash:${kind}`, 64, 48, (g) => {
-      const col = kind === "tesla" ? ["#eaffff", "#7fe7ff", "rgba(60,160,255,0)"] : kind === "flame" ? ["#fff1b0", "#ff9a2e", "rgba(255,60,0,0)"] : ["#ffffff", "#ffd36a", "rgba(255,120,20,0)"];
+      const col = kind === "tesla" ? ["#eaffff", "#7fe7ff", "rgba(60,160,255,0)"] : kind === "laser" ? ["#fff0f0", "#ff4a4a", "rgba(255,0,0,0)"] : kind === "flame" ? ["#fff1b0", "#ff9a2e", "rgba(255,60,0,0)"] : ["#ffffff", "#ffd36a", "rgba(255,120,20,0)"];
       const big = kind === "big";
       const gr = g.createRadialGradient(8, 24, 0, 8, 24, big ? 40 : 28);
       gr.addColorStop(0, col[0]); gr.addColorStop(0.35, col[1]); gr.addColorStop(1, col[2]);

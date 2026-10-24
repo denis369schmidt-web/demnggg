@@ -183,7 +183,7 @@ window.Platform = (() => {
   // In-App-Käufe (Google Play)
   // ------------------------------------------------------------------
   const ids = cfg.iap || {};
-  const NON_CONSUMABLE = [ids.noAds, ids.starter];
+  const NON_CONSUMABLE = [ids.noAds, ids.starter, ids.goldSkin];
   const iap = { available: false };
   let store = null;
   let CP = null;
@@ -200,6 +200,7 @@ window.Platform = (() => {
       { id: ids.starter, type: ProductType.NON_CONSUMABLE, platform: P.GOOGLE_PLAY },
       { id: ids.coinsSmall, type: ProductType.CONSUMABLE, platform: P.GOOGLE_PLAY },
       { id: ids.coinsBig, type: ProductType.CONSUMABLE, platform: P.GOOGLE_PLAY },
+      { id: ids.goldSkin, type: ProductType.NON_CONSUMABLE, platform: P.GOOGLE_PLAY },
     ]);
     store.when()
       .productUpdated(() => emit("iap"))

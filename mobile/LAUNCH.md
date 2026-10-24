@@ -71,8 +71,9 @@ base64 -w0 outbreak-upload.jks > outbreak-upload.b64   # macOS: base64 -i outbre
 | `no_ads` | Werbefrei | Einmalkauf | 2,99 € |
 | `coins_1200` | Münzbeutel | Verbrauchsgut | 0,99 € |
 | `coins_7000` | Münztruhe | Verbrauchsgut | 4,99 € |
+| `skin_gold` | Goldener Held (Skin) | Einmalkauf | 1,99 € |
 
-  (In der Play Console sind alle vier „In-App-Produkte“; ob verbrauchbar oder nicht, regelt das Spiel.)
+  (In der Play Console sind alle fünf „In-App-Produkte“; ob verbrauchbar oder nicht, regelt das Spiel.)
 
 ## 6. Testen & Freigabe
 

@@ -30,6 +30,7 @@
       <div class="coins-line">💰 <b id="menuCoins">0</b></div>
       <div class="best-line"><span data-i18n>Rekord:</span> <b id="menuBest">–</b></div>
       <div class="equipped" id="menuEquipped"></div>
+      <div class="skin-line" id="menuSkin"></div>
       <button class="btn primary" id="playBtn" data-i18n>SPIELEN</button>
       <div class="row">
         <button class="btn" id="armoryBtn" data-i18n>🔫 Waffen</button>
@@ -63,6 +64,12 @@
     <section id="shop" class="overlay hidden">
       <h2>Shop</h2>
       <div class="coins-line">💰 <b class="coinsVal">0</b></div>
+      <div class="tabs" id="shopTabs">
+        <button class="tab" data-tab="offers" data-i18n>Angebote</button>
+        <button class="tab" data-tab="skins" data-i18n>Skins</button>
+        <button class="tab" data-tab="boosts" data-i18n>Boosts</button>
+      </div>
+      <canvas id="skinPreview" class="hidden"></canvas>
       <div id="shopList" class="list"></div>
       <p class="hint" id="shopNote"></p>
       <button class="btn" id="restoreBtn" data-i18n>Käufe wiederherstellen</button>

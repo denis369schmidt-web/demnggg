@@ -17,7 +17,7 @@ Läuft im Browser, als installierbare PWA und als Android-App ([`../mobile`](../
 - **Interaktive Umgebung**: Giftfässer explodieren bei Beschuss (Kettenreaktionen!), Kisten zersplittern und lassen Münzen oder Medikits fallen; Hit-Stop bei wuchtigen Treffern
 - **3 Grafikstufen** mit automatischer Anpassung: „3D + Schatten“ → „3D“ → „2D (schnell)“; ohne WebGL läuft das Spiel mit dem klassischen 2D-Renderer
 - **Meta-Progression**: Talente, Waffen-Upgrades, 7-Tage-Login-Bonus
-- **Shop** mit Reitern: Angebote, **8 Helden-Skins** mit drehbarer 3D-Vorschau (7 für Münzen, „Goldener Held“ per In-App-Kauf mit +10 % Münzen), **Boosts** für den nächsten Run (Zähigkeit+, Glücksbringer, Startvorteil, Schutzengel) und Mystery-Kiste
+- **Shop** mit Reitern: Angebote, **8 Helden-Skins** mit drehbarer 3D-Vorschau (7 für Münzen, „Goldener Held“ per In-App-Kauf mit +10 % Münzen), **Boosts** für den nächsten Run (Zähigkeit+, Glücksbringer, Startvorteil, Schutzengel) und Überraschungskiste mit angezeigten Gewinnchancen (`mysteryOdds()` = Ziehung und Anzeige)
 - **Monetarisierung** (Android): Rewarded Videos (Wiederbeleben, Münzen ×2, Skill neu würfeln, Gratis-Münzen, Tagesbonus ×2),
   Interstitial jede 3. Runde, In-App-Käufe (Starterpaket, Werbefrei, Münzpakete, Gold-Skin)
 - **Deutsch & Englisch** (automatisch nach Gerätesprache, umschaltbar in den Einstellungen)

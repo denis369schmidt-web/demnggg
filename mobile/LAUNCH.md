@@ -73,6 +73,9 @@ base64 -w0 outbreak-upload.jks > outbreak-upload.b64   # macOS: base64 -i outbre
 | `coins_7000` | Münztruhe | Verbrauchsgut | 4,99 € |
 | `skin_gold` | Goldener Held (Skin) | Einmalkauf | 1,99 € |
 
+  Die Überraschungskiste (Münzen) zeigt ihre Gewinnchancen vor dem Kauf an – Pflicht laut Google-Play-Richtlinie
+  für Zufallsbelohnungen, weil Münzen auch mit Echtgeld gekauft werden können. Chancen nur in `mysteryOdds()` ändern.
+
   (In der Play Console sind alle fünf „In-App-Produkte“; ob verbrauchbar oder nicht, regelt das Spiel.)
 
 ## 6. Testen & Freigabe

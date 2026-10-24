@@ -147,7 +147,7 @@ window.I18N = (() => {
     "Schutzengel": "Guardian Angel",
     "Einmal wiederbeleben im nächsten Run": "One free revive in your next run",
     "Überraschungskiste": "Mystery Crate",
-    "Zufällig: Skin, Waffe, Boosts oder bis zu 2.600 Münzen": "Random: skin, weapon, boosts or up to 2,600 coins",
+    "Chancen: Skin {skin} % · Waffe {weapon} % · 2 Boosts {boosts} % · 800–2.600 Münzen {coins} %": "Odds: skin {skin}% · weapon {weapon}% · 2 boosts {boosts}% · 800–2,600 coins {coins}%",
     "NEU": "NEW",
     "PREMIUM": "PREMIUM",
     "BEREIT": "READY",

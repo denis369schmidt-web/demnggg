@@ -2758,16 +2758,25 @@
     { id: "revive", icon: "😇", name: tr("Schutzengel"), desc: tr("Einmal wiederbeleben im nächsten Run"), price: 800 },
   ];
   const MYSTERY_PRICE = 1500;
+  // Gewinnchancen der Überraschungskiste – eine Quelle für Ziehung UND Anzeige, damit die
+  // angezeigten Prozente immer stimmen (Google Play: Zufallsbelohnungen gegen Bezahlung offenlegen).
+  // Ist alles gesammelt, rutscht der Anteil in die nächste Kategorie.
+  function mysteryOdds() {
+    const skins = SKINS.filter((q) => q.price && !save.skins[q.id]);
+    const weapons = Object.keys(WEAPONS).filter((id) => !save.weapons[id]);
+    const skin = skins.length ? 0.15 : 0, weapon = weapons.length ? 0.35 - skin : 0;
+    return { skins, weapons, odds: [["skin", skin], ["weapon", weapon], ["boosts", 0.6 - skin - weapon], ["coins", 0.4]] };
+  }
   function openMystery() {
     if (save.coins < MYSTERY_PRICE) return;
     save.coins -= MYSTERY_PRICE;
-    const skins = SKINS.filter((q) => q.price && !save.skins[q.id]);
-    const weapons = Object.keys(WEAPONS).filter((id) => !save.weapons[id]);
-    const r = Math.random();
+    const { skins, weapons, odds } = mysteryOdds();
+    let r = Math.random(), kind = "coins";
+    for (const [k, p] of odds) { if (r < p) { kind = k; break; } r -= p; }
     let msg;
-    if (r < 0.15 && skins.length) { const q = pick(skins); save.skins[q.id] = true; msg = `${q.icon} ${tr("Neuer Skin")}: ${q.name}!`; }
-    else if (r < 0.35 && weapons.length) { const id = pick(weapons); save.weapons[id] = 1; msg = `${WEAPONS[id].icon} ${tr("Neue Waffe")}: ${WEAPONS[id].name}!`; }
-    else if (r < 0.6) { const a = pick(BOOSTS), b2 = pick(BOOSTS); save.boosts[a.id]++; save.boosts[b2.id]++; msg = `${a.icon} ${a.name} + ${b2.icon} ${b2.name}`; }
+    if (kind === "skin") { const q = pick(skins); save.skins[q.id] = true; msg = `${q.icon} ${tr("Neuer Skin")}: ${q.name}!`; }
+    else if (kind === "weapon") { const id = pick(weapons); save.weapons[id] = 1; msg = `${WEAPONS[id].icon} ${tr("Neue Waffe")}: ${WEAPONS[id].name}!`; }
+    else if (kind === "boosts") { const a = pick(BOOSTS), b2 = pick(BOOSTS); save.boosts[a.id]++; save.boosts[b2.id]++; msg = `${a.icon} ${a.name} + ${b2.icon} ${b2.name}`; }
     else { const c = randi(8, 26) * 100; save.coins += c; msg = `+${c} 💰`; }
     persist();
     sfx("level");
@@ -2879,7 +2888,8 @@
         renderShop();
       }, "ad"));
     }
-    list.appendChild(shopRow("🎁", tr("Überraschungskiste"), tr("Zufällig: Skin, Waffe, Boosts oder bis zu 2.600 Münzen"), tr("NEU"), tr("Kaufen {p}💰", { p: MYSTERY_PRICE }), save.coins >= MYSTERY_PRICE, () => { openMystery(); renderShop(); }));
+    const pct = Object.fromEntries(mysteryOdds().odds.map(([k, p]) => [k, Math.round(p * 100)]));
+    list.appendChild(shopRow("🎁", tr("Überraschungskiste"), tr("Chancen: Skin {skin} % · Waffe {weapon} % · 2 Boosts {boosts} % · 800–2.600 Münzen {coins} %", pct), tr("NEU"), tr("Kaufen {p}💰", { p: MYSTERY_PRICE }), save.coins >= MYSTERY_PRICE, () => { openMystery(); renderShop(); }));
     const gold = SKINS.find((q) => q.id === "gold");
     list.appendChild(iapRow(gold.icon, gold.name, gold.desc, tr("PREMIUM"), gold.iap, save.skins.gold));
     for (const it of SHOP_ITEMS) list.appendChild(iapRow(it.icon, it.name, it.desc, it.tag, it.id, it.owned && it.owned()));

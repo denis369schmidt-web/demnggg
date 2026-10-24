@@ -1666,12 +1666,13 @@ window.Render3D = (() => {
     }
     // Gestorbene: Pose und Flugbahn kommen aus der Körper-Physik des Spiels
     for (const c of w.corpses) {
-      if (c.ref && models.has(c.ref) && !seen.has(c.ref) && !dying.has(c)) {
-        const M = models.get(c.ref);
-        models.delete(c.ref);
-        if (c.headless && M.extra.head) M.extra.head.visible = false;
-        dying.set(c, { M, sc: c.sc * (c.boss ? BOSS_SCALE : CHAR_SCALE), boss: !!c.boss });
-      }
+      if (dying.has(c) || (c.ref && seen.has(c.ref))) continue;
+      // Modell des Gegners übernehmen; starb er, bevor er je gezeichnet wurde (z. B. im selben
+      // Frame gespawnt und von einer Explosion erwischt), bekommt die Leiche ein eigenes
+      let M = c.ref && models.get(c.ref);
+      if (M) models.delete(c.ref); else M = acquireModel(c.type, c.r / 0.8, c.v);
+      if (c.headless && M.extra.head) M.extra.head.visible = false;
+      dying.set(c, { M, sc: c.sc * (c.boss ? BOSS_SCALE : CHAR_SCALE), boss: !!c.boss });
     }
     for (const [e, M] of models) if (!seen.has(e)) { releaseModel(M); models.delete(e); }
     const live = new Set(w.corpses);
@@ -1720,9 +1721,10 @@ window.Render3D = (() => {
     corpseBatch = new T3.Mesh(g, new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
     corpseBatch.frustumCulled = false;
     corpseBatch.receiveShadow = true;
+    corpseBatch.visible = false; // leer nicht zeichnen: drawArrays mit 0 Vertices erzeugt WebGL-Warnungen
     scene.add(corpseBatch);
   }
-  function resetCorpseBatch() { corpseN = 0; if (corpseBatch) corpseBatch.geometry.setDrawRange(0, 0); }
+  function resetCorpseBatch() { corpseN = 0; if (corpseBatch) { corpseBatch.geometry.setDrawRange(0, 0); corpseBatch.visible = false; } }
   function bakeCorpseMesh(M) {
     if (!corpseBatch) return;
     M.root.updateMatrixWorld(true);
@@ -1745,8 +1747,11 @@ window.Render3D = (() => {
       corpseN += n;
     });
     if (corpseN === start) return;
-    for (const a of [P, N, C]) { a.clearUpdateRanges(); a.addUpdateRange(start * 3, (corpseN - start) * 3); a.needsUpdate = true; }
+    // Bereiche nur anhängen: mehrere Leichen können im selben Frame eingebacken werden, three.js
+    // fasst die Bereiche beim Hochladen zusammen und leert die Liste danach selbst
+    for (const a of [P, N, C]) { a.addUpdateRange(start * 3, (corpseN - start) * 3); a.needsUpdate = true; }
     g.setDrawRange(0, corpseN);
+    corpseBatch.visible = true;
   }
 
   function syncPlayer(w, t) {

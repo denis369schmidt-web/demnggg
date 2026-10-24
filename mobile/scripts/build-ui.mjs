@@ -43,7 +43,7 @@ const ICONS = {
   weapons: "crossed-pistols", talents: "dna2", missions: "scroll-unfurled", pass: "ticket", shop: "shopping-cart",
   daily: "calendar", patrol: "radar-sweep", codex: "open-book", gift: "present", chest: "open-treasure-chest",
   mystery: "locked-chest", backpack: "knapsack", noAds: "cancel", sound: "speaker", soundOff: "speaker-off",
-  vibration: "vibrating-smartphone", language: "globe", graphics: "processor", privacy: "checked-shield", star: "star-medal",
+  vibration: "vibrating-smartphone", language: "globe", graphics: "processor", battery: "battery-75", privacy: "checked-shield", star: "star-medal",
   door: "steel-door", explosion: "explosion-rays", dna: "dna1", upgrade: "upgrade", headshot: "helmet-head-shot",
   hazard: "hazard-sign", info: "info", firstAid: "first-aid-kit", ammo: "ammo-box", angel: "angel-outfit",
   dove: "peace-dove", devil: "devil-mask", heartArmor: "heart-armor", clover: "clover", run: "run", cash: "swap-bag",

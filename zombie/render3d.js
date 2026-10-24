@@ -211,6 +211,8 @@ window.Render3D = (() => {
       return false;
     }
     if (!renderer.getContext()) return false;
+    // Shader-Fehlerprüfung liest Logs synchron aus (blockiert) – nur beim Entwickeln im Browser
+    renderer.debug.checkShaderErrors = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !(window.Platform && Platform.isNative);
     renderer.toneMapping = T3.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
     renderer.shadowMap.enabled = true;
@@ -351,6 +353,7 @@ window.Render3D = (() => {
     if (renderer.shadowMap.enabled !== shadows) {
       renderer.shadowMap.enabled = shadows;
       scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.needsUpdate = true; }); });
+      warmPending = true;
     }
     renderer.shadowMap.needsUpdate = true;
   }
@@ -369,6 +372,7 @@ window.Render3D = (() => {
   const LAMP = { street: "255,176,90", hospital: "205,255,235", lab: "130,255,150" };
   let room = null; // { group, floorTex, door: {...}, builtFor }
   let builtFloor = null;
+  let warmPending = true; // Shader beim nächsten Bild vorab übersetzen (siehe warmShaders)
 
   // Normal-Map aus der Helligkeit eines Bildes (hell = erhaben): Fugen, Risse und Nieten
   // fangen so echtes Streiflicht von Taschenlampe und Lampen.
@@ -624,6 +628,7 @@ window.Render3D = (() => {
       if (!o.isMesh) return;
       if (!cachedGeo.has(o.geometry)) o.geometry.dispose();
       (Array.isArray(o.material) ? o.material : [o.material]).forEach(drop);
+      if (o.customDepthMaterial) drop(o.customDepthMaterial);
     });
   }
 
@@ -758,6 +763,7 @@ window.Render3D = (() => {
     room = { group: g, floorTex, door, lamps, lampRgb, obs };
     builtFloor = fc;
     renderer.shadowMap.needsUpdate = true;
+    warmPending = true; // neue Raum-Materialien (Wände, Hindernisse) gleich mit übersetzen
   }
 
   // ------------------------------------------------------------------
@@ -1098,6 +1104,24 @@ window.Render3D = (() => {
   // unten dunkler, jede Fläche leicht anders getönt, fleckige Blut-/Schmutzstellen
   const hash1 = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
   const wp = new T3.Vector3();
+  // Vertexfarben je Dreieck (Grundfarbe c, ab Vertex o in col); P liegt im Raum von toRoot
+  function paintFaces(col, P, n, o, c, toRoot, look) {
+    for (let i = 0; i < n; i += 3) {
+      let r = c.r, gg = c.g, b = c.b;
+      if (look) {
+        // Flächenmittelpunkt in Modell-Koordinaten
+        wp.set((P[i * 3] + P[i * 3 + 3] + P[i * 3 + 6]) / 3, (P[i * 3 + 1] + P[i * 3 + 4] + P[i * 3 + 7]) / 3, (P[i * 3 + 2] + P[i * 3 + 5] + P[i * 3 + 8]) / 3).applyMatrix4(toRoot);
+        const j = 1 + (hash1(o + i + look.seed) - 0.5) * 0.16;
+        r *= j; gg *= j; b *= j;
+        if (look.grime) {
+          const f = look.freq, nz = Math.sin(wp.x * f + look.seed) * Math.sin(wp.y * f * 0.8 + look.seed * 1.7) * Math.sin(wp.z * f * 1.3 + look.seed * 0.3);
+          if (nz > 0.32) { const k = Math.min(1, (nz - 0.32) * 4) * look.grime; r += (look.gr - r) * k; gg += (look.gg - gg) * k; b += (look.gb - b) * k; }
+        }
+        if (look.h) { const ao = 0.5 + 0.5 * Math.min(1, Math.max(0, wp.y / (look.h * 0.7))); r *= ao; gg *= ao; b *= ao; }
+      }
+      for (let v = 0; v < 3 && i + v < n; v++) { const k = (o + i + v) * 3; col[k] = r; col[k + 1] = gg; col[k + 2] = b; }
+    }
+  }
   function mergeMeshes(meshes, material, node, look) {
     const parts = [];
     let count = 0;
@@ -1110,26 +1134,11 @@ window.Render3D = (() => {
     }
     const pos = new Float32Array(count * 3), nrm = new Float32Array(count * 3), col = new Float32Array(count * 3);
     let o = 0;
-    const toRoot = node.matrixWorld;
     for (const [g, c] of parts) {
       const n = g.attributes.position.count, P = g.attributes.position.array;
       pos.set(P, o * 3);
       if (g.attributes.normal) nrm.set(g.attributes.normal.array, o * 3);
-      for (let i = 0; i < n; i += 3) {
-        let r = c.r, gg = c.g, b = c.b;
-        if (look) {
-          // Flächenmittelpunkt in Modell-Koordinaten
-          wp.set((P[i * 3] + P[i * 3 + 3] + P[i * 3 + 6]) / 3, (P[i * 3 + 1] + P[i * 3 + 4] + P[i * 3 + 7]) / 3, (P[i * 3 + 2] + P[i * 3 + 5] + P[i * 3 + 8]) / 3).applyMatrix4(toRoot);
-          const j = 1 + (hash1(o + i + look.seed) - 0.5) * 0.16;
-          r *= j; gg *= j; b *= j;
-          if (look.grime) {
-            const f = look.freq, nz = Math.sin(wp.x * f + look.seed) * Math.sin(wp.y * f * 0.8 + look.seed * 1.7) * Math.sin(wp.z * f * 1.3 + look.seed * 0.3);
-            if (nz > 0.32) { const k = Math.min(1, (nz - 0.32) * 4) * look.grime; r += (look.gr - r) * k; gg += (look.gg - gg) * k; b += (look.gb - b) * k; }
-          }
-          if (look.h) { const ao = 0.5 + 0.5 * Math.min(1, Math.max(0, wp.y / (look.h * 0.7))); r *= ao; gg *= ao; b *= ao; }
-        }
-        for (let v = 0; v < 3 && i + v < n; v++) { const k = (o + i + v) * 3; col[k] = r; col[k + 1] = gg; col[k + 2] = b; }
-      }
+      paintFaces(col, P, n, o, c, node.matrixWorld, look);
       o += n;
       g.dispose();
     }
@@ -1163,22 +1172,116 @@ window.Render3D = (() => {
   const vlit = () => smat("vlit", () => new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   const vglow = () => smat("vglow", () => new T3.MeshBasicMaterial({ vertexColors: true }));
   function bakeStatic(o, look = { h: 40, seed: 7 }) { o.updateMatrixWorld(true); bakeNode(o, vlit(), vglow(), new Set(), false, look); return o; }
+  // Starres Skinning im Vertex-Shader: alle Teile einer Figur liegen in EINEM Mesh, jeder Vertex
+  // kennt seinen Knoten (Hüfte, Schulter, Kopf …). Pro Frame gehen nur die Knotenmatrizen an den
+  // Shader, die Animation bleibt bei den Gruppen. Figur: 2 Draw Calls (Fläche + Umriss) statt ~13.
+  // Leuchtende Teile (Augen) stecken mit im Mesh und werden im Shader unbeleuchtet ausgegeben.
+  const MAXP = 8;
+  const ZERO = new T3.Matrix4().makeScale(0, 0, 0);
+  function injectParts(sh, uni, kind) {
+    sh.uniforms.partMat = uni;
+    const pm = "partMat[int(part + 0.5)]";
+    let vs = `attribute float part;\nuniform mat4 partMat[${MAXP}];\n${kind === "lit" ? "attribute float glow;\nvarying float vGlow;\n" : ""}${sh.vertexShader}`;
+    if (kind === "lit") vs = vs.replace("#include <beginnormal_vertex>", `vec3 objectNormal = mat3(${pm}) * normal;`);
+    vs = vs.replace("#include <begin_vertex>", `vec3 transformed = (${pm} * vec4(position, 1.0)).xyz;${kind === "outline" ? `\n  transformed += mat3(${pm}) * normal;` : ""}${kind === "lit" ? "\n  vGlow = glow;" : ""}`);
+    sh.vertexShader = vs;
+    if (kind === "lit") sh.fragmentShader = "varying float vGlow;\n" + sh.fragmentShader.replace("#include <opaque_fragment>", "outgoingLight = mix(outgoingLight, diffuseColor.rgb, vGlow);\n\t#include <opaque_fragment>");
+  }
+  function partMaterial(m, uni, kind) {
+    m.onBeforeCompile = (sh) => injectParts(sh, uni, kind);
+    m.customProgramCacheKey = () => `parts${MAXP}:${kind}`; // alle Figuren teilen sich ein Programm je Art
+    return m;
+  }
+  function updateParts(M) {
+    const { nodes, parent, uni, hidden } = M.parts, mats = uni.value;
+    for (let i = 1; i < nodes.length; i++) {
+      hidden[i] = hidden[parent[i]] || !nodes[i].visible;
+      if (hidden[i]) mats[i].copy(ZERO); // versteckter Knoten (z. B. abgetrennter Kopf) fällt auf einen Punkt zusammen
+      else mats[i].multiplyMatrices(mats[parent[i]], nodes[i].matrix);
+    }
+  }
+  function bakeParts(M, keep, look) {
+    // Knoten Eltern-zuerst; Index 0 = Wurzel
+    const nodes = [M.root], parent = [-1], lit = [], glow = [];
+    for (let i = 0; i < nodes.length; i++) {
+      for (const c of nodes[i].children) {
+        if (!c.isMesh) { nodes.push(c); parent.push(i); continue; }
+        const m = c.material;
+        if (keep.has(c) || c.userData.solo || c.children.length || Array.isArray(m) || m.map || m.transparent) continue;
+        (m.isMeshBasicMaterial ? glow : lit).push([c, i]);
+      }
+    }
+    if (nodes.length > MAXP || !lit.length) return false;
+    // Ruhelage je Knoten im Modellraum (für Vertexfarben und Begrenzungskugel)
+    const bind = nodes.map(() => new T3.Matrix4());
+    for (let i = 1; i < nodes.length; i++) { nodes[i].updateMatrix(); bind[i].multiplyMatrices(bind[parent[i]], nodes[i].matrix); }
+    const parts = [];
+    let count = 0, litCount = 0;
+    for (const [list, isGlow] of [[lit, 0], [glow, 1]]) for (const [m, pi] of list) {
+      m.updateMatrix();
+      const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+      g.applyMatrix4(m.matrix);
+      parts.push({ g, c: m.material.color, pi, isGlow });
+      count += g.attributes.position.count;
+      if (!isGlow) litCount = count;
+    }
+    const pos = new Float32Array(count * 3), nrm = new Float32Array(count * 3), col = new Float32Array(count * 3);
+    const partA = new Uint8Array(count), glowA = new Uint8Array(count), sphere = [];
+    let o = 0;
+    for (const { g, c, pi, isGlow } of parts) {
+      const n = g.attributes.position.count, P = g.attributes.position.array;
+      pos.set(P, o * 3);
+      if (g.attributes.normal) nrm.set(g.attributes.normal.array, o * 3);
+      paintFaces(col, P, n, o, c, bind[pi], isGlow ? null : look);
+      partA.fill(pi, o, o + n); glowA.fill(isGlow, o, o + n);
+      for (let i = 0; i < n; i++) sphere.push(new T3.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]).applyMatrix4(bind[pi]));
+      o += n;
+      g.dispose();
+    }
+    for (const [m] of [...lit, ...glow]) m.parent.remove(m);
+    const geo = new T3.BufferGeometry(), og = new T3.BufferGeometry();
+    const attrs = { position: new T3.BufferAttribute(pos, 3), normal: new T3.BufferAttribute(nrm, 3), part: new T3.BufferAttribute(partA, 1) };
+    for (const [k, a] of Object.entries(attrs)) { geo.setAttribute(k, a); og.setAttribute(k, a); }
+    geo.setAttribute("color", new T3.BufferAttribute(col, 3));
+    geo.setAttribute("glow", new T3.BufferAttribute(glowA, 1));
+    og.setDrawRange(0, litCount); // Umriss nur um beleuchtete Teile, nicht um Augen
+    // Begrenzungskugel aus der Ruhelage, mit Luft für Arme und Sprünge
+    const bs = new T3.Sphere().setFromPoints(sphere);
+    bs.radius *= 1.35;
+    geo.boundingSphere = bs; og.boundingSphere = bs.clone();
+    const uni = { value: nodes.map(() => new T3.Matrix4()) };
+    while (uni.value.length < MAXP) uni.value.push(new T3.Matrix4());
+    const body = new T3.Mesh(geo, partMaterial(new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true }), uni, "lit"));
+    const outline = new T3.Mesh(og, partMaterial(new T3.MeshBasicMaterial({ color: 0x07090b, side: T3.BackSide, fog: false }), uni, "outline"));
+    outline.userData.outline = true;
+    body.customDepthMaterial = partMaterial(new T3.MeshDepthMaterial(), uni, "depth");
+    body.userData.parts = true;
+    // Matrizen direkt vor dem Zeichnen: three.js hat die Gruppenmatrizen dann schon aktualisiert
+    body.onBeforeRender = outline.onBeforeRender = body.onBeforeShadow = () => updateParts(M);
+    M.root.add(body, outline);
+    M.parts = { nodes, parent, uni, hidden: nodes.map(() => false), body, litCount };
+    updateParts(M);
+    return true;
+  }
   function bake(M) {
     const keep = new Set();
     for (const v of Object.values(M.extra)) {
       if (v && v.isObject3D) keep.add(v);
       else if (Array.isArray(v)) v.forEach((x) => { if (x && x.isObject3D) keep.add(x); });
     }
-    const lit = new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-    const glow = new T3.MeshBasicMaterial({ vertexColors: true });
     M.root.updateMatrixWorld(true);
     // Zombies: Blut & Dreck, Spieler: nur etwas Staub
     const zombie = M.kind !== "player";
     const look = { h: M.height, seed: Math.random() * 10, grime: zombie ? 0.75 : 0.3, freq: zombie ? 0.22 : 0.3, gr: zombie ? 0.16 : 0.12, gg: zombie ? 0.005 : 0.1, gb: zombie ? 0.008 : 0.07 };
     if (M.kind === "abom" || M.kind === "mother") look.grime = 0.4;
-    bakeNode(M.root, lit, glow, keep, true, look);
     // Einzelteile mit eigener Animation behalten ihre Materialien; der Rest blitzt gemeinsam auf
-    M.mats = [lit, ...M.mats.filter((m) => [...keep].some((k) => k.material === m))];
+    const kept = M.mats.filter((m) => [...keep].some((k) => k.material === m));
+    if (bakeParts(M, keep, look)) { M.mats = [M.parts.body.material, ...kept]; return; }
+    // Bosse mit sehr vielen Gelenken: je Knoten ein verschmolzenes Mesh
+    const lit = new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    const glow = new T3.MeshBasicMaterial({ vertexColors: true });
+    bakeNode(M.root, lit, glow, keep, true, look);
+    M.mats = [lit, ...kept];
   }
 
   const builders = { crawler: buildCrawler, dog: buildDog, rat: buildRat, abom: buildAbom, mother: buildMother };
@@ -1475,10 +1578,11 @@ window.Render3D = (() => {
     pv3.cam.aspect = w / h; pv3.cam.updateProjectionMatrix();
     cancelAnimationFrame(pv3.raf);
     const loop = (now) => {
+      pv3.raf = requestAnimationFrame(loop);
+      if (pv3.last && now - pv3.last < 30) return; // ~30 Bilder/s reichen für die langsame Drehung
       const dt = Math.min(0.05, (now - (pv3.last || now)) / 1000); pv3.last = now;
       pv3.M.root.rotation.y += dt * 0.9;
       pv3.r.render(pv3.sc, pv3.cam);
-      pv3.raf = requestAnimationFrame(loop);
     };
     pv3.raf = requestAnimationFrame(loop);
     return true;
@@ -1715,7 +1819,7 @@ window.Render3D = (() => {
   // ------------------------------------------------------------------
   const CORPSE_MAXV = 180000;
   let corpseBatch = null, corpseN = 0;
-  const cbN = new T3.Vector3(), cbP = new T3.Vector3(), cbC = new T3.Color(), cbNm = new T3.Matrix3();
+  const cbN = new T3.Vector3(), cbP = new T3.Vector3(), cbC = new T3.Color(), cbNm = new T3.Matrix3(), cbM = new T3.Matrix4();
   function setupCorpseBatch() {
     const g = new T3.BufferGeometry();
     for (const [name, size] of [["position", 3], ["normal", 3], ["color", 3]]) g.setAttribute(name, new T3.BufferAttribute(new Float32Array(CORPSE_MAXV * size), size).setUsage(T3.DynamicDrawUsage));
@@ -1731,22 +1835,31 @@ window.Render3D = (() => {
     if (!corpseBatch) return;
     M.root.updateMatrixWorld(true);
     const g = corpseBatch.geometry, P = g.attributes.position, N = g.attributes.normal, C = g.attributes.color, start = corpseN;
+    if (M.parts) updateParts(M);
     M.root.traverseVisible((o) => {
       if (!o.isMesh || o.userData.outline) return;
       const src = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry;
       const sp = src.attributes.position, sn = src.attributes.normal, sc = src.attributes.color, n = sp.count;
       if (corpseN + n > CORPSE_MAXV) return;
       const tint = o.material.color || cbC.setRGB(1, 1, 1);
-      cbNm.getNormalMatrix(o.matrixWorld);
+      // Figur mit Gelenk-Shader: Knotenmatrix je Vertex auf der CPU anwenden, versteckte Knoten auslassen
+      const pa = o.userData.parts ? src.attributes.part : null, pm = pa && M.parts.uni.value, hid = pa && M.parts.hidden;
+      let w = corpseN, lastPart = -1;
       for (let i = 0; i < n; i++) {
-        cbP.fromBufferAttribute(sp, i).applyMatrix4(o.matrixWorld);
-        P.setXYZ(corpseN + i, cbP.x, cbP.y, cbP.z);
-        if (sn) { cbN.fromBufferAttribute(sn, i).applyMatrix3(cbNm).normalize(); N.setXYZ(corpseN + i, cbN.x, cbN.y, cbN.z); }
+        if (pa) {
+          const k = pa.getX(i);
+          if (hid[k]) { i += 2; continue; } // Dreiecke gehören immer zu genau einem Knoten
+          if (k !== lastPart) { lastPart = k; cbM.multiplyMatrices(o.matrixWorld, pm[k]); cbNm.getNormalMatrix(cbM); }
+        } else if (i === 0) { cbM.copy(o.matrixWorld); cbNm.getNormalMatrix(cbM); }
+        cbP.fromBufferAttribute(sp, i).applyMatrix4(cbM);
+        P.setXYZ(w, cbP.x, cbP.y, cbP.z);
+        if (sn) { cbN.fromBufferAttribute(sn, i).applyMatrix3(cbNm).normalize(); N.setXYZ(w, cbN.x, cbN.y, cbN.z); }
         const r = sc ? sc.getX(i) : 1, gg = sc ? sc.getY(i) : 1, b = sc ? sc.getZ(i) : 1;
-        C.setXYZ(corpseN + i, r * tint.r, gg * tint.g, b * tint.b);
+        C.setXYZ(w, r * tint.r, gg * tint.g, b * tint.b);
+        w++;
       }
       if (src !== o.geometry) src.dispose();
-      corpseN += n;
+      corpseN = w;
     });
     if (corpseN === start) return;
     // Bereiche nur anhängen: mehrere Leichen können im selben Frame eingebacken werden, three.js
@@ -2141,6 +2254,18 @@ window.Render3D = (() => {
     beam.visible = w.state !== "over";
   }
 
+  // Alle Shader vorab übersetzen – auch für noch unsichtbare Effekte (Explosion, Säule, Leichen).
+  // Sonst kompiliert der Browser sie mitten im Kampf, wenn sie zum ersten Mal erscheinen (Ruckler).
+  function warmShaders() {
+    warmPending = false;
+    try {
+      // Parallel im Hintergrund, wenn der Treiber es kann – sonst sofort (passiert beim Raumwechsel).
+      // Viele Treiber übersetzen erst beim ersten Einsatz fertig: Uniforms/Attribute abfragen erzwingt das jetzt.
+      if (renderer.compileAsync && renderer.extensions.has("KHR_parallel_shader_compile")) renderer.compileAsync(scene, camera).catch(() => {});
+      else { renderer.compile(scene, camera); for (const p of renderer.info.programs) { p.getUniforms(); p.getAttributes(); } }
+    } catch (e) { /* nur Vorarbeit – im Fehlerfall kompiliert three.js beim ersten Zeichnen */ }
+  }
+
   function render(w, dt, shake) {
     if (!ready) return;
     time += dt;
@@ -2170,6 +2295,7 @@ window.Render3D = (() => {
     syncBigFx(w, t);
     fillBatches(w, t);
     assignLights(w, t);
+    if (warmPending) warmShaders();
     // Schatten nur jedes 2. Bild neu berechnen – bei 60 FPS unsichtbar, spart viele Draw Calls
     frame++;
     renderer.shadowMap.autoUpdate = false;

@@ -17,7 +17,8 @@ Läuft im Browser, als installierbare PWA und als Android-App ([`../mobile`](../
 - **Effekte**: Feuerball-Explosionen mit Rauchpilz, 3D-Fleischbrocken, Trümmer und Patronenhülsen, Level-up-Lichtsäule mit Zeitlupe, Lichtvorhang an der offenen Tür
 - **Cinematics**: Kameraflug vom 3D-Hauptmenü ins Spiel, Kinobalken und Kamerazoom bei Boss-Auftritt und Boss-Tod, Abblende beim Raumwechsel, umkippende und versinkende Zombies
 - **Interaktive Umgebung**: Giftfässer explodieren bei Beschuss (Kettenreaktionen!), Kisten zersplittern und lassen Münzen oder Medikits fallen; Hit-Stop bei wuchtigen Treffern
-- **3 Grafikstufen** mit automatischer Anpassung: „3D + Schatten“ → „3D“ → „2D (schnell)“; ohne WebGL läuft das Spiel mit dem klassischen 2D-Renderer
+- **3 Grafikstufen** mit automatischer Anpassung: unter Last sinkt zuerst die 3D-Auflösung in Stufen (100 % → 85 % → 72 %, kaum sichtbar), erst danach die Stufe „3D + Schatten“ → „3D“ → „2D (schnell)“; läuft es wieder flüssig, steigt die Auflösung zurück. Ohne WebGL läuft das Spiel mit dem klassischen 2D-Renderer
+- **Leistung & Akku**: höchstens 60 Bilder/s auch auf 90/120-Hz-Displays, Einstellung „Akku sparen (30 FPS)“, kein Rendern hinter undurchsichtigen Menüs und in der Pause; Figuren in 3D mit starrem Skinning im Vertex-Shader (2 Draw Calls statt ~13 je Figur), alle Shader werden beim Raumaufbau vorab übersetzt (keine Ruckler bei der ersten Explosion), HUD und Banner als gecachte Ebenen
 - **Meta-Progression**: Talente, Waffen-Upgrades, 7-Tage-Login-Bonus
 - **Missionen**: 3 Tagesmissionen + Tagesbonus, 4 Wochenmissionen (für alle Spieler am selben Tag gleich), **Erfolge** in Bronze/Silber/Gold, Statistik
 - **Saisonpass**: 28-Tage-Saisons, 30 Stufen, Gratis-Spur für alle, Premium-Spur per In-App-Kauf (doppelte Belohnungen + exklusiver Skin „Seuchenjäger“)

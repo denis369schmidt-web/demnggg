@@ -250,7 +250,9 @@
   const RARITY_NAME = { common: "Gewöhnlich", rare: "Selten", epic: "Episch", evo: "Evolution", angel: "Segen", devil: "Pakt" };
   for (const el of document.querySelectorAll("[data-ic]")) el.innerHTML = I(el.dataset.ic);
 
+  let curOverlay = null;
   function show(el) {
+    curOverlay = el;
     for (const o of overlays) o.classList.toggle("hidden", o !== el);
     ui.pauseBtn.classList.toggle("hidden", el !== null);
     requestAnimationFrame(() => fitTitle(el));
@@ -270,6 +272,10 @@
   let quality = Math.max(0, Math.min(2, save.gfx ?? 2));
   let gfxLocked = false; // für Tests: keine automatische Anpassung
   const QUALITY_DPR = [1, 1.5, 2];
+  // Dynamische Auflösung: unter Last zuerst die 3D-Auflösung stufenweise senken (kaum sichtbar),
+  // erst danach eine ganze Qualitätsstufe (Schatten aus bzw. 2D)
+  const RES_STEPS = [1, 0.85, 0.72];
+  let resStep = 0;
   const QUALITY_PARTICLES = [350, 600, 900];
   // 3D (WebGL) wird beim ersten Bedarf gestartet; schlägt das fehl, läuft das Spiel in 2D.
   let webgl = null;
@@ -298,7 +304,7 @@
     if (mode3d) {
       Render3D.setQuality(quality);
       // 3D-Auflösung bewusst begrenzt: Füllrate ist auf Handys der Engpass, das HUD bleibt trotzdem scharf
-      Render3D.resize(W * scale, H * scale, Math.min(window.devicePixelRatio || 1, quality >= 2 ? 1.5 : 1));
+      Render3D.resize(W * scale, H * scale, Math.min(window.devicePixelRatio || 1, quality >= 2 ? 1.5 : 1) * RES_STEPS[resStep]);
     }
   }
   window.addEventListener("resize", resize);
@@ -2988,37 +2994,58 @@
   let last = performance.now();
   let lastFrameAt = last;
   let frameDt = 0.016;
-  // Automatische Qualitätsanpassung: liegt die Bildrate über 3 s unter ~45 FPS,
-  // wird eine Stufe heruntergeschaltet (nur abwärts, damit nichts flackert).
-  const perf = { t: 0, sum: 0, n: 0 };
+  // Bildtakt: höchstens 60 Bilder/s, im Akku-Sparmodus 30. Displays mit 90/120 Hz würden sonst
+  // doppelt so oft rechnen und zeichnen – das kostet Akku, macht das Handy warm und lässt es heruntertakten.
+  const frameMs = () => 1000 / (save.fps30 ? 30 : 60);
+  let nextDue = 0;
+  // Automatische Qualitätsanpassung: braucht ein Bild über 3 s im Schnitt deutlich länger als der
+  // Zieltakt, sinkt zuerst die 3D-Auflösung, dann die Qualitätsstufe. Läuft es lange flüssig,
+  // geht die Auflösung wieder hoch (nie die Stufe – das würde sichtbar flackern).
+  const perf = { t: 0, sum: 0, n: 0, good: 0 };
   function trackPerformance(ms) {
     if (ms <= 0 || ms > 1500) return; // Tab im Hintergrund o. Ä.
     perf.t += ms; perf.sum += ms; perf.n++;
     if (perf.t < 3000) return;
-    const avg = perf.sum / perf.n;
+    const avg = perf.sum / perf.n, target = frameMs();
     perf.t = perf.sum = perf.n = 0;
-    if (avg > 22 && quality > 0 && !gfxLocked) {
-      quality--;
-      save.gfx = quality;
-      persist();
+    if (gfxLocked) return;
+    if (avg > target * 1.33) {
+      perf.good = 0;
+      if (mode3d && resStep < RES_STEPS.length - 1) resStep++;
+      else if (quality > 0) { quality--; resStep = 0; save.gfx = quality; persist(); }
+      else return;
       resize();
-      console.log(`[Outbreak] Grafikqualität → ${quality} (Ø ${avg.toFixed(1)} ms/Frame)`);
+      console.log(`[Outbreak] Grafik → Stufe ${quality}, Auflösung ${RES_STEPS[resStep]} (Ø ${avg.toFixed(1)} ms/Bild)`);
+    } else if (resStep > 0 && avg < target * 1.06 && ++perf.good >= 3) {
+      perf.good = 0;
+      resStep--;
+      resize();
     }
   }
+  let pauseFrames = 0;
   function loop(now) {
-    const real = Math.min(0.033, (now - last) / 1000);
+    requestAnimationFrame(loop);
+    const I = frameMs();
+    if (now < nextDue - I * 0.4) return; // dieses Display-Bild auslassen
+    nextDue = Math.max(nextDue + I, now);
+    // Lange Bilder (30-FPS-Modus, Ruckler) in Teilschritte von höchstens 1/60 s zerlegen:
+    // Kugeln prüfen Treffer pro Schritt und würden sonst durch kleine Gegner hindurchfliegen
+    const real = Math.min(0.05, (now - last) / 1000);
     last = now;
     frameDt = real;
     // Zeitlupe nach Boss-Sieg
     const dt = slowMo > 0 ? real * 0.3 : real;
     if (slowMo > 0) slowMo -= real;
     if (hitStop > 0) hitStop -= real;
-    else if (state === "play") update(dt);
+    else if (state === "play") { const n = Math.ceil(dt / 0.0175); for (let i = 0; i < n && state === "play"; i++) update(dt / n); }
     if (state === "play") trackPerformance(now - lastFrameAt);
     lastFrameAt = now;
     if (run) updateFx(state === "play" ? dt : dt * 0.15);
+    // Nichts zeichnen, was niemand sieht: undurchsichtige Bildschirme (Shop, Arsenal …) verdecken alles,
+    // in der Pause steht das Bild still – die GPU darf schlafen
+    if (curOverlay && curOverlay.classList.contains("screen")) return;
+    if (state === "pause") { if (pauseFrames++ > 1) return; } else pauseFrames = 0;
     draw();
-    requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
 
@@ -3676,6 +3703,7 @@
     $("langBtn").innerHTML = row("language", tr("Sprache"), valTxt(I18N.lang === "de" ? "Deutsch" : "English"));
     const gfxNames = init3d() ? ["2D (schnell)", "3D", "3D + Schatten"] : ["Niedrig", "Mittel", "Hoch"];
     $("gfxBtn").innerHTML = row("graphics", tr("Grafik"), valTxt(tr(gfxNames[quality])));
+    $("fpsBtn").innerHTML = row("battery", tr("Akku sparen (30 FPS)"), sw(!!save.fps30));
     $("privacyOptsBtn").innerHTML = row("privacy", tr("Werbe-Einwilligung ändern"), "");
     $("privacyOptsBtn").classList.toggle("hidden", !Platform.isNative);
     $("privacyLink").innerHTML = row("info", tr("Datenschutzerklärung"), "");
@@ -3800,11 +3828,13 @@
   $("privacyOptsBtn").addEventListener("click", () => Platform.ads.showPrivacyOptions());
   $("gfxBtn").addEventListener("click", () => {
     quality = (quality + 1) % 3;
+    resStep = 0;
     save.gfx = quality;
     persist();
     resize();
     renderSettings();
   });
+  $("fpsBtn").addEventListener("click", () => { save.fps30 = !save.fps30; persist(); renderSettings(); });
   $("langBtn").addEventListener("click", () => { I18N.setLang(I18N.lang === "de" ? "en" : "de"); location.reload(); });
   syncSound();
 

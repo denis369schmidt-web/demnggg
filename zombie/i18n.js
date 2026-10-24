@@ -252,6 +252,7 @@ window.I18N = (() => {
     "Vibration": "Vibration",
     "Sprache": "Language",
     "Grafik": "Graphics",
+    "Akku sparen (30 FPS)": "Battery saver (30 FPS)",
     "Icons: game-icons.net (CC BY 3.0) · Schriften: Teko, Barlow, Saira Stencil (SIL OFL)": "Icons: game-icons.net (CC BY 3.0) · Fonts: Teko, Barlow, Saira Stencil (SIL OFL)",
     "Ton an": "Sound on",
     "Ton aus": "Sound off",

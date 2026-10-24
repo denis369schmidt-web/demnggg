@@ -1,5 +1,45 @@
 [
   {
+    "runAt": "2026-10-24T09:32:39.301Z",
+    "edition": "2026-10-24",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 34,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Gipfelsturm“, Trap Halftime @ 138 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Hook-Labor“ (16 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-10-24 veröffentlicht (Hash a3a0f03c)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-10-23T10:34:15.487Z",
     "edition": "2026-10-23",
     "attempt": 0,
@@ -1851,46 +1891,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-09-03 veröffentlicht (Hash 7025731)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-09-02T09:38:38.256Z",
-    "edition": "2026-09-02",
-    "attempt": 1,
-    "status": "veröffentlicht",
-    "score": 99,
-    "durationMs": 33,
-    "stages": [
-      {
-        "name": "Editor",
-        "ok": false,
-        "summary": "Versuch 1 abgelehnt (Frische)."
-      },
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Heimathafen“, Boom Bap @ 92 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Freestyle-Zirkel“ (16 Bars), Versuch 2."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 99."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-09-02 veröffentlicht (Hash c95399e4)."
       }
     ]
   }

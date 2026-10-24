@@ -517,6 +517,7 @@ window.Sprites = (() => {
     cyber: { torso: "#1a1f2a", pants: "#14181f", pack: "#1c2230", pouch: "#11151c", pads: "#2a3344", arm: "#1f2632", helmet: "#20283a", visor: "#2bf0ff", glow: "#2bf0ff" },
     plague: { torso: "#1a1816", pants: "#151311", pack: "#2a2016", pouch: "#3a2a1a", pads: "#2a2622", arm: "#1a1816", helmet: "#121010", visor: "#e8c64a", glow: "#e8c64a" },
     gold: { torso: "#d4a52a", pants: "#a07a1a", pack: "#b08a2a", pouch: "#8a6a1a", pads: "#f2c84a", arm: "#c9982a", helmet: "#f2c84a", visor: "#fff2b0", glow: "#fff2b0" },
+    hunter: { torso: "#262b30", pants: "#1c2024", pack: "#20262a", pouch: "#2a331f", pads: "#3c4a2c", arm: "#2a3036", helmet: "#1e2328", visor: "#8cff4a", glow: "#8cff4a" },
   };
   function playerBody(frame, pack, skin = "soldier") {
     const S = SKIN2D[skin] || SKIN2D.soldier;

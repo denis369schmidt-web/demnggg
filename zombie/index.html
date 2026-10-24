@@ -32,13 +32,16 @@
       <div class="equipped" id="menuEquipped"></div>
       <div class="skin-line" id="menuSkin"></div>
       <button class="btn primary" id="playBtn" data-i18n>SPIELEN</button>
-      <div class="row">
-        <button class="btn" id="armoryBtn" data-i18n>🔫 Waffen</button>
-        <button class="btn" id="talentBtn" data-i18n>🧬 Talente</button>
-      </div>
-      <div class="row">
-        <button class="btn" id="shopBtn">🛒 Shop</button>
-        <button class="btn" id="dailyBtn"><span data-i18n>🎁 Täglich</span><i class="badge hidden" id="dailyBadge">!</i></button>
+      <button class="btn mode" id="survivalBtn"><span data-i18n>⏱️ ÜBERLEBEN</span><small id="survivalBest"></small></button>
+      <div class="tiles">
+        <button class="tile" id="armoryBtn"><span class="ti">🔫</span><span data-i18n>Waffen</span></button>
+        <button class="tile" id="talentBtn"><span class="ti">🧬</span><span data-i18n>Talente</span></button>
+        <button class="tile" id="missionsBtn"><span class="ti">📋</span><span data-i18n>Missionen</span><i class="badge hidden" id="missionsBadge">!</i></button>
+        <button class="tile" id="passBtn"><span class="ti">🎟️</span><span data-i18n>Saisonpass</span><i class="badge hidden" id="passBadge">!</i></button>
+        <button class="tile" id="shopBtn"><span class="ti">🛒</span><span>Shop</span></button>
+        <button class="tile" id="dailyBtn"><span class="ti">🎁</span><span data-i18n>Täglich</span><i class="badge hidden" id="dailyBadge">!</i></button>
+        <button class="tile" id="patrolBtn"><span class="ti">🛰️</span><span data-i18n>Patrouille</span><i class="badge hidden" id="patrolBadge">!</i></button>
+        <button class="tile" id="codexBtn"><span class="ti">📖</span><span data-i18n>Kodex</span></button>
       </div>
       <a class="btn store-cta hidden" id="storeCta" target="_blank" rel="noopener" data-i18n>▶ Jetzt im Play Store holen</a>
       <p class="hint" data-i18n>Bewegen: Finger ziehen / WASD · Stehen bleiben = automatisch schießen</p>
@@ -76,6 +79,48 @@
       <button class="btn" data-back data-i18n>Zurück</button>
     </section>
 
+    <!-- Missionen, Erfolge & Statistik -->
+    <section id="missions" class="overlay hidden">
+      <h2 data-i18n>Missionen</h2>
+      <div class="tabs" id="missionTabs">
+        <button class="tab" data-tab="daily" data-i18n>Täglich</button>
+        <button class="tab" data-tab="weekly" data-i18n>Woche</button>
+        <button class="tab" data-tab="ach" data-i18n>Erfolge</button>
+      </div>
+      <div id="missionList" class="list"></div>
+      <p class="hint" id="missionNote"></p>
+      <button class="btn" data-back data-i18n>Zurück</button>
+    </section>
+
+    <!-- Saisonpass -->
+    <section id="pass" class="overlay hidden">
+      <h2 data-i18n>Saisonpass</h2>
+      <div id="passHead" class="pass-head"></div>
+      <div id="passBuy" class="list"></div>
+      <div id="passList" class="pass-list"></div>
+      <button class="btn" data-back data-i18n>Zurück</button>
+    </section>
+
+    <!-- Patrouille (Offline-Belohnung) -->
+    <section id="patrol" class="overlay dim hidden">
+      <h2 data-i18n>Patrouille</h2>
+      <p class="sub" data-i18n>Dein Trupp sichert die Stadt, auch wenn du nicht spielst.</p>
+      <div id="patrolInfo" class="patrol"></div>
+      <button class="btn primary" id="patrolClaim">Abholen</button>
+      <button class="btn ad" id="patrolClaimAd" data-i18n>▶ ×2 abholen</button>
+      <button class="btn ad" id="patrolQuick"></button>
+      <button class="btn" data-back data-i18n>Zurück</button>
+    </section>
+
+    <!-- Kodex der Evolutionen -->
+    <section id="codex" class="overlay hidden">
+      <h2 data-i18n>Kodex</h2>
+      <p class="sub" data-i18n>Evolutionen: Zwei Skills auf Stufe verschmelzen zu einer Superfähigkeit.</p>
+      <div id="codexList" class="list"></div>
+      <p class="hint" id="codexNote"></p>
+      <button class="btn" data-back data-i18n>Zurück</button>
+    </section>
+
     <!-- Tägliche Belohnung -->
     <section id="daily" class="overlay dim hidden">
       <h2 data-i18n>Tägliche Belohnung</h2>
@@ -101,7 +146,7 @@
 
     <!-- Skill-Wahl -->
     <section id="skillPick" class="overlay dim hidden">
-      <h2 id="skillTitle">LEVEL UP!</h2>
+      <h2 id="skillTitle">AUFSTIEG!</h2>
       <div id="skillCards" class="cards"></div>
       <button class="btn ad hidden" id="rerollBtn" data-i18n>▶ 🎲 Neu würfeln</button>
     </section>
@@ -120,7 +165,7 @@
       <div id="pauseSkills" class="skill-chips"></div>
       <button class="btn primary" id="resumeBtn" data-i18n>Weiter</button>
       <button class="btn" id="soundBtn">Sound: an</button>
-      <button class="btn danger" id="quitBtn" data-i18n>Run beenden</button>
+      <button class="btn danger" id="quitBtn" data-i18n>Einsatz beenden</button>
     </section>
 
     <!-- Game Over -->

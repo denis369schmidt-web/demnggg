@@ -1340,6 +1340,8 @@ window.Render3D = (() => {
     cyber: { torso: "#1a1f2a", pants: "#14181f", boots: "#0c0e12", arm: "#1f2632", pads: "#2a3344", pouch: "#11151c", pack: "#1c2230", roll: "#2a3344", helmet: "#20283a", visor: "#2bf0ff", face: "#1a1f2a", belt: "#0c0e12", glow: "#2bf0ff", neon: "#2bf0ff" },
     plague: { torso: "#1a1816", pants: "#151311", boots: "#0e0c0a", arm: "#1a1816", pads: "#2a2622", pouch: "#3a2a1a", pack: "#2a2016", roll: "#3a2a1a", helmet: "#121010", visor: "#e8c64a", face: "#d8cdb8", belt: "#3a2a1a", glow: "#e8c64a", beak: true, hat: true },
     gold: { torso: "#d4a52a", pants: "#a07a1a", boots: "#3a2a0a", arm: "#c9982a", pads: "#f2c84a", pouch: "#8a6a1a", pack: "#b08a2a", roll: "#8a6a1a", helmet: "#f2c84a", visor: "#fff2b0", face: "#c9a07a", belt: "#5a3a0a", glow: "#fff2b0", shiny: true },
+    // Saisonpass: Seuchenjäger – Graphit mit Giftgrün-Leuchtstreifen und Gasmaske
+    hunter: { torso: "#262b30", pants: "#1c2024", boots: "#0e1012", arm: "#2a3036", pads: "#3c4a2c", pouch: "#2a331f", pack: "#20262a", roll: "#3c4a2c", helmet: "#1e2328", visor: "#8cff4a", face: "#1e2328", belt: "#0f1112", glow: "#8cff4a", neon: "#8cff4a", gasmask: true },
   };
   function buildPlayer(w) {
     const p = w.player;
@@ -1783,7 +1785,8 @@ window.Render3D = (() => {
       s.visible = i < p.orbit;
       if (!s.visible) return;
       const a = p.orbitAng + (i / p.orbit) * TAU;
-      s.position.set(p.x + Math.cos(a) * 64, 16, p.y + Math.sin(a) * 64);
+      const or = p.orbitR || 64;
+      s.position.set(p.x + Math.cos(a) * or, 16, p.y + Math.sin(a) * or);
       s.rotation.y = p.orbitAng * 5;
     });
     while (droneMeshes.length < p.drones) {

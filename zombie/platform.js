@@ -201,6 +201,7 @@ window.Platform = (() => {
       { id: ids.coinsSmall, type: ProductType.CONSUMABLE, platform: P.GOOGLE_PLAY },
       { id: ids.coinsBig, type: ProductType.CONSUMABLE, platform: P.GOOGLE_PLAY },
       { id: ids.goldSkin, type: ProductType.NON_CONSUMABLE, platform: P.GOOGLE_PLAY },
+      { id: ids.seasonPass, type: ProductType.CONSUMABLE, platform: P.GOOGLE_PLAY },
     ]);
     store.when()
       .productUpdated(() => emit("iap"))
@@ -230,6 +231,8 @@ window.Platform = (() => {
   }
 
   iap.onDeliver = (fn) => { deliverFn = fn; };
+  // Nur für automatisierte Tests auf localhost: Kaufbestätigung simulieren (im Web sind Käufe nie echt)
+  if (!isNative && ["localhost", "127.0.0.1"].includes(location.hostname)) iap.simulate = (id) => deliverFn(id, `test:${Date.now()}`);
   iap.product = (id) => {
     if (!store) return null;
     const p = store.get(id, CP.Platform.GOOGLE_PLAY);

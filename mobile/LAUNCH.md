@@ -72,11 +72,15 @@ base64 -w0 outbreak-upload.jks > outbreak-upload.b64   # macOS: base64 -i outbre
 | `coins_1200` | Münzbeutel | Verbrauchsgut | 0,99 € |
 | `coins_7000` | Münztruhe | Verbrauchsgut | 4,99 € |
 | `skin_gold` | Goldener Held (Skin) | Einmalkauf | 1,99 € |
+| `season_pass` | Premium-Saisonpass | Verbrauchsgut (1× pro Saison) | 4,99 € |
 
   Die Überraschungskiste (Münzen) zeigt ihre Gewinnchancen vor dem Kauf an – Pflicht laut Google-Play-Richtlinie
   für Zufallsbelohnungen, weil Münzen auch mit Echtgeld gekauft werden können. Chancen nur in `mysteryOdds()` ändern.
 
-  (In der Play Console sind alle fünf „In-App-Produkte“; ob verbrauchbar oder nicht, regelt das Spiel.)
+  Der Saisonpass gilt nur für die laufende 28-Tage-Saison und ist deshalb ein Verbrauchsgut; ohne Server-Konto
+  lässt er sich nach einer Neuinstallation nicht wiederherstellen – das im Store-Text oder in der Produktbeschreibung erwähnen.
+
+  (In der Play Console sind alle sechs „In-App-Produkte“; ob verbrauchbar oder nicht, regelt das Spiel.)
 
 ## 6. Testen & Freigabe
 

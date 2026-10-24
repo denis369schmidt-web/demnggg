@@ -66,6 +66,13 @@
     skin: "soldier",
     skins: { soldier: true },
     boosts: { hp: 0, coins: 0, skill: 0, revive: 0 }, // Vorrat, wird beim nächsten Run verbraucht
+    // Lebenszeit-Statistik (Grundlage für Missionen und Erfolge)
+    stats: { kills: 0, bosses: 0, elites: 0, rooms: 0, runs: 0, coins: 0, evolutions: 0, headshots: 0, blasts: 0, devil: 0, angel: 0, time: 0, level: 0, survival: 0 },
+    missions: { day: "", daily: [], bonus: false, week: "", weekly: [] },
+    ach: {}, // Erfolg-ID → Anzahl abgeholter Stufen
+    codex: {}, // entdeckte Evolutionen
+    pass: { season: 0, xp: 0, premium: 0, free: [], prem: [] },
+    patrol: { since: 0, quickDay: "", quick: 0 },
   });
   function loadSave() {
     const d = defaultSave();
@@ -82,6 +89,12 @@
           freeCoins: { ...d.freeCoins, ...s.freeCoins },
           skins: { ...d.skins, ...s.skins },
           boosts: { ...d.boosts, ...s.boosts },
+          stats: { ...d.stats, ...s.stats },
+          missions: { ...d.missions, ...s.missions },
+          ach: { ...s.ach },
+          codex: { ...s.codex },
+          pass: { ...d.pass, ...s.pass },
+          patrol: { ...d.patrol, ...s.patrol },
           txns: Array.isArray(s.txns) ? s.txns : [],
         };
       }
@@ -91,6 +104,8 @@
   const save = loadSave();
   // Mit Einführung von 3D bekommt jeder einmal die höchste Stufe (die Auto-Anpassung regelt bei Bedarf herunter)
   if (save.gfxV !== 2) { save.gfx = 2; save.gfxV = 2; }
+  if (!save.stats.runs && save.runs) save.stats.runs = save.runs;
+  if (!save.patrol.since) save.patrol.since = Date.now();
   function persist() {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch { /* ignorieren */ }
   }
@@ -163,6 +178,24 @@
     { id: "splash", name: "Infektionsbombe", icon: "🧨", rarity: "rare", max: 2, desc: "Getötete Zombies explodieren", apply: (p) => p.deathBlast++ },
   ];
   const RARITY_WEIGHT = { common: 1, rare: 0.7, epic: 0.45 };
+
+  // ============================================================
+  // Evolutionen: zwei Skills auf der nötigen Stufe verschmelzen zu einer Superfähigkeit.
+  // Anders als bei der Konkurrenz sind die Rezepte nie geheim: jede Skill-Karte zeigt,
+  // wohin sie führt und wie weit du bist; die fertige Evolution erscheint garantiert.
+  // ============================================================
+  const EVOLUTIONS = [
+    { id: "hail", icon: "🌠", name: "Kugelhagel", needs: { multishot: 2, rate: 2 }, desc: "Jede 3. Salve feuert zusätzlich einen Ring aus 12 Kugeln", apply: (p) => { p.evo.hail = true; } },
+    { id: "inferno", icon: "🌋", name: "Inferno", needs: { fire: 2, splash: 1 }, desc: "Doppelter Brandschaden – brennende Zombies stecken beim Tod alle in der Nähe an", apply: (p) => { p.evo.inferno = true; } },
+    { id: "frost", icon: "🧊", name: "Absoluter Nullpunkt", needs: { freeze: 2, crit: 2 }, desc: "Treffer auf verlangsamte Zombies sind immer kritisch, unter 30% Leben zerspringen sie", apply: (p) => { p.evo.frost = true; } },
+    { id: "blades", icon: "🌀", name: "Klingensturm", needs: { orbit: 2, speed: 1 }, desc: "+2 Sägeblätter mit größerem Radius, schneller und 60% tödlicher", apply: (p) => { p.evo.blades = true; p.orbit += 2; p.orbitR = 86; } },
+    { id: "swarm", icon: "🛰️", name: "Drohnenschwarm", needs: { drone: 2, pierce: 2 }, desc: "+2 Drohnen mit doppelter Feuerrate, ihre Schüsse durchschlagen 2 Zombies", apply: (p) => { p.evo.swarm = true; p.drones += 2; } },
+    { id: "vamp", icon: "🧛", name: "Blutrausch", needs: { blood: 2, hp: 2 }, desc: "Kills heilen zusätzlich 3% – unter 35% Leben richtest du 50% mehr Schaden an", apply: (p) => { p.evo.vamp = true; p.lifesteal += 0.03; } },
+    { id: "chain", icon: "⛓️", name: "Kettenreaktion", needs: { ricochet: 1, wall: 1 }, desc: "Jeder Querschläger und jeder Abpraller löst eine Mini-Explosion aus", apply: (p) => { p.evo.chain = true; } },
+    { id: "plague", icon: "🦠", name: "Seuche", needs: { poison: 2, exec: 1 }, desc: "Vergiftete Zombies unter 25% Leben sterben sofort – beim Tod springt das Gift über", apply: (p) => { p.evo.plague = true; } },
+  ];
+  const skillById = (id) => SKILLS.find((s) => s.id === id);
+  const evoReady = (p, ev) => !p.evo[ev.id] && Object.entries(ev.needs).every(([id, n]) => (p.skills[id] || 0) >= n);
   const tr = I18N.t;
 
   // ============================================================
@@ -189,7 +222,7 @@
   };
   for (const [type, def] of Object.entries(ZOMBIES)) Sprites.registerRadius(type, def.r);
 
-  I18N.localizeData({ weapons: WEAPONS, talents: TALENTS, skills: SKILLS, zombies: ZOMBIES });
+  I18N.localizeData({ weapons: WEAPONS, talents: TALENTS, skills: SKILLS, zombies: ZOMBIES, evolutions: EVOLUTIONS });
 
   // ============================================================
   // DOM
@@ -203,8 +236,9 @@
     menu: $("menu"), armory: $("armory"), talents: $("talents"), skillPick: $("skillPick"),
     pause: $("pause"), over: $("over"), pauseBtn: $("pauseBtn"),
     shop: $("shop"), daily: $("daily"), settings: $("settings"), revive: $("revive"),
+    missions: $("missions"), pass: $("pass"), patrol: $("patrol"), codex: $("codex"),
   };
-  const overlays = [ui.menu, ui.armory, ui.talents, ui.skillPick, ui.pause, ui.over, ui.shop, ui.daily, ui.settings, ui.revive];
+  const overlays = Object.values(ui).filter((o) => o !== ui.pauseBtn);
   function show(el) {
     for (const o of overlays) o.classList.toggle("hidden", o !== el);
     ui.pauseBtn.classList.toggle("hidden", el !== null);
@@ -344,15 +378,21 @@
       skills: {}, aim: -Math.PI / 2, fireCd: 0.3, invuln: 0, moving: false,
       orbitAng: 0, droneCd: 0, muzzle: 0, walkT: 0,
       tier: weaponTier(wlvl), kick: 0, spin: 0, barrel: 0, hurtT: 0, skin: save.skin,
+      evo: {}, orbitR: 64, volleys: 0,
     };
   }
 
-  function startRun() {
+  let lastMode = "campaign";
+  function startRun(mode = "campaign") {
     ensureAudio();
+    lastMode = mode;
     run = {
-      chapter: 1, room: 0, kills: 0, coins: 0, greed: 1 + 0.1 * save.talents.greed, time: 0, pendingPicks: 0, cleared: false,
+      mode, chapter: 1, room: 0, kills: 0, coins: 0, greed: 1 + 0.1 * save.talents.greed, time: 0, pendingPicks: 0, cleared: false,
       adRevived: false, adWatched: false, earned: 0,
     };
+    // Überlebensmodus: Welt wechselt täglich
+    if (mode === "survival") Object.assign(run, { survT: 0, spawnCd: 1.2, theme: THEME_ORDER[Math.floor(Date.now() / 864e5) % THEME_ORDER.length] });
+    track("runs");
     player = newPlayer();
     // Goldener Held: +10 % Münzen
     if (save.skin === "gold") run.greed *= 1.1;
@@ -375,7 +415,18 @@
   // ============================================================
   // Räume
   // ============================================================
+  function resetRoomState() {
+    enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; hazards = []; zaps = []; volleyQueue.length = 0;
+    roomFade = 1;
+    run.doorK = 0;
+    supplyCrate = null;
+    player.vx = player.vy = 0;
+    player.invuln = 1;
+    run.cleared = false;
+  }
+
   function nextRoom() {
+    if (run.mode === "survival") { setupSurvival(); return; }
     run.room++;
     if (run.room > ROOMS_PER_CHAPTER) {
       const bonus = Math.round(100 * run.chapter * run.greed);
@@ -384,13 +435,8 @@
       run.room = 1;
       showBanner(tr("KAPITEL {n} ÜBERLEBT", { n: run.chapter - 1 }), tr("+{b} 💰 · Die Seuche wird stärker…", { b: bonus }));
     }
-    enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; hazards = []; zaps = []; volleyQueue.length = 0;
-    roomFade = 1;
-    run.doorK = 0;
-    supplyCrate = null;
-    player.x = W / 2; player.y = B - 70; player.vx = player.vy = 0;
-    player.invuln = 1;
-    run.cleared = false;
+    resetRoomState();
+    player.x = W / 2; player.y = B - 70;
 
     const isBoss = BOSS_ROOMS[run.room];
     const isSupply = SUPPLY_ROOMS.includes(run.room);
@@ -411,7 +457,61 @@
     }
   }
 
-  const theme = () => THEME_ORDER[((run ? run.chapter : 1) - 1) % THEME_ORDER.length];
+  const theme = () => (run && run.theme) || THEME_ORDER[((run ? run.chapter : 1) - 1) % THEME_ORDER.length];
+
+  // ============================================================
+  // Überlebensmodus: 5 Minuten in einer Arena, die Wellen werden immer dichter und härter
+  // ============================================================
+  const SURVIVAL_TIME = 300;
+  const SURVIVAL_BOSSES = [[150, "abom"], [260, "mother"]];
+  const SURVIVAL_POOL = [
+    [0, ["walker", "walker", "crawler", "runner"]],
+    [25, ["dog", "spitter", "rat"]],
+    [60, ["leaper", "bomber", "walker"]],
+    [100, ["burner", "screamer", "armored"]],
+    [140, ["brute", "splitter", "electro", "runner"]],
+  ];
+  function setupSurvival() {
+    run.room = 1;
+    resetRoomState();
+    player.x = W / 2; player.y = (T + B) / 2 + 140;
+    obstacles = genObstacles(3);
+    floorCanvas = makeFloor();
+    roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
+    initAmbient();
+    showBanner(tr("ÜBERLEBEN"), tr("Halte 5 Minuten durch!"), 2);
+  }
+  // Spawnpunkt mit Abstand zum Helden – nie direkt neben ihm
+  function survivalSpot() {
+    for (let i = 0; i < 40; i++) {
+      const p = { x: rand(L + 30, R - 30), y: rand(T + 40, B - 40), r: 26 };
+      if ((p.x - player.x) ** 2 + (p.y - player.y) ** 2 > 230 * 230 && !obstacles.some((o) => circleRectOverlap(p, o))) return p;
+    }
+    return { x: player.x < W / 2 ? R - 40 : L + 40, y: T + 60 };
+  }
+  function updateSurvival(dt) {
+    run.survT += dt;
+    // Leben & Schaden wachsen wie in späteren Räumen (spawnEnemy rechnet mit run.room)
+    run.room = 1 + Math.floor(run.survT / 15);
+    if (run.survT >= SURVIVAL_TIME) { gameOver(false, true); return; }
+    run.spawnCd -= dt;
+    if (run.spawnCd <= 0 && enemies.length < 34 + Math.floor(run.survT / 30)) {
+      run.spawnCd = Math.max(0.5, 2 - run.survT / 170);
+      const pool = SURVIVAL_POOL.filter(([t]) => run.survT >= t).flatMap(([, l]) => l);
+      const type = pick(pool), def = ZOMBIES[type];
+      const n = def.pack || (run.survT > 90 && Math.random() < 0.4 ? 2 : 1);
+      const pos = survivalSpot();
+      for (let i = 0; i < n; i++) spawnEnemy(type, pos.x + rand(-18, 18), pos.y + rand(-18, 18));
+    }
+    for (const [t, type] of SURVIVAL_BOSSES) {
+      if (run.survT < t || run[`boss_${type}`]) continue;
+      run[`boss_${type}`] = true;
+      const pos = survivalSpot();
+      spawnEnemy(type, pos.x, pos.y);
+      showBanner(tr("BOSS: {name}", { name: ZOMBIES[type].name }), tr("Noch {s}", { s: fmtTime(SURVIVAL_TIME - run.survT) }));
+    }
+  }
+  const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
   function genObstacles(n) {
     const obs = [];
@@ -682,18 +782,18 @@
     }
 
     // Kreissägen
-    p.orbitAng += dt * 4.2;
+    p.orbitAng += dt * (p.evo.blades ? 6.5 : 4.2);
     if (p.orbit > 0) {
       for (let i = 0; i < p.orbit; i++) {
         const a = p.orbitAng + (i / p.orbit) * Math.PI * 2;
-        const bx = p.x + Math.cos(a) * 64, by = p.y + Math.sin(a) * 64;
+        const bx = p.x + Math.cos(a) * p.orbitR, by = p.y + Math.sin(a) * p.orbitR;
         for (const e of enemies) {
           if (e.dead || e.spawnT > 0 || e.bladeCd > 0) continue;
           if ((e.x - bx) ** 2 + (e.y - by) ** 2 < (e.r + 11) ** 2) {
             e.bladeCd = 0.35;
             e.hitAng = a + Math.PI / 2;
             fxSparks(bx, by, a + Math.PI / 2, 0.6, 4, "255,230,170", 260);
-            damageEnemy(e, p.power * 0.8, { saw: true });
+            damageEnemy(e, p.power * (p.evo.blades ? 1.3 : 0.8), { saw: true });
           }
         }
       }
@@ -703,12 +803,12 @@
     if (p.drones > 0) {
       p.droneCd -= dt;
       if (p.droneCd <= 0) {
-        p.droneCd = 0.9 / p.drones;
+        p.droneCd = 0.9 / p.drones / (p.evo.swarm ? 2 : 1);
         const t = nearestEnemy(p);
         if (t) {
           const d = dronePos(Math.floor(Math.random() * p.drones));
           const a = Math.atan2(t.y - d.y, t.x - d.x);
-          bullets.push(makeBullet(d.x, d.y, a, { dmg: p.power * 0.9, speed: 650, r: 3, color: "#7fe7ff", life: 1.6, tracer: "127,231,255" }));
+          bullets.push(makeBullet(d.x, d.y, a, { dmg: p.power * 0.9, speed: 650, r: 3, color: "#7fe7ff", life: 1.6, tracer: "127,231,255", pierce: p.evo.swarm ? 2 : 0 }));
           fxFlash(d.x, d.y, 30, "127,231,255", 0.08);
         }
       }
@@ -723,6 +823,30 @@
   function fire() {
     volley(player.aim);
     for (let i = 1; i <= player.multishot; i++) volleyQueue.push({ t: i * 0.09 });
+    player.volleys++;
+    if (player.evo.hail && player.volleys % 3 === 0) ringShot(12);
+  }
+
+  // Kugelhagel: Ring aus Kugeln rund um den Helden (Schaden an der Grundkraft, nicht an der Waffe,
+  // damit Flammenwerfer & Co. nicht benachteiligt sind)
+  function ringShot(n) {
+    const p = player, off = rand(0, TAU / n);
+    for (let i = 0; i < n; i++) {
+      const a = off + (i / n) * TAU;
+      bullets.push(makeBullet(p.x + Math.cos(a) * 20, p.y + Math.sin(a) * 20, a, { dmg: p.power * 0.9, speed: 640, r: 4, color: "#ffd36a", life: 1.1, pierce: 1, tracer: "255,211,106" }));
+    }
+    fxRing(p.x, p.y, 46, "255,211,106", 0.3);
+  }
+
+  // Kettenreaktion: kleine Explosion ohne Bildschirmwackeln (sonst wird es bei vielen Abprallern unruhig)
+  function miniBlast(x, y, r, dmg) {
+    fxRing(x, y, r, "255,190,90", 0.25);
+    fxFlash(x, y, r * 1.5, "255,170,80", 0.12);
+    fxSparks(x, y, 0, Math.PI, 6, "255,200,120", 260);
+    for (const e of enemies) {
+      if (e.dead || e.spawnT > 0) continue;
+      if ((e.x - x) ** 2 + (e.y - y) ** 2 < (r + e.r) ** 2) damageEnemy(e, dmg, { aoe: true });
+    }
   }
 
   // Waffenmodell: Griff sitzt GRIP vor/neben der Körpermitte, Mündung am Ende des Modells
@@ -953,7 +1077,11 @@
           }
         }
       }
-      if (bounced) { b.wall--; b.hit.clear(); if (b.kind === "disc") { fxSparks(b.x, b.y, rand(0, TAU), Math.PI, 8, "255,230,170", 260); sfx("hit"); } }
+      if (bounced) {
+        b.wall--; b.hit.clear();
+        if (b.kind === "disc") { fxSparks(b.x, b.y, rand(0, TAU), Math.PI, 8, "255,230,170", 260); sfx("hit"); }
+        if (player.evo.chain) miniBlast(b.x, b.y, 42, b.dmg * 0.6);
+      }
       if (b.dead) { if (b.aoe) explode(b.x, b.y, b.aoe, b.dmg, true); continue; }
 
       for (const e of enemies) {
@@ -969,6 +1097,7 @@
             const a = Math.atan2(next.y - b.y, next.x - b.x);
             b.vx = Math.cos(a) * sp; b.vy = Math.sin(a) * sp;
             b.rico--; b.life = Math.max(b.life, 0.8);
+            if (player.evo.chain) miniBlast(b.x, b.y, 42, b.dmg * 0.6);
             break;
           }
         }
@@ -1080,15 +1209,19 @@
     let crit = false, exec = false;
     if (!o.silent) {
       const critChance = p.crit;
-      if (Math.random() < critChance) { dmg *= p.critMul; crit = true; }
+      // Absoluter Nullpunkt: verlangsamte Zombies werden immer kritisch getroffen
+      if (Math.random() < critChance || (p.evo.frost && e.slowT > 0)) { dmg *= p.critMul; crit = true; }
+      if (p.evo.vamp && p.hp < p.maxHp * 0.35) dmg *= 1.5;
       if (!e.def.boss && p.headshot > 0 && Math.random() < p.headshot) { dmg = e.hp; crit = true; exec = true; }
+      // … und zerspringen unter 30 % Leben
+      if (p.evo.frost && e.slowT > 0 && !e.def.boss && e.hp - dmg < e.maxHp * 0.3) { dmg = e.hp; crit = true; exec = true; o.shatter = true; }
     }
     // Panzerung (Riot-Zombie) schluckt einen Teil des Schadens – Exekution ignoriert sie
     if (e.def.armor && !o.silent && !exec) dmg *= 1 - e.def.armor;
     const b = o.bullet;
     if (b) {
       e.hitAng = Math.atan2(b.vy, b.vx);
-      if (b.burn && !e.def.fireproof) { e.burnT = 2.5; e.burnDps = Math.max(e.burnDps, p.power * 0.35 * b.burn); }
+      if (b.burn && !e.def.fireproof) { e.burnT = 2.5; e.burnDps = Math.max(e.burnDps, p.power * 0.35 * b.burn * (p.evo.inferno ? 2 : 1)); }
       if (b.freeze) { e.slowT = 1.2 + 0.6 * b.freeze; if (b.cryo && Math.random() < 0.5) fxIce(e.x + rand(-e.r, e.r), e.y + rand(-e.r, e.r)); }
       if (b.poison) e.poisonDps = Math.min(e.poisonDps + p.power * 0.08 * b.poison, p.power * 1.5 * b.poison);
       if (!e.def.boss && b.kind !== "flame") {
@@ -1100,7 +1233,7 @@
       }
     }
     e.lastHit = {
-      kind: o.aoe ? "blast" : o.saw || (b && b.kind === "disc") ? "slice" : b ? (b.kind === "tesla" ? "shock" : b.kind === "flame" || b.kind === "laser" ? "burn" : b.cryo ? "cryo" : "shot") : "other",
+      kind: o.shatter ? "cryo" : o.aoe ? "blast" : o.saw || (b && b.kind === "disc") ? "slice" : b ? (b.kind === "tesla" ? "shock" : b.kind === "flame" || b.kind === "laser" ? "burn" : b.cryo ? "cryo" : "shot") : "other",
       crit, big: !!(b && b.big), force: b ? 140 + (b.knock || 0) * 14 : o.aoe ? 420 : 160, ang: e.hitAng,
     };
     e.hp -= dmg;
@@ -1125,7 +1258,15 @@
     fxGibs(e.x, e.y, def.boss ? 14 : randi(2, 4), def.blood);
     splatter(e.x, e.y, e.hitAng, def.boss ? 2.4 : 0.7 + e.r / 40, def.blood);
     spawnCorpse(e);
+    track("kills");
+    if (e.elite) track("elites");
+    if (def.boss) { track("bosses"); addPassXp(60); }
+    if (e.death === "headshot") track("headshots");
+    else if (e.death === "blast" || e.death === "burst") track("blasts");
     sfx(def.boss ? "boom" : "kill");
+    // Inferno / Seuche: brennende bzw. vergiftete Zombies stecken beim Tod ihre Nachbarn an
+    if (player.evo.inferno && e.burnT > 0) spreadToNeighbors(e, 95, (q) => { if (!q.def.fireproof) { q.burnT = 2.5; q.burnDps = Math.max(q.burnDps, e.burnDps); } }, "255,140,40");
+    if (player.evo.plague && e.poisonDps > 0) spreadToNeighbors(e, 90, (q) => { q.poisonDps = Math.max(q.poisonDps, e.poisonDps * 0.8); }, "150,255,60");
     if (def.boss) {
       shake = 18;
       slowMo = 0.9;
@@ -1152,6 +1293,11 @@
     }
   }
 
+  function spreadToNeighbors(e, r, fn, rgb) {
+    fxRing(e.x, e.y, r, rgb, 0.35);
+    for (const q of enemies) if (!q.dead && q !== e && q.spawnT <= 0 && (q.x - e.x) ** 2 + (q.y - e.y) ** 2 < r * r) fn(q);
+  }
+
   function makeOrb(x, y, type, val) {
     const a = rand(0, Math.PI * 2), s = rand(60, 220);
     return { x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, type, val, t: 0, r: type === "coin" ? 6 : 5 };
@@ -1173,7 +1319,11 @@
 
       // Statuseffekte
       if (e.burnT > 0) { e.burnT -= dt; e.hp -= e.burnDps * dt; if (Math.random() < 0.35) fxFire(e.x + rand(-e.r, e.r) * 0.6, e.y + rand(-e.r, e.r) * 0.6, 0.6 + e.r / 40, 0.4); }
-      if (e.poisonDps > 0) { e.hp -= e.poisonDps * dt; if (Math.random() < 0.12) fxBubble(e.x + rand(-e.r, e.r) * 0.7, e.y + rand(-e.r, e.r) * 0.5); }
+      if (e.poisonDps > 0) {
+        e.hp -= e.poisonDps * dt;
+        if (Math.random() < 0.12) fxBubble(e.x + rand(-e.r, e.r) * 0.7, e.y + rand(-e.r, e.r) * 0.5);
+        if (p.evo.plague && !e.def.boss && e.hp < e.maxHp * 0.25) { e.hp = 0; fxRing(e.x, e.y, e.r * 2, "150,255,60", 0.3); }
+      }
       if (e.slowT > 0 && Math.random() < 0.1) fxIce(e.x + rand(-e.r, e.r), e.y + rand(-e.r, e.r));
       if (e.hp <= 0) { killEnemy(e); continue; }
       const slow = e.slowT > 0 ? 0.45 : 1;
@@ -1352,15 +1502,17 @@
     }
 
     enemies = enemies.filter((e) => !e.dead);
-    if (!run.cleared && !supplyCrate && enemies.length === 0) roomCleared();
+    if (run.mode !== "survival" && !run.cleared && !supplyCrate && enemies.length === 0) roomCleared();
   }
 
   function roomCleared() {
     run.cleared = true;
+    track("rooms");
     sfx("door");
     addText(W / 2, T + 40, tr("TÜR OFFEN ↑"), "#8cff4a", 22);
     if (BOSS_ROOMS[run.room]) {
       healPlayer(player.maxHp * 0.2);
+      run.shrineT = 1.6;
       // Bewertung im positivsten Moment anfragen: nach dem ersten Boss-Sieg
       if (!save.reviewAsked) { save.reviewAsked = true; persist(); setTimeout(() => Platform.requestReview(), 1500); }
     }
@@ -1376,7 +1528,7 @@
       o.t += dt;
       const dx = p.x - o.x, dy = p.y - o.y;
       const d = Math.hypot(dx, dy) || 1;
-      if ((run.cleared && o.t > 0.4) || d < 80) {
+      if ((run.cleared && o.t > 0.4) || d < (run.mode === "survival" ? 120 : 80)) {
         const s = 700 + o.t * 300;
         o.vx = (dx / d) * s; o.vy = (dy / d) * s;
       } else {
@@ -1431,8 +1583,49 @@
     s.apply(player);
   }
 
+  // Rezept-Fortschritt für eine Evolution, z. B. "🔁 1/2 + ⏩ 2/2"
+  const evoProgress = (ev) => Object.entries(ev.needs).map(([id, n]) => `${skillById(id).icon} ${Math.min(n, player.skills[id] || 0)}/${n}`).join(" + ");
+  function evoHint(s) {
+    const ev = EVOLUTIONS.find((q) => !player.evo[q.id] && q.needs[s.id]);
+    return ev ? `${ev.icon} ${ev.name} · ${evoProgress(ev)}` : "";
+  }
+  function takeEvolution(ev) {
+    const p = player;
+    ev.apply(p);
+    track("evolutions");
+    save.codex[ev.id] = true;
+    showBanner(`${ev.icon} ${tr("EVOLUTION")}`, ev.name, 1.8);
+    fxRing(p.x, p.y, 120, "255,211,106", 0.6);
+    fxFlash(p.x, p.y, 220, "255,220,140", 0.35);
+    particles.push({ t: "lvl", x: p.x, y: p.y, life: 1.3, max: 1.3 });
+    if (save.vibration) Platform.vibrate(60);
+  }
+
+  // Engel & Teufel: nach jedem Bosssieg ein Fremder mit Segen – oder einem Pakt
+  function openShrine() {
+    const p = player;
+    sfx("level");
+    const cards = [
+      { icon: "😇", name: tr("Engelssegen"), desc: tr("Volle Heilung und +15% max. HP"), rarity: "angel", onPick: () => {
+        p.maxHp = Math.round(p.maxHp * 1.15); healPlayer(p.maxHp);
+        fxRing(p.x, p.y, 90, "255,250,200", 0.5); track("angel"); resumePlay();
+      } },
+      { icon: "🕊️", name: tr("Göttliche Gabe"), desc: tr("Wähle sofort einen zusätzlichen Skill"), rarity: "angel", onPick: () => { track("angel"); run.pendingPicks++; resumePlay(); } },
+    ];
+    const epics = () => SKILLS.filter((s) => s.rarity === "epic" && (p.skills[s.id] || 0) < s.max);
+    if (epics().length) cards.push({ icon: "😈", name: tr("Teufelspakt"), desc: tr("2 zufällige epische Skills – kostet dauerhaft 25% max. HP"), rarity: "devil", onPick: () => {
+      p.maxHp = Math.max(60, Math.round(p.maxHp * 0.75)); p.hp = Math.min(p.hp, p.maxHp);
+      const got = [];
+      for (let i = 0; i < 2; i++) { const pool = epics(); if (!pool.length) break; const s = pick(pool); takeSkill(s); got.push(`${s.icon} ${s.name}`); }
+      fxFlash(p.x, p.y, 200, "255,40,40", 0.35); fxRing(p.x, p.y, 110, "255,60,60", 0.5);
+      track("devil"); toast(`😈 ${got.join(" + ")}`); resumePlay();
+    } });
+    renderCards(tr("EIN FREMDER ERSCHEINT"), cards);
+  }
+
   let rerollHandler = null;
   function renderCards(title, cards, onReroll = null) {
+    $("skillPick").classList.toggle("shrine", cards.some((c) => c.rarity === "angel"));
     rerollHandler = onReroll;
     $("rerollBtn").classList.toggle("hidden", !(onReroll && Platform.ads.available));
     $("skillTitle").textContent = title;
@@ -1442,7 +1635,8 @@
       const btn = document.createElement("button");
       btn.className = `card ${c.rarity || ""}`;
       const lvl = c.id && player.skills[c.id] ? ` <small>${tr("(Stufe {n})", { n: player.skills[c.id] + 1 })}</small>` : "";
-      btn.innerHTML = `<div class="ico">${c.icon}</div><div><div class="name">${c.name}${lvl}</div><div class="desc">${c.desc}</div></div>`;
+      const hint = c.hint ? `<div class="evo-hint">🧬 ${c.hint}</div>` : "";
+      btn.innerHTML = `<div class="ico">${c.icon}</div><div><div class="name">${c.name}${lvl}</div><div class="desc">${c.desc}</div>${hint}</div>`;
       btn.addEventListener("click", () => c.onPick(), { once: true });
       box.appendChild(btn);
     }
@@ -1452,12 +1646,17 @@
   }
 
   function openSkillPick(rerolled = false) {
-    if (!rerolled) { run.pendingPicks--; sfx("level"); }
-    const choices = rollSkills(3);
-    if (!choices.length) { resumePlay(); return; }
-    renderCards("LEVEL UP!", choices.map((s) => ({
-      ...s, onPick: () => { takeSkill(s); resumePlay(); },
-    })), rerolled ? null : () => openSkillPick(true));
+    if (!rerolled) { run.pendingPicks--; sfx("level"); trackMax("level", player.level); }
+    // Fertiges Rezept: Evolution erscheint garantiert als erste Karte
+    const ready = EVOLUTIONS.filter((ev) => evoReady(player, ev));
+    const choices = rollSkills(ready.length ? 2 : 3);
+    if (!choices.length && !ready.length) { resumePlay(); return; }
+    const cards = choices.map((s) => ({ ...s, hint: evoHint(s), onPick: () => { takeSkill(s); resumePlay(); } }));
+    if (ready.length) {
+      const ev = ready[0];
+      cards.unshift({ icon: ev.icon, name: `${tr("EVOLUTION")}: ${ev.name}`, desc: ev.desc, rarity: "evo", onPick: () => { takeEvolution(ev); resumePlay(); } });
+    }
+    renderCards(tr("AUFSTIEG!"), cards, rerolled ? null : () => openSkillPick(true));
   }
 
   function openSupply() {
@@ -1586,6 +1785,7 @@
   }
   function spawnCorpse(e) {
     const death = deathOf(e), h = e.lastHit || {}, ang = h.ang ?? e.hitAng;
+    e.death = death;
     const zh = e.r * 2.4 * e.scale; // ungefähre Kopfhöhe
     if (death === "burst") {
       fxGibs(e.x, e.y, 9, e.def.blood);
@@ -1784,12 +1984,18 @@
     run.time += dt;
     updatePlayer(dt);
     if (state !== "play") return;
+    if (run.mode === "survival") { updateSurvival(dt); if (state !== "play") return; }
     updateEnemies(dt);
     updateHazards(dt);
     updateBullets(dt);
     updateOrbs(dt);
     if (supplyCrate) supplyCrate.bob += dt;
     if (run.cleared) run.doorK = Math.min(1, (run.doorK || 0) + dt * 1.8);
+    // Fremder nach dem Bosssieg (wartet, bis Level-ups abgearbeitet sind)
+    if (run.shrineT > 0 && state === "play" && run.pendingPicks === 0) {
+      run.shrineT -= dt;
+      if (run.shrineT <= 0) openShrine();
+    }
     // Level-up: kurze Zeitlupe mit Lichtsäule, dann erst die Skill-Karten
     if (state === "play" && run.pendingPicks > 0) {
       if (run.pickDelay === undefined) { run.pickDelay = 0.2; slowMo = Math.max(slowMo, 0.75); player.invuln = Math.max(player.invuln, 1); }
@@ -1812,6 +2018,14 @@
         c.textContent = `${s.icon} ${s.name}${n > 1 ? ` ×${n}` : ""}`;
         chips.appendChild(c);
       }
+      for (const ev of EVOLUTIONS) {
+        const has = player.evo[ev.id], started = Object.keys(ev.needs).some((id) => player.skills[id]);
+        if (!has && !started) continue;
+        const c = document.createElement("span");
+        c.className = `chip ${has ? "evo" : "evo-todo"}`;
+        c.textContent = has ? `${ev.icon} ${ev.name}` : `🧬 ${ev.icon} ${evoProgress(ev)}`;
+        chips.appendChild(c);
+      }
       if (!chips.children.length) chips.innerHTML = `<span class="chip">${tr("Noch keine Skills")}</span>`;
       show(ui.pause);
     } else if (state === "pause") {
@@ -1821,21 +2035,34 @@
     }
   }
 
-  function gameOver(quit) {
+  function gameOver(quit, won = false) {
     state = "over";
     joy.active = false;
     clearInterval(reviveTimer);
+    const surv = run.mode === "survival";
+    if (won) run.coins += Math.round(300 * run.greed); // Siegprämie im Überlebensmodus
     const coins = Math.round(run.coins);
     run.earned = coins;
     save.coins += coins;
     save.runs++;
-    const score = run.chapter * 100 + run.room;
-    if (score > save.best.chapter * 100 + save.best.room) save.best = { chapter: run.chapter, room: run.room };
+    track("coins", coins);
+    track("time", Math.round(run.time));
+    let record = false;
+    if (surv) {
+      const s = Math.floor(Math.min(run.survT, SURVIVAL_TIME));
+      record = s > (save.stats.survival || 0);
+      trackMax("survival", s);
+      addPassXp(Math.floor(s / 2));
+    } else {
+      const score = run.chapter * 100 + run.room;
+      if (score > save.best.chapter * 100 + save.best.room) { save.best = { chapter: run.chapter, room: run.room }; record = true; }
+    }
     persist();
-    $("overTitle").textContent = quit ? tr("RUN BEENDET") : tr("GEFALLEN");
+    $("overTitle").textContent = won ? tr("ÜBERLEBT!") : quit ? tr("EINSATZ BEENDET") : tr("GEFALLEN");
+    const reached = surv ? `${fmtTime(Math.min(run.survT, SURVIVAL_TIME))} / ${fmtTime(SURVIVAL_TIME)}` : tr("Kap. {c} · Raum {r}", { c: run.chapter, r: run.room });
     $("overStats").innerHTML = `
-      <span>${tr("Erreicht")}</span><b>${tr("Kap. {c} · Raum {r}", { c: run.chapter, r: run.room })}</b>
-      <span>${tr("Kills")}</span><b>${run.kills}</b>
+      <span>${surv ? tr("Überlebt") : tr("Erreicht")}</span><b>${reached}${record ? " 🏆" : ""}</b>
+      <span>${tr("Abschüsse")}</span><b>${run.kills}</b>
       <span>${tr("Level")}</span><b>${player.level}</b>
       <span>${tr("Zeit")}</span><b>${Math.floor(run.time / 60)}:${String(Math.floor(run.time % 60)).padStart(2, "0")}</b>
       <span>${tr("Münzen")}</span><b>+${coins} 💰</b>`;
@@ -2218,7 +2445,7 @@
     const saw = Sprites.saw();
     for (let i = 0; i < p.orbit; i++) {
       const a = p.orbitAng + (i / p.orbit) * TAU;
-      Sprites.draw(ctx, saw, p.x + Math.cos(a) * 64, p.y + Math.sin(a) * 64, p.orbitAng * 5);
+      Sprites.draw(ctx, saw, p.x + Math.cos(a) * p.orbitR, p.y + Math.sin(a) * p.orbitR, p.orbitAng * 5);
     }
     drawShadow(p.x, p.y, 16);
     const pack = p.weaponId === "flame" ? "tanks" : "pack";
@@ -2547,13 +2774,26 @@
     ctx.fillStyle = "#fff"; ctx.textAlign = "center";
     ctx.font = "800 9px system-ui"; ctx.fillText("LV", cx, cy - 8);
     ctx.font = "900 19px system-ui"; ctx.fillText(p.level, cx, cy + 10);
-    // Kapitel & Raumfortschritt
     ctx.textAlign = "left"; ctx.fillStyle = "#e8efe9"; ctx.font = "800 15px system-ui";
-    ctx.fillText(tr("Kapitel {c} · Raum {r}", { c: run.chapter, r: `${run.room}/${ROOMS_PER_CHAPTER}` }), 86, 32);
-    for (let i = 1; i <= ROOMS_PER_CHAPTER; i++) {
-      const x = 86 + (i - 1) * 13, boss = !!BOSS_ROOMS[i], sup = SUPPLY_ROOMS.includes(i);
-      ctx.fillStyle = i < run.room ? "#8cff4a" : i === run.room ? `rgba(255,255,255,${0.6 + 0.4 * Math.sin(t * 6)})` : boss ? "#5a1a1a" : sup ? "#1f3b5c" : "#26302a";
-      roundRect(x, 40, 10, boss ? 7 : 5, 2); ctx.fill();
+    if (run.mode === "survival") {
+      // Countdown mit Fortschrittsbalken und Boss-Markierungen
+      const left = Math.max(0, SURVIVAL_TIME - run.survT), bw = 255;
+      ctx.fillText(`⏱ ${tr("Überleben")} · ${fmtTime(left)}`, 86, 32);
+      ctx.fillStyle = "#26302a"; roundRect(86, 40, bw, 6, 3); ctx.fill();
+      ctx.fillStyle = left < 30 ? `rgba(255,${120 + 80 * Math.sin(t * 8)},80,1)` : "#8cff4a";
+      roundRect(86, 40, Math.max(6, bw * Math.min(1, run.survT / SURVIVAL_TIME)), 6, 3); ctx.fill();
+      for (const [bt, type] of SURVIVAL_BOSSES) {
+        ctx.fillStyle = run[`boss_${type}`] ? "#8cff4a" : "#ff4a2a";
+        ctx.beginPath(); ctx.arc(86 + bw * bt / SURVIVAL_TIME, 43, 4.5, 0, TAU); ctx.fill();
+      }
+    } else {
+      // Kapitel & Raumfortschritt
+      ctx.fillText(tr("Kapitel {c} · Raum {r}", { c: run.chapter, r: `${run.room}/${ROOMS_PER_CHAPTER}` }), 86, 32);
+      for (let i = 1; i <= ROOMS_PER_CHAPTER; i++) {
+        const x = 86 + (i - 1) * 13, boss = !!BOSS_ROOMS[i], sup = SUPPLY_ROOMS.includes(i);
+        ctx.fillStyle = i < run.room ? "#8cff4a" : i === run.room ? `rgba(255,255,255,${0.6 + 0.4 * Math.sin(t * 6)})` : boss ? "#5a1a1a" : sup ? "#1f3b5c" : "#26302a";
+        roundRect(x, 40, 10, boss ? 7 : 5, 2); ctx.fill();
+      }
     }
     // Waffe
     const ws = Sprites.weapon(p.weaponId, p.tier, Math.floor(p.barrel));
@@ -2654,6 +2894,177 @@
   requestAnimationFrame(loop);
 
   // ============================================================
+  // Langzeitmotivation: Statistik → Missionen, Erfolge, Saisonpass; dazu Patrouille
+  // Alle Spielereignisse laufen über track()/trackMax() – das Spiel selbst kennt keine Missionslogik.
+  // ============================================================
+  const MISSIONS = {
+    kills: { icon: "🧟", text: "Töte {n} Zombies", d: [100, 150, 250], w: 1500 },
+    rooms: { icon: "🚪", text: "Säubere {n} Räume", d: [10, 15, 20], w: 120 },
+    bosses: { icon: "👹", text: "Besiege {n} Bosse", one: "Besiege einen Boss", d: [1], w: 5 },
+    elites: { icon: "⭐", text: "Töte {n} Elite-Zombies", d: [3, 5], w: 25 },
+    headshots: { icon: "🎯", text: "Erziele {n} Kopfschüsse", d: [15, 30], w: 200 },
+    blasts: { icon: "💥", text: "Sprenge {n} Zombies weg", d: [20, 40], w: 250 },
+    runs: { icon: "▶️", text: "Starte {n} Einsätze", d: [2, 3], w: 15 },
+    coins: { icon: "💰", text: "Verdiene {n} Münzen in Einsätzen", d: [300, 500], w: 4000 },
+    evolutions: { icon: "🧬", text: "Löse {n} Evolutionen aus", one: "Löse eine Evolution aus", d: [1], w: 4 },
+    level: { icon: "⬆️", text: "Erreiche Level {n} in einem Einsatz", d: [8, 10, 12], max: true },
+    survival: { icon: "⏱️", text: "Überlebe {n} Sekunden im Überlebensmodus", d: [90, 150], w: 300, max: true },
+  };
+  const MISSION_REWARD = { daily: { coins: 100, xp: 120 }, bonus: { coins: 250, xp: 200 }, weekly: { coins: 500, xp: 400 } };
+  const missionText = (m) => { const M = MISSIONS[m.id]; return tr(m.goal === 1 && M.one ? M.one : M.text, { n: m.goal.toLocaleString(I18N.lang) }); };
+
+  // Deterministischer Zufall: alle Spieler bekommen am selben Tag dieselben Missionen
+  function seeded(str) {
+    let h = 1779033703;
+    for (const ch of str) { h = Math.imul(h ^ ch.charCodeAt(0), 3432918353); h = (h << 13) | (h >>> 19); }
+    return () => { h = Math.imul(h ^ (h >>> 16), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
+  }
+  function weekKey() {
+    const d = new Date();
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // Montag dieser Woche
+    return `W${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  }
+  function rollMissions(seed, field, n) {
+    const rnd = seeded(seed), pool = Object.keys(MISSIONS).filter((k) => MISSIONS[k][field]), out = [];
+    while (out.length < n && pool.length) {
+      const id = pool.splice(Math.floor(rnd() * pool.length), 1)[0], g = MISSIONS[id][field];
+      out.push({ id, goal: Array.isArray(g) ? g[Math.floor(rnd() * g.length)] : g, p: 0, done: false });
+    }
+    return out;
+  }
+  function missionsFresh() {
+    const m = save.missions, day = localDay(), wk = weekKey();
+    if (m.day !== day) Object.assign(m, { day, daily: rollMissions(`d${day}`, "d", 3), bonus: false });
+    if (m.week !== wk) Object.assign(m, { week: wk, weekly: rollMissions(wk, "w", 4) });
+    return m;
+  }
+  function track(key, n = 1) {
+    save.stats[key] = (save.stats[key] || 0) + n;
+    const m = missionsFresh();
+    if (!MISSIONS[key] || MISSIONS[key].max) return;
+    for (const q of m.daily.concat(m.weekly)) if (q.id === key) q.p = Math.min(q.goal, q.p + n);
+    if (key === "rooms") addPassXp(6);
+  }
+  function trackMax(key, v) {
+    if (v > (save.stats[key] || 0)) save.stats[key] = v;
+    const m = missionsFresh();
+    for (const q of m.daily.concat(m.weekly)) if (q.id === key) q.p = Math.max(q.p, Math.min(q.goal, Math.floor(v)));
+  }
+  function claimMission(q, kind) {
+    if (q.done || q.p < q.goal) return;
+    q.done = true;
+    const r = MISSION_REWARD[kind];
+    save.coins += r.coins; addPassXp(r.xp);
+    persist(); sfx("coin"); toast(`+${r.coins} 💰 · +${r.xp} ${tr("Pass-XP")}`);
+  }
+  function claimDailyBonus() {
+    const m = missionsFresh();
+    if (m.bonus || !m.daily.every((q) => q.done)) return;
+    m.bonus = true;
+    const r = MISSION_REWARD.bonus, b = pick(BOOSTS);
+    save.coins += r.coins; save.boosts[b.id]++; addPassXp(r.xp);
+    persist(); sfx("level"); toast(`🎉 +${r.coins} 💰 · ${b.icon} ${b.name} · +${r.xp} ${tr("Pass-XP")}`);
+  }
+
+  // Erfolge in drei Stufen (Bronze, Silber, Gold)
+  const ACHIEVEMENTS = [
+    { id: "kills", icon: "🧟", name: tr("Zombiejäger"), text: "Töte {n} Zombies", tiers: [500, 5000, 50000], val: () => save.stats.kills },
+    { id: "bosses", icon: "👹", name: tr("Bossbezwinger"), text: "Besiege {n} Bosse", one: "Besiege einen Boss", tiers: [1, 10, 50], val: () => save.stats.bosses },
+    { id: "elites", icon: "⭐", name: tr("Elitejäger"), text: "Töte {n} Elite-Zombies", tiers: [10, 100, 500], val: () => save.stats.elites },
+    { id: "chapter", icon: "🗺️", name: tr("Kapitelstürmer"), text: "Erreiche Kapitel {n}", tiers: [2, 3, 5], val: () => save.best.chapter },
+    { id: "survival", icon: "⏱️", name: tr("Überlebenskünstler"), text: "Überlebe {n} Sekunden", tiers: [60, 180, 300], val: () => save.stats.survival },
+    { id: "evolutions", icon: "🧬", name: tr("Evolutionär"), text: "Löse {n} Evolutionen aus", one: "Löse eine Evolution aus", tiers: [1, 10, 40], val: () => save.stats.evolutions },
+    { id: "codex", icon: "📖", name: tr("Forscher"), text: "Entdecke {n} Evolutionen", tiers: [2, 5, 8], val: () => Object.keys(save.codex).length },
+    { id: "arsenal", icon: "🔫", name: tr("Waffennarr"), text: "Besitze {n} Waffen", tiers: [3, 8, 15], val: () => Object.keys(save.weapons).length },
+    { id: "devil", icon: "😈", name: tr("Teufelsbündler"), text: "Schließe {n} Teufelspakte", one: "Schließe einen Teufelspakt", tiers: [1, 5, 20], val: () => save.stats.devil },
+    { id: "headshots", icon: "🎯", name: tr("Scharfschütze"), text: "Erziele {n} Kopfschüsse", tiers: [100, 1000, 10000], val: () => save.stats.headshots },
+  ];
+  const ACH_REWARD = [250, 1000, 4000];
+  const TIER_ICON = ["🥉", "🥈", "🥇"];
+  const achClaimable = (a) => { const t = save.ach[a.id] || 0; return t < a.tiers.length && a.val() >= a.tiers[t]; };
+  function claimAchievement(a) {
+    if (!achClaimable(a)) return;
+    const t = save.ach[a.id] || 0;
+    save.ach[a.id] = t + 1;
+    save.coins += ACH_REWARD[t];
+    persist(); sfx("level"); toast(`${TIER_ICON[t]} ${a.name} · +${ACH_REWARD[t]} 💰`);
+  }
+
+  // Saisonpass: 28-Tage-Saisons, 30 Stufen; Gratis-Belohnungen für alle, Premium per In-App-Kauf
+  const SEASON_EPOCH = Date.UTC(2026, 9, 19); // Montag des Starts → Saison 1
+  const SEASON_DAYS = 28, PASS_LEVELS = 30, PASS_STEP = 400;
+  function seasonInfo() {
+    const days = Math.floor((Date.now() - SEASON_EPOCH) / 864e5);
+    return { id: Math.floor(days / SEASON_DAYS) + 1, left: SEASON_DAYS - (((days % SEASON_DAYS) + SEASON_DAYS) % SEASON_DAYS) };
+  }
+  function passFresh() {
+    const s = seasonInfo(), p = save.pass;
+    if (p.season !== s.id) save.pass = { season: s.id, xp: 0, premium: p.premium === s.id ? s.id : 0, free: [], prem: [] };
+    return s;
+  }
+  const passLevel = () => Math.min(PASS_LEVELS, Math.floor(save.pass.xp / PASS_STEP));
+  const passPremium = () => save.pass.premium === save.pass.season && save.pass.season > 0;
+  function addPassXp(n) { passFresh(); save.pass.xp = Math.min(PASS_LEVELS * PASS_STEP, save.pass.xp + n); }
+  // Belohnung je Stufe und Spur (berechnet statt Tabelle: leicht zu balancieren)
+  function passReward(lvl, prem) {
+    if (prem) {
+      if (lvl === 1) return { skin: "hunter" };
+      if (lvl === PASS_LEVELS) return { coins: 3000 };
+      if (lvl % 10 === 0) return { crate: 1 };
+      if (lvl % 3 === 0) return { boost: BOOSTS[(lvl / 3) % BOOSTS.length].id };
+      return { coins: 150 + 20 * lvl };
+    }
+    if (lvl === 15 || lvl === PASS_LEVELS) return { crate: 1 };
+    if (lvl % 5 === 0) return { boost: BOOSTS[(lvl / 5 - 1) % BOOSTS.length].id };
+    return { coins: 80 + 10 * lvl };
+  }
+  function rewardLabel(r) {
+    if (r.skin) { const q = SKINS.find((s) => s.id === r.skin); return `${q.icon} ${q.name}`; }
+    if (r.crate) return `🎁 ${tr("Überraschungskiste")}`;
+    if (r.boost) { const q = BOOSTS.find((b) => b.id === r.boost); return `${q.icon} ${q.name}`; }
+    return `${r.coins.toLocaleString(I18N.lang)} 💰`;
+  }
+  function grantReward(r) {
+    if (r.skin) save.skins[r.skin] = true;
+    else if (r.crate) openMystery(true);
+    else if (r.boost) save.boosts[r.boost]++;
+    else save.coins += r.coins;
+  }
+  function claimPass(lvl, prem) {
+    passFresh();
+    const list = prem ? save.pass.prem : save.pass.free;
+    if (lvl > passLevel() || list.includes(lvl) || (prem && !passPremium())) return;
+    list.push(lvl);
+    const r = passReward(lvl, prem);
+    grantReward(r);
+    persist(); sfx("level");
+    if (!r.crate) toast(`🎟️ ${rewardLabel(r)}`);
+  }
+  const passClaimable = () => {
+    passFresh();
+    for (let l = 1; l <= passLevel(); l++) if (!save.pass.free.includes(l) || (passPremium() && !save.pass.prem.includes(l))) return true;
+    return false;
+  };
+
+  // Patrouille: Münzen sammeln sich offline an (bis 12 h), Ertrag wächst mit dem Rekordkapitel
+  const PATROL_MAX_H = 12, QUICK_PATROLS = 2, QUICK_PATROL_H = 2;
+  const patrolRate = () => 40 + 25 * Math.max(1, save.best.chapter); // Münzen pro Stunde
+  function patrolHours() {
+    const now = Date.now();
+    if (save.patrol.since > now) save.patrol.since = now; // Uhr zurückgestellt
+    return Math.min(PATROL_MAX_H, (now - save.patrol.since) / 36e5);
+  }
+  const patrolCoins = () => Math.floor(patrolHours() * patrolRate());
+  function quickLeft() { return save.patrol.quickDay === localDay() ? Math.max(0, QUICK_PATROLS - save.patrol.quick) : QUICK_PATROLS; }
+  function claimPatrol(mult) {
+    const c = patrolCoins() * mult;
+    if (c <= 0) return;
+    save.coins += c;
+    save.patrol.since = Date.now();
+    persist(); sfx("coin"); toast(`🛰️ +${c} 💰`);
+  }
+
+  // ============================================================
   // Menüs
   // ============================================================
   function refreshMenu() {
@@ -2665,6 +3076,10 @@
     const bs = BOOSTS.filter((q) => save.boosts[q.id] > 0).map((q) => `${q.icon}×${save.boosts[q.id]}`).join(" ");
     $("menuSkin").textContent = `${sk.icon} ${sk.name}${bs ? ` · ${tr("Boosts")}: ${bs}` : ""}`;
     for (const el of document.querySelectorAll(".coinsVal")) el.textContent = save.coins;
+    $("survivalBest").textContent = save.stats.survival ? `${tr("Rekord")} ${fmtTime(save.stats.survival)}` : tr("5 Minuten · Endloswellen");
+    $("missionsBadge").classList.toggle("hidden", !missionsClaimable());
+    $("passBadge").classList.toggle("hidden", !passClaimable());
+    $("patrolBadge").classList.toggle("hidden", patrolHours() < 1);
   }
 
   // Weiche Trennstellen für lange deutsche Komposita (schmale Handys)
@@ -2729,6 +3144,118 @@
     return b;
   }
 
+  // ---------- Missionen, Erfolge, Statistik ----------
+  const num = (v) => Math.floor(v).toLocaleString(I18N.lang);
+  const bar = (k) => `<div class="bar"><i style="width:${Math.round(Math.min(1, Math.max(0, k)) * 100)}%"></i></div>`;
+  function untilMidnight() {
+    const d = new Date(), m = new Date(d); m.setHours(24, 0, 0, 0);
+    const min = Math.ceil((m - d) / 6e4);
+    return `${Math.floor(min / 60)} h ${min % 60} min`;
+  }
+  let missionTab = "daily";
+  function renderMissions() {
+    for (const b of document.querySelectorAll("#missionTabs button")) b.classList.toggle("active", b.dataset.tab === missionTab);
+    const m = missionsFresh(), list = $("missionList");
+    list.innerHTML = "";
+    if (missionTab === "daily" || missionTab === "weekly") {
+      const kind = missionTab, r = MISSION_REWARD[kind];
+      for (const q of kind === "daily" ? m.daily : m.weekly) {
+        const ready = q.p >= q.goal && !q.done;
+        list.appendChild(shopRow(MISSIONS[q.id].icon, missionText(q), `${bar(q.p / q.goal)}${num(q.p)} / ${num(q.goal)} · ${r.coins} 💰 + ${r.xp} ${tr("Pass-XP")}`,
+          ready ? tr("FERTIG") : "", q.done ? "✓" : tr("Abholen"), ready, () => { claimMission(q, kind); renderMissions(); refreshMenu(); }));
+      }
+      if (kind === "daily") {
+        const all = m.daily.every((q) => q.done), b = MISSION_REWARD.bonus;
+        list.appendChild(shopRow("🎉", tr("Tagesbonus"), tr("Alle 3 Tagesmissionen abgeschlossen: {c} 💰 + zufälliger Boost + {x} Pass-XP", { c: b.coins, x: b.xp }),
+          all && !m.bonus ? tr("FERTIG") : "", m.bonus ? "✓" : tr("Abholen"), all && !m.bonus, () => { claimDailyBonus(); renderMissions(); refreshMenu(); }));
+      }
+      $("missionNote").textContent = kind === "daily" ? tr("Neue Missionen in {t}", { t: untilMidnight() }) : tr("Neue Wochenmissionen jeden Montag");
+      return;
+    }
+    for (const a of ACHIEVEMENTS) {
+      const t = save.ach[a.id] || 0, maxed = t >= a.tiers.length, goal = a.tiers[Math.min(t, a.tiers.length - 1)];
+      const tiers = `<span class="tiers">${TIER_ICON.map((ic, i) => `<i class="${i < t ? "on" : ""}">${ic}</i>`).join("")}</span>`;
+      const text = tr(goal === 1 && a.one ? a.one : a.text, { n: num(goal) });
+      list.appendChild(shopRow(a.icon, `${a.name} ${tiers}`, `${text}${bar(a.val() / goal)}${num(Math.min(a.val(), goal))} / ${num(goal)}`,
+        achClaimable(a) ? tr("FERTIG") : "", maxed ? "✓" : `${TIER_ICON[t]} +${ACH_REWARD[t]} 💰`, achClaimable(a), () => { claimAchievement(a); renderMissions(); refreshMenu(); }));
+    }
+    const st = save.stats, box = document.createElement("div");
+    box.className = "stats panel";
+    const rows = [["Zombies getötet", num(st.kills)], ["Bosse besiegt", num(st.bosses)], ["Elite-Zombies", num(st.elites)], ["Räume gesäubert", num(st.rooms)],
+      ["Einsätze", num(st.runs)], ["Evolutionen", num(st.evolutions)], ["Kopfschüsse", num(st.headshots)], ["Höchstes Level", num(st.level)],
+      ["Längstes Überleben", fmtTime(st.survival)], ["Spielzeit", `${Math.floor(st.time / 3600)} h ${Math.floor((st.time % 3600) / 60)} min`]];
+    box.innerHTML = rows.map(([k, v]) => `<span>${tr(k)}</span><b>${v}</b>`).join("");
+    list.appendChild(box);
+    $("missionNote").textContent = tr("Statistik über alle Einsätze");
+  }
+  const missionsClaimable = () => {
+    const m = missionsFresh();
+    return m.daily.concat(m.weekly).some((q) => q.p >= q.goal && !q.done) || (!m.bonus && m.daily.every((q) => q.done)) || ACHIEVEMENTS.some(achClaimable);
+  };
+
+  // ---------- Saisonpass ----------
+  function renderPass() {
+    const s = passFresh(), lvl = passLevel(), prem = passPremium();
+    $("passHead").innerHTML = `<div class="pass-top"><b>${tr("Saison {n}", { n: s.id })}</b><span>${tr("Noch {d} Tage", { d: s.left })}</span></div>
+      <div class="pass-lvl">${tr("Stufe {n}", { n: lvl })} / ${PASS_LEVELS}</div>
+      ${lvl < PASS_LEVELS ? `${bar((save.pass.xp - lvl * PASS_STEP) / PASS_STEP)}<small>${save.pass.xp - lvl * PASS_STEP} / ${PASS_STEP} ${tr("Pass-XP")}</small>` : `<small>${tr("Höchste Stufe erreicht!")}</small>`}
+      <small class="hint">${tr("Pass-XP gibt es für Missionen, gesäuberte Räume, Bosse und Überlebenszeit.")}</small>`;
+    const buy = $("passBuy");
+    buy.innerHTML = "";
+    if (prem) buy.innerHTML = `<p class="sub">✓ ${tr("Premium-Pass aktiv")}</p>`;
+    else buy.appendChild(iapRow("🎟️", tr("Premium-Pass"), tr("Doppelte Belohnungen und der exklusive Skin „Seuchenjäger“ – gilt für diese Saison"), tr("PREMIUM"), IDS.seasonPass, false));
+    const list = $("passList");
+    list.innerHTML = `<div class="pass-row head"><span>${tr("Stufe")}</span><span>${tr("Gratis")}</span><span>👑 ${tr("Premium")}</span></div>`;
+    for (let l = 1; l <= PASS_LEVELS; l++) {
+      const row = document.createElement("div");
+      row.className = `pass-row${l <= lvl ? " reached" : ""}`;
+      row.innerHTML = `<span class="pl">${l}</span>`;
+      for (const pr of [false, true]) {
+        const done = (pr ? save.pass.prem : save.pass.free).includes(l), can = l <= lvl && !done && (!pr || prem);
+        const b = document.createElement("button");
+        b.className = `pass-cell${can ? " ready" : ""}${done ? " done" : ""}${pr ? " prem" : ""}`;
+        b.innerHTML = `${done ? "✓ " : pr && !prem ? "🔒 " : ""}${rewardLabel(passReward(l, pr))}`;
+        b.disabled = !can;
+        b.addEventListener("click", () => { claimPass(l, pr); renderPass(); refreshMenu(); });
+        row.appendChild(b);
+      }
+      list.appendChild(row);
+    }
+    refreshMenu();
+  }
+
+  // ---------- Patrouille ----------
+  function renderPatrol() {
+    const h = patrolHours(), c = patrolCoins(), hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
+    $("patrolInfo").innerHTML = `<div class="patrol-amt">💰 ${num(c)}</div>
+      ${bar(h / PATROL_MAX_H)}<small>${hh} h ${mm} min / ${PATROL_MAX_H} h</small>
+      <p class="hint">${tr("{r} Münzen pro Stunde – steigt mit deinem Rekordkapitel. Ab {h} h ist der Speicher voll.", { r: patrolRate(), h: PATROL_MAX_H })}</p>`;
+    $("patrolClaim").disabled = c < 1;
+    $("patrolClaim").textContent = tr("Abholen (+{x})", { x: num(c) });
+    const ads = Platform.ads.available;
+    $("patrolClaimAd").classList.toggle("hidden", !ads);
+    $("patrolClaimAd").disabled = c < 1;
+    const ql = quickLeft();
+    $("patrolQuick").classList.toggle("hidden", !ads);
+    $("patrolQuick").disabled = ql < 1;
+    $("patrolQuick").textContent = tr("▶ Schnellpatrouille: +{x} 💰 ({l}/{n} heute)", { x: QUICK_PATROL_H * patrolRate(), l: ql, n: QUICK_PATROLS });
+  }
+
+  // ---------- Kodex der Evolutionen ----------
+  function renderCodex() {
+    const list = $("codexList");
+    list.innerHTML = "";
+    for (const ev of EVOLUTIONS) {
+      const found = !!save.codex[ev.id];
+      const recipe = Object.entries(ev.needs).map(([id, n]) => { const s = skillById(id); return `${s.icon} ${s.name}${n > 1 ? ` ×${n}` : ""}`; }).join(" + ");
+      const row = document.createElement("div");
+      row.className = `item codex${found ? " found" : ""}`;
+      row.innerHTML = `<div class="ico">${ev.icon}</div><div><div class="name">${ev.name}${found ? " ✓" : ""}</div><div class="desc">${ev.desc}</div><div class="evo-hint">🧬 ${recipe}</div></div><div></div>`;
+      list.appendChild(row);
+    }
+    $("codexNote").textContent = tr("{n} von {m} entdeckt – Rezepte sind nie geheim.", { n: Object.keys(save.codex).length, m: EVOLUTIONS.length });
+  }
+
   // ============================================================
   // Shop, tägliche Belohnung, Einstellungen (Monetarisierung)
   // ============================================================
@@ -2750,12 +3277,13 @@
     { id: "cyber", icon: "🤖", name: tr("Cyber-Agent"), price: 8000 },
     { id: "plague", icon: "🎭", name: tr("Seuchendoktor"), price: 12000 },
     { id: "gold", icon: "👑", name: tr("Goldener Held"), iap: IDS.goldSkin, desc: tr("Premium-Skin · +10% Münzen") },
+    { id: "hunter", icon: "🎖️", name: tr("Seuchenjäger"), pass: true, desc: tr("Exklusiv im Premium-Saisonpass") },
   ];
   const BOOSTS = [
-    { id: "hp", icon: "❤️", name: tr("Zähigkeit+"), desc: tr("+30% max. HP im nächsten Run"), price: 300 },
-    { id: "coins", icon: "🍀", name: tr("Glücksbringer"), desc: tr("+50% Münzen im nächsten Run"), price: 400 },
+    { id: "hp", icon: "❤️", name: tr("Zähigkeit+"), desc: tr("+30% max. HP im nächsten Einsatz"), price: 300 },
+    { id: "coins", icon: "🍀", name: tr("Glücksbringer"), desc: tr("+50% Münzen im nächsten Einsatz"), price: 400 },
     { id: "skill", icon: "🎁", name: tr("Startvorteil"), desc: tr("Starte mit einem zusätzlichen Skill"), price: 500 },
-    { id: "revive", icon: "😇", name: tr("Schutzengel"), desc: tr("Einmal wiederbeleben im nächsten Run"), price: 800 },
+    { id: "revive", icon: "😇", name: tr("Schutzengel"), desc: tr("Einmal wiederbeleben im nächsten Einsatz"), price: 800 },
   ];
   const MYSTERY_PRICE = 1500;
   // Gewinnchancen der Überraschungskiste – eine Quelle für Ziehung UND Anzeige, damit die
@@ -2767,9 +3295,11 @@
     const skin = skins.length ? 0.15 : 0, weapon = weapons.length ? 0.35 - skin : 0;
     return { skins, weapons, odds: [["skin", skin], ["weapon", weapon], ["boosts", 0.6 - skin - weapon], ["coins", 0.4]] };
   }
-  function openMystery() {
-    if (save.coins < MYSTERY_PRICE) return;
-    save.coins -= MYSTERY_PRICE;
+  function openMystery(free = false) {
+    if (!free) {
+      if (save.coins < MYSTERY_PRICE) return;
+      save.coins -= MYSTERY_PRICE;
+    }
     const { skins, weapons, odds } = mysteryOdds();
     let r = Math.random(), kind = "coins";
     for (const [k, p] of odds) { if (r < p) { kind = k; break; } r -= p; }
@@ -2820,6 +3350,11 @@
       changed = !save.skins.gold;
       save.skins.gold = true;
       if (changed && !restore) save.skin = "gold";
+    } else if (id === IDS.seasonPass && !restore) {
+      passFresh();
+      changed = save.pass.premium !== save.pass.season;
+      save.pass.premium = save.pass.season;
+      if (!ui.pass.classList.contains("hidden")) renderPass();
     } else if (COIN_PACKS[id] && !restore) {
       save.coins += COIN_PACKS[id];
       changed = true;
@@ -2899,6 +3434,7 @@
       const owned = !!save.skins[q.id], active = save.skin === q.id;
       let row;
       if (q.iap && !owned) row = iapRow(q.icon, q.name, q.desc, tr("PREMIUM"), q.iap, false);
+      else if (q.pass && !owned) row = shopRow(q.icon, q.name, q.desc, tr("SAISONPASS"), tr("🎟️ Zum Pass"), true, () => { renderPass(); show(ui.pass); });
       else if (owned) row = shopRow(q.icon, q.name, active ? tr("Ausgerüstet") : tr("Im Besitz"), "", active ? tr("✓ Aktiv") : tr("Ausrüsten"), !active, () => { save.skin = q.id; previewSkin = q.id; persist(); sfx("coin"); renderShop(); });
       else row = shopRow(q.icon, q.name, tr("Nur Optik – zeig, wer du bist."), "", tr("Kaufen {p}💰", { p: q.price }), save.coins >= q.price, () => {
         if (save.coins < q.price) return;
@@ -3021,8 +3557,34 @@
     show(ui.menu);
   }
 
-  $("playBtn").addEventListener("click", startRun);
-  $("againBtn").addEventListener("click", () => leaveOver(startRun));
+  $("playBtn").addEventListener("click", () => startRun("campaign"));
+  $("survivalBtn").addEventListener("click", () => startRun("survival"));
+  $("againBtn").addEventListener("click", () => leaveOver(() => startRun(lastMode)));
+  $("missionsBtn").addEventListener("click", () => { ensureAudio(); renderMissions(); show(ui.missions); });
+  for (const b of document.querySelectorAll("#missionTabs button")) b.addEventListener("click", () => { missionTab = b.dataset.tab; renderMissions(); });
+  $("passBtn").addEventListener("click", () => { ensureAudio(); renderPass(); show(ui.pass); });
+  $("codexBtn").addEventListener("click", () => { ensureAudio(); renderCodex(); show(ui.codex); });
+  $("patrolBtn").addEventListener("click", () => { ensureAudio(); renderPatrol(); show(ui.patrol); });
+  $("patrolClaim").addEventListener("click", () => { claimPatrol(1); renderPatrol(); refreshMenu(); });
+  $("patrolClaimAd").addEventListener("click", async () => {
+    const b = $("patrolClaimAd");
+    b.disabled = true;
+    const ok = await Platform.ads.showRewarded("patrol_x2");
+    if (ok) claimPatrol(2); else toast(tr("Kein Video verfügbar"));
+    renderPatrol(); refreshMenu();
+  });
+  $("patrolQuick").addEventListener("click", async () => {
+    if (quickLeft() < 1) return;
+    $("patrolQuick").disabled = true;
+    const ok = await Platform.ads.showRewarded("quick_patrol");
+    if (ok) {
+      if (save.patrol.quickDay !== localDay()) save.patrol = { ...save.patrol, quickDay: localDay(), quick: 0 };
+      save.patrol.quick++;
+      const c = QUICK_PATROL_H * patrolRate();
+      save.coins += c; persist(); sfx("coin"); toast(`🛰️ +${c} 💰`);
+    } else toast(tr("Kein Video verfügbar"));
+    renderPatrol(); refreshMenu();
+  });
   $("menuBtn").addEventListener("click", () => leaveOver(toMenu));
   $("armoryBtn").addEventListener("click", () => { ensureAudio(); renderArmory(); show(ui.armory); });
   $("talentBtn").addEventListener("click", () => { ensureAudio(); renderTalents(); show(ui.talents); });
@@ -3108,5 +3670,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), levelUp: () => addXp(player.xpNeed - player.xp), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, levelUp: () => addXp(player.xpNeed - player.xp), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

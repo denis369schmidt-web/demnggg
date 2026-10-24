@@ -1,7 +1,7 @@
 # Play-Store-Eintrag – Outbreak Hero
 
 Texte zum Kopieren in die Play Console (Hauptseite des Store-Eintrags).
-Grafiken: `de/` und `en/` (7 Screenshots 1080×1920, Feature-Grafik 1024×500),
+Grafiken: `de/` und `en/` (8 Screenshots 1080×1920, Feature-Grafik 1024×500),
 App-Symbol 512×512: `../../zombie/icons/icon-512.png`.
 Promo-Poster für Stories/TikTok/Reels (1080×1920): `promo/poster-de.png`, `promo/poster-en.png`.
 
@@ -13,7 +13,7 @@ Promo-Poster für Stories/TikTok/Reels (1080×1920): `promo/poster-de.png`, `pro
 Outbreak Hero: Zombie Shooter
 
 **Kurzbeschreibung (max. 80):**
-Säubere Zombie-Räume, kombiniere 24 Skills & besiege mutierte Bosse!
+Zombie-Roguelite: 8 Skill-Evolutionen, Bosse & Überlebensmodus – auch offline!
 
 **Vollständige Beschreibung:**
 
@@ -35,7 +35,25 @@ Schlurfer in Dutzenden Outfits, Sprinter, Kriecher, Spucker, Bomber, Zombie-Hund
 Zombies fliegen durch den Raum, prallen von Wänden ab und bleiben liegen, bis du den nächsten Raum betrittst. Kopfschuss, Explosion, Feuer, Eis, Strom oder Sägeblatt – jede Waffe hat ihren eigenen spektakulären Tod.
 
 🥷 SKINS & SHOP
-Spiel als SWAT, Feuerwehrmann, Biohazard-Spezialist, Schatten-Ninja, Cyber-Agent, Seuchendoktor oder Goldener Held – mit 3D-Vorschau im Shop. Dazu Boosts für den nächsten Run und die Mystery-Kiste.
+Spiel als SWAT, Feuerwehrmann, Biohazard-Spezialist, Schatten-Ninja, Cyber-Agent, Seuchendoktor oder Goldener Held – mit 3D-Vorschau im Shop. Dazu Boosts für den nächsten Einsatz und die Überraschungskiste mit offen angezeigten Gewinnchancen.
+
+🧬 8 SKILL-EVOLUTIONEN
+Bring zwei Skills auf die richtige Stufe und sie verschmelzen zu einer Superfähigkeit: Kugelhagel, Inferno, Absoluter Nullpunkt, Klingensturm, Drohnenschwarm und mehr. Keine geheimen Rezepte – jede Karte zeigt dir, wohin sie führt.
+
+⏱️ ÜBERLEBENSMODUS
+5 Minuten, eine Arena, endlose Wellen und zwei Bosse. Jeden Tag eine andere Welt – wie lange hältst du durch?
+
+😇😈 ENGEL ODER TEUFEL?
+Nach jedem Boss erscheint ein Fremder: Nimm den Segen – oder schließ einen Pakt, der dich stärker und verwundbarer macht.
+
+📋 MISSIONEN, ERFOLGE & SAISONPASS
+Tägliche und wöchentliche Missionen, Erfolge in Bronze, Silber und Gold und ein Saisonpass mit 30 Stufen voller Belohnungen.
+
+🛰️ PATROUILLE
+Dein Trupp sammelt Münzen, auch wenn du nicht spielst – bis zu 12 Stunden.
+
+⚡ KEINE ENERGIE, KEINE WARTEZEIT
+Spiel so viele Einsätze, wie du willst.
 
 🌆 3 WELTEN
 Kämpf dich in 3D durch nächtliche Straßen, ein verlassenes Krankenhaus und ein geheimes Labor – mit Echtzeit-Schatten, Taschenlampe, nassen Straßen, die im Licht glänzen, und gewaltigen Explosionen. Jag Giftfässer in die Luft, zerschieß Kisten für Beute und erlebe Bosskämpfe wie im Kino. Läuft auch auf älteren Handys flüssig dank automatischer Grafikanpassung.
@@ -62,7 +80,7 @@ Kannst du die Epidemie überleben?
 Outbreak Hero: Zombie Shooter
 
 **Short description (max 80):**
-Clear zombie rooms, combine 24 skills and defeat mutated bosses. Play offline!
+Zombie roguelite: 8 skill evolutions, bosses & survival mode – play offline!
 
 **Full description:**
 
@@ -84,7 +102,25 @@ Walkers in dozens of outfits, sprinters, crawlers, spitters, bombers, zombie dog
 Zombies fly across the room, bounce off walls and stay down until you enter the next room. Headshot, explosion, fire, ice, electricity or saw blade – every weapon has its own spectacular death.
 
 🥷 SKINS & SHOP
-Play as SWAT, firefighter, biohazard specialist, shadow ninja, cyber agent, plague doctor or golden hero – with a 3D preview in the shop. Plus boosts for your next run and the mystery crate.
+Play as SWAT, firefighter, biohazard specialist, shadow ninja, cyber agent, plague doctor or golden hero – with a 3D preview in the shop. Plus boosts for your next run and the mystery crate with openly displayed odds.
+
+🧬 8 SKILL EVOLUTIONS
+Level two skills to the right tier and they fuse into a super ability: Bullet Hail, Inferno, Absolute Zero, Blade Storm, Drone Swarm and more. No secret recipes – every card shows where it leads.
+
+⏱️ SURVIVAL MODE
+5 minutes, one arena, endless waves and two bosses. A different world every day – how long can you last?
+
+😇😈 ANGEL OR DEVIL?
+After every boss a stranger appears: take the blessing – or make a pact that makes you stronger and more vulnerable.
+
+📋 MISSIONS, ACHIEVEMENTS & SEASON PASS
+Daily and weekly missions, bronze, silver and gold achievements and a 30-tier season pass packed with rewards.
+
+🛰️ PATROL
+Your squad collects coins even while you're away – for up to 12 hours.
+
+⚡ NO ENERGY, NO WAITING
+Play as many runs as you like.
 
 🌆 3 WORLDS
 Fight in 3D through night-time streets, an abandoned hospital and a secret lab – with real-time shadows, a flashlight, rain-soaked streets that glisten in the light and massive explosions. Blow up toxic barrels, shoot crates for loot and experience cinematic boss fights. Runs smoothly even on older phones thanks to automatic graphics scaling.

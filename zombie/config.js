@@ -2,7 +2,7 @@
 // Für den Android-Build erzeugt mobile/scripts/build-web.mjs diese Datei neu –
 // die Werte kommen dann aus Umgebungsvariablen bzw. GitHub-Secrets.
 window.OUTBREAK_CONFIG = {
-  version: "1.4.0",
+  version: "1.5.0",
   // Link zur Play-Store-Seite (für den "Hol dir die App"-Button der Web-Version).
   playStoreUrl: "",
   privacyUrl: "privacy.html",
@@ -20,6 +20,7 @@ window.OUTBREAK_CONFIG = {
     coinsSmall: "coins_1200",
     coinsBig: "coins_7000",
     goldSkin: "skin_gold",
+    seasonPass: "season_pass", // verbrauchbar: einmal pro Saison kaufbar
   },
   // Vollbild-Werbung frühestens ab der n-ten Runde und dann jede n-te Runde.
   interstitialEvery: 3,

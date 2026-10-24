@@ -213,3 +213,66 @@ a.btn { display: inline-block; text-decoration: none; text-align: center; }
   background: repeating-linear-gradient(45deg, #222 0 20px, #2b2b2b 20px 40px);
 }
 .fake-ad-box { display: flex; flex-direction: column; gap: 12px; align-items: center; padding: 24px; border-radius: 16px; background: #111; color: #fff; }
+
+/* ---------- v1.5: Modi, Kachelmenü, Evolutionen, Missionen, Saisonpass, Patrouille ---------- */
+.btn.mode { min-width: 220px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: #2a1f14; border-color: #ff9a3a; color: #ffd9a8; font-size: 17px; padding: 10px 24px; }
+.btn.mode small { font-size: 11px; font-weight: 700; color: #c9a77e; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; max-width: 380px; }
+.tile {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 9px 2px 7px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel);
+  color: var(--text); font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; min-width: 0;
+}
+.tile .ti { font-size: 24px; line-height: 1.1; }
+.tile:active { transform: scale(0.95); }
+.tile .badge { position: absolute; top: -5px; right: -3px; margin: 0; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.18); } }
+
+.bar { height: 6px; border-radius: 3px; background: #26302a; overflow: hidden; margin: 4px 0 2px; }
+.bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #5fd11f, var(--toxic)); }
+.item .desc small, .pass-head small { color: var(--muted); }
+
+/* Skill-Karten: Evolution (gold), Engel (hell), Teufel (rot) */
+.card .evo-hint, .item .evo-hint { margin-top: 4px; font-size: 12px; font-weight: 700; color: #ffd36a; }
+.card.evo { border-color: #ffd36a; background: linear-gradient(135deg, rgba(90,70,10,0.95), rgba(30,24,8,0.95)); box-shadow: 0 0 18px rgba(255,211,106,0.45); animation: pop 0.25s ease-out both, shine 1.6s ease-in-out infinite; }
+.card.evo .name { color: #ffd36a; }
+@keyframes shine { 50% { box-shadow: 0 0 30px rgba(255,211,106,0.8); } }
+.card.angel { border-color: #fff2b0; background: linear-gradient(135deg, rgba(60,60,40,0.95), rgba(20,24,20,0.95)); }
+.card.devil { border-color: #ff3a3a; background: linear-gradient(135deg, rgba(80,10,10,0.95), rgba(25,8,8,0.95)); box-shadow: 0 0 16px rgba(255,40,40,0.35); }
+.card.devil .name { color: #ff8a7a; }
+#skillPick h2 { text-align: center; }
+#skillPick.shrine h2 { color: #fff2b0; font-size: 24px; text-shadow: 0 0 18px rgba(255,240,180,0.6); }
+.chip.evo { background: #3a2c08; border-color: #ffd36a; color: #ffd36a; }
+.chip.evo-todo { border-style: dashed; color: #d8c48a; }
+
+/* Missionen & Statistik */
+.stats.panel { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); font-size: 14px; }
+.item.codex { opacity: 0.8; }
+.item.codex.found { opacity: 1; border-color: rgba(255,211,106,0.6); }
+.item.codex .name { color: var(--text); }
+.item.codex.found .name { color: #ffd36a; }
+
+.tiers i { font-style: normal; opacity: 0.22; filter: grayscale(1); }
+.tiers i.on { opacity: 1; filter: none; }
+
+/* Saisonpass */
+.pass-head { width: 100%; max-width: 420px; padding: 12px 14px; border-radius: 14px; border: 1px solid #6b4fd6; background: linear-gradient(135deg, rgba(42,33,64,0.95), rgba(16,20,18,0.95)); display: flex; flex-direction: column; gap: 2px; }
+.pass-top { display: flex; justify-content: space-between; align-items: baseline; }
+.pass-top b { font-size: 18px; color: #e6dcff; }
+.pass-top span { font-size: 12px; color: var(--muted); }
+.pass-lvl { font-weight: 900; font-size: 15px; color: var(--gold); }
+.pass-list { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 6px; }
+.pass-row { display: grid; grid-template-columns: 44px 1fr 1fr; gap: 6px; align-items: stretch; }
+.pass-row.head { font-size: 12px; font-weight: 800; color: var(--muted); text-align: center; }
+.pass-row .pl { display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #1a2620; font-weight: 900; color: var(--muted); }
+.pass-row.reached .pl { background: var(--toxic); color: #0d1a07; }
+.pass-cell { font: inherit; font-size: 12px; font-weight: 700; padding: 8px 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; min-height: 40px; }
+.pass-cell.prem { border-color: #6b4fd6; background: rgba(42,33,64,0.85); }
+.pass-cell.ready { border-color: var(--toxic); box-shadow: 0 0 0 1px var(--toxic) inset, 0 0 12px rgba(140,255,74,0.35); color: #fff; }
+.pass-cell.done { opacity: 0.45; }
+.pass-cell:disabled:not(.done):not(.ready) { opacity: 0.6; }
+
+/* Patrouille */
+.patrol { width: 100%; max-width: 340px; text-align: center; }
+.patrol-amt { font-size: 40px; font-weight: 900; color: var(--gold); text-shadow: 0 0 18px rgba(255,201,74,0.4); }
+.patrol .bar { height: 10px; border-radius: 5px; }

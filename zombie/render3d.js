@@ -56,7 +56,9 @@ window.Render3D = (() => {
   function canvasTex(w, h, draw, repeat = false) {
     const c = document.createElement("canvas");
     c.width = w; c.height = h;
-    draw(c.getContext("2d"), w, h);
+    // Kleine Texturen im Hauptspeicher zeichnen: die Normal-Map liest sie per getImageData aus –
+    // bei einer GPU-Leinwand müsste der Browser dafür erst alles von der Grafikkarte zurückholen
+    draw(c.getContext("2d", { willReadFrequently: true }), w, h);
     const t = new T3.CanvasTexture(c);
     t.colorSpace = T3.SRGBColorSpace;
     t.anisotropy = 4;
@@ -211,6 +213,8 @@ window.Render3D = (() => {
       return false;
     }
     if (!renderer.getContext()) return false;
+    // Nach einem Kontextverlust ist die auf der GPU erzeugte Boden-Normal-Map leer: Raum neu bauen
+    canvas.addEventListener("webglcontextrestored", () => { builtFloor = null; warmPending = true; });
     // Shader-Fehlerprüfung liest Logs synchron aus (blockiert) – nur beim Entwickeln im Browser
     renderer.debug.checkShaderErrors = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !(window.Platform && Platform.isNative);
     renderer.toneMapping = T3.ACESFilmicToneMapping;
@@ -401,6 +405,52 @@ window.Render3D = (() => {
     g.putImageData(d, 0, 0);
     return c;
   }
+  // Boden-Normal-Map auf der GPU: ein Shader-Durchgang in eine Render-Textur. Die CPU-Variante
+  // musste die große Boden-Leinwand (720×1280) per getImageData von der Grafikkarte zurücklesen –
+  // das blockierte jeden Raumwechsel rund eine Sekunde.
+  let nm = null;
+  function gpuNormalMap(src, strength, maxW, wrap, anisotropy) {
+    if (!nm) {
+      const mat = new T3.ShaderMaterial({
+        uniforms: { src: { value: null }, texel: { value: new T3.Vector2() }, strength: { value: 1 } },
+        vertexShader: "varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+        // Helligkeit wie auf der CPU aus den gespeicherten (sRGB-)Werten; Zeile darunter = kleineres v
+        fragmentShader: `uniform sampler2D src; uniform vec2 texel; uniform float strength; varying vec2 vUv;
+float lum(vec2 o) { return dot(texture2D(src, vUv + o * texel).rgb, vec3(0.3, 0.59, 0.11)); }
+void main() {
+  float dx = (lum(vec2(1.0, 0.0)) - lum(vec2(-1.0, 0.0))) * strength;
+  float dy = (lum(vec2(0.0, -1.0)) - lum(vec2(0.0, 1.0))) * strength;
+  gl_FragColor = vec4(normalize(vec3(-dx, dy, 1.0)) * 0.5 + 0.5, 1.0);
+}`,
+        depthTest: false, depthWrite: false,
+      });
+      const sc = new T3.Scene(), quad = new T3.Mesh(new T3.PlaneGeometry(2, 2), mat);
+      quad.frustumCulled = false;
+      sc.add(quad);
+      nm = { mat, sc, cam: new T3.Camera() };
+    }
+    const k = Math.min(1, maxW / src.width), w = Math.max(2, Math.round(src.width * k)), h = Math.max(2, Math.round(src.height * k));
+    const input = new T3.CanvasTexture(src); // ohne sRGB-Umrechnung, nur für diesen Durchgang
+    input.wrapS = input.wrapT = wrap;
+    const rt = new T3.WebGLRenderTarget(w, h, { generateMipmaps: true, minFilter: T3.LinearMipmapLinearFilter, depthBuffer: false });
+    rt.texture.wrapS = rt.texture.wrapT = wrap;
+    rt.texture.anisotropy = anisotropy;
+    rt.texture.userData.rt = rt;
+    nm.mat.uniforms.src.value = input;
+    nm.mat.uniforms.texel.value.set(1 / w, 1 / h);
+    nm.mat.uniforms.strength.value = strength;
+    const prev = renderer.getRenderTarget();
+    renderer.setRenderTarget(rt);
+    renderer.render(nm.sc, nm.cam);
+    renderer.setRenderTarget(prev);
+    nm.mat.uniforms.src.value = null;
+    input.dispose();
+    return rt.texture;
+  }
+  // Render-Texturen gehören zu einem Render-Target – beide freigeben
+  const disposeTex = (t) => (t.userData.rt ? t.userData.rt.dispose() : t.dispose());
+  // Wände und Hindernisse: kleine Quellbilder im Hauptspeicher (siehe canvasTex), einmal je Art –
+  // hier bleibt die CPU-Variante, weil diese Normal-Maps je Wand mit eigener Wiederholung geklont werden
   function normalTexFor(key, strength) {
     return texCache.get(`n:${key}`) || (() => {
       const src = texCache.get(key);
@@ -621,7 +671,7 @@ window.Render3D = (() => {
     const cachedTex = new Set(texCache.values()), cachedGeo = new Set(geoCache.values());
     const drop = (m) => {
       if (sharedSet.has(m) || m === outlineMat) return;
-      for (const k of ["map", "normalMap", "specularMap", "emissiveMap"]) if (m[k] && !cachedTex.has(m[k])) m[k].dispose();
+      for (const k of ["map", "normalMap", "specularMap", "emissiveMap"]) if (m[k] && !cachedTex.has(m[k])) disposeTex(m[k]);
       m.dispose();
     };
     root.traverse((o) => {
@@ -659,8 +709,7 @@ window.Render3D = (() => {
     floorTex.repeat.set(aw / D.W, ah / D.H);
     floorTex.offset.set(D.L / D.W, 1 - D.B / D.H);
     const crop = (t) => { t.repeat.set(aw / D.W, ah / D.H); t.offset.set(D.L / D.W, 1 - D.B / D.H); return t; };
-    const floorN = crop(new T3.CanvasTexture(normalCanvas(fc, 2.4, 720)));
-    floorN.anisotropy = 8;
+    const floorN = crop(gpuNormalMap(fc, 2.4, 720, T3.ClampToEdgeWrapping, 8));
     const floorMat = new T3.MeshPhongMaterial({ map: floorTex, color: 0xb4b4b4, normalMap: floorN, normalScale: new T3.Vector2(1, 1), specular: 0x4a5058, shininess: 60 });
     if (fc.gloss) { floorMat.specularMap = crop(new T3.CanvasTexture(fc.gloss)); }
     const floor = mesh(new T3.PlaneGeometry(aw, ah), floorMat, (D.L + D.R) / 2, 0, (D.T + D.B) / 2);

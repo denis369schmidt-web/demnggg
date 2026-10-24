@@ -269,12 +269,20 @@ window.Platform = (() => {
 
   function exitApp() { if (isNative && N.App) N.App.exitApp(); }
 
+  // Startbild erst ausblenden, wenn das Spiel sein erstes Bild gezeichnet hat (nicht schon nach dem Skript):
+  // sonst sieht man kurz Knöpfe über schwarzem Grund. Fallback: Capacitor blendet nach launchShowDuration aus.
+  let splashHidden = false;
+  function hideSplash() {
+    if (splashHidden || !isNative || !N.SplashScreen) return;
+    splashHidden = true;
+    N.SplashScreen.hide({ fadeOutDuration: 250 }).catch(() => {});
+  }
+
   function init() {
     if (isNative) {
       N.App.addListener("backButton", () => emit("back"));
       N.App.addListener("pause", () => emit("pause"));
       if (N.StatusBar) N.StatusBar.hide().catch(() => {});
-      if (N.SplashScreen) N.SplashScreen.hide().catch(() => {});
       initNativeAds();
       // Cordova-Plugins sind erst nach "deviceready" verfügbar.
       if (!initIAP()) {
@@ -287,5 +295,5 @@ window.Platform = (() => {
     console.log(`[Outbreak] Plattform: ${isNative ? "android" : "web"}${fakeAds ? " (Test-Werbung)" : ""}`);
   }
 
-  return { isNative, fakeAds, cfg, ads, iap, on, init, vibrate, requestReview, openUrl, exitApp };
+  return { isNative, fakeAds, cfg, ads, iap, on, init, hideSplash, vibrate, requestReview, openUrl, exitApp };
 })();

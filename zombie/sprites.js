@@ -20,11 +20,13 @@ window.Sprites = (() => {
     return RES;
   }
 
-  function canvas(w, h, res = RES) {
+  // readable: im Hauptspeicher zeichnen – für Bilder, die per toDataURL/getImageData ausgelesen werden
+  // (bei GPU-Leinwänden müsste der Browser dafür erst alles von der Grafikkarte zurückholen)
+  function canvas(w, h, res = RES, readable = false) {
     const c = document.createElement("canvas");
     c.width = Math.max(1, Math.ceil(w * res));
     c.height = Math.max(1, Math.ceil(h * res));
-    const g = c.getContext("2d");
+    const g = c.getContext("2d", readable ? { willReadFrequently: true } : undefined);
     g.scale(res, res);
     return { c, g };
   }
@@ -692,7 +694,7 @@ window.Sprites = (() => {
     if (iconCache.has(key)) return iconCache.get(key);
     const m = WPN[id] || WPN.pistol;
     const scale = 2.2;
-    const { c, g } = canvas(64, 34, scale * 2);
+    const { c, g } = canvas(64, 34, scale * 2, true);
     const sx = 60 / (m.len + 10);
     g.translate(2, 0); g.scale(sx, sx); g.translate(0, (34 / sx - 34) / 2);
     outlined((gg) => drawWeapon(gg, id, tier, 17, 0), 0.9, undefined, scale * 2 * sx)(g, m.len + 12, 34);

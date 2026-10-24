@@ -3022,7 +3022,7 @@
       resize();
     }
   }
-  let pauseFrames = 0;
+  let pauseFrames = 0, splashGone = false;
   function loop(now) {
     requestAnimationFrame(loop);
     const I = frameMs();
@@ -3046,6 +3046,7 @@
     if (curOverlay && curOverlay.classList.contains("screen")) return;
     if (state === "pause") { if (pauseFrames++ > 1) return; } else pauseFrames = 0;
     draw();
+    if (!splashGone) { splashGone = true; requestAnimationFrame(() => Platform.hideSplash()); } // nach dem ersten echten Bild
   }
   requestAnimationFrame(loop);
 

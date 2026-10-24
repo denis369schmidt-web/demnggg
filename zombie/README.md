@@ -27,6 +27,7 @@ Läuft im Browser, als installierbare PWA und als Android-App ([`../mobile`](../
 - **Monetarisierung** (Android): Rewarded Videos (Wiederbeleben, Münzen ×2, Skill neu würfeln, Gratis-Münzen, Tagesbonus ×2),
   Interstitial jede 3. Runde, In-App-Käufe (Starterpaket, Werbefrei, Münzpakete, Gold-Skin, Saisonpass)
 - **Deutsch & Englisch** (automatisch nach Gerätesprache, umschaltbar in den Einstellungen)
+- **Eigenes Design-System** „Quarantäne-Einsatzkommando“: abgeschrägte Ecken, Warnstreifen, Sechseck-Medaillen, segmentierte Fortschrittsbalken, einheitliche Icons statt Emojis, eigene Schriften – Menüs, Fenster und Canvas-HUD sprechen dieselbe Formensprache
 - Tutorial, Touch-Joystick, Tastatur (WASD/Pfeile, P = Pause), Haptik, synthetischer Sound, offline-fähig
 
 ## Dateien
@@ -38,6 +39,8 @@ Läuft im Browser, als installierbare PWA und als Android-App ([`../mobile`](../
 | `sprites.js` | Sprite-Engine: zeichnet Zombies, Spieler, Waffen, Hindernisse, Böden und Effekte prozedural und cacht sie in Geräteauflösung |
 | `render3d.js` | 3D-Renderer: baut Modelle aus Grundformen, synchronisiert sie jedes Frame mit dem Spielzustand, Licht/Schatten/Partikel |
 | `vendor/three.min.js` | Three.js (MIT), nur die benötigten Teile – neu bauen mit `npm run build:three` in `../mobile` |
+| `vendor/fonts/` | Schriften Teko, Barlow Condensed, Barlow, Saira Stencil One (SIL OFL, Lizenztexte liegen bei) |
+| `vendor/icons.js` | Icon-Sprite aus [game-icons.net](https://game-icons.net) (CC BY 3.0) für HTML (`GameIcons.html`) und Canvas (`GameIcons.path2d`) – Schriften und Icons neu bauen mit `npm run build:ui` in `../mobile` |
 | `platform.js` | Werbung, Käufe, native Funktionen – Web und Android hinter einer Schnittstelle |
 | `game.js` | Spiel-Logik, 2D-Rendering & HUD, Meta-Progression |
 | `privacy.html` | Datenschutzerklärung (vor Release ausfüllen!) |
@@ -54,3 +57,8 @@ python3 -m http.server 8080
 ## Veröffentlichen
 - **Web**: Workflow `.github/workflows/pages.yml` deployt bei jedem Push auf `main` nach GitHub Pages.
 - **Android / Play Store**: siehe [`../mobile/README.md`](../mobile/README.md) und die Checkliste [`../mobile/LAUNCH.md`](../mobile/LAUNCH.md).
+
+## Lizenzen & Danksagung
+- Icons: [game-icons.net](https://game-icons.net) von Lorc, Delapouite und Mitwirkenden – [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Die Namensnennung steht im Spiel unter Einstellungen.
+- Schriften: Teko, Barlow, Barlow Condensed, Saira Stencil One – [SIL Open Font License 1.1](https://openfontlicense.org) (Lizenztexte in `vendor/fonts/`).
+- Three.js – MIT-Lizenz.

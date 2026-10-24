@@ -1,8 +1,11 @@
 // Offline-Cache: App-Dateien sofort aus dem Cache, Update im Hintergrund.
-const CACHE = "outbreak-hero-v8";
+const CACHE = "outbreak-hero-v9";
 const FILES = [
   "./", "./index.html", "./style.css", "./config.js", "./i18n.js", "./sprites.js", "./vendor/three.min.js", "./render3d.js", "./platform.js", "./game.js",
   "./manifest.webmanifest", "./icon.svg", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png",
+  "./vendor/icons.js", "./vendor/fonts/fonts.css",
+  ...["teko-latin-500", "teko-latin-600", "teko-latin-700", "barlow-condensed-latin-600", "barlow-condensed-latin-700", "barlow-condensed-latin-800",
+    "barlow-latin-500", "barlow-latin-600", "barlow-latin-700", "saira-stencil-one-latin-400"].map((f) => `./vendor/fonts/${f}-normal.woff2`),
 ];
 
 self.addEventListener("install", (e) => {

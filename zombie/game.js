@@ -115,21 +115,21 @@
   // ============================================================
   // flash/casing/kick/shake/tracer steuern nur die Optik (Mündungsfeuer, Hülsen, Rückstoß, Leuchtspur)
   const WEAPONS = {
-    pistol: { name: "Pistole", icon: "🔫", desc: "Ausgewogen und präzise.", price: 0, dmg: 22, rate: 2.5, speed: 760, pellets: 1, spread: 0, jitter: 0.02, range: 900, pierce: 0, r: 4, color: "#ffe08a", flash: "std", casing: 1, kick: 2.5, shake: 0, tracer: "255,224,138" },
-    shotgun: { name: "Schrotflinte", icon: "💥", desc: "5 Schrotkugeln, brutal auf kurze Distanz.", price: 250, dmg: 11, rate: 1.25, speed: 700, pellets: 5, spread: 0.5, jitter: 0.05, range: 380, pierce: 0, r: 3, color: "#ffb36b", flash: "big", casing: 2, kick: 6, shake: 3, tracer: "255,179,107", knock: 12 },
-    smg: { name: "Maschinenpistole", icon: "⚡", desc: "Extrem hohe Feuerrate.", price: 350, dmg: 9, rate: 6.5, speed: 820, pellets: 1, spread: 0, jitter: 0.1, range: 800, pierce: 0, r: 3, color: "#9ee6ff", flash: "std", casing: 1, kick: 1.5, shake: 0, tracer: "158,230,255" },
-    magnum: { name: "Magnum", icon: "🤠", desc: "Schwerer Revolver: durchschlägt, schleudert Zombies weg, Krits lassen sie zerplatzen.", price: 700, dmg: 68, rate: 1.15, speed: 1150, pellets: 1, spread: 0, jitter: 0.01, range: 1000, pierce: 1, r: 4, color: "#ffd08a", crit: 0.1, flash: "big", casing: 0, kick: 7, shake: 3, tracer: "255,200,120", knock: 18, big: true },
-    crossbow: { name: "Armbrust", icon: "🏹", desc: "Bolzen durchschlagen 2 Zombies.", price: 500, dmg: 36, rate: 1.4, speed: 940, pellets: 1, spread: 0, jitter: 0, range: 1000, pierce: 2, r: 5, color: "#c9ff9e", kind: "bolt", flash: "", casing: 0, kick: 2, shake: 0, tracer: "201,255,158" },
-    flame: { name: "Flammenwerfer", icon: "🔥", desc: "Kurze Reichweite, setzt alles in Brand.", price: 800, dmg: 4.5, rate: 14, speed: 430, pellets: 1, spread: 0, jitter: 0.28, range: 240, pierce: 99, r: 9, color: "#ff7b2e", kind: "flame", burn: true, flash: "flame", casing: 0, kick: 0.5, shake: 0, tracer: "255,123,46" },
-    rifle: { name: "Sturmgewehr", icon: "🪖", desc: "Präzises Dauerfeuer mit ordentlich Wumms.", price: 950, dmg: 14, rate: 7, speed: 980, pellets: 1, spread: 0, jitter: 0.06, range: 900, pierce: 0, r: 3, color: "#ffe6a0", flash: "std", casing: 1, kick: 2, shake: 0.4, tracer: "255,230,160", knock: 3 },
-    sniper: { name: "Scharfschützengewehr", icon: "🎯", desc: "Riesiger Schaden, durchschlägt 4 Ziele, +20% Krit.", price: 1100, dmg: 85, rate: 0.75, speed: 1500, pellets: 1, spread: 0, jitter: 0, range: 1400, pierce: 4, r: 3, color: "#ffffff", crit: 0.2, flash: "big", casing: 1, kick: 7, shake: 4, tracer: "230,245,255", long: true, knock: 14 },
-    disc: { name: "Sägeblattwerfer", icon: "🪚", desc: "Sägeblätter zerteilen alles und prallen 3× von Wänden ab.", price: 1250, dmg: 24, rate: 1.6, speed: 560, pellets: 1, spread: 0, jitter: 0.02, range: 1300, pierce: 99, r: 9, color: "#d8dee4", kind: "disc", bounces: 3, flash: "", casing: 0, kick: 3, shake: 0.5, tracer: "220,230,240", knock: 6 },
-    grenade: { name: "Granatwerfer", icon: "💣", desc: "Explodiert und trifft ganze Horden.", price: 1400, dmg: 42, rate: 1.0, speed: 520, pellets: 1, spread: 0, jitter: 0, range: 520, pierce: 0, r: 7, color: "#b7ff4a", kind: "grenade", aoe: 75, flash: "big", casing: 0, kick: 5, shake: 2, tracer: "183,255,74" },
-    cryo: { name: "Kryo-Kanone", icon: "❄️", desc: "Eisgeschosse frieren Zombies ein – gefroren zerspringen sie.", price: 1600, dmg: 13, rate: 3.2, speed: 680, pellets: 1, spread: 0, jitter: 0.04, range: 700, pierce: 1, r: 6, color: "#9fe8ff", cryo: true, flash: "tesla", casing: 0, kick: 2, shake: 0, tracer: "160,230,255", knock: 2 },
-    tesla: { name: "Tesla-Gewehr", icon: "🌩️", desc: "Kettenblitz springt auf 3 weitere Zombies.", price: 2000, dmg: 22, rate: 1.7, speed: 0, pellets: 1, spread: 0, jitter: 0, range: 430, pierce: 0, r: 0, color: "#7fe7ff", kind: "tesla", chain: 3, flash: "tesla", casing: 0, kick: 1.5, shake: 1, tracer: "127,231,255" },
-    rocket: { name: "Raketenwerfer", icon: "🚀", desc: "Zielsuchende Raketen mit riesiger Explosion.", price: 2300, dmg: 60, rate: 0.7, speed: 380, pellets: 1, spread: 0, jitter: 0, range: 900, pierce: 0, r: 7, color: "#ffb36b", kind: "rocket", aoe: 95, flash: "big", casing: 0, kick: 8, shake: 3, tracer: "255,170,90" },
-    minigun: { name: "Minigun", icon: "🌀", desc: "Läuft im Stand warm – dann ein Bleigewitter.", price: 2600, dmg: 8, rate: 13, speed: 900, pellets: 1, spread: 0, jitter: 0.11, range: 820, pierce: 0, r: 3, color: "#ffd36a", spin: true, flash: "big", casing: 1, kick: 1.2, shake: 0.6, tracer: "255,211,106" },
-    laser: { name: "Laserkanone", icon: "🔴", desc: "Gebündelte Energie durchbohrt jede Reihe und verbrennt Zombies.", price: 3200, dmg: 17, rate: 4.2, speed: 2600, pellets: 1, spread: 0, jitter: 0.015, range: 1300, pierce: 99, r: 2.5, color: "#ff4a4a", kind: "laser", long: true, flash: "laser", casing: 0, kick: 1, shake: 0, tracer: "255,70,70" },
+    pistol: { name: "Pistole", desc: "Ausgewogen und präzise.", price: 0, dmg: 22, rate: 2.5, speed: 760, pellets: 1, spread: 0, jitter: 0.02, range: 900, pierce: 0, r: 4, color: "#ffe08a", flash: "std", casing: 1, kick: 2.5, shake: 0, tracer: "255,224,138" },
+    shotgun: { name: "Schrotflinte", desc: "5 Schrotkugeln, brutal auf kurze Distanz.", price: 250, dmg: 11, rate: 1.25, speed: 700, pellets: 5, spread: 0.5, jitter: 0.05, range: 380, pierce: 0, r: 3, color: "#ffb36b", flash: "big", casing: 2, kick: 6, shake: 3, tracer: "255,179,107", knock: 12 },
+    smg: { name: "Maschinenpistole", desc: "Extrem hohe Feuerrate.", price: 350, dmg: 9, rate: 6.5, speed: 820, pellets: 1, spread: 0, jitter: 0.1, range: 800, pierce: 0, r: 3, color: "#9ee6ff", flash: "std", casing: 1, kick: 1.5, shake: 0, tracer: "158,230,255" },
+    magnum: { name: "Magnum", desc: "Schwerer Revolver: durchschlägt, schleudert Zombies weg, Krits lassen sie zerplatzen.", price: 700, dmg: 68, rate: 1.15, speed: 1150, pellets: 1, spread: 0, jitter: 0.01, range: 1000, pierce: 1, r: 4, color: "#ffd08a", crit: 0.1, flash: "big", casing: 0, kick: 7, shake: 3, tracer: "255,200,120", knock: 18, big: true },
+    crossbow: { name: "Armbrust", desc: "Bolzen durchschlagen 2 Zombies.", price: 500, dmg: 36, rate: 1.4, speed: 940, pellets: 1, spread: 0, jitter: 0, range: 1000, pierce: 2, r: 5, color: "#c9ff9e", kind: "bolt", flash: "", casing: 0, kick: 2, shake: 0, tracer: "201,255,158" },
+    flame: { name: "Flammenwerfer", desc: "Kurze Reichweite, setzt alles in Brand.", price: 800, dmg: 4.5, rate: 14, speed: 430, pellets: 1, spread: 0, jitter: 0.28, range: 240, pierce: 99, r: 9, color: "#ff7b2e", kind: "flame", burn: true, flash: "flame", casing: 0, kick: 0.5, shake: 0, tracer: "255,123,46" },
+    rifle: { name: "Sturmgewehr", desc: "Präzises Dauerfeuer mit ordentlich Wumms.", price: 950, dmg: 14, rate: 7, speed: 980, pellets: 1, spread: 0, jitter: 0.06, range: 900, pierce: 0, r: 3, color: "#ffe6a0", flash: "std", casing: 1, kick: 2, shake: 0.4, tracer: "255,230,160", knock: 3 },
+    sniper: { name: "Scharfschützengewehr", desc: "Riesiger Schaden, durchschlägt 4 Ziele, +20% Krit.", price: 1100, dmg: 85, rate: 0.75, speed: 1500, pellets: 1, spread: 0, jitter: 0, range: 1400, pierce: 4, r: 3, color: "#ffffff", crit: 0.2, flash: "big", casing: 1, kick: 7, shake: 4, tracer: "230,245,255", long: true, knock: 14 },
+    disc: { name: "Sägeblattwerfer", desc: "Sägeblätter zerteilen alles und prallen 3× von Wänden ab.", price: 1250, dmg: 24, rate: 1.6, speed: 560, pellets: 1, spread: 0, jitter: 0.02, range: 1300, pierce: 99, r: 9, color: "#d8dee4", kind: "disc", bounces: 3, flash: "", casing: 0, kick: 3, shake: 0.5, tracer: "220,230,240", knock: 6 },
+    grenade: { name: "Granatwerfer", desc: "Explodiert und trifft ganze Horden.", price: 1400, dmg: 42, rate: 1.0, speed: 520, pellets: 1, spread: 0, jitter: 0, range: 520, pierce: 0, r: 7, color: "#b7ff4a", kind: "grenade", aoe: 75, flash: "big", casing: 0, kick: 5, shake: 2, tracer: "183,255,74" },
+    cryo: { name: "Kryo-Kanone", desc: "Eisgeschosse frieren Zombies ein – gefroren zerspringen sie.", price: 1600, dmg: 13, rate: 3.2, speed: 680, pellets: 1, spread: 0, jitter: 0.04, range: 700, pierce: 1, r: 6, color: "#9fe8ff", cryo: true, flash: "tesla", casing: 0, kick: 2, shake: 0, tracer: "160,230,255", knock: 2 },
+    tesla: { name: "Tesla-Gewehr", desc: "Kettenblitz springt auf 3 weitere Zombies.", price: 2000, dmg: 22, rate: 1.7, speed: 0, pellets: 1, spread: 0, jitter: 0, range: 430, pierce: 0, r: 0, color: "#7fe7ff", kind: "tesla", chain: 3, flash: "tesla", casing: 0, kick: 1.5, shake: 1, tracer: "127,231,255" },
+    rocket: { name: "Raketenwerfer", desc: "Zielsuchende Raketen mit riesiger Explosion.", price: 2300, dmg: 60, rate: 0.7, speed: 380, pellets: 1, spread: 0, jitter: 0, range: 900, pierce: 0, r: 7, color: "#ffb36b", kind: "rocket", aoe: 95, flash: "big", casing: 0, kick: 8, shake: 3, tracer: "255,170,90" },
+    minigun: { name: "Minigun", desc: "Läuft im Stand warm – dann ein Bleigewitter.", price: 2600, dmg: 8, rate: 13, speed: 900, pellets: 1, spread: 0, jitter: 0.11, range: 820, pierce: 0, r: 3, color: "#ffd36a", spin: true, flash: "big", casing: 1, kick: 1.2, shake: 0.6, tracer: "255,211,106" },
+    laser: { name: "Laserkanone", desc: "Gebündelte Energie durchbohrt jede Reihe und verbrennt Zombies.", price: 3200, dmg: 17, rate: 4.2, speed: 2600, pellets: 1, spread: 0, jitter: 0.015, range: 1300, pierce: 99, r: 2.5, color: "#ff4a4a", kind: "laser", long: true, flash: "laser", casing: 0, kick: 1, shake: 0, tracer: "255,70,70" },
   };
   const WEAPON_MAX_LVL = 10;
   const weaponUpgradeCost = (lvl) => 80 * lvl;
@@ -141,10 +141,10 @@
   // Talente (permanent)
   // ============================================================
   const TALENTS = {
-    hp: { name: "Konstitution", icon: "❤️", desc: "+8% max. HP pro Stufe", max: 15 },
-    atk: { name: "Schusstraining", icon: "🎯", desc: "+6% Schaden pro Stufe", max: 15 },
-    speed: { name: "Ausdauer", icon: "👟", desc: "+3% Laufgeschwindigkeit pro Stufe", max: 10 },
-    greed: { name: "Plünderer", icon: "💰", desc: "+10% Münzen pro Stufe", max: 10 },
+    hp: { name: "Konstitution", icon: "heartArmor", desc: "+8% max. HP pro Stufe", max: 15 },
+    atk: { name: "Schusstraining", icon: "crit", desc: "+6% Schaden pro Stufe", max: 15 },
+    speed: { name: "Ausdauer", icon: "run", desc: "+3% Laufgeschwindigkeit pro Stufe", max: 10 },
+    greed: { name: "Plünderer", icon: "cash", desc: "+10% Münzen pro Stufe", max: 10 },
   };
   const talentCost = (lvl) => 60 + 60 * lvl;
 
@@ -152,30 +152,30 @@
   // Skills (pro Run, Auswahl bei Level-Up)
   // ============================================================
   const SKILLS = [
-    { id: "multishot", name: "Mehrfachschuss", icon: "🔁", rarity: "epic", max: 3, desc: "+1 zusätzliche Salve (Schaden −10%)", apply: (p) => { p.multishot++; p.dmgMul *= 0.9; } },
-    { id: "front", name: "Doppellauf", icon: "⏸️", rarity: "epic", max: 3, desc: "+1 paralleles Projektil nach vorn", apply: (p) => { p.front++; p.dmgMul *= 0.95; } },
-    { id: "diag", name: "Diagonalschüsse", icon: "↗️", rarity: "rare", max: 2, desc: "Schießt zusätzlich schräg nach vorn", apply: (p) => p.diag++ },
-    { id: "side", name: "Seitenschüsse", icon: "↔️", rarity: "rare", max: 2, desc: "Schießt zusätzlich nach links und rechts", apply: (p) => p.side++ },
-    { id: "rear", name: "Rückendeckung", icon: "↩️", rarity: "rare", max: 2, desc: "Schießt zusätzlich nach hinten", apply: (p) => p.rear++ },
-    { id: "pierce", name: "Durchschlag", icon: "🪡", rarity: "rare", max: 3, desc: "Projektile durchdringen +1 Zombie", apply: (p) => p.pierce++ },
-    { id: "ricochet", name: "Querschläger", icon: "🔀", rarity: "epic", max: 2, desc: "Projektile springen zu +2 weiteren Zombies", apply: (p) => { p.ricochet += 2; } },
-    { id: "wall", name: "Abpraller", icon: "🧱", rarity: "rare", max: 2, desc: "Projektile prallen 2× von Wänden ab", apply: (p) => { p.wall += 2; } },
-    { id: "atk", name: "Großes Kaliber", icon: "💪", rarity: "common", max: 6, desc: "+25% Schaden", apply: (p) => { p.dmgMul *= 1.25; p.power *= 1.25; } },
-    { id: "rate", name: "Schnellfeuer", icon: "⏩", rarity: "common", max: 6, desc: "+22% Feuerrate", apply: (p) => { p.rateMul *= 1.22; } },
-    { id: "crit", name: "Kopfschuss-Training", icon: "🎯", rarity: "common", max: 4, desc: "+10% Krit-Chance, +30% Krit-Schaden", apply: (p) => { p.crit += 0.1; p.critMul += 0.3; } },
-    { id: "hp", name: "Zähigkeit", icon: "🛡️", rarity: "common", max: 6, desc: "+25% max. HP (und heilt um den Bonus)", apply: (p) => { const add = Math.round(p.maxHp * 0.25); p.maxHp += add; p.hp += add; } },
-    { id: "heal", name: "Medkit", icon: "🩹", rarity: "common", max: 99, desc: "Heilt 40% der max. HP", cond: (p) => p.hp < p.maxHp * 0.85, apply: (p) => healPlayer(p.maxHp * 0.4) },
-    { id: "fire", name: "Brandmunition", icon: "🔥", rarity: "rare", max: 2, desc: "Treffer setzen Zombies in Brand", apply: (p) => p.burn++ },
-    { id: "freeze", name: "Kryo-Munition", icon: "❄️", rarity: "rare", max: 2, desc: "Treffer verlangsamen Zombies stark", apply: (p) => p.freeze++ },
-    { id: "poison", name: "Toxin-Munition", icon: "☣️", rarity: "rare", max: 2, desc: "Treffer vergiften dauerhaft (stapelbar)", apply: (p) => p.poison++ },
-    { id: "blood", name: "Adrenalin", icon: "🩸", rarity: "rare", max: 3, desc: "Jeder Kill heilt 2% max. HP", apply: (p) => { p.lifesteal += 0.02; } },
-    { id: "orbit", name: "Kreissägen", icon: "🪚", rarity: "epic", max: 3, desc: "+2 rotierende Sägeblätter um dich", apply: (p) => { p.orbit += 2; } },
-    { id: "drone", name: "Kampfdrohne", icon: "🛸", rarity: "epic", max: 2, desc: "Eine Drohne schießt auch beim Laufen", apply: (p) => p.drones++ },
-    { id: "dodge", name: "Reflexe", icon: "💨", rarity: "common", max: 3, desc: "+12% Ausweichchance", apply: (p) => { p.dodge += 0.12; } },
-    { id: "speed", name: "Sprinter", icon: "👟", rarity: "common", max: 3, desc: "+12% Laufgeschwindigkeit", apply: (p) => { p.speed *= 1.12; } },
-    { id: "exec", name: "Exekution", icon: "💀", rarity: "epic", max: 2, desc: "8% Chance, normale Zombies sofort zu töten", apply: (p) => { p.headshot += 0.08; } },
-    { id: "revive", name: "Zweites Leben", icon: "✨", rarity: "epic", max: 1, desc: "Einmalige Wiederbelebung mit 60% HP", apply: (p) => p.revives++ },
-    { id: "splash", name: "Infektionsbombe", icon: "🧨", rarity: "rare", max: 2, desc: "Getötete Zombies explodieren", apply: (p) => p.deathBlast++ },
+    { id: "multishot", name: "Mehrfachschuss", icon: "multishot", rarity: "epic", max: 3, desc: "+1 zusätzliche Salve (Schaden −10%)", apply: (p) => { p.multishot++; p.dmgMul *= 0.9; } },
+    { id: "front", name: "Doppellauf", icon: "front", rarity: "epic", max: 3, desc: "+1 paralleles Projektil nach vorn", apply: (p) => { p.front++; p.dmgMul *= 0.95; } },
+    { id: "diag", name: "Diagonalschüsse", icon: "diag", rarity: "rare", max: 2, desc: "Schießt zusätzlich schräg nach vorn", apply: (p) => p.diag++ },
+    { id: "side", name: "Seitenschüsse", icon: "side", rarity: "rare", max: 2, desc: "Schießt zusätzlich nach links und rechts", apply: (p) => p.side++ },
+    { id: "rear", name: "Rückendeckung", icon: "rear", rarity: "rare", max: 2, desc: "Schießt zusätzlich nach hinten", apply: (p) => p.rear++ },
+    { id: "pierce", name: "Durchschlag", icon: "pierce", rarity: "rare", max: 3, desc: "Projektile durchdringen +1 Zombie", apply: (p) => p.pierce++ },
+    { id: "ricochet", name: "Querschläger", icon: "ricochet", rarity: "epic", max: 2, desc: "Projektile springen zu +2 weiteren Zombies", apply: (p) => { p.ricochet += 2; } },
+    { id: "wall", name: "Abpraller", icon: "wall", rarity: "rare", max: 2, desc: "Projektile prallen 2× von Wänden ab", apply: (p) => { p.wall += 2; } },
+    { id: "atk", name: "Großes Kaliber", icon: "atk", rarity: "common", max: 6, desc: "+25% Schaden", apply: (p) => { p.dmgMul *= 1.25; p.power *= 1.25; } },
+    { id: "rate", name: "Schnellfeuer", icon: "rate", rarity: "common", max: 6, desc: "+22% Feuerrate", apply: (p) => { p.rateMul *= 1.22; } },
+    { id: "crit", name: "Kopfschuss-Training", icon: "crit", rarity: "common", max: 4, desc: "+10% Krit-Chance, +30% Krit-Schaden", apply: (p) => { p.crit += 0.1; p.critMul += 0.3; } },
+    { id: "hp", name: "Zähigkeit", icon: "hp", rarity: "common", max: 6, desc: "+25% max. HP (und heilt um den Bonus)", apply: (p) => { const add = Math.round(p.maxHp * 0.25); p.maxHp += add; p.hp += add; } },
+    { id: "heal", name: "Medkit", icon: "heal", rarity: "common", max: 99, desc: "Heilt 40% der max. HP", cond: (p) => p.hp < p.maxHp * 0.85, apply: (p) => healPlayer(p.maxHp * 0.4) },
+    { id: "fire", name: "Brandmunition", icon: "fire", rarity: "rare", max: 2, desc: "Treffer setzen Zombies in Brand", apply: (p) => p.burn++ },
+    { id: "freeze", name: "Kryo-Munition", icon: "freeze", rarity: "rare", max: 2, desc: "Treffer verlangsamen Zombies stark", apply: (p) => p.freeze++ },
+    { id: "poison", name: "Toxin-Munition", icon: "poison", rarity: "rare", max: 2, desc: "Treffer vergiften dauerhaft (stapelbar)", apply: (p) => p.poison++ },
+    { id: "blood", name: "Adrenalin", icon: "blood", rarity: "rare", max: 3, desc: "Jeder Kill heilt 2% max. HP", apply: (p) => { p.lifesteal += 0.02; } },
+    { id: "orbit", name: "Kreissägen", icon: "orbit", rarity: "epic", max: 3, desc: "+2 rotierende Sägeblätter um dich", apply: (p) => { p.orbit += 2; } },
+    { id: "drone", name: "Kampfdrohne", icon: "drone", rarity: "epic", max: 2, desc: "Eine Drohne schießt auch beim Laufen", apply: (p) => p.drones++ },
+    { id: "dodge", name: "Reflexe", icon: "dodge", rarity: "common", max: 3, desc: "+12% Ausweichchance", apply: (p) => { p.dodge += 0.12; } },
+    { id: "speed", name: "Sprinter", icon: "speed", rarity: "common", max: 3, desc: "+12% Laufgeschwindigkeit", apply: (p) => { p.speed *= 1.12; } },
+    { id: "exec", name: "Exekution", icon: "exec", rarity: "epic", max: 2, desc: "8% Chance, normale Zombies sofort zu töten", apply: (p) => { p.headshot += 0.08; } },
+    { id: "revive", name: "Zweites Leben", icon: "revive", rarity: "epic", max: 1, desc: "Einmalige Wiederbelebung mit 60% HP", apply: (p) => p.revives++ },
+    { id: "splash", name: "Infektionsbombe", icon: "splash", rarity: "rare", max: 2, desc: "Getötete Zombies explodieren", apply: (p) => p.deathBlast++ },
   ];
   const RARITY_WEIGHT = { common: 1, rare: 0.7, epic: 0.45 };
 
@@ -185,14 +185,14 @@
   // wohin sie führt und wie weit du bist; die fertige Evolution erscheint garantiert.
   // ============================================================
   const EVOLUTIONS = [
-    { id: "hail", icon: "🌠", name: "Kugelhagel", needs: { multishot: 2, rate: 2 }, desc: "Jede 3. Salve feuert zusätzlich einen Ring aus 12 Kugeln", apply: (p) => { p.evo.hail = true; } },
-    { id: "inferno", icon: "🌋", name: "Inferno", needs: { fire: 2, splash: 1 }, desc: "Doppelter Brandschaden – brennende Zombies stecken beim Tod alle in der Nähe an", apply: (p) => { p.evo.inferno = true; } },
-    { id: "frost", icon: "🧊", name: "Absoluter Nullpunkt", needs: { freeze: 2, crit: 2 }, desc: "Treffer auf verlangsamte Zombies sind immer kritisch, unter 30% Leben zerspringen sie", apply: (p) => { p.evo.frost = true; } },
-    { id: "blades", icon: "🌀", name: "Klingensturm", needs: { orbit: 2, speed: 1 }, desc: "+2 Sägeblätter mit größerem Radius, schneller und 60% tödlicher", apply: (p) => { p.evo.blades = true; p.orbit += 2; p.orbitR = 86; } },
-    { id: "swarm", icon: "🛰️", name: "Drohnenschwarm", needs: { drone: 2, pierce: 2 }, desc: "+2 Drohnen mit doppelter Feuerrate, ihre Schüsse durchschlagen 2 Zombies", apply: (p) => { p.evo.swarm = true; p.drones += 2; } },
-    { id: "vamp", icon: "🧛", name: "Blutrausch", needs: { blood: 2, hp: 2 }, desc: "Kills heilen zusätzlich 3% – unter 35% Leben richtest du 50% mehr Schaden an", apply: (p) => { p.evo.vamp = true; p.lifesteal += 0.03; } },
-    { id: "chain", icon: "⛓️", name: "Kettenreaktion", needs: { ricochet: 1, wall: 1 }, desc: "Jeder Querschläger und jeder Abpraller löst eine Mini-Explosion aus", apply: (p) => { p.evo.chain = true; } },
-    { id: "plague", icon: "🦠", name: "Seuche", needs: { poison: 2, exec: 1 }, desc: "Vergiftete Zombies unter 25% Leben sterben sofort – beim Tod springt das Gift über", apply: (p) => { p.evo.plague = true; } },
+    { id: "hail", icon: "hail", name: "Kugelhagel", needs: { multishot: 2, rate: 2 }, desc: "Jede 3. Salve feuert zusätzlich einen Ring aus 12 Kugeln", apply: (p) => { p.evo.hail = true; } },
+    { id: "inferno", icon: "inferno", name: "Inferno", needs: { fire: 2, splash: 1 }, desc: "Doppelter Brandschaden – brennende Zombies stecken beim Tod alle in der Nähe an", apply: (p) => { p.evo.inferno = true; } },
+    { id: "frost", icon: "frost", name: "Absoluter Nullpunkt", needs: { freeze: 2, crit: 2 }, desc: "Treffer auf verlangsamte Zombies sind immer kritisch, unter 30% Leben zerspringen sie", apply: (p) => { p.evo.frost = true; } },
+    { id: "blades", icon: "blades", name: "Klingensturm", needs: { orbit: 2, speed: 1 }, desc: "+2 Sägeblätter mit größerem Radius, schneller und 60% tödlicher", apply: (p) => { p.evo.blades = true; p.orbit += 2; p.orbitR = 86; } },
+    { id: "swarm", icon: "swarm", name: "Drohnenschwarm", needs: { drone: 2, pierce: 2 }, desc: "+2 Drohnen mit doppelter Feuerrate, ihre Schüsse durchschlagen 2 Zombies", apply: (p) => { p.evo.swarm = true; p.drones += 2; } },
+    { id: "vamp", icon: "vamp", name: "Blutrausch", needs: { blood: 2, hp: 2 }, desc: "Kills heilen zusätzlich 3% – unter 35% Leben richtest du 50% mehr Schaden an", apply: (p) => { p.evo.vamp = true; p.lifesteal += 0.03; } },
+    { id: "chain", icon: "chain", name: "Kettenreaktion", needs: { ricochet: 1, wall: 1 }, desc: "Jeder Querschläger und jeder Abpraller löst eine Mini-Explosion aus", apply: (p) => { p.evo.chain = true; } },
+    { id: "plague", icon: "plagueDoc", name: "Seuche", needs: { poison: 2, exec: 1 }, desc: "Vergiftete Zombies unter 25% Leben sterben sofort – beim Tod springt das Gift über", apply: (p) => { p.evo.plague = true; } },
   ];
   const skillById = (id) => SKILLS.find((s) => s.id === id);
   const evoReady = (p, ev) => !p.evo[ev.id] && Object.entries(ev.needs).every(([id, n]) => (p.skills[id] || 0) >= n);
@@ -239,9 +239,28 @@
     missions: $("missions"), pass: $("pass"), patrol: $("patrol"), codex: $("codex"),
   };
   const overlays = Object.values(ui).filter((o) => o !== ui.pauseBtn);
+  // UI-Bausteine: Icons aus dem Sprite, Münzbeträge, Sechseck-Medaillons, Fortschritts-Pips
+  const I = (name, cls = "") => GameIcons.html(name, cls);
+  const num = (v) => Math.floor(v).toLocaleString(I18N.lang);
+  const coinAmt = (n, sign = "") => `<span class="amt">${I("coin")}<b>${sign}${num(n)}</b></span>`;
+  const medal = (icon, tone = "", size = "") => `<span class="medal ${tone} ${size}">${I(icon)}</span>`;
+  const pipsHtml = (on, max, cls = "") => `<span class="pips ${cls}">${Array.from({ length: max }, (_, i) => `<i class="${i < on ? "on" : ""}"></i>`).join("")}</span>`;
+  const adLabel = (txt) => `<span class="vid">${I("video")}</span><span>${txt}</span>`;
+  const RARITY_TONE = { common: "steel", rare: "ice", epic: "violet", evo: "gold", angel: "gold", devil: "red" };
+  const RARITY_NAME = { common: "Gewöhnlich", rare: "Selten", epic: "Episch", evo: "Evolution", angel: "Segen", devil: "Pakt" };
+  for (const el of document.querySelectorAll("[data-ic]")) el.innerHTML = I(el.dataset.ic);
+
   function show(el) {
     for (const o of overlays) o.classList.toggle("hidden", o !== el);
     ui.pauseBtn.classList.toggle("hidden", el !== null);
+    requestAnimationFrame(() => fitTitle(el));
+  }
+  // Bildschirmtitel auf schmalen Displays verkleinern statt abschneiden (lange Wörter, großer Münzstand)
+  function fitTitle(el) {
+    const h = el && !el.classList.contains("hidden") && el.querySelector(".bar h2");
+    if (!h) return;
+    h.style.fontSize = "";
+    for (let px = parseFloat(getComputedStyle(h).fontSize); h.scrollWidth > h.clientWidth + 1 && px > 18; px--) h.style.fontSize = `${px - 1}px`;
   }
 
   let scale = 1;
@@ -399,15 +418,16 @@
     // Gekaufte Boosts für diesen Run verbrauchen
     const used = [];
     const b = save.boosts;
-    if (b.hp > 0) { b.hp--; player.maxHp = Math.round(player.maxHp * 1.3); player.hp = player.maxHp; used.push("❤️"); }
-    if (b.coins > 0) { b.coins--; run.greed *= 1.5; used.push("🍀"); }
-    if (b.revive > 0) { b.revive--; player.revives++; used.push("😇"); }
-    if (b.skill > 0) { b.skill--; run.pendingPicks++; used.push("🎁"); }
+    const boostName = (id) => BOOSTS.find((q) => q.id === id).name;
+    if (b.hp > 0) { b.hp--; player.maxHp = Math.round(player.maxHp * 1.3); player.hp = player.maxHp; used.push(boostName("hp")); }
+    if (b.coins > 0) { b.coins--; run.greed *= 1.5; used.push(boostName("coins")); }
+    if (b.revive > 0) { b.revive--; player.revives++; used.push(boostName("revive")); }
+    if (b.skill > 0) { b.skill--; run.pendingPicks++; used.push(boostName("skill")); }
     if (used.length) persist();
     if (webgl) Render3D.clear();
     nextRoom();
     roomFade = 0; // beim Start übernimmt der Kameraflug aus dem Menü die Überblendung
-    if (used.length) setTimeout(() => toast(`${tr("Boosts aktiv")}: ${used.join(" ")}`), 300);
+    if (used.length) setTimeout(() => toast(`${tr("Boosts aktiv")}: ${used.join(" · ")}`, "gift"), 300);
     show(null);
     state = "play";
   }
@@ -433,7 +453,7 @@
       run.coins += bonus;
       run.chapter++;
       run.room = 1;
-      showBanner(tr("KAPITEL {n} ÜBERLEBT", { n: run.chapter - 1 }), tr("+{b} 💰 · Die Seuche wird stärker…", { b: bonus }));
+      showBanner(tr("KAPITEL {n} ÜBERLEBT", { n: run.chapter - 1 }), tr("+{b} Münzen · Die Seuche wird stärker…", { b: bonus }));
     }
     resetRoomState();
     player.x = W / 2; player.y = B - 70;
@@ -1009,6 +1029,8 @@
     joy.active = false;
     let left = 5;
     $("reviveCount").textContent = left;
+    const ring = document.querySelector("#revive .val");
+    ring.style.animation = "none"; void ring.getBoundingClientRect(); ring.style.animation = "";
     show(ui.revive);
     clearInterval(reviveTimer);
     reviveTimer = setInterval(() => {
@@ -1022,7 +1044,7 @@
     clearInterval(reviveTimer);
     const ok = await Platform.ads.showRewarded("revive");
     if (state !== "revive") return;
-    if (!ok) { toast(tr("Kein Video verfügbar")); gameOver(false); return; }
+    if (!ok) { toast(tr("Kein Video verfügbar"), "video"); gameOver(false); return; }
     run.adRevived = true;
     run.adWatched = true;
     revivePlayer(1, tr("Volle Gesundheit!"));
@@ -1583,18 +1605,23 @@
     s.apply(player);
   }
 
-  // Rezept-Fortschritt für eine Evolution, z. B. "🔁 1/2 + ⏩ 2/2"
-  const evoProgress = (ev) => Object.entries(ev.needs).map(([id, n]) => `${skillById(id).icon} ${Math.min(n, player.skills[id] || 0)}/${n}`).join(" + ");
+  // Rezept-Fortschritt für eine Evolution, z. B. "Abpraller 1/2 + Feuerrate 2/2"
+  const evoProgress = (ev) => Object.entries(ev.needs).map(([id, n]) => `${skillById(id).name} ${Math.min(n, player.skills[id] || 0)}/${n}`).join(" + ");
   function evoHint(s) {
     const ev = EVOLUTIONS.find((q) => !player.evo[q.id] && q.needs[s.id]);
-    return ev ? `${ev.icon} ${ev.name} · ${evoProgress(ev)}` : "";
+    if (!ev) return "";
+    const ing = Object.entries(ev.needs).map(([id, n]) => {
+      const have = Math.min(n, player.skills[id] || 0);
+      return `<span class="ing${have >= n ? " ok" : ""}">${medal(skillById(id).icon, have >= n ? "toxic" : "steel")}${have}/${n}</span>`;
+    }).join('<span class="arr">+</span>');
+    return `${ing}<span class="arr">→</span>${medal(ev.icon, "gold")}${ev.name}`;
   }
   function takeEvolution(ev) {
     const p = player;
     ev.apply(p);
     track("evolutions");
     save.codex[ev.id] = true;
-    showBanner(`${ev.icon} ${tr("EVOLUTION")}`, ev.name, 1.8);
+    showBanner(tr("EVOLUTION"), ev.name, 1.8);
     fxRing(p.x, p.y, 120, "255,211,106", 0.6);
     fxFlash(p.x, p.y, 220, "255,220,140", 0.35);
     particles.push({ t: "lvl", x: p.x, y: p.y, life: 1.3, max: 1.3 });
@@ -1606,37 +1633,39 @@
     const p = player;
     sfx("level");
     const cards = [
-      { icon: "😇", name: tr("Engelssegen"), desc: tr("Volle Heilung und +15% max. HP"), rarity: "angel", onPick: () => {
+      { icon: "angel", name: tr("Engelssegen"), desc: tr("Volle Heilung und +15% max. HP"), rarity: "angel", onPick: () => {
         p.maxHp = Math.round(p.maxHp * 1.15); healPlayer(p.maxHp);
         fxRing(p.x, p.y, 90, "255,250,200", 0.5); track("angel"); resumePlay();
       } },
-      { icon: "🕊️", name: tr("Göttliche Gabe"), desc: tr("Wähle sofort einen zusätzlichen Skill"), rarity: "angel", onPick: () => { track("angel"); run.pendingPicks++; resumePlay(); } },
+      { icon: "dove", name: tr("Göttliche Gabe"), desc: tr("Wähle sofort einen zusätzlichen Skill"), rarity: "angel", onPick: () => { track("angel"); run.pendingPicks++; resumePlay(); } },
     ];
     const epics = () => SKILLS.filter((s) => s.rarity === "epic" && (p.skills[s.id] || 0) < s.max);
-    if (epics().length) cards.push({ icon: "😈", name: tr("Teufelspakt"), desc: tr("2 zufällige epische Skills – kostet dauerhaft 25% max. HP"), rarity: "devil", onPick: () => {
+    if (epics().length) cards.push({ icon: "devil", name: tr("Teufelspakt"), desc: tr("2 zufällige epische Skills – kostet dauerhaft 25% max. HP"), rarity: "devil", onPick: () => {
       p.maxHp = Math.max(60, Math.round(p.maxHp * 0.75)); p.hp = Math.min(p.hp, p.maxHp);
       const got = [];
-      for (let i = 0; i < 2; i++) { const pool = epics(); if (!pool.length) break; const s = pick(pool); takeSkill(s); got.push(`${s.icon} ${s.name}`); }
+      for (let i = 0; i < 2; i++) { const pool = epics(); if (!pool.length) break; const s = pick(pool); takeSkill(s); got.push(s.name); }
       fxFlash(p.x, p.y, 200, "255,40,40", 0.35); fxRing(p.x, p.y, 110, "255,60,60", 0.5);
-      track("devil"); toast(`😈 ${got.join(" + ")}`); resumePlay();
+      track("devil"); toast(got.join(" + "), "devil"); resumePlay();
     } });
-    renderCards(tr("EIN FREMDER ERSCHEINT"), cards);
+    renderCards(tr("EIN FREMDER ERSCHEINT"), cards, null, tr("Segen oder Pakt – du hast die Wahl"));
   }
 
   let rerollHandler = null;
-  function renderCards(title, cards, onReroll = null) {
+  function renderCards(title, cards, onReroll = null, sub = tr("Wähle eine Fähigkeit")) {
     $("skillPick").classList.toggle("shrine", cards.some((c) => c.rarity === "angel"));
     rerollHandler = onReroll;
     $("rerollBtn").classList.toggle("hidden", !(onReroll && Platform.ads.available));
     $("skillTitle").textContent = title;
+    $("skillSub").textContent = sub;
     const box = $("skillCards");
     box.innerHTML = "";
     for (const c of cards) {
       const btn = document.createElement("button");
       btn.className = `card ${c.rarity || ""}`;
-      const lvl = c.id && player.skills[c.id] ? ` <small>${tr("(Stufe {n})", { n: player.skills[c.id] + 1 })}</small>` : "";
-      const hint = c.hint ? `<div class="evo-hint">🧬 ${c.hint}</div>` : "";
-      btn.innerHTML = `<div class="ico">${c.icon}</div><div><div class="name">${c.name}${lvl}</div><div class="desc">${c.desc}</div>${hint}</div>`;
+      // Stufen-Pips: wie weit dieser Skill nach der Wahl ist
+      const sk = c.id && SKILLS.includes(skillById(c.id)) && c.max <= 6 ? pipsHtml((player.skills[c.id] || 0) + 1, c.max) : "";
+      const hint = c.hint ? `<div class="recipe evo-hint">${c.hint}</div>` : "";
+      btn.innerHTML = `${medal(c.icon)}<div><div class="rar">${tr(RARITY_NAME[c.rarity] || "Fähigkeit")}</div><div class="name">${c.name}${sk}</div><div class="desc">${c.desc}</div>${hint}</div>`;
       btn.addEventListener("click", () => c.onPick(), { once: true });
       box.appendChild(btn);
     }
@@ -1654,17 +1683,17 @@
     const cards = choices.map((s) => ({ ...s, hint: evoHint(s), onPick: () => { takeSkill(s); resumePlay(); } }));
     if (ready.length) {
       const ev = ready[0];
-      cards.unshift({ icon: ev.icon, name: `${tr("EVOLUTION")}: ${ev.name}`, desc: ev.desc, rarity: "evo", onPick: () => { takeEvolution(ev); resumePlay(); } });
+      cards.unshift({ icon: ev.icon, name: ev.name, desc: ev.desc, rarity: "evo", onPick: () => { takeEvolution(ev); resumePlay(); } });
     }
     renderCards(tr("AUFSTIEG!"), cards, rerolled ? null : () => openSkillPick(true));
   }
 
   function openSupply() {
     sfx("level");
-    renderCards(tr("VERSORGUNGSKISTE"), [
-      { icon: "🩹", name: tr("Erste Hilfe"), desc: tr("Heilt 50% deiner max. HP"), rarity: "", onPick: () => { healPlayer(player.maxHp * 0.5); afterSupply(); } },
-      { icon: "🎁", name: tr("Waffenkiste"), desc: tr("Wähle einen zusätzlichen Skill"), rarity: "epic", onPick: () => { run.pendingPicks++; afterSupply(); } },
-    ]);
+    renderCards(tr("NACHSCHUB"), [
+      { icon: "firstAid", name: tr("Erste Hilfe"), desc: tr("Heilt 50% deiner max. HP"), rarity: "common", onPick: () => { healPlayer(player.maxHp * 0.5); afterSupply(); } },
+      { icon: "ammo", name: tr("Waffenkiste"), desc: tr("Wähle einen zusätzlichen Skill"), rarity: "epic", onPick: () => { run.pendingPicks++; afterSupply(); } },
+    ], null, tr("Versorgungskiste geöffnet"));
   }
   function afterSupply() {
     supplyCrate = null;
@@ -2008,25 +2037,18 @@
     if (state === "play") {
       state = "pause";
       joy.active = false;
-      const chips = $("pauseSkills");
-      chips.innerHTML = "";
-      for (const s of SKILLS) {
-        const n = player.skills[s.id];
-        if (!n) continue;
-        const c = document.createElement("span");
-        c.className = "chip";
-        c.textContent = `${s.icon} ${s.name}${n > 1 ? ` ×${n}` : ""}`;
-        chips.appendChild(c);
-      }
+      const grid = $("pauseSkills");
+      const cell = (icon, tone, name, n, cls = "") => `<div class="sk ${cls}">${medal(icon, tone)}<em>${name}</em>${n > 1 ? `<b>${n}</b>` : ""}</div>`;
+      let html = "";
+      for (const ev of EVOLUTIONS) if (player.evo[ev.id]) html += cell(ev.icon, "gold", ev.name, 1, "evo");
+      for (const sk of SKILLS) if (player.skills[sk.id]) html += cell(sk.icon, RARITY_TONE[sk.rarity], sk.name, player.skills[sk.id]);
+      // angefangene Rezepte als Ausblick
       for (const ev of EVOLUTIONS) {
-        const has = player.evo[ev.id], started = Object.keys(ev.needs).some((id) => player.skills[id]);
-        if (!has && !started) continue;
-        const c = document.createElement("span");
-        c.className = `chip ${has ? "evo" : "evo-todo"}`;
-        c.textContent = has ? `${ev.icon} ${ev.name}` : `🧬 ${ev.icon} ${evoProgress(ev)}`;
-        chips.appendChild(c);
+        if (player.evo[ev.id] || !Object.keys(ev.needs).some((id) => player.skills[id])) continue;
+        const have = Object.entries(ev.needs).reduce((a, [id, n]) => a + Math.min(n, player.skills[id] || 0), 0), need = Object.values(ev.needs).reduce((a, n) => a + n, 0);
+        html += cell(ev.icon, "gold", `${ev.name}<small>${have}/${need}</small>`, 1, "todo evo-todo");
       }
-      if (!chips.children.length) chips.innerHTML = `<span class="chip">${tr("Noch keine Skills")}</span>`;
+      grid.innerHTML = html || `<p class="empty">${tr("Noch keine Skills")}</p>`;
       show(ui.pause);
     } else if (state === "pause") {
       ensureAudio();
@@ -2058,18 +2080,21 @@
       if (score > save.best.chapter * 100 + save.best.room) { save.best = { chapter: run.chapter, room: run.room }; record = true; }
     }
     persist();
-    $("overTitle").textContent = won ? tr("ÜBERLEBT!") : quit ? tr("EINSATZ BEENDET") : tr("GEFALLEN");
+    const title = $("overTitle");
+    title.textContent = won ? tr("ÜBERLEBT!") : quit ? tr("EINSATZ BEENDET") : tr("GEFALLEN");
+    title.classList.toggle("win", won);
     const reached = surv ? `${fmtTime(Math.min(run.survT, SURVIVAL_TIME))} / ${fmtTime(SURVIVAL_TIME)}` : tr("Kap. {c} · Raum {r}", { c: run.chapter, r: run.room });
-    $("overStats").innerHTML = `
-      <span>${surv ? tr("Überlebt") : tr("Erreicht")}</span><b>${reached}${record ? " 🏆" : ""}</b>
-      <span>${tr("Abschüsse")}</span><b>${run.kills}</b>
-      <span>${tr("Level")}</span><b>${player.level}</b>
-      <span>${tr("Zeit")}</span><b>${Math.floor(run.time / 60)}:${String(Math.floor(run.time % 60)).padStart(2, "0")}</b>
-      <span>${tr("Münzen")}</span><b>+${coins} 💰</b>`;
+    const line = (icon, label, value, cls = "") => `<span>${I(icon)}${label}</span><b class="${cls}">${value}</b>`;
+    $("overStats").innerHTML =
+      line(surv ? "stopwatch" : "map", surv ? tr("Überlebt") : tr("Erreicht"), `${reached}${record ? `<em class="rec">${tr("REKORD")}</em>` : ""}`) +
+      line("skull", tr("Abschüsse"), num(run.kills)) +
+      line("upgrade", tr("Level"), player.level) +
+      line("hourglass", tr("Zeit"), fmtTime(run.time)) +
+      line("coin", tr("Münzen"), coinAmt(coins, "+"), "gold");
     const dbl = $("doubleBtn");
     dbl.classList.toggle("hidden", !(Platform.ads.available && coins > 0));
     dbl.disabled = false;
-    dbl.textContent = tr("▶ Münzen ×2 (Video)");
+    dbl.innerHTML = adLabel(tr("Münzen ×2"));
     setTimeout(() => show(ui.over), quit ? 0 : 600);
   }
 
@@ -2266,10 +2291,10 @@
     ctx.fill();
     ctx.textAlign = "center";
     ctx.fillStyle = "#8cff4a";
-    ctx.font = "900 20px system-ui";
-    ctx.fillText(moving ? tr("Loslassen = automatisch schießen!") : tr("👆 Finger ziehen = laufen & ausweichen"), W / 2, (T + B) / 2 + 69);
+    ctx.font = FONT_UI(20);
+    ctx.fillText(moving ? tr("Loslassen = automatisch schießen!") : tr("Finger ziehen = laufen & ausweichen"), W / 2, (T + B) / 2 + 69);
     ctx.fillStyle = "#e8efe9";
-    ctx.font = "600 14px system-ui";
+    ctx.font = FONT_UI(15, 600);
     ctx.fillText(moving ? tr("Du schießt nur, wenn du stehst.") : tr("Stehenbleiben = auf den nächsten Zombie feuern"), W / 2, (T + B) / 2 + 91);
     ctx.globalAlpha = 1;
     if (!moving) {
@@ -2350,11 +2375,11 @@
     ctx.drawImage(o.spr.c, o.x + o.spr.ox, o.y + o.spr.oy, o.spr.w, o.spr.h);
   }
 
-  function roundRect(x, y, w, h, r) {
+  function roundRect(x, y, w, h, r, g = ctx) {
     r = Math.min(r, w / 2, h / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    g.beginPath();
+    g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
   }
 
   function drawSupply() {
@@ -2718,8 +2743,8 @@
     const seg = (100 / p.maxHp) * bw;
     ctx.fillStyle = "rgba(0,0,0,0.45)";
     if (seg > 4) for (let x = seg; x < bw * k; x += seg) ctx.fillRect(px - bw / 2 + x, y, 1, 6);
-    ctx.fillStyle = "#fff"; ctx.font = "800 11px system-ui"; ctx.textAlign = "center";
-    ctx.fillText(Math.ceil(p.hp), px, y - 4);
+    ctx.fillStyle = "#fff"; ctx.font = FONT_NUM(15); ctx.textAlign = "center";
+    ctx.fillText(Math.ceil(p.hp), px, y - 3);
   }
 
   function drawTexts() {
@@ -2728,7 +2753,7 @@
       const age = t.max - t.life;
       const pop = age < 0.1 ? 0.6 + age * 8 : Math.max(1, 1.4 - (age - 0.1) * 3);
       ctx.globalAlpha = Math.min(1, (t.life / t.max) * 2.5);
-      ctx.font = `900 ${Math.round(t.size * pop)}px system-ui`;
+      ctx.font = FONT_NUM(Math.round(t.size * pop * 1.35), 700);
       ctx.lineWidth = t.crit ? 5 : 3.5;
       ctx.strokeStyle = "rgba(0,0,0,0.85)";
       const q = scr(t.x, t.y, 30);
@@ -2751,74 +2776,160 @@
     }
   }
 
-  let hudBg = null;
-  function drawHud() {
-    const p = player, t = run.time;
-    if (!hudBg) {
-      hudBg = document.createElement("canvas"); hudBg.width = 4; hudBg.height = 100;
-      const g = hudBg.getContext("2d"), gr = g.createLinearGradient(0, 0, 0, 100);
-      gr.addColorStop(0, "rgba(8,11,10,0.98)"); gr.addColorStop(0.8, "rgba(12,17,15,0.95)"); gr.addColorStop(1, "rgba(12,17,15,0.7)");
-      g.fillStyle = gr; g.fillRect(0, 0, 4, 100);
+  // Canvas-Schriften: dieselben wie in der Oberfläche
+  const FONT_NUM = (px, w = 600) => `${w} ${px}px Teko, "Barlow Condensed", sans-serif`;
+  const FONT_UI = (px, w = 800) => `${w} ${px}px "Barlow Condensed", sans-serif`;
+  function drawIcon(g, name, x, y, size, color) {
+    g.save();
+    g.translate(x - size / 2, y - size / 2);
+    g.scale(size / 512, size / 512);
+    g.fillStyle = color;
+    g.fill(GameIcons.path2d(name));
+    g.restore();
+  }
+  function hexPath(g, cx, cy, r) {
+    g.beginPath();
+    for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + (i / 6) * TAU; g[i ? "lineTo" : "moveTo"](cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+    g.closePath();
+  }
+  // Fortschritt entlang der Sechseck-Kontur (oben beginnend, im Uhrzeigersinn)
+  function hexProgress(g, cx, cy, r, k) {
+    const pts = Array.from({ length: 7 }, (_, i) => { const a = -Math.PI / 2 + (i / 6) * TAU; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; });
+    g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+    let left = k * 6;
+    for (let i = 0; i < 6 && left > 0; i++) {
+      const f = Math.min(1, left);
+      g.lineTo(pts[i][0] + (pts[i + 1][0] - pts[i][0]) * f, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * f);
+      left -= 1;
     }
-    ctx.drawImage(hudBg, 0, 0, W, 98);
-    ctx.fillStyle = "rgba(140,255,74,0.3)"; ctx.fillRect(0, 97, W, 1);
-    // Level-Abzeichen mit XP-Ring
-    const cx = 44, cy = 48;
-    ctx.fillStyle = "#070a09"; ctx.beginPath(); ctx.arc(cx, cy, 31, 0, TAU); ctx.fill();
-    ctx.lineWidth = 5; ctx.lineCap = "round";
-    ctx.strokeStyle = "rgba(127,231,255,0.15)"; ctx.beginPath(); ctx.arc(cx, cy, 27, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = "#7fe7ff"; ctx.beginPath(); ctx.arc(cx, cy, 27, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, p.xp / p.xpNeed)); ctx.stroke();
-    const lg = ctx.createRadialGradient(cx - 6, cy - 8, 2, cx, cy, 22);
-    lg.addColorStop(0, "#4a8fd8"); lg.addColorStop(1, "#173a63");
-    ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(cx, cy, 21, 0, TAU); ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.textAlign = "center";
-    ctx.font = "800 9px system-ui"; ctx.fillText("LV", cx, cy - 8);
-    ctx.font = "900 19px system-ui"; ctx.fillText(p.level, cx, cy + 10);
-    ctx.textAlign = "left"; ctx.fillStyle = "#e8efe9"; ctx.font = "800 15px system-ui";
-    if (run.mode === "survival") {
-      // Countdown mit Fortschrittsbalken und Boss-Markierungen
-      const left = Math.max(0, SURVIVAL_TIME - run.survT), bw = 255;
-      ctx.fillText(`⏱ ${tr("Überleben")} · ${fmtTime(left)}`, 86, 32);
-      ctx.fillStyle = "#26302a"; roundRect(86, 40, bw, 6, 3); ctx.fill();
-      ctx.fillStyle = left < 30 ? `rgba(255,${120 + 80 * Math.sin(t * 8)},80,1)` : "#8cff4a";
-      roundRect(86, 40, Math.max(6, bw * Math.min(1, run.survT / SURVIVAL_TIME)), 6, 3); ctx.fill();
-      for (const [bt, type] of SURVIVAL_BOSSES) {
-        ctx.fillStyle = run[`boss_${type}`] ? "#8cff4a" : "#ff4a2a";
-        ctx.beginPath(); ctx.arc(86 + bw * bt / SURVIVAL_TIME, 43, 4.5, 0, TAU); ctx.fill();
+    g.stroke();
+  }
+  // Schräges Fortschrittssegment (Raum bzw. Zeitabschnitt)
+  function segPath(g, i) {
+    const x = 90 + i * 12.5;
+    g.moveTo(x + 3, 54); g.lineTo(x + 11, 54); g.lineTo(x + 8, 60); g.lineTo(x, 60); g.closePath();
+  }
+  // Offscreen-Ebene in Geräteauflösung, die nur bei geänderten Werten neu gezeichnet wird.
+  // Vektor-Icons, Verläufe und Leuchteffekte jedes Frame neu zu rastern hat die Bildrate fast halbiert.
+  function cachedLayer(cache, key, h, paint) {
+    const k = scale * dpr, fullKey = `${key}|${k}`;
+    if (!cache.c) cache.c = document.createElement("canvas");
+    if (cache.key !== fullKey) {
+      cache.key = fullKey;
+      cache.c.width = Math.round(W * k); cache.c.height = Math.round(h * k);
+      const g = cache.c.getContext("2d");
+      g.setTransform(k, 0, 0, k, 0, 0);
+      g.clearRect(0, 0, W, h);
+      paint(g);
+    }
+    return cache.c;
+  }
+  const hudCache = {}, bossCache = {};
+  const SURV_STEP = SURVIVAL_TIME / 20;
+
+  function paintHud(g) {
+    const p = player, survival = run.mode === "survival";
+    const bg = g.createLinearGradient(0, 0, 0, 96);
+    bg.addColorStop(0, "rgba(6,9,8,0.97)"); bg.addColorStop(0.75, "rgba(10,14,13,0.9)"); bg.addColorStop(1, "rgba(10,14,13,0.55)");
+    g.fillStyle = bg; g.fillRect(0, 0, W, 96);
+    g.fillStyle = "rgba(168,255,62,0.22)"; g.fillRect(0, 95, W, 1);
+    // Warnstreifen-Akzent unter dem Level-Abzeichen
+    g.save(); g.beginPath(); g.rect(14, 95, 64, 4); g.clip();
+    g.fillStyle = "#ffb733"; g.beginPath();
+    for (let x = 6; x < 90; x += 10) { g.moveTo(x, 95); g.lineTo(x + 5, 95); g.lineTo(x + 1, 99); g.lineTo(x - 4, 99); g.closePath(); }
+    g.fill(); g.restore();
+
+    // Level-Abzeichen: Sechseck mit XP-Kontur
+    const cx = 46, cy = 48;
+    hexPath(g, cx, cy, 33); g.fillStyle = "#070a09"; g.fill();
+    g.lineWidth = 4; g.lineJoin = "round";
+    hexPath(g, cx, cy, 29); g.strokeStyle = "rgba(168,255,62,0.14)"; g.stroke();
+    g.strokeStyle = "#a8ff3e"; g.shadowColor = "rgba(168,255,62,0.7)"; g.shadowBlur = 8;
+    hexProgress(g, cx, cy, 29, Math.min(1, p.xp / p.xpNeed));
+    g.shadowBlur = 0;
+    const lg = g.createLinearGradient(0, cy - 24, 0, cy + 24);
+    lg.addColorStop(0, "#2c3a35"); lg.addColorStop(1, "#141b19");
+    hexPath(g, cx, cy, 23); g.fillStyle = lg; g.fill();
+    g.textAlign = "center"; g.fillStyle = "#a8ff3e";
+    g.font = FONT_UI(10); g.fillText(tr("LEVEL"), cx, cy - 9);
+    g.fillStyle = "#fff"; g.font = FONT_NUM(28); g.fillText(p.level, cx, cy + 16);
+
+    // Fortschritt aus schrägen Segmenten (Kampagne: Räume, Überleben: 15-s-Abschnitte), Bossabschnitte mit Totenkopf.
+    // Das aktuelle Segment pulsiert und wird live in drawHud gezeichnet.
+    const segs = (cur, bossIdx, supplyIdx = []) => {
+      for (const [color, test] of [["#a8ff3e", (i) => i < cur], ["#6a1814", (i) => i > cur && bossIdx.includes(i)], ["#1f3b5c", (i) => i > cur && supplyIdx.includes(i)], ["#26302c", (i) => i > cur && !bossIdx.includes(i) && !supplyIdx.includes(i)]]) {
+        g.fillStyle = color; g.beginPath();
+        for (let i = 0; i < 20; i++) if (test(i)) segPath(g, i);
+        g.fill();
       }
+      for (const i of bossIdx) drawIcon(g, "bossSkull", 90 + i * 12.5 + 5.5, 69, 13, i < cur ? "#4a5a50" : "#ff4338");
+    };
+    g.textAlign = "left"; g.fillStyle = "#76857b"; g.font = FONT_UI(12);
+    if (survival) {
+      const left = Math.max(0, SURVIVAL_TIME - run.survT), warn = left < 30;
+      g.fillText(tr("Überleben").toUpperCase(), 90, 22);
+      drawIcon(g, "stopwatch", 98, 37, 17, warn ? "#ff6a5e" : "#ffb733");
+      g.fillStyle = warn ? `rgb(255,${120 + 80 * Math.sin(run.time * 8)},90)` : "#fff"; g.font = FONT_NUM(24);
+      g.fillText(fmtTime(left), 111, 46);
+      segs(Math.floor(run.survT / SURV_STEP), SURVIVAL_BOSSES.map(([bt]) => Math.floor(bt / SURV_STEP)));
     } else {
-      // Kapitel & Raumfortschritt
-      ctx.fillText(tr("Kapitel {c} · Raum {r}", { c: run.chapter, r: `${run.room}/${ROOMS_PER_CHAPTER}` }), 86, 32);
-      for (let i = 1; i <= ROOMS_PER_CHAPTER; i++) {
-        const x = 86 + (i - 1) * 13, boss = !!BOSS_ROOMS[i], sup = SUPPLY_ROOMS.includes(i);
-        ctx.fillStyle = i < run.room ? "#8cff4a" : i === run.room ? `rgba(255,255,255,${0.6 + 0.4 * Math.sin(t * 6)})` : boss ? "#5a1a1a" : sup ? "#1f3b5c" : "#26302a";
-        roundRect(x, 40, 10, boss ? 7 : 5, 2); ctx.fill();
-      }
+      g.fillText(tr("Kapitel {c}", { c: run.chapter }).toUpperCase(), 90, 22);
+      g.fillStyle = "#fff"; g.font = FONT_NUM(24);
+      g.fillText(`${tr("Raum")} ${run.room}`, 90, 46);
+      const rw = g.measureText(`${tr("Raum")} ${run.room}`).width;
+      g.fillStyle = "#76857b"; g.font = FONT_NUM(18); g.fillText(`/${ROOMS_PER_CHAPTER}`, 92 + rw, 46);
+      segs(run.room - 1, Object.keys(BOSS_ROOMS).map((r) => r - 1), SUPPLY_ROOMS.map((r) => r - 1));
     }
-    // Waffe
-    const ws = Sprites.weapon(p.weaponId, p.tier, Math.floor(p.barrel));
-    const wsc = Math.min(1.1, 56 / ws.w);
-    ctx.drawImage(ws.c, 82, 70 - (ws.h * wsc) / 2, ws.w * wsc, ws.h * wsc);
-    ctx.fillStyle = "#cfd8d2"; ctx.font = "700 13px system-ui";
-    ctx.fillText(p.weapon.name, 86 + ws.w * wsc, 75);
-    // Münzen & Kills
-    ctx.textAlign = "right"; ctx.font = "800 15px system-ui"; ctx.fillStyle = "#ffc94a";
-    const coins = String(Math.floor(run.coins));
-    ctx.fillText(coins, W - 92, 52);
-    Sprites.draw(ctx, Sprites.coin(Math.floor(t * 8)), W - 100 - ctx.measureText(coins).width, 47);
-    ctx.fillStyle = "#8fa396"; ctx.font = "700 13px system-ui";
-    ctx.fillText(`☠ ${run.kills}`, W - 92, 75);
-    // Boss-Leiste
+    // Münzen-Kapsel und Abschüsse (links vom Pause-Knopf)
+    const coins = num(run.coins);
+    g.font = FONT_NUM(24);
+    const cw = g.measureText(coins).width + 46, cxr = W - 82;
+    roundRect(cxr - cw, 20, cw, 32, 16, g);
+    g.fillStyle = "rgba(0,0,0,0.55)"; g.fill();
+    g.strokeStyle = "rgba(255,183,51,0.4)"; g.lineWidth = 1.5; g.stroke();
+    drawIcon(g, "coin", cxr - cw + 18, 36, 22, "#ffb733");
+    g.textAlign = "right"; g.fillStyle = "#ffe2a3"; g.fillText(coins, cxr - 12, 46);
+    drawIcon(g, "skull", cxr - 50, 72, 15, "#76857b");
+    g.fillStyle = "#b3bfb6"; g.font = FONT_NUM(20); g.fillText(num(run.kills), cxr - 12, 79);
+    g.textAlign = "left";
+  }
+
+  // Boss-Leiste: gepanzertes Band mit Totenkopf (Rahmen gecacht, Füllstand live)
+  const BOSS_BAR = { x: 58, y: T + 14, top: T, h: 56 };
+  function paintBossFrame(g, name) {
+    const bw = W - 100, x = BOSS_BAR.x, y = BOSS_BAR.y - BOSS_BAR.top;
+    g.fillStyle = "rgba(6,9,8,0.85)"; g.beginPath(); g.moveTo(x - 6, y - 6); g.lineTo(x + bw + 6, y - 6); g.lineTo(x + bw + 6, y + 18); g.lineTo(x + bw - 2, y + 26); g.lineTo(x - 6, y + 26); g.fill();
+    g.fillStyle = "#2a0d0b"; g.fillRect(x, y, bw, 14);
+    hexPath(g, x - 14, y + 7, 18); g.fillStyle = "#3e0b0b"; g.fill(); g.strokeStyle = "#ff4338"; g.lineWidth = 2; g.stroke();
+    drawIcon(g, "bossSkull", x - 14, y + 7, 22, "#ffd9d4");
+    g.fillStyle = "#fff"; g.font = FONT_UI(13); g.textAlign = "center";
+    g.fillText(name, x + bw / 2, y + 36);
+    g.textAlign = "left";
+  }
+
+  function drawHud() {
+    const p = player, t = run.time, survival = run.mode === "survival";
+    const left = survival ? Math.max(0, SURVIVAL_TIME - run.survT) : 0;
+    const key = [I18N.lang, run.mode, p.level, Math.round((p.xp / p.xpNeed) * 120), run.chapter, run.room, run.coins, run.kills,
+      survival ? `${Math.ceil(left)}|${left < 30 ? Math.floor(t * 12) : 0}|${Math.floor(run.survT / SURV_STEP)}` : ""].join("|");
+    ctx.drawImage(cachedLayer(hudCache, key, 100, paintHud), 0, 0, W, 100);
+    // aktuelles Segment pulsiert
+    const cur = survival ? Math.floor(run.survT / SURV_STEP) : run.room - 1;
+    if (cur >= 0 && cur < 20) {
+      ctx.fillStyle = `rgba(255,255,255,${0.65 + 0.35 * Math.sin(t * 6)})`;
+      ctx.beginPath(); segPath(ctx, cur); ctx.fill();
+    }
     const boss = enemies.find((e) => e.def.boss && e.spawnT <= 0);
     if (boss) {
-      const bw = W - 90, x = 45, y = T + 14, k = Math.max(0, boss.hp / boss.maxHp);
-      ctx.fillStyle = "rgba(0,0,0,0.78)"; roundRect(x - 3, y - 3, bw + 6, 22, 11); ctx.fill();
-      const gr = ctx.createLinearGradient(x, 0, x + bw, 0);
-      gr.addColorStop(0, "#ff4a2a"); gr.addColorStop(1, "#8a0f1a");
-      ctx.fillStyle = gr; roundRect(x, y, Math.max(16, bw * k), 16, 8); ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,0.65)"; ctx.fillRect(x + bw * 0.5 - 1, y, 2, 16);
-      ctx.fillStyle = "#fff"; ctx.font = "900 12px system-ui"; ctx.textAlign = "center";
-      ctx.fillText(`☠ ${boss.def.name}`, W / 2, y + 12.5);
+      const bw = W - 100, { x, y } = BOSS_BAR, k = Math.max(0, boss.hp / boss.maxHp);
+      ctx.drawImage(cachedLayer(bossCache, boss.def.name, BOSS_BAR.h, (g) => paintBossFrame(g, boss.def.name)), 0, BOSS_BAR.top, W, BOSS_BAR.h);
+      const gr = ctx.createLinearGradient(0, y, 0, y + 14);
+      gr.addColorStop(0, "#ff6a4a"); gr.addColorStop(1, "#a3121c");
+      ctx.fillStyle = gr; ctx.fillRect(x, y, Math.max(4, bw * k), 14);
+      ctx.fillStyle = "rgba(0,0,0,0.45)"; ctx.beginPath();
+      for (let i = 1; i < 20; i++) ctx.rect(x + (bw * i) / 20, y, 1, 14);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.75)"; ctx.fillRect(x + bw * 0.5 - 1, y - 2, 2, 18);
     }
   }
 
@@ -2834,22 +2945,40 @@
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(kx, ky, 28, 0, TAU); ctx.fill();
   }
 
+  // Banner: Hintergrund, Titel (mit Leuchten) und Untertitel als gecachte Ebenen –
+  // pro Frame nur noch Einblenden und Hereingleiten (Unschärfe-Schatten jedes Frame zu rendern ist teuer)
+  const BANNER_H = 104, bannerCache = { bg: {}, title: {}, sub: {} };
+  // Canvas-Schriften vorladen; kommt eine Schrift erst später an, gecachte Ebenen neu zeichnen
+  if (document.fonts) {
+    for (const f of [FONT_NUM(20), FONT_NUM(20, 700), FONT_UI(20), FONT_UI(20, 700), FONT_UI(20, 600)]) document.fonts.load(f).catch(() => {});
+    document.fonts.addEventListener("loadingdone", () => { for (const c of [hudCache, bossCache, ...Object.values(bannerCache)]) c.key = ""; });
+  }
+  function paintBannerBg(g) {
+    const g0 = g.createLinearGradient(0, 0, W, 0);
+    g0.addColorStop(0, "rgba(6,9,8,0)"); g0.addColorStop(0.18, "rgba(6,9,8,0.82)"); g0.addColorStop(0.82, "rgba(6,9,8,0.82)"); g0.addColorStop(1, "rgba(6,9,8,0)");
+    g.fillStyle = g0; g.fillRect(0, 0, W, BANNER_H);
+    // Warnstreifen oben und unten
+    g.save(); g.beginPath(); g.rect(W * 0.18, 0, W * 0.64, 5); g.rect(W * 0.18, BANNER_H - 5, W * 0.64, 5); g.clip();
+    g.fillStyle = "#1a1408"; g.fillRect(0, 0, W, BANNER_H);
+    g.fillStyle = "#ffb733"; g.beginPath();
+    for (let x = W * 0.18 - 20; x < W * 0.82 + 20; x += 14) { g.moveTo(x, 0); g.lineTo(x + 7, 0); g.lineTo(x + 2, BANNER_H); g.lineTo(x - 5, BANNER_H); g.closePath(); }
+    g.fill(); g.restore();
+  }
+  function paintBannerText(g, txt, font, color, spacing, y, glow) {
+    g.textAlign = "center";
+    if ("letterSpacing" in g) g.letterSpacing = spacing;
+    g.font = font;
+    if (glow) { g.shadowColor = glow; g.shadowBlur = 20; }
+    g.fillStyle = color; g.fillText(txt, W / 2, y);
+  }
   function drawBanner() {
     const k = banner.life / banner.max;
-    const alpha = Math.min(1, k * 4, (1 - k) * 8 + 0.2);
-    const y = H * 0.36;
-    ctx.globalAlpha = alpha;
-    const g = ctx.createLinearGradient(0, 0, W, 0);
-    g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(0.2, "rgba(0,0,0,0.7)"); g.addColorStop(0.8, "rgba(0,0,0,0.7)"); g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g; ctx.fillRect(0, y, W, 96);
-    ctx.fillStyle = "rgba(140,255,74,0.6)"; ctx.fillRect(W * 0.15, y, W * 0.7, 2); ctx.fillRect(W * 0.15, y + 94, W * 0.7, 2);
-    ctx.textAlign = "center";
-    ctx.font = "900 34px system-ui";
-    ctx.shadowColor = "rgba(140,255,74,0.8)"; ctx.shadowBlur = 18;
-    ctx.fillStyle = "#b6ff7a"; ctx.fillText(banner.title, W / 2, y + 50);
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "#e8efe9"; ctx.font = "600 16px system-ui";
-    ctx.fillText(banner.sub, W / 2, y + 78);
+    const y = H * 0.36, slide = Math.max(0, 1 - (1 - k) * 8) * 30; // kurzes Hereingleiten
+    const sub = String(banner.sub).toUpperCase();
+    ctx.globalAlpha = Math.min(1, k * 4, (1 - k) * 8 + 0.2);
+    ctx.drawImage(cachedLayer(bannerCache.bg, "bg", BANNER_H, paintBannerBg), 0, y, W, BANNER_H);
+    ctx.drawImage(cachedLayer(bannerCache.title, banner.title, BANNER_H, (g) => paintBannerText(g, banner.title, FONT_NUM(50, 700), "#e9ffd2", "2px", 58, "rgba(168,255,62,0.75)")), slide, y, W, BANNER_H);
+    ctx.drawImage(cachedLayer(bannerCache.sub, sub, BANNER_H, (g) => paintBannerText(g, sub, FONT_UI(15), "#ffb733", "3px", 84)), -slide, y, W, BANNER_H);
     ctx.globalAlpha = 1;
   }
 
@@ -2898,17 +3027,17 @@
   // Alle Spielereignisse laufen über track()/trackMax() – das Spiel selbst kennt keine Missionslogik.
   // ============================================================
   const MISSIONS = {
-    kills: { icon: "🧟", text: "Töte {n} Zombies", d: [100, 150, 250], w: 1500 },
-    rooms: { icon: "🚪", text: "Säubere {n} Räume", d: [10, 15, 20], w: 120 },
-    bosses: { icon: "👹", text: "Besiege {n} Bosse", one: "Besiege einen Boss", d: [1], w: 5 },
-    elites: { icon: "⭐", text: "Töte {n} Elite-Zombies", d: [3, 5], w: 25 },
-    headshots: { icon: "🎯", text: "Erziele {n} Kopfschüsse", d: [15, 30], w: 200 },
-    blasts: { icon: "💥", text: "Sprenge {n} Zombies weg", d: [20, 40], w: 250 },
-    runs: { icon: "▶️", text: "Starte {n} Einsätze", d: [2, 3], w: 15 },
-    coins: { icon: "💰", text: "Verdiene {n} Münzen in Einsätzen", d: [300, 500], w: 4000 },
-    evolutions: { icon: "🧬", text: "Löse {n} Evolutionen aus", one: "Löse eine Evolution aus", d: [1], w: 4 },
-    level: { icon: "⬆️", text: "Erreiche Level {n} in einem Einsatz", d: [8, 10, 12], max: true },
-    survival: { icon: "⏱️", text: "Überlebe {n} Sekunden im Überlebensmodus", d: [90, 150], w: 300, max: true },
+    kills: { icon: "zombie", text: "Töte {n} Zombies", d: [100, 150, 250], w: 1500 },
+    rooms: { icon: "door", text: "Säubere {n} Räume", d: [10, 15, 20], w: 120 },
+    bosses: { icon: "bossSkull", text: "Besiege {n} Bosse", one: "Besiege einen Boss", d: [1], w: 5 },
+    elites: { icon: "star", text: "Töte {n} Elite-Zombies", d: [3, 5], w: 25 },
+    headshots: { icon: "headshot", text: "Erziele {n} Kopfschüsse", d: [15, 30], w: 200 },
+    blasts: { icon: "explosion", text: "Sprenge {n} Zombies weg", d: [20, 40], w: 250 },
+    runs: { icon: "play", text: "Starte {n} Einsätze", d: [2, 3], w: 15 },
+    coins: { icon: "coins", text: "Verdiene {n} Münzen in Einsätzen", d: [300, 500], w: 4000 },
+    evolutions: { icon: "dna", text: "Löse {n} Evolutionen aus", one: "Löse eine Evolution aus", d: [1], w: 4 },
+    level: { icon: "upgrade", text: "Erreiche Level {n} in einem Einsatz", d: [8, 10, 12], max: true },
+    survival: { icon: "stopwatch", text: "Überlebe {n} Sekunden im Überlebensmodus", d: [90, 150], w: 300, max: true },
   };
   const MISSION_REWARD = { daily: { coins: 100, xp: 120 }, bonus: { coins: 250, xp: 200 }, weekly: { coins: 500, xp: 400 } };
   const missionText = (m) => { const M = MISSIONS[m.id]; return tr(m.goal === 1 && M.one ? M.one : M.text, { n: m.goal.toLocaleString(I18N.lang) }); };
@@ -2955,7 +3084,7 @@
     q.done = true;
     const r = MISSION_REWARD[kind];
     save.coins += r.coins; addPassXp(r.xp);
-    persist(); sfx("coin"); toast(`+${r.coins} 💰 · +${r.xp} ${tr("Pass-XP")}`);
+    persist(); sfx("coin"); toast(`${coinAmt(r.coins, "+")} · +${r.xp} ${tr("Pass-XP")}`, "missions");
   }
   function claimDailyBonus() {
     const m = missionsFresh();
@@ -2963,31 +3092,32 @@
     m.bonus = true;
     const r = MISSION_REWARD.bonus, b = pick(BOOSTS);
     save.coins += r.coins; save.boosts[b.id]++; addPassXp(r.xp);
-    persist(); sfx("level"); toast(`🎉 +${r.coins} 💰 · ${b.icon} ${b.name} · +${r.xp} ${tr("Pass-XP")}`);
+    persist(); sfx("level"); toast(`${coinAmt(r.coins, "+")} · ${b.name} · +${r.xp} ${tr("Pass-XP")}`, "chest");
   }
 
   // Erfolge in drei Stufen (Bronze, Silber, Gold)
   const ACHIEVEMENTS = [
-    { id: "kills", icon: "🧟", name: tr("Zombiejäger"), text: "Töte {n} Zombies", tiers: [500, 5000, 50000], val: () => save.stats.kills },
-    { id: "bosses", icon: "👹", name: tr("Bossbezwinger"), text: "Besiege {n} Bosse", one: "Besiege einen Boss", tiers: [1, 10, 50], val: () => save.stats.bosses },
-    { id: "elites", icon: "⭐", name: tr("Elitejäger"), text: "Töte {n} Elite-Zombies", tiers: [10, 100, 500], val: () => save.stats.elites },
-    { id: "chapter", icon: "🗺️", name: tr("Kapitelstürmer"), text: "Erreiche Kapitel {n}", tiers: [2, 3, 5], val: () => save.best.chapter },
-    { id: "survival", icon: "⏱️", name: tr("Überlebenskünstler"), text: "Überlebe {n} Sekunden", tiers: [60, 180, 300], val: () => save.stats.survival },
-    { id: "evolutions", icon: "🧬", name: tr("Evolutionär"), text: "Löse {n} Evolutionen aus", one: "Löse eine Evolution aus", tiers: [1, 10, 40], val: () => save.stats.evolutions },
-    { id: "codex", icon: "📖", name: tr("Forscher"), text: "Entdecke {n} Evolutionen", tiers: [2, 5, 8], val: () => Object.keys(save.codex).length },
-    { id: "arsenal", icon: "🔫", name: tr("Waffennarr"), text: "Besitze {n} Waffen", tiers: [3, 8, 15], val: () => Object.keys(save.weapons).length },
-    { id: "devil", icon: "😈", name: tr("Teufelsbündler"), text: "Schließe {n} Teufelspakte", one: "Schließe einen Teufelspakt", tiers: [1, 5, 20], val: () => save.stats.devil },
-    { id: "headshots", icon: "🎯", name: tr("Scharfschütze"), text: "Erziele {n} Kopfschüsse", tiers: [100, 1000, 10000], val: () => save.stats.headshots },
+    { id: "kills", icon: "zombie", name: tr("Zombiejäger"), text: "Töte {n} Zombies", tiers: [500, 5000, 50000], val: () => save.stats.kills },
+    { id: "bosses", icon: "bossSkull", name: tr("Bossbezwinger"), text: "Besiege {n} Bosse", one: "Besiege einen Boss", tiers: [1, 10, 50], val: () => save.stats.bosses },
+    { id: "elites", icon: "star", name: tr("Elitejäger"), text: "Töte {n} Elite-Zombies", tiers: [10, 100, 500], val: () => save.stats.elites },
+    { id: "chapter", icon: "map", name: tr("Kapitelstürmer"), text: "Erreiche Kapitel {n}", tiers: [2, 3, 5], val: () => save.best.chapter },
+    { id: "survival", icon: "hourglass", name: tr("Überlebenskünstler"), text: "Überlebe {n} Sekunden", tiers: [60, 180, 300], val: () => save.stats.survival },
+    { id: "evolutions", icon: "dna", name: tr("Evolutionär"), text: "Löse {n} Evolutionen aus", one: "Löse eine Evolution aus", tiers: [1, 10, 40], val: () => save.stats.evolutions },
+    { id: "codex", icon: "codex", name: tr("Forscher"), text: "Entdecke {n} Evolutionen", tiers: [2, 5, 8], val: () => Object.keys(save.codex).length },
+    { id: "arsenal", icon: "weapons", name: tr("Waffennarr"), text: "Besitze {n} Waffen", tiers: [3, 8, 15], val: () => Object.keys(save.weapons).length },
+    { id: "devil", icon: "devil", name: tr("Teufelsbündler"), text: "Schließe {n} Teufelspakte", one: "Schließe einen Teufelspakt", tiers: [1, 5, 20], val: () => save.stats.devil },
+    { id: "headshots", icon: "headshot", name: tr("Scharfschütze"), text: "Erziele {n} Kopfschüsse", tiers: [100, 1000, 10000], val: () => save.stats.headshots },
   ];
   const ACH_REWARD = [250, 1000, 4000];
-  const TIER_ICON = ["🥉", "🥈", "🥇"];
+  const TIER = ["bronze", "silver", "gold"];
+  const TIER_NAME = ["Bronze", "Silber", "Gold"];
   const achClaimable = (a) => { const t = save.ach[a.id] || 0; return t < a.tiers.length && a.val() >= a.tiers[t]; };
   function claimAchievement(a) {
     if (!achClaimable(a)) return;
     const t = save.ach[a.id] || 0;
     save.ach[a.id] = t + 1;
     save.coins += ACH_REWARD[t];
-    persist(); sfx("level"); toast(`${TIER_ICON[t]} ${a.name} · +${ACH_REWARD[t]} 💰`);
+    persist(); sfx("level"); toast(`${a.name} (${tr(TIER_NAME[t])}) · ${coinAmt(ACH_REWARD[t], "+")}`, "medal");
   }
 
   // Saisonpass: 28-Tage-Saisons, 30 Stufen; Gratis-Belohnungen für alle, Premium per In-App-Kauf
@@ -3018,11 +3148,12 @@
     if (lvl % 5 === 0) return { boost: BOOSTS[(lvl / 5 - 1) % BOOSTS.length].id };
     return { coins: 80 + 10 * lvl };
   }
-  function rewardLabel(r) {
-    if (r.skin) { const q = SKINS.find((s) => s.id === r.skin); return `${q.icon} ${q.name}`; }
-    if (r.crate) return `🎁 ${tr("Überraschungskiste")}`;
-    if (r.boost) { const q = BOOSTS.find((b) => b.id === r.boost); return `${q.icon} ${q.name}`; }
-    return `${r.coins.toLocaleString(I18N.lang)} 💰`;
+  function rewardLabel(r) { return rewardInfo(r).text; }
+  function rewardInfo(r) {
+    if (r.skin) { const q = SKINS.find((s) => s.id === r.skin); return { icon: q.icon, tone: "violet", text: q.name }; }
+    if (r.crate) return { icon: "mystery", tone: "amber", text: tr("Überraschungskiste") };
+    if (r.boost) { const q = BOOSTS.find((b) => b.id === r.boost); return { icon: q.icon, tone: "toxic", text: q.name }; }
+    return { icon: r.coins >= 1000 ? "chest" : "coins", tone: "amber", text: coinAmt(r.coins) };
   }
   function grantReward(r) {
     if (r.skin) save.skins[r.skin] = true;
@@ -3038,7 +3169,7 @@
     const r = passReward(lvl, prem);
     grantReward(r);
     persist(); sfx("level");
-    if (!r.crate) toast(`🎟️ ${rewardLabel(r)}`);
+    if (!r.crate) { const ri = rewardInfo(r); toast(ri.text, ri.icon); }
   }
   const passClaimable = () => {
     passFresh();
@@ -3061,25 +3192,28 @@
     if (c <= 0) return;
     save.coins += c;
     save.patrol.since = Date.now();
-    persist(); sfx("coin"); toast(`🛰️ +${c} 💰`);
+    persist(); sfx("coin"); toast(coinAmt(c, "+"), "patrol");
   }
 
   // ============================================================
   // Menüs
   // ============================================================
   function refreshMenu() {
-    $("menuCoins").textContent = save.coins;
-    $("menuBest").textContent = save.best.chapter ? tr("Kapitel {c} · Raum {r}", { c: save.best.chapter, r: save.best.room }) : "–";
+    $("menuCoins").textContent = num(save.coins);
+    $("menuBest").textContent = save.best.chapter ? tr("Kap. {c} · Raum {r}", { c: save.best.chapter, r: save.best.room }) : "–";
     const w = WEAPONS[save.equipped], lvl = save.weapons[save.equipped];
-    $("menuEquipped").innerHTML = `<img class="eq-ico" src="${Sprites.weaponIcon(save.equipped, weaponTier(lvl))}" alt=""><span>${tr("Ausgerüstet: {w} (Stufe {n})", { w: w.name, n: lvl })}</span>`;
+    $("menuWeaponImg").src = Sprites.weaponIcon(save.equipped, weaponTier(lvl));
+    $("menuEquipped").innerHTML = `${w.name}<span class="lv">${tr("Stufe {n}", { n: lvl })}</span>`;
     const sk = SKINS.find((q) => q.id === save.skin) || SKINS[0];
-    const bs = BOOSTS.filter((q) => save.boosts[q.id] > 0).map((q) => `${q.icon}×${save.boosts[q.id]}`).join(" ");
-    $("menuSkin").textContent = `${sk.icon} ${sk.name}${bs ? ` · ${tr("Boosts")}: ${bs}` : ""}`;
-    for (const el of document.querySelectorAll(".coinsVal")) el.textContent = save.coins;
-    $("survivalBest").textContent = save.stats.survival ? `${tr("Rekord")} ${fmtTime(save.stats.survival)}` : tr("5 Minuten · Endloswellen");
+    const bs = BOOSTS.filter((q) => save.boosts[q.id] > 0).map((q) => `${q.name} ×${save.boosts[q.id]}`).join(" · ");
+    $("menuSkin").textContent = bs ? `${sk.name} · ${tr("Boosts")}: ${bs}` : sk.name;
+    for (const el of document.querySelectorAll(".coinsVal")) el.textContent = num(save.coins);
+    $("survivalBest").textContent = save.stats.survival ? `${tr("Rekord")} ${fmtTime(save.stats.survival)}` : tr("5 Minuten");
     $("missionsBadge").classList.toggle("hidden", !missionsClaimable());
     $("passBadge").classList.toggle("hidden", !passClaimable());
+    const pc = patrolCoins();
     $("patrolBadge").classList.toggle("hidden", patrolHours() < 1);
+    $("patrolMini").textContent = pc > 0 ? `+${num(pc)}` : "";
   }
 
   // Weiche Trennstellen für lange deutsche Komposita (schmale Handys)
@@ -3091,20 +3225,23 @@
     for (const [id, w] of Object.entries(WEAPONS)) {
       const lvl = save.weapons[id];
       const row = document.createElement("div");
-      row.className = `item${save.equipped === id ? " active" : ""}`;
+      row.className = `item weapon${save.equipped === id ? " active" : ""}${lvl ? "" : " dim"}`;
       const dps = Math.round(w.dmg * w.pellets * w.rate * weaponLvlMult(lvl || 1));
+      const tag = save.equipped === id ? `<span class="tag">${tr("Ausgerüstet")}</span>` : !lvl ? `<span class="tag amber">${tr("Nicht im Besitz")}</span>` : "";
       row.innerHTML = `<div class="ico"><img src="${Sprites.weaponIcon(id, weaponTier(lvl || 1))}" alt=""></div>
-        <div><div class="name">${softHyphen(w.name)}</div>${lvl ? `<div class="lvl${lvl >= 5 ? " gold" : ""}">${tr("Stufe {n}", { n: lvl })}</div>` : ""}<div class="desc">${w.desc} · DPS ~${dps}</div></div>
+        <div>${tag}<div class="name">${softHyphen(w.name)}</div>
+        <div class="meta">${lvl ? pipsHtml(lvl, WEAPON_MAX_LVL, lvl >= 5 ? "gold" : "") : ""}<span>DPS <b class="dps">${dps}</b></span></div>
+        <div class="desc">${w.desc}</div></div>
         <div class="acts"></div>`;
       const acts = row.querySelector(".acts");
       if (!lvl) {
-        acts.appendChild(actionBtn(tr("Kaufen {p}💰", { p: w.price }), save.coins >= w.price, () => { save.coins -= w.price; save.weapons[id] = 1; save.equipped = id; }));
+        acts.appendChild(actionBtn(coinAmt(w.price), save.coins >= w.price, () => { save.coins -= w.price; save.weapons[id] = 1; save.equipped = id; }, "amber"));
       } else {
-        if (save.equipped !== id) acts.appendChild(actionBtn(tr("Ausrüsten"), true, () => { save.equipped = id; }));
+        if (save.equipped !== id) acts.appendChild(actionBtn(tr("Ausrüsten"), true, () => { save.equipped = id; }, "primary"));
         if (lvl < WEAPON_MAX_LVL) {
           const c = weaponUpgradeCost(lvl);
-          acts.appendChild(actionBtn(`▲ ${c}💰`, save.coins >= c, () => { save.coins -= c; save.weapons[id]++; }));
-        } else acts.appendChild(actionBtn("MAX", false, () => {}));
+          acts.appendChild(actionBtn(`${I("upgrade")}${coinAmt(c)}`, save.coins >= c, () => { save.coins -= c; save.weapons[id]++; }));
+        } else acts.appendChild(actionBtn(tr("Maximal"), false, () => {}));
       }
       list.appendChild(row);
     }
@@ -3118,22 +3255,22 @@
       const lvl = save.talents[id];
       const row = document.createElement("div");
       row.className = "item";
-      row.innerHTML = `<div class="ico">${t.icon}</div>
-        <div><div class="name">${t.name} · ${lvl}/${t.max}</div><div class="desc">${t.desc}</div></div>
+      row.innerHTML = `<div class="ico">${medal(t.icon, "toxic")}</div>
+        <div><div class="name">${t.name}</div><div class="meta">${pipsHtml(lvl, t.max)}<span>${lvl} / ${t.max}</span></div><div class="desc">${t.desc}</div></div>
         <div class="acts"></div>`;
       const c = talentCost(lvl);
       row.querySelector(".acts").appendChild(lvl < t.max
-        ? actionBtn(`▲ ${c}💰`, save.coins >= c, () => { save.coins -= c; save.talents[id]++; })
-        : actionBtn("MAX", false, () => {}));
+        ? actionBtn(`${I("upgrade")}${coinAmt(c)}`, save.coins >= c, () => { save.coins -= c; save.talents[id]++; })
+        : actionBtn(tr("Maximal"), false, () => {}));
       list.appendChild(row);
     }
     refreshMenu();
   }
 
-  function actionBtn(label, enabled, fn) {
+  function actionBtn(label, enabled, fn, tone = "") {
     const b = document.createElement("button");
-    b.className = "btn";
-    b.textContent = label;
+    b.className = `btn ${tone}`;
+    b.innerHTML = label;
     b.disabled = !enabled;
     b.addEventListener("click", () => {
       fn();
@@ -3145,8 +3282,7 @@
   }
 
   // ---------- Missionen, Erfolge, Statistik ----------
-  const num = (v) => Math.floor(v).toLocaleString(I18N.lang);
-  const bar = (k) => `<div class="bar"><i style="width:${Math.round(Math.min(1, Math.max(0, k)) * 100)}%"></i></div>`;
+  const bar = (k, cls = "") => `<div class="bar-p ${cls}"><i style="width:${Math.round(Math.min(1, Math.max(0, k)) * 100)}%"></i></div>`;
   function untilMidnight() {
     const d = new Date(), m = new Date(d); m.setHours(24, 0, 0, 0);
     const min = Math.ceil((m - d) / 6e4);
@@ -3157,34 +3293,42 @@
     for (const b of document.querySelectorAll("#missionTabs button")) b.classList.toggle("active", b.dataset.tab === missionTab);
     const m = missionsFresh(), list = $("missionList");
     list.innerHTML = "";
+    const claimBtn = (done, ready) => (done ? I("check") : tr("Abholen"));
     if (missionTab === "daily" || missionTab === "weekly") {
       const kind = missionTab, r = MISSION_REWARD[kind];
       for (const q of kind === "daily" ? m.daily : m.weekly) {
         const ready = q.p >= q.goal && !q.done;
-        list.appendChild(shopRow(MISSIONS[q.id].icon, missionText(q), `${bar(q.p / q.goal)}${num(q.p)} / ${num(q.goal)} · ${r.coins} 💰 + ${r.xp} ${tr("Pass-XP")}`,
-          ready ? tr("FERTIG") : "", q.done ? "✓" : tr("Abholen"), ready, () => { claimMission(q, kind); renderMissions(); refreshMenu(); }));
+        const row = shopRow(medal(MISSIONS[q.id].icon, q.done ? "steel" : "toxic"), missionText(q),
+          `${bar(q.p / q.goal)}<div class="meta"><span>${num(q.p)} / ${num(q.goal)}</span>${coinAmt(r.coins, "+")}<span>+${r.xp} ${tr("Pass-XP")}</span></div>`,
+          ready ? `<span class="tag">${tr("FERTIG")}</span>` : "", claimBtn(q.done, ready), ready, () => { claimMission(q, kind); renderMissions(); refreshMenu(); }, ready ? "primary" : "");
+        if (q.done) row.classList.add("dim");
+        list.appendChild(row);
       }
       if (kind === "daily") {
-        const all = m.daily.every((q) => q.done), b = MISSION_REWARD.bonus;
-        list.appendChild(shopRow("🎉", tr("Tagesbonus"), tr("Alle 3 Tagesmissionen abgeschlossen: {c} 💰 + zufälliger Boost + {x} Pass-XP", { c: b.coins, x: b.xp }),
-          all && !m.bonus ? tr("FERTIG") : "", m.bonus ? "✓" : tr("Abholen"), all && !m.bonus, () => { claimDailyBonus(); renderMissions(); refreshMenu(); }));
+        const all = m.daily.every((q) => q.done), b = MISSION_REWARD.bonus, ready = all && !m.bonus;
+        const row = shopRow(medal("chest", "amber", "big"), tr("Tagesbonus"), `${tr("Alle 3 Tagesmissionen abgeschlossen")}<div class="meta">${coinAmt(b.coins, "+")}<span>${tr("Boost")}</span><span>+${b.xp} ${tr("Pass-XP")}</span></div>`,
+          ready ? `<span class="tag">${tr("FERTIG")}</span>` : `<span class="tag amber">${tr("BONUS")}</span>`, claimBtn(m.bonus, ready), ready, () => { claimDailyBonus(); renderMissions(); refreshMenu(); }, ready ? "primary" : "");
+        if (m.bonus) row.classList.add("dim");
+        list.appendChild(row);
       }
       $("missionNote").textContent = kind === "daily" ? tr("Neue Missionen in {t}", { t: untilMidnight() }) : tr("Neue Wochenmissionen jeden Montag");
       return;
     }
     for (const a of ACHIEVEMENTS) {
       const t = save.ach[a.id] || 0, maxed = t >= a.tiers.length, goal = a.tiers[Math.min(t, a.tiers.length - 1)];
-      const tiers = `<span class="tiers">${TIER_ICON.map((ic, i) => `<i class="${i < t ? "on" : ""}">${ic}</i>`).join("")}</span>`;
+      const tiers = `<span class="tiers">${TIER.map((c, i) => `<i class="${c}${i < t ? " on" : ""}">${I("medal")}</i>`).join("")}</span>`;
       const text = tr(goal === 1 && a.one ? a.one : a.text, { n: num(goal) });
-      list.appendChild(shopRow(a.icon, `${a.name} ${tiers}`, `${text}${bar(a.val() / goal)}${num(Math.min(a.val(), goal))} / ${num(goal)}`,
-        achClaimable(a) ? tr("FERTIG") : "", maxed ? "✓" : `${TIER_ICON[t]} +${ACH_REWARD[t]} 💰`, achClaimable(a), () => { claimAchievement(a); renderMissions(); refreshMenu(); }));
+      const ready = achClaimable(a);
+      const row = shopRow(medal(a.icon, maxed ? "gold" : "amber"), `${a.name} ${tiers}`, `${text}${bar(a.val() / goal, "amber")}<div class="meta"><span>${num(Math.min(a.val(), goal))} / ${num(goal)}</span></div>`,
+        ready ? `<span class="tag">${tr("FERTIG")}</span>` : "", maxed ? I("check") : coinAmt(ACH_REWARD[t], "+"), ready, () => { claimAchievement(a); renderMissions(); refreshMenu(); }, ready ? "primary" : "");
+      list.appendChild(row);
     }
     const st = save.stats, box = document.createElement("div");
     box.className = "stats panel";
-    const rows = [["Zombies getötet", num(st.kills)], ["Bosse besiegt", num(st.bosses)], ["Elite-Zombies", num(st.elites)], ["Räume gesäubert", num(st.rooms)],
-      ["Einsätze", num(st.runs)], ["Evolutionen", num(st.evolutions)], ["Kopfschüsse", num(st.headshots)], ["Höchstes Level", num(st.level)],
-      ["Längstes Überleben", fmtTime(st.survival)], ["Spielzeit", `${Math.floor(st.time / 3600)} h ${Math.floor((st.time % 3600) / 60)} min`]];
-    box.innerHTML = rows.map(([k, v]) => `<span>${tr(k)}</span><b>${v}</b>`).join("");
+    const rows = [["zombie", "Zombies getötet", num(st.kills)], ["bossSkull", "Bosse besiegt", num(st.bosses)], ["star", "Elite-Zombies", num(st.elites)], ["door", "Räume gesäubert", num(st.rooms)],
+      ["play", "Einsätze", num(st.runs)], ["dna", "Evolutionen", num(st.evolutions)], ["headshot", "Kopfschüsse", num(st.headshots)], ["upgrade", "Höchstes Level", num(st.level)],
+      ["stopwatch", "Längstes Überleben", fmtTime(st.survival)], ["hourglass", "Spielzeit", `${Math.floor(st.time / 3600)} h ${Math.floor((st.time % 3600) / 60)} min`]];
+    box.innerHTML = rows.map(([ic, k, v]) => `<span>${I(ic)}${tr(k)}</span><b>${v}</b>`).join("");
     list.appendChild(box);
     $("missionNote").textContent = tr("Statistik über alle Einsätze");
   }
@@ -3196,29 +3340,35 @@
   // ---------- Saisonpass ----------
   function renderPass() {
     const s = passFresh(), lvl = passLevel(), prem = passPremium();
-    $("passHead").innerHTML = `<div class="pass-top"><b>${tr("Saison {n}", { n: s.id })}</b><span>${tr("Noch {d} Tage", { d: s.left })}</span></div>
-      <div class="pass-lvl">${tr("Stufe {n}", { n: lvl })} / ${PASS_LEVELS}</div>
-      ${lvl < PASS_LEVELS ? `${bar((save.pass.xp - lvl * PASS_STEP) / PASS_STEP)}<small>${save.pass.xp - lvl * PASS_STEP} / ${PASS_STEP} ${tr("Pass-XP")}</small>` : `<small>${tr("Höchste Stufe erreicht!")}</small>`}
+    $("passKicker").textContent = tr("Saison {n}", { n: s.id }).toUpperCase();
+    const xpIn = save.pass.xp - lvl * PASS_STEP;
+    $("passHead").innerHTML = `<div class="pass-top"><b>${tr("Saison {n}", { n: s.id })}</b><span>${I("hourglass")} ${tr("Noch {d} Tage", { d: s.left })}</span></div>
+      <div class="pass-lvl">${tr("Stufe")} <b>${lvl}</b> / ${PASS_LEVELS}</div>
+      ${lvl < PASS_LEVELS ? `${bar(xpIn / PASS_STEP, "amber")}<small>${xpIn} / ${PASS_STEP} ${tr("Pass-XP")}</small>` : `<small>${tr("Höchste Stufe erreicht!")}</small>`}
       <small class="hint">${tr("Pass-XP gibt es für Missionen, gesäuberte Räume, Bosse und Überlebenszeit.")}</small>`;
     const buy = $("passBuy");
     buy.innerHTML = "";
-    if (prem) buy.innerHTML = `<p class="sub">✓ ${tr("Premium-Pass aktiv")}</p>`;
-    else buy.appendChild(iapRow("🎟️", tr("Premium-Pass"), tr("Doppelte Belohnungen und der exklusive Skin „Seuchenjäger“ – gilt für diese Saison"), tr("PREMIUM"), IDS.seasonPass, false));
+    if (!prem) buy.appendChild(iapRow(medal("pass", "gold", "big"), tr("Premium-Pass"), tr("Doppelte Belohnungen und der exklusive Skin „Seuchenjäger“ – gilt für diese Saison"), `<span class="tag gold">${tr("PREMIUM")}</span>`, IDS.seasonPass, false));
     const list = $("passList");
-    list.innerHTML = `<div class="pass-row head"><span>${tr("Stufe")}</span><span>${tr("Gratis")}</span><span>👑 ${tr("Premium")}</span></div>`;
+    list.innerHTML = `<div class="pass-row head"><span>${tr("Gratis")}</span><span></span><span class="p">${tr("Premium")}${prem ? ` ${I("check")}` : ""}</span></div>`;
     for (let l = 1; l <= PASS_LEVELS; l++) {
       const row = document.createElement("div");
       row.className = `pass-row${l <= lvl ? " reached" : ""}`;
-      row.innerHTML = `<span class="pl">${l}</span>`;
-      for (const pr of [false, true]) {
-        const done = (pr ? save.pass.prem : save.pass.free).includes(l), can = l <= lvl && !done && (!pr || prem);
+      const cell = (pr) => {
+        const done = (pr ? save.pass.prem : save.pass.free).includes(l), locked = pr && !prem, can = l <= lvl && !done && !locked;
+        const ri = rewardInfo(passReward(l, pr));
         const b = document.createElement("button");
-        b.className = `pass-cell${can ? " ready" : ""}${done ? " done" : ""}${pr ? " prem" : ""}`;
-        b.innerHTML = `${done ? "✓ " : pr && !prem ? "🔒 " : ""}${rewardLabel(passReward(l, pr))}`;
+        b.className = `pass-cell${can ? " ready" : ""}${done ? " done" : ""}${locked ? " locked" : ""}${pr ? " prem" : ""}`;
+        b.innerHTML = `${medal(ri.icon, ri.tone, "sm")}<span>${ri.text}</span>${done ? `<span class="ok">${I("check")}</span>` : locked ? `<span class="lk">${I("lock")}</span>` : ""}`;
         b.disabled = !can;
         b.addEventListener("click", () => { claimPass(l, pr); renderPass(); refreshMenu(); });
-        row.appendChild(b);
-      }
+        return b;
+      };
+      row.appendChild(cell(false));
+      const lv = document.createElement("span");
+      lv.className = "pl"; lv.textContent = l;
+      row.appendChild(lv);
+      row.appendChild(cell(true));
       list.appendChild(row);
     }
     refreshMenu();
@@ -3227,18 +3377,18 @@
   // ---------- Patrouille ----------
   function renderPatrol() {
     const h = patrolHours(), c = patrolCoins(), hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
-    $("patrolInfo").innerHTML = `<div class="patrol-amt">💰 ${num(c)}</div>
-      ${bar(h / PATROL_MAX_H)}<small>${hh} h ${mm} min / ${PATROL_MAX_H} h</small>
+    $("patrolInfo").innerHTML = `<div class="patrol-amt">${I("coin")}${num(c)}</div>
+      ${bar(h / PATROL_MAX_H, "amber")}<small>${hh} h ${mm} min / ${PATROL_MAX_H} h</small>
       <p class="hint">${tr("{r} Münzen pro Stunde – steigt mit deinem Rekordkapitel. Ab {h} h ist der Speicher voll.", { r: patrolRate(), h: PATROL_MAX_H })}</p>`;
     $("patrolClaim").disabled = c < 1;
-    $("patrolClaim").textContent = tr("Abholen (+{x})", { x: num(c) });
+    $("patrolClaim").innerHTML = tr("Abholen");
     const ads = Platform.ads.available;
     $("patrolClaimAd").classList.toggle("hidden", !ads);
     $("patrolClaimAd").disabled = c < 1;
     const ql = quickLeft();
     $("patrolQuick").classList.toggle("hidden", !ads);
     $("patrolQuick").disabled = ql < 1;
-    $("patrolQuick").textContent = tr("▶ Schnellpatrouille: +{x} 💰 ({l}/{n} heute)", { x: QUICK_PATROL_H * patrolRate(), l: ql, n: QUICK_PATROLS });
+    $("patrolQuick").innerHTML = adLabel(`${tr("Schnellpatrouille")} ${coinAmt(QUICK_PATROL_H * patrolRate(), "+")} <small>${ql}/${QUICK_PATROLS}</small>`);
   }
 
   // ---------- Kodex der Evolutionen ----------
@@ -3247,10 +3397,10 @@
     list.innerHTML = "";
     for (const ev of EVOLUTIONS) {
       const found = !!save.codex[ev.id];
-      const recipe = Object.entries(ev.needs).map(([id, n]) => { const s = skillById(id); return `${s.icon} ${s.name}${n > 1 ? ` ×${n}` : ""}`; }).join(" + ");
+      const recipe = Object.entries(ev.needs).map(([id, n]) => { const sk = skillById(id); return `<span class="ing">${medal(sk.icon, RARITY_TONE[sk.rarity])}${sk.name}${n > 1 ? ` ×${n}` : ""}</span>`; }).join('<span class="arr">+</span>');
       const row = document.createElement("div");
       row.className = `item codex${found ? " found" : ""}`;
-      row.innerHTML = `<div class="ico">${ev.icon}</div><div><div class="name">${ev.name}${found ? " ✓" : ""}</div><div class="desc">${ev.desc}</div><div class="evo-hint">🧬 ${recipe}</div></div><div></div>`;
+      row.innerHTML = `<div class="ico">${medal(ev.icon)}</div><div>${found ? `<span class="tag gold">${tr("ENTDECKT")}</span>` : ""}<div class="name">${ev.name}</div><div class="desc">${ev.desc}</div><div class="recipe evo-hint">${recipe}</div></div><div></div>`;
       list.appendChild(row);
     }
     $("codexNote").textContent = tr("{n} von {m} entdeckt – Rezepte sind nie geheim.", { n: Object.keys(save.codex).length, m: EVOLUTIONS.length });
@@ -3262,28 +3412,28 @@
   const IDS = Platform.cfg.iap || {};
   const COIN_PACKS = { [IDS.coinsSmall]: 1200, [IDS.coinsBig]: 7000 };
   const SHOP_ITEMS = [
-    { id: IDS.starter, icon: "🎒", name: tr("Starterpaket"), desc: tr("Werbefrei + 3.000 Münzen + Armbrust"), tag: tr("BESTER DEAL"), owned: () => save.starterOwned },
-    { id: IDS.noAds, icon: "🚫", name: tr("Werbefrei"), desc: tr("Keine Zwangswerbung mehr. Bonus-Videos bleiben freiwillig."), owned: () => save.noAds },
-    { id: IDS.coinsSmall, icon: "💰", name: tr("Münzbeutel"), desc: tr("1.200 Münzen") },
-    { id: IDS.coinsBig, icon: "🏆", name: tr("Münztruhe"), desc: tr("7.000 Münzen"), tag: tr("+45% MEHR") },
+    { id: IDS.starter, icon: "backpack", name: tr("Starterpaket"), desc: tr("Werbefrei + 3.000 Münzen + Armbrust"), tag: tr("BESTER DEAL"), owned: () => save.starterOwned },
+    { id: IDS.noAds, icon: "noAds", name: tr("Werbefrei"), desc: tr("Keine Zwangswerbung mehr. Bonus-Videos bleiben freiwillig."), owned: () => save.noAds },
+    { id: IDS.coinsSmall, icon: "coins", name: tr("Münzbeutel"), desc: tr("1.200 Münzen") },
+    { id: IDS.coinsBig, icon: "chest", name: tr("Münztruhe"), desc: tr("7.000 Münzen"), tag: tr("+45% MEHR") },
   ];
   // Skins: reine Optik (Goldener Held zusätzlich +10 % Münzen, nur per In-App-Kauf)
   const SKINS = [
-    { id: "soldier", icon: "🪖", name: tr("Soldat"), price: 0 },
-    { id: "police", icon: "🛡️", name: tr("SWAT"), price: 1500 },
-    { id: "firefighter", icon: "🚒", name: tr("Feuerwehr"), price: 2500 },
-    { id: "hazmat", icon: "☣️", name: tr("Biohazard"), price: 3500 },
-    { id: "ninja", icon: "🥷", name: tr("Schatten-Ninja"), price: 5000 },
-    { id: "cyber", icon: "🤖", name: tr("Cyber-Agent"), price: 8000 },
-    { id: "plague", icon: "🎭", name: tr("Seuchendoktor"), price: 12000 },
-    { id: "gold", icon: "👑", name: tr("Goldener Held"), iap: IDS.goldSkin, desc: tr("Premium-Skin · +10% Münzen") },
-    { id: "hunter", icon: "🎖️", name: tr("Seuchenjäger"), pass: true, desc: tr("Exklusiv im Premium-Saisonpass") },
+    { id: "soldier", icon: "soldier", name: tr("Soldat"), price: 0 },
+    { id: "police", icon: "police", name: tr("SWAT"), price: 1500 },
+    { id: "firefighter", icon: "firefighter", name: tr("Feuerwehr"), price: 2500 },
+    { id: "hazmat", icon: "hazmat", name: tr("Biohazard"), price: 3500 },
+    { id: "ninja", icon: "ninja", name: tr("Schatten-Ninja"), price: 5000 },
+    { id: "cyber", icon: "cyber", name: tr("Cyber-Agent"), price: 8000 },
+    { id: "plague", icon: "plagueDoc", name: tr("Seuchendoktor"), price: 12000 },
+    { id: "gold", icon: "crown", name: tr("Goldener Held"), iap: IDS.goldSkin, desc: tr("Premium-Skin · +10% Münzen") },
+    { id: "hunter", icon: "hunter", name: tr("Seuchenjäger"), pass: true, desc: tr("Exklusiv im Premium-Saisonpass") },
   ];
   const BOOSTS = [
-    { id: "hp", icon: "❤️", name: tr("Zähigkeit+"), desc: tr("+30% max. HP im nächsten Einsatz"), price: 300 },
-    { id: "coins", icon: "🍀", name: tr("Glücksbringer"), desc: tr("+50% Münzen im nächsten Einsatz"), price: 400 },
-    { id: "skill", icon: "🎁", name: tr("Startvorteil"), desc: tr("Starte mit einem zusätzlichen Skill"), price: 500 },
-    { id: "revive", icon: "😇", name: tr("Schutzengel"), desc: tr("Einmal wiederbeleben im nächsten Einsatz"), price: 800 },
+    { id: "hp", icon: "heartArmor", name: tr("Zähigkeit+"), desc: tr("+30% max. HP im nächsten Einsatz"), price: 300 },
+    { id: "coins", icon: "clover", name: tr("Glücksbringer"), desc: tr("+50% Münzen im nächsten Einsatz"), price: 400 },
+    { id: "skill", icon: "gift", name: tr("Startvorteil"), desc: tr("Starte mit einem zusätzlichen Skill"), price: 500 },
+    { id: "revive", icon: "angel", name: tr("Schutzengel"), desc: tr("Einmal wiederbeleben im nächsten Einsatz"), price: 800 },
   ];
   const MYSTERY_PRICE = 1500;
   // Gewinnchancen der Überraschungskiste – eine Quelle für Ziehung UND Anzeige, damit die
@@ -3304,14 +3454,15 @@
     let r = Math.random(), kind = "coins";
     for (const [k, p] of odds) { if (r < p) { kind = k; break; } r -= p; }
     let msg;
-    if (kind === "skin") { const q = pick(skins); save.skins[q.id] = true; msg = `${q.icon} ${tr("Neuer Skin")}: ${q.name}!`; }
-    else if (kind === "weapon") { const id = pick(weapons); save.weapons[id] = 1; msg = `${WEAPONS[id].icon} ${tr("Neue Waffe")}: ${WEAPONS[id].name}!`; }
-    else if (kind === "boosts") { const a = pick(BOOSTS), b2 = pick(BOOSTS); save.boosts[a.id]++; save.boosts[b2.id]++; msg = `${a.icon} ${a.name} + ${b2.icon} ${b2.name}`; }
-    else { const c = randi(8, 26) * 100; save.coins += c; msg = `+${c} 💰`; }
+    let icon = "mystery";
+    if (kind === "skin") { const q = pick(skins); save.skins[q.id] = true; msg = `${tr("Neuer Skin")}: ${q.name}!`; icon = q.icon; }
+    else if (kind === "weapon") { const id = pick(weapons); save.weapons[id] = 1; msg = `${tr("Neue Waffe")}: ${WEAPONS[id].name}!`; icon = "weapons"; }
+    else if (kind === "boosts") { const a = pick(BOOSTS), b2 = pick(BOOSTS); save.boosts[a.id]++; save.boosts[b2.id]++; msg = `${a.name} + ${b2.name}`; icon = "gift"; }
+    else { const c = randi(8, 26) * 100; save.coins += c; msg = coinAmt(c, "+"); icon = "coins"; }
     persist();
     sfx("level");
     if (save.vibration) Platform.vibrate(40);
-    toast(`🎁 ${msg}`);
+    toast(msg, icon);
   }
   const DAILY = [100, 150, 200, 300, 400, 500, 1000];
   const FREE_COINS_PER_DAY = 5;
@@ -3322,12 +3473,13 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
-  function toast(msg) {
+  function toast(msg, icon = "check") {
     const el = $("toast");
-    el.textContent = msg;
+    el.innerHTML = `${I(icon)}<span>${msg}</span>`;
     el.classList.remove("hidden");
+    el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
     clearTimeout(toast.t);
-    toast.t = setTimeout(() => el.classList.add("hidden"), 2200);
+    toast.t = setTimeout(() => el.classList.add("hidden"), 2400);
   }
 
   // Lieferung von Käufen (wird von der Plattform-Schicht aufgerufen)
@@ -3361,7 +3513,7 @@
     }
     if (!restore) { save.txns.push(txId); if (save.txns.length > 200) save.txns.shift(); }
     persist();
-    if (changed) { sfx("level"); toast(restore ? tr("Kauf wiederhergestellt") : tr("Kauf erfolgreich – danke! ❤️")); }
+    if (changed) { sfx("level"); toast(restore ? tr("Kauf wiederhergestellt") : tr("Kauf erfolgreich – danke!"), "gift"); }
     refreshMenu();
     if (!ui.shop.classList.contains("hidden")) renderShop();
   });
@@ -3395,21 +3547,21 @@
   }
   // Preis-Knopf für einen In-App-Kauf
   function iapRow(icon, name, desc, tag, id, owned) {
-    if (owned) return shopRow(icon, name, desc, tag, tr("✓ Gekauft"), false, null);
+    if (owned) return shopRow(icon, name, desc, tag, `${I("check")} ${tr("Gekauft")}`, false, null);
     const iapReady = Platform.iap.available;
     const prod = iapReady ? Platform.iap.product(id) : null;
     const label = prod && prod.price ? prod.price : iapReady ? "…" : tr("In der App");
     return shopRow(icon, name, desc, tag, label, !!(prod && prod.canPurchase), async (btn) => {
       btn.disabled = true;
       const ok = await Platform.iap.buy(id);
-      if (!ok) toast(tr("Kauf abgebrochen"));
+      if (!ok) toast(tr("Kauf abgebrochen"), "close");
       btn.disabled = false;
-    });
+    }, "amber");
   }
   function renderOffers(list) {
     if (Platform.ads.available) {
       const left = freeCoinsLeft();
-      list.appendChild(shopRow("🎬", tr("Gratis-Münzen"), tr("Kurzes Video ansehen: +{x} Münzen ({l}/{n} heute)", { x: freeCoinAmount(), l: left, n: FREE_COINS_PER_DAY }), "", left > 0 ? tr("▶ Gratis") : tr("Morgen wieder"), left > 0, async (btn) => {
+      list.appendChild(shopRow(medal("video", "violet"), tr("Gratis-Münzen"), tr("Kurzes Video ansehen: +{x} Münzen ({l}/{n} heute)", { x: freeCoinAmount(), l: left, n: FREE_COINS_PER_DAY }), "", left > 0 ? adLabel(tr("Gratis")) : tr("Morgen wieder"), left > 0, async (btn) => {
         btn.disabled = true;
         const ok = await Platform.ads.showRewarded("free_coins");
         if (ok) {
@@ -3418,43 +3570,45 @@
           save.coins += freeCoinAmount();
           persist();
           sfx("coin");
-          toast(`+${freeCoinAmount()} 💰`);
-        } else toast(tr("Kein Video verfügbar"));
+          toast(coinAmt(freeCoinAmount(), "+"), "coins");
+        } else toast(tr("Kein Video verfügbar"), "video");
         renderShop();
       }, "ad"));
     }
     const pct = Object.fromEntries(mysteryOdds().odds.map(([k, p]) => [k, Math.round(p * 100)]));
-    list.appendChild(shopRow("🎁", tr("Überraschungskiste"), tr("Chancen: Skin {skin} % · Waffe {weapon} % · 2 Boosts {boosts} % · 800–2.600 Münzen {coins} %", pct), tr("NEU"), tr("Kaufen {p}💰", { p: MYSTERY_PRICE }), save.coins >= MYSTERY_PRICE, () => { openMystery(); renderShop(); }));
+    list.appendChild(shopRow(medal("mystery", "amber", "big"), tr("Überraschungskiste"), tr("Chancen: Skin {skin} % · Waffe {weapon} % · 2 Boosts {boosts} % · 800–2.600 Münzen {coins} %", pct), `<span class="tag">${tr("NEU")}</span>`, coinAmt(MYSTERY_PRICE), save.coins >= MYSTERY_PRICE, () => { openMystery(); renderShop(); }, "amber"));
     const gold = SKINS.find((q) => q.id === "gold");
-    list.appendChild(iapRow(gold.icon, gold.name, gold.desc, tr("PREMIUM"), gold.iap, save.skins.gold));
-    for (const it of SHOP_ITEMS) list.appendChild(iapRow(it.icon, it.name, it.desc, it.tag, it.id, it.owned && it.owned()));
+    list.appendChild(iapRow(medal(gold.icon, "gold", "big"), gold.name, gold.desc, `<span class="tag gold">${tr("PREMIUM")}</span>`, gold.iap, save.skins.gold));
+    for (const it of SHOP_ITEMS) list.appendChild(iapRow(medal(it.icon, "amber", "big"), it.name, it.desc, it.tag ? `<span class="tag amber">${it.tag}</span>` : "", it.id, it.owned && it.owned()));
   }
   function renderSkinList(list) {
     for (const q of SKINS) {
       const owned = !!save.skins[q.id], active = save.skin === q.id;
+      const ic = medal(q.icon, q.iap ? "gold" : q.pass ? "amber" : owned ? "toxic" : "steel");
       let row;
-      if (q.iap && !owned) row = iapRow(q.icon, q.name, q.desc, tr("PREMIUM"), q.iap, false);
-      else if (q.pass && !owned) row = shopRow(q.icon, q.name, q.desc, tr("SAISONPASS"), tr("🎟️ Zum Pass"), true, () => { renderPass(); show(ui.pass); });
-      else if (owned) row = shopRow(q.icon, q.name, active ? tr("Ausgerüstet") : tr("Im Besitz"), "", active ? tr("✓ Aktiv") : tr("Ausrüsten"), !active, () => { save.skin = q.id; previewSkin = q.id; persist(); sfx("coin"); renderShop(); });
-      else row = shopRow(q.icon, q.name, tr("Nur Optik – zeig, wer du bist."), "", tr("Kaufen {p}💰", { p: q.price }), save.coins >= q.price, () => {
+      if (q.iap && !owned) row = iapRow(ic, q.name, q.desc, `<span class="tag gold">${tr("PREMIUM")}</span>`, q.iap, false);
+      else if (q.pass && !owned) row = shopRow(ic, q.name, q.desc, `<span class="tag amber">${tr("SAISONPASS")}</span>`, `${I("pass")}${tr("Zum Pass")}`, true, () => { renderPass(); show(ui.pass); });
+      else if (owned) row = shopRow(ic, q.name, active ? tr("Ausgerüstet") : tr("Im Besitz"), active ? `<span class="tag">${tr("Aktiv")}</span>` : "", active ? I("check") : tr("Ausrüsten"), !active, () => { save.skin = q.id; previewSkin = q.id; persist(); sfx("coin"); renderShop(); }, active ? "" : "primary");
+      else row = shopRow(ic, q.name, tr("Nur Optik – zeig, wer du bist."), "", coinAmt(q.price), save.coins >= q.price, () => {
         if (save.coins < q.price) return;
         save.coins -= q.price; save.skins[q.id] = true; save.skin = q.id; previewSkin = q.id;
-        persist(); sfx("level"); toast(`${q.icon} ${q.name}!`); renderShop();
-      });
+        persist(); sfx("level"); toast(`${q.name}!`, q.icon); renderShop();
+      }, "amber");
+      if (active) row.classList.add("active");
       // Antippen der Zeile zeigt den Skin in der Vorschau
       row.classList.add("pickable");
       if ((previewSkin || save.skin) === q.id) row.classList.add("selected");
-      row.addEventListener("click", (ev) => { if (ev.target.tagName === "BUTTON") return; previewSkin = q.id; renderShop(); });
+      row.addEventListener("click", (ev) => { if (ev.target.closest("button")) return; previewSkin = q.id; renderShop(); });
       list.appendChild(row);
     }
   }
   function renderBoostList(list) {
     for (const q of BOOSTS) {
       const n = save.boosts[q.id] || 0;
-      list.appendChild(shopRow(q.icon, `${q.name}${n ? ` ×${n}` : ""}`, q.desc, n ? tr("BEREIT") : "", tr("Kaufen {p}💰", { p: q.price }), save.coins >= q.price, () => {
+      list.appendChild(shopRow(medal(q.icon, "toxic"), `${q.name}${n ? ` <span class="cnt">×${n}</span>` : ""}`, q.desc, n ? `<span class="tag">${tr("BEREIT")}</span>` : "", coinAmt(q.price), save.coins >= q.price, () => {
         if (save.coins < q.price) return;
         save.coins -= q.price; save.boosts[q.id] = n + 1; persist(); sfx("coin"); renderShop();
-      }));
+      }, "amber"));
     }
   }
 
@@ -3462,11 +3616,11 @@
     const row = document.createElement("div");
     row.className = "item";
     row.innerHTML = `<div class="ico">${icon}</div>
-      <div>${tag ? `<div class="tag">${tag}</div>` : ""}<div class="name">${name}</div><div class="desc">${desc}</div></div>
+      <div>${tag || ""}<div class="name">${name}</div>${desc ? `<div class="desc">${desc}</div>` : ""}</div>
       <div class="acts"></div>`;
     const b = document.createElement("button");
     b.className = `btn ${cls}`;
-    b.textContent = label;
+    b.innerHTML = label;
     b.disabled = !enabled;
     if (onClick) b.addEventListener("click", () => onClick(b));
     row.querySelector(".acts").appendChild(b);
@@ -3489,11 +3643,11 @@
       const d = document.createElement("div");
       const done = i < st.idx || (st.claimedToday && i === st.idx);
       d.className = `day${i === 6 ? " big" : ""}${done ? " done" : ""}${i === st.idx && !st.claimedToday ? " today" : ""}`;
-      d.innerHTML = `${tr("Tag {n}", { n: i + 1 })}<b>${done ? "✓" : amount}</b>`;
+      d.innerHTML = `${tr("Tag {n}", { n: i + 1 })}${I(i === 6 ? "chest" : i >= 3 ? "coins" : "coin")}<b>${num(amount)}</b>`;
       grid.appendChild(d);
     });
     $("dailyClaim").disabled = st.claimedToday;
-    $("dailyClaim").textContent = st.claimedToday ? tr("Morgen wieder") : tr("Abholen (+{x})", { x: DAILY[st.idx] });
+    $("dailyClaim").innerHTML = st.claimedToday ? tr("Morgen wieder") : `${tr("Abholen")} ${coinAmt(DAILY[st.idx], "+")}`;
     $("dailyClaimAd").classList.toggle("hidden", st.claimedToday || !Platform.ads.available);
     $("dailyClaimAd").disabled = false;
   }
@@ -3506,7 +3660,7 @@
     save.daily = { last: localDay(), streak: st.streak + 1 };
     persist();
     sfx("level");
-    toast(`+${amount} 💰`);
+    toast(coinAmt(amount, "+"), "coins");
     renderDaily();
     refreshMenu();
   }
@@ -3514,17 +3668,22 @@
   function openDaily() { renderDaily(); show(ui.daily); }
 
   function renderSettings() {
-    $("soundBtn2").textContent = tr("Sound: {v}", { v: tr(save.sound ? "an" : "aus") });
-    $("vibBtn").textContent = tr("Vibration: {v}", { v: tr(save.vibration ? "an" : "aus") });
-    $("langBtn").textContent = tr("Sprache: {v}", { v: I18N.lang === "de" ? "Deutsch" : "English" });
+    const row = (icon, label, val) => `${I(icon)}<span class="lbl">${label}</span>${val}`;
+    const sw = (on) => `<span class="switch${on ? " on" : ""}"></span>`;
+    const valTxt = (t) => `<span class="val">${t}</span>`;
+    $("soundBtn2").innerHTML = row(save.sound ? "sound" : "soundOff", tr("Sound"), sw(save.sound));
+    $("vibBtn").innerHTML = row("vibration", tr("Vibration"), sw(save.vibration));
+    $("langBtn").innerHTML = row("language", tr("Sprache"), valTxt(I18N.lang === "de" ? "Deutsch" : "English"));
     const gfxNames = init3d() ? ["2D (schnell)", "3D", "3D + Schatten"] : ["Niedrig", "Mittel", "Hoch"];
-    $("gfxBtn").textContent = tr("Grafik: {v}", { v: tr(gfxNames[quality]) });
+    $("gfxBtn").innerHTML = row("graphics", tr("Grafik"), valTxt(tr(gfxNames[quality])));
+    $("privacyOptsBtn").innerHTML = row("privacy", tr("Werbe-Einwilligung ändern"), "");
     $("privacyOptsBtn").classList.toggle("hidden", !Platform.isNative);
+    $("privacyLink").innerHTML = row("info", tr("Datenschutzerklärung"), "");
     $("privacyLink").href = Platform.cfg.privacyUrl || "privacy.html";
     // In der App im selben WebView öffnen: externe Links leitet Capacitor an den Browser weiter,
     // lokale Seiten bleiben per Zurück-Taste erreichbar.
     if (Platform.isNative) $("privacyLink").removeAttribute("target");
-    $("versionLine").textContent = `Outbreak Hero v${Platform.cfg.version || "1.0.0"}${Platform.isNative ? " · Android" : " · Web"}`;
+    $("versionLine").innerHTML = `Outbreak Hero v${Platform.cfg.version || "1.0.0"}${Platform.isNative ? " · Android" : " · Web"}<br>${tr("Icons: game-icons.net (CC BY 3.0) · Schriften: Teko, Barlow, Saira Stencil (SIL OFL)")}`;
   }
 
   // Vollbild-Werbung nur an natürlichen Pausen, nie für Käufer von "Werbefrei"
@@ -3557,6 +3716,11 @@
     show(ui.menu);
   }
 
+  $("rerollBtn").innerHTML = adLabel(tr("Neu würfeln"));
+  $("reviveAdBtn").innerHTML = adLabel(tr("Wiederbeleben"));
+  $("dailyClaimAd").innerHTML = adLabel(tr("×2 abholen"));
+  $("patrolClaimAd").innerHTML = adLabel(tr("×2 abholen"));
+  $("loadoutBtn").addEventListener("click", () => { ensureAudio(); renderArmory(); show(ui.armory); });
   $("playBtn").addEventListener("click", () => startRun("campaign"));
   $("survivalBtn").addEventListener("click", () => startRun("survival"));
   $("againBtn").addEventListener("click", () => leaveOver(() => startRun(lastMode)));
@@ -3570,7 +3734,7 @@
     const b = $("patrolClaimAd");
     b.disabled = true;
     const ok = await Platform.ads.showRewarded("patrol_x2");
-    if (ok) claimPatrol(2); else toast(tr("Kein Video verfügbar"));
+    if (ok) claimPatrol(2); else toast(tr("Kein Video verfügbar"), "video");
     renderPatrol(); refreshMenu();
   });
   $("patrolQuick").addEventListener("click", async () => {
@@ -3581,8 +3745,8 @@
       if (save.patrol.quickDay !== localDay()) save.patrol = { ...save.patrol, quickDay: localDay(), quick: 0 };
       save.patrol.quick++;
       const c = QUICK_PATROL_H * patrolRate();
-      save.coins += c; persist(); sfx("coin"); toast(`🛰️ +${c} 💰`);
-    } else toast(tr("Kein Video verfügbar"));
+      save.coins += c; persist(); sfx("coin"); toast(coinAmt(c, "+"), "patrol");
+    } else toast(tr("Kein Video verfügbar"), "video");
     renderPatrol(); refreshMenu();
   });
   $("menuBtn").addEventListener("click", () => leaveOver(toMenu));
@@ -3598,9 +3762,9 @@
     const b = $("dailyClaimAd");
     b.disabled = true;
     const ok = await Platform.ads.showRewarded("daily_x2");
-    if (ok) claimDaily(2); else { toast(tr("Kein Video verfügbar")); b.disabled = false; }
+    if (ok) claimDaily(2); else { toast(tr("Kein Video verfügbar"), "video"); b.disabled = false; }
   });
-  $("restoreBtn").addEventListener("click", async () => { toast(tr("Suche Käufe …")); await Platform.iap.restore(); renderShop(); });
+  $("restoreBtn").addEventListener("click", async () => { toast(tr("Suche Käufe …"), "info"); await Platform.iap.restore(); renderShop(); });
   $("reviveAdBtn").addEventListener("click", reviveWithAd);
   $("reviveNoBtn").addEventListener("click", () => { if (state === "revive") gameOver(false); });
   $("rerollBtn").addEventListener("click", async () => {
@@ -3609,7 +3773,7 @@
     rerollHandler = null;
     $("rerollBtn").classList.add("hidden");
     const ok = await Platform.ads.showRewarded("reroll");
-    if (ok && state === "pick") { run.adWatched = true; fn(); } else if (!ok) toast(tr("Kein Video verfügbar"));
+    if (ok && state === "pick") { run.adWatched = true; fn(); } else if (!ok) toast(tr("Kein Video verfügbar"), "video");
   });
   $("doubleBtn").addEventListener("click", async () => {
     const b = $("doubleBtn");
@@ -3621,14 +3785,14 @@
       persist();
       run.adWatched = true;
       sfx("coin");
-      b.textContent = `✓ +${run.earned} 💰 extra`;
-    } else { b.disabled = false; toast(tr("Kein Video verfügbar")); }
+      b.innerHTML = `${I("check")} ${coinAmt(run.earned, "+")}`;
+    } else { b.disabled = false; toast(tr("Kein Video verfügbar"), "video"); }
   });
   ui.pauseBtn.addEventListener("click", togglePause);
   $("resumeBtn").addEventListener("click", togglePause);
   $("quitBtn").addEventListener("click", () => gameOver(true));
   const soundBtn = $("soundBtn");
-  const syncSound = () => { soundBtn.textContent = tr("Sound: {v}", { v: tr(save.sound ? "an" : "aus") }); renderSettings(); };
+  const syncSound = () => { soundBtn.innerHTML = `${I(save.sound ? "sound" : "soundOff")}${tr(save.sound ? "Ton an" : "Ton aus")}`; renderSettings(); };
   const toggleSound = () => { save.sound = !save.sound; persist(); syncSound(); };
   soundBtn.addEventListener("click", toggleSound);
   $("soundBtn2").addEventListener("click", toggleSound);

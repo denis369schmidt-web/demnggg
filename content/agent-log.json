@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-10-26T11:17:42.039Z",
+    "edition": "2026-10-26",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 30,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Zeitkapsel“, Double-Time Drill @ 140 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Flip the Beat“ (16 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-10-26 veröffentlicht (Hash 375ef5c5)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-10-25T09:49:16.749Z",
     "edition": "2026-10-25",
     "attempt": 0,
@@ -1856,41 +1891,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-09-05 veröffentlicht (Hash 465b97d9)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-09-04T09:40:14.968Z",
-    "edition": "2026-09-04",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 99,
-    "durationMs": 20,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Straßenträume“, Uptempo Battle @ 110 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Silben-Sprint“ (8 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 99."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-09-04 veröffentlicht (Hash 1f027595)."
       }
     ]
   }

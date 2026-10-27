@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-09-26",
-  "generatedAt": "2026-09-26T09:52:49.231Z",
-  "attempt": 0,
+  "edition": "2026-10-27",
+  "generatedAt": "2026-10-27T10:34:52.710Z",
+  "attempt": 1,
   "theme": {
     "id": "strassen-traeume",
     "title": "Straßenträume",
@@ -18,108 +18,108 @@
     ]
   },
   "challenge": {
-    "id": "atem-marathon",
-    "title": "Atem-Marathon",
-    "task": "Performe 8 Bars über „Straßenträume“ mit maximal einem Atemzug pro zwei Zeilen – Pausen bewusst setzen.",
-    "constraint": "Verwende mindestens ein Bild aus der Natur.",
-    "bars": 8,
-    "bpm": 88
+    "id": "storytelling-run",
+    "title": "Storytelling-Run",
+    "task": "Erzähle in 12 Bars eine Mini-Geschichte über „Straßenträume“ mit Anfang, Wendepunkt und Schlusszeile.",
+    "constraint": "Kein Wort darf doppelt als Zeilenende vorkommen.",
+    "bars": 12,
+    "bpm": 110
   },
   "wordPacks": [
     {
       "id": "strassen-traeume-thema",
       "title": "Thema: Straßenträume",
       "words": [
+        "Beton",
         "Träume",
         "Aufstieg",
         "Straße",
         "Skyline",
-        "Beton",
         "Asphalt"
       ]
     },
     {
-      "id": "2026-09-26-bilder",
+      "id": "2026-10-27-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Silhouette",
-        "Leuchtturm",
-        "Kompass",
         "Echo",
-        "Fundament",
-        "Spiegel"
+        "Antenne",
+        "Neonlicht",
+        "Tinte",
+        "Silhouette",
+        "Asphalt"
       ]
     },
     {
-      "id": "2026-09-26-energie",
+      "id": "2026-10-27-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Balance",
-        "Ruhe",
-        "Fokus",
+        "Stolz",
+        "Zweifel",
+        "Hunger",
         "pushen",
-        "sprinten",
+        "klettern",
         "gleiten"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Druck",
-      "b": "Ruck"
+      "a": "Ton",
+      "b": "davon"
     },
     {
-      "a": "Leben",
-      "b": "geben"
-    },
-    {
-      "a": "Nebel",
-      "b": "Pegel"
-    },
-    {
-      "a": "Hallen",
-      "b": "knallen"
-    },
-    {
-      "a": "Boden",
-      "b": "Methoden"
+      "a": "Wort",
+      "b": "Ort"
     },
     {
       "a": "Nacht",
       "b": "gemacht"
+    },
+    {
+      "a": "Fluss",
+      "b": "Schluss"
+    },
+    {
+      "a": "Glut",
+      "b": "Mut"
+    },
+    {
+      "a": "Wind",
+      "b": "geschwind"
     }
   ],
   "starterBars": [
-    {
-      "line": "Der Tag war Aufstieg, doch die Nacht macht ihn zu meinem",
-      "syllables": 13
-    },
     {
       "line": "Aus Aufstieg wird ein Plan, aus dem Plan wird ein Schritt",
       "syllables": 12
     },
     {
-      "line": "Aufstieg im Blick, ich bleib ruhig auf der Eins",
-      "syllables": 11
-    },
-    {
       "line": "Aufstieg als Kompass und die Snare gibt den Takt",
       "syllables": 12
+    },
+    {
+      "line": "Ich stapel Silben auf Aufstieg, bis der Pegel sich häuft",
+      "syllables": 14
+    },
+    {
+      "line": "Zwischen Beton und Fundament find ich Raum für den Reim",
+      "syllables": 14
     }
   ],
   "flowTip": {
-    "id": "offbeat-wuerze",
-    "title": "Offbeat als Würze",
-    "tip": "Rappe eine von acht Zeilen bewusst neben dem Raster. Der Kontrast macht die On-Beat-Zeilen stärker."
+    "id": "vokal-farben",
+    "title": "Vokalfarben mischen",
+    "tip": "Dunkle Vokale (o, u) klingen schwer, helle (i, e) schnell. Wähle Reimwörter passend zur Stimmung."
   },
   "quote": "Ein ruhiger Atem ist die beste Punchline-Versicherung.",
   "beatPreset": {
-    "bpm": 88,
-    "pattern": "Boom Bap",
-    "energy": "mittel"
+    "bpm": 110,
+    "pattern": "Uptempo Battle",
+    "energy": "hoch"
   },
   "editorial": {
-    "score": 100,
+    "score": 99,
     "gates": [
       {
         "gate": "Vollständigkeit",
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-09-26",
+    "latestEdition": "2026-10-27",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

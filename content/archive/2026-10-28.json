@@ -1,120 +1,120 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-09-27",
-  "generatedAt": "2026-09-27T10:34:02.945Z",
-  "attempt": 0,
+  "edition": "2026-10-28",
+  "generatedAt": "2026-10-28T11:21:02.574Z",
+  "attempt": 2,
   "theme": {
-    "id": "eiszeit",
-    "title": "Eiszeit",
-    "mood": "kalt",
-    "description": "Kühler Kopf, messerscharfe Punchlines.",
+    "id": "goldene-stunde",
+    "title": "Goldene Stunde",
+    "mood": "dankbar",
+    "description": "Der Moment, in dem alles kurz still steht und glänzt.",
     "keywords": [
-      "Eis",
-      "Frost",
-      "Kälte",
-      "Klinge",
-      "Kristall",
-      "Atemwolke"
+      "Sonne",
+      "Gold",
+      "Moment",
+      "Frieden",
+      "Licht",
+      "Dank"
     ]
   },
   "challenge": {
     "id": "cypher-staffel",
     "title": "Cypher-Staffel",
-    "task": "Nimm 8 Bars zu „Eiszeit“ auf, höre sie an und antworte dir selbst mit 8 Kontra-Bars.",
-    "constraint": "Nutze mindestens einen internen Reim pro Doppelzeile.",
-    "bars": 8,
-    "bpm": 141
+    "task": "Nimm 12 Bars zu „Goldene Stunde“ auf, höre sie an und antworte dir selbst mit 12 Kontra-Bars.",
+    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
+    "bars": 12,
+    "bpm": 144
   },
   "wordPacks": [
     {
-      "id": "eiszeit-thema",
-      "title": "Thema: Eiszeit",
+      "id": "goldene-stunde-thema",
+      "title": "Thema: Goldene Stunde",
       "words": [
-        "Atemwolke",
-        "Kristall",
-        "Kälte",
-        "Klinge",
-        "Frost",
-        "Eis"
+        "Sonne",
+        "Moment",
+        "Dank",
+        "Frieden",
+        "Gold",
+        "Licht"
       ]
     },
     {
-      "id": "2026-09-27-bilder",
+      "id": "2026-10-28-bilder",
       "title": "Bilder & Metaphern",
       "words": [
+        "Fundament",
+        "Kompass",
         "Radar",
-        "Neonlicht",
-        "Silhouette",
-        "Antenne",
-        "Tresor",
-        "Fundament"
+        "Leuchtturm",
+        "Tinte",
+        "Spiegel"
       ]
     },
     {
-      "id": "2026-09-27-energie",
+      "id": "2026-10-28-energie",
       "title": "Gefühl & Bewegung",
       "words": [
         "Feuer",
-        "Balance",
-        "Zweifel",
-        "gleiten",
-        "landen",
-        "steigen"
+        "Geduld",
+        "Glut",
+        "kreisen",
+        "starten",
+        "schweben"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Nacht",
-      "b": "gemacht"
+      "a": "Klang",
+      "b": "Drang"
+    },
+    {
+      "a": "Traum",
+      "b": "Raum"
     },
     {
       "a": "Wind",
       "b": "geschwind"
     },
     {
-      "a": "Weite",
-      "b": "Seite"
-    },
-    {
       "a": "Boden",
       "b": "Methoden"
     },
     {
-      "a": "Stein",
-      "b": "allein"
+      "a": "Glut",
+      "b": "Mut"
     },
     {
-      "a": "Takt",
-      "b": "exakt"
+      "a": "Fluss",
+      "b": "Schluss"
     }
   ],
   "starterBars": [
     {
-      "line": "Zwischen Kälte und Echo find ich Raum für den Reim",
+      "line": "Magnet in den Zeilen, jede Silbe nimmt mich mit",
       "syllables": 13
     },
     {
-      "line": "Kälte in der Hand und der Zweifel wird kleiner",
+      "line": "Zwischen Gold und Magnet find ich Raum für den Reim",
       "syllables": 12
     },
     {
-      "line": "Klinge im Blick, ich bleib ruhig auf der Eins",
+      "line": "Mit Magnet in der Stimme klingt selbst Stille wie ein Ruf",
+      "syllables": 14
+    },
+    {
+      "line": "Gold bleibt der Anker, wenn der Offbeat mich ruft",
       "syllables": 11
-    },
-    {
-      "line": "Klinge als Kompass und die Snare gibt den Takt",
-      "syllables": 12
     }
   ],
   "flowTip": {
-    "id": "call-response",
-    "title": "Call & Response",
-    "tip": "Lass Zeile 2 auf Zeile 1 antworten – Frage/Antwort-Strukturen halten Zuhörer automatisch im Takt."
+    "id": "tempo-treppe",
+    "title": "Tempo-Treppe",
+    "tip": "Trainiere denselben Text bei 85, 95 und 110 BPM. Wer die Treppe hochkommt, sitzt bei jedem Beat."
   },
-  "quote": "Der Unterschied zwischen Probe und Performance ist nur das Publikum.",
+  "quote": "Erst kommt die Übung, dann der Flow, dann der Moment, in dem beides verschwindet.",
   "beatPreset": {
-    "bpm": 141,
+    "bpm": 144,
     "pattern": "Trap Halftime",
     "energy": "mittel"
   },
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-09-27",
+    "latestEdition": "2026-10-28",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

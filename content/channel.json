@@ -1,125 +1,125 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-27",
-  "generatedAt": "2026-10-27T10:34:52.710Z",
-  "attempt": 1,
+  "edition": "2026-10-28",
+  "generatedAt": "2026-10-28T11:21:02.574Z",
+  "attempt": 2,
   "theme": {
-    "id": "strassen-traeume",
-    "title": "Straßenträume",
-    "mood": "hungrig",
-    "description": "Vom Bordstein zur Skyline – Zeilen über den Weg nach oben.",
+    "id": "goldene-stunde",
+    "title": "Goldene Stunde",
+    "mood": "dankbar",
+    "description": "Der Moment, in dem alles kurz still steht und glänzt.",
     "keywords": [
-      "Straße",
-      "Träume",
-      "Asphalt",
-      "Skyline",
-      "Aufstieg",
-      "Beton"
+      "Sonne",
+      "Gold",
+      "Moment",
+      "Frieden",
+      "Licht",
+      "Dank"
     ]
   },
   "challenge": {
-    "id": "storytelling-run",
-    "title": "Storytelling-Run",
-    "task": "Erzähle in 12 Bars eine Mini-Geschichte über „Straßenträume“ mit Anfang, Wendepunkt und Schlusszeile.",
-    "constraint": "Kein Wort darf doppelt als Zeilenende vorkommen.",
+    "id": "cypher-staffel",
+    "title": "Cypher-Staffel",
+    "task": "Nimm 12 Bars zu „Goldene Stunde“ auf, höre sie an und antworte dir selbst mit 12 Kontra-Bars.",
+    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
     "bars": 12,
-    "bpm": 110
+    "bpm": 144
   },
   "wordPacks": [
     {
-      "id": "strassen-traeume-thema",
-      "title": "Thema: Straßenträume",
+      "id": "goldene-stunde-thema",
+      "title": "Thema: Goldene Stunde",
       "words": [
-        "Beton",
-        "Träume",
-        "Aufstieg",
-        "Straße",
-        "Skyline",
-        "Asphalt"
+        "Sonne",
+        "Moment",
+        "Dank",
+        "Frieden",
+        "Gold",
+        "Licht"
       ]
     },
     {
-      "id": "2026-10-27-bilder",
+      "id": "2026-10-28-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Echo",
-        "Antenne",
-        "Neonlicht",
+        "Fundament",
+        "Kompass",
+        "Radar",
+        "Leuchtturm",
         "Tinte",
-        "Silhouette",
-        "Asphalt"
+        "Spiegel"
       ]
     },
     {
-      "id": "2026-10-27-energie",
+      "id": "2026-10-28-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Stolz",
-        "Zweifel",
-        "Hunger",
-        "pushen",
-        "klettern",
-        "gleiten"
+        "Feuer",
+        "Geduld",
+        "Glut",
+        "kreisen",
+        "starten",
+        "schweben"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Ton",
-      "b": "davon"
+      "a": "Klang",
+      "b": "Drang"
     },
     {
-      "a": "Wort",
-      "b": "Ort"
+      "a": "Traum",
+      "b": "Raum"
     },
     {
-      "a": "Nacht",
-      "b": "gemacht"
+      "a": "Wind",
+      "b": "geschwind"
     },
     {
-      "a": "Fluss",
-      "b": "Schluss"
+      "a": "Boden",
+      "b": "Methoden"
     },
     {
       "a": "Glut",
       "b": "Mut"
     },
     {
-      "a": "Wind",
-      "b": "geschwind"
+      "a": "Fluss",
+      "b": "Schluss"
     }
   ],
   "starterBars": [
     {
-      "line": "Aus Aufstieg wird ein Plan, aus dem Plan wird ein Schritt",
+      "line": "Magnet in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 13
+    },
+    {
+      "line": "Zwischen Gold und Magnet find ich Raum für den Reim",
       "syllables": 12
     },
     {
-      "line": "Aufstieg als Kompass und die Snare gibt den Takt",
-      "syllables": 12
-    },
-    {
-      "line": "Ich stapel Silben auf Aufstieg, bis der Pegel sich häuft",
+      "line": "Mit Magnet in der Stimme klingt selbst Stille wie ein Ruf",
       "syllables": 14
     },
     {
-      "line": "Zwischen Beton und Fundament find ich Raum für den Reim",
-      "syllables": 14
+      "line": "Gold bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 11
     }
   ],
   "flowTip": {
-    "id": "vokal-farben",
-    "title": "Vokalfarben mischen",
-    "tip": "Dunkle Vokale (o, u) klingen schwer, helle (i, e) schnell. Wähle Reimwörter passend zur Stimmung."
+    "id": "tempo-treppe",
+    "title": "Tempo-Treppe",
+    "tip": "Trainiere denselben Text bei 85, 95 und 110 BPM. Wer die Treppe hochkommt, sitzt bei jedem Beat."
   },
-  "quote": "Ein ruhiger Atem ist die beste Punchline-Versicherung.",
+  "quote": "Erst kommt die Übung, dann der Flow, dann der Moment, in dem beides verschwindet.",
   "beatPreset": {
-    "bpm": 110,
-    "pattern": "Uptempo Battle",
-    "energy": "hoch"
+    "bpm": 144,
+    "pattern": "Trap Halftime",
+    "energy": "mittel"
   },
   "editorial": {
-    "score": 99,
+    "score": 100,
     "gates": [
       {
         "gate": "Vollständigkeit",
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-27",
+    "latestEdition": "2026-10-28",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

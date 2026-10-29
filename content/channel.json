@@ -1,122 +1,122 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-28",
-  "generatedAt": "2026-10-28T11:21:02.574Z",
-  "attempt": 2,
+  "edition": "2026-10-29",
+  "generatedAt": "2026-10-29T11:32:32.391Z",
+  "attempt": 0,
   "theme": {
-    "id": "goldene-stunde",
-    "title": "Goldene Stunde",
-    "mood": "dankbar",
-    "description": "Der Moment, in dem alles kurz still steht und glänzt.",
+    "id": "eiszeit",
+    "title": "Eiszeit",
+    "mood": "kalt",
+    "description": "Kühler Kopf, messerscharfe Punchlines.",
     "keywords": [
-      "Sonne",
-      "Gold",
-      "Moment",
-      "Frieden",
-      "Licht",
-      "Dank"
+      "Eis",
+      "Frost",
+      "Kälte",
+      "Klinge",
+      "Kristall",
+      "Atemwolke"
     ]
   },
   "challenge": {
-    "id": "cypher-staffel",
-    "title": "Cypher-Staffel",
-    "task": "Nimm 12 Bars zu „Goldene Stunde“ auf, höre sie an und antworte dir selbst mit 12 Kontra-Bars.",
-    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
-    "bars": 12,
-    "bpm": 144
+    "id": "ein-wort-anker",
+    "title": "Ein-Wort-Anker",
+    "task": "Wähle ein Wort aus dem Paket „Gefühl & Bewegung“ und lasse es in 8 Bars zu „Eiszeit“ in jeder Zeile auftauchen.",
+    "constraint": "Mindestens zwei Zeilen enthalten einen Doppelreim.",
+    "bars": 8,
+    "bpm": 82
   },
   "wordPacks": [
     {
-      "id": "goldene-stunde-thema",
-      "title": "Thema: Goldene Stunde",
+      "id": "eiszeit-thema",
+      "title": "Thema: Eiszeit",
       "words": [
-        "Sonne",
-        "Moment",
-        "Dank",
-        "Frieden",
-        "Gold",
-        "Licht"
+        "Kristall",
+        "Klinge",
+        "Atemwolke",
+        "Frost",
+        "Eis",
+        "Kälte"
       ]
     },
     {
-      "id": "2026-10-28-bilder",
+      "id": "2026-10-29-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Fundament",
-        "Kompass",
+        "Magnet",
+        "Skyline",
+        "Schatten",
+        "Echo",
         "Radar",
-        "Leuchtturm",
-        "Tinte",
-        "Spiegel"
+        "Satellit"
       ]
     },
     {
-      "id": "2026-10-28-energie",
+      "id": "2026-10-29-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Feuer",
         "Geduld",
-        "Glut",
-        "kreisen",
-        "starten",
-        "schweben"
+        "Instinkt",
+        "Mut",
+        "schweben",
+        "landen",
+        "gleiten"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Klang",
-      "b": "Drang"
+      "a": "Zeit",
+      "b": "bereit"
     },
     {
-      "a": "Traum",
-      "b": "Raum"
+      "a": "Kette",
+      "b": "Wette"
+    },
+    {
+      "a": "Stein",
+      "b": "allein"
+    },
+    {
+      "a": "Takt",
+      "b": "exakt"
+    },
+    {
+      "a": "Feuer",
+      "b": "teuer"
     },
     {
       "a": "Wind",
       "b": "geschwind"
-    },
-    {
-      "a": "Boden",
-      "b": "Methoden"
-    },
-    {
-      "a": "Glut",
-      "b": "Mut"
-    },
-    {
-      "a": "Fluss",
-      "b": "Schluss"
     }
   ],
   "starterBars": [
     {
-      "line": "Magnet in den Zeilen, jede Silbe nimmt mich mit",
-      "syllables": 13
-    },
-    {
-      "line": "Zwischen Gold und Magnet find ich Raum für den Reim",
-      "syllables": 12
-    },
-    {
-      "line": "Mit Magnet in der Stimme klingt selbst Stille wie ein Ruf",
+      "line": "Atemwolke bleibt der Anker, wenn der Offbeat mich ruft",
       "syllables": 14
     },
     {
-      "line": "Gold bleibt der Anker, wenn der Offbeat mich ruft",
-      "syllables": 11
+      "line": "Silhouette in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 14
+    },
+    {
+      "line": "Mit Silhouette in der Stimme klingt selbst Stille wie ein Ruf",
+      "syllables": 15
+    },
+    {
+      "line": "Atemwolke in der Hand und der Zweifel wird kleiner",
+      "syllables": 14
     }
   ],
   "flowTip": {
-    "id": "tempo-treppe",
-    "title": "Tempo-Treppe",
-    "tip": "Trainiere denselben Text bei 85, 95 und 110 BPM. Wer die Treppe hochkommt, sitzt bei jedem Beat."
+    "id": "hook-erst",
+    "title": "Hook zuerst",
+    "tip": "Schreibe die Hook vor den Strophen. Sie definiert Tempo, Ton und Thema – die Bars folgen ihr."
   },
-  "quote": "Erst kommt die Übung, dann der Flow, dann der Moment, in dem beides verschwindet.",
+  "quote": "Der Unterschied zwischen Probe und Performance ist nur das Publikum.",
   "beatPreset": {
-    "bpm": 144,
-    "pattern": "Trap Halftime",
-    "energy": "mittel"
+    "bpm": 82,
+    "pattern": "Lo-Fi Chill",
+    "energy": "chill"
   },
   "editorial": {
     "score": 100,
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-28",
+    "latestEdition": "2026-10-29",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

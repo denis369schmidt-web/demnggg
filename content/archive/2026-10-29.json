@@ -1,110 +1,110 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-09-28",
-  "generatedAt": "2026-09-28T11:42:51.097Z",
+  "edition": "2026-10-29",
+  "generatedAt": "2026-10-29T11:32:32.391Z",
   "attempt": 0,
   "theme": {
-    "id": "nachtschicht",
-    "title": "Nachtschicht",
-    "mood": "fokussiert",
-    "description": "Wenn die Stadt schläft, läuft dein Mic heiß.",
+    "id": "eiszeit",
+    "title": "Eiszeit",
+    "mood": "kalt",
+    "description": "Kühler Kopf, messerscharfe Punchlines.",
     "keywords": [
-      "Nacht",
-      "Neonlicht",
-      "Schatten",
-      "Stille",
-      "Mond",
-      "Session"
+      "Eis",
+      "Frost",
+      "Kälte",
+      "Klinge",
+      "Kristall",
+      "Atemwolke"
     ]
   },
   "challenge": {
-    "id": "leiser-lauter",
-    "title": "Leiser & Lauter",
-    "task": "Performe 12 Bars über „Nachtschicht“ und steigere die Dynamik von Flüstern bis volle Energie.",
-    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
-    "bars": 12,
-    "bpm": 97
+    "id": "ein-wort-anker",
+    "title": "Ein-Wort-Anker",
+    "task": "Wähle ein Wort aus dem Paket „Gefühl & Bewegung“ und lasse es in 8 Bars zu „Eiszeit“ in jeder Zeile auftauchen.",
+    "constraint": "Mindestens zwei Zeilen enthalten einen Doppelreim.",
+    "bars": 8,
+    "bpm": 82
   },
   "wordPacks": [
     {
-      "id": "nachtschicht-thema",
-      "title": "Thema: Nachtschicht",
+      "id": "eiszeit-thema",
+      "title": "Thema: Eiszeit",
       "words": [
-        "Session",
-        "Nacht",
-        "Schatten",
-        "Neonlicht",
-        "Stille",
-        "Mond"
+        "Kristall",
+        "Klinge",
+        "Atemwolke",
+        "Frost",
+        "Eis",
+        "Kälte"
       ]
     },
     {
-      "id": "2026-09-28-bilder",
+      "id": "2026-10-29-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Leuchtturm",
-        "Spiegel",
-        "Tinte",
+        "Magnet",
+        "Skyline",
+        "Schatten",
         "Echo",
-        "Kompass",
+        "Radar",
         "Satellit"
       ]
     },
     {
-      "id": "2026-09-28-energie",
+      "id": "2026-10-29-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Zweifel",
-        "Glut",
-        "Stolz",
-        "tauchen",
-        "klettern",
-        "grinden"
+        "Geduld",
+        "Instinkt",
+        "Mut",
+        "schweben",
+        "landen",
+        "gleiten"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Boden",
-      "b": "Methoden"
+      "a": "Zeit",
+      "b": "bereit"
     },
     {
-      "a": "Licht",
-      "b": "Sicht"
+      "a": "Kette",
+      "b": "Wette"
     },
     {
-      "a": "Hallen",
-      "b": "knallen"
+      "a": "Stein",
+      "b": "allein"
     },
     {
-      "a": "Blick",
-      "b": "Genick"
+      "a": "Takt",
+      "b": "exakt"
     },
     {
-      "a": "Rauch",
-      "b": "auch"
+      "a": "Feuer",
+      "b": "teuer"
     },
     {
-      "a": "Weite",
-      "b": "Seite"
+      "a": "Wind",
+      "b": "geschwind"
     }
   ],
   "starterBars": [
     {
-      "line": "Mond als Kompass und die Snare gibt den Takt",
-      "syllables": 11
+      "line": "Atemwolke bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 14
     },
     {
-      "line": "Zwischen Nacht und Funken find ich Raum für den Reim",
-      "syllables": 12
+      "line": "Silhouette in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 14
     },
     {
-      "line": "Der Tag war Mond, doch die Nacht macht ihn zu meinem",
-      "syllables": 12
+      "line": "Mit Silhouette in der Stimme klingt selbst Stille wie ein Ruf",
+      "syllables": 15
     },
     {
-      "line": "Mond im Blick, ich bleib ruhig auf der Eins",
-      "syllables": 10
+      "line": "Atemwolke in der Hand und der Zweifel wird kleiner",
+      "syllables": 14
     }
   ],
   "flowTip": {
@@ -112,11 +112,11 @@
     "title": "Hook zuerst",
     "tip": "Schreibe die Hook vor den Strophen. Sie definiert Tempo, Ton und Thema – die Bars folgen ihr."
   },
-  "quote": "Erst kommt die Übung, dann der Flow, dann der Moment, in dem beides verschwindet.",
+  "quote": "Der Unterschied zwischen Probe und Performance ist nur das Publikum.",
   "beatPreset": {
-    "bpm": 97,
-    "pattern": "West Coast Bounce",
-    "energy": "mittel"
+    "bpm": 82,
+    "pattern": "Lo-Fi Chill",
+    "energy": "chill"
   },
   "editorial": {
     "score": 100,
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-09-28",
+    "latestEdition": "2026-10-29",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-10-30",
+  "generatedAt": "2026-10-30T11:24:53.924Z",
+  "attempt": 0,
+  "theme": {
+    "id": "labyrinth",
+    "title": "Labyrinth",
+    "mood": "suchend",
+    "description": "Verwinkelte Gedanken, aber der Flow findet den Ausgang.",
+    "keywords": [
+      "Labyrinth",
+      "Wege",
+      "Nebel",
+      "Kompass",
+      "Suche",
+      "Ausgang"
+    ]
+  },
+  "challenge": {
+    "id": "leiser-lauter",
+    "title": "Leiser & Lauter",
+    "task": "Performe 8 Bars über „Labyrinth“ und steigere die Dynamik von Flüstern bis volle Energie.",
+    "constraint": "Mindestens zwei Zeilen enthalten einen Doppelreim.",
+    "bars": 8,
+    "bpm": 154
+  },
+  "wordPacks": [
+    {
+      "id": "labyrinth-thema",
+      "title": "Thema: Labyrinth",
+      "words": [
+        "Wege",
+        "Suche",
+        "Kompass",
+        "Ausgang",
+        "Nebel",
+        "Labyrinth"
+      ]
+    },
+    {
+      "id": "2026-10-30-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Radar",
+        "Anker",
+        "Neonlicht",
+        "Skyline",
+        "Leuchtturm",
+        "Kompass"
+      ]
+    },
+    {
+      "id": "2026-10-30-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Glut",
+        "Stolz",
+        "Geduld",
+        "landen",
+        "steigen",
+        "kreisen"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Kern",
+      "b": "fern"
+    },
+    {
+      "a": "Boden",
+      "b": "Methoden"
+    },
+    {
+      "a": "Kette",
+      "b": "Wette"
+    },
+    {
+      "a": "Zeilen",
+      "b": "eilen"
+    },
+    {
+      "a": "Takt",
+      "b": "exakt"
+    },
+    {
+      "a": "Leben",
+      "b": "geben"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Ich stapel Silben auf Suche, bis der Pegel sich häuft",
+      "syllables": 14
+    },
+    {
+      "line": "Der Tag war Suche, doch die Nacht macht ihn zu meinem",
+      "syllables": 13
+    },
+    {
+      "line": "Ich zähl die Beats wie Labyrinth, alles landet exakt",
+      "syllables": 14
+    },
+    {
+      "line": "Tinte in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 13
+    }
+  ],
+  "flowTip": {
+    "id": "call-response",
+    "title": "Call & Response",
+    "tip": "Lass Zeile 2 auf Zeile 1 antworten – Frage/Antwort-Strukturen halten Zuhörer automatisch im Takt."
+  },
+  "quote": "Wer den Takt fühlt, muss ihn nicht mehr zählen.",
+  "beatPreset": {
+    "bpm": 154,
+    "pattern": "Double-Time Drill",
+    "energy": "hoch"
+  },
+  "editorial": {
+    "score": 99,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-10-30",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

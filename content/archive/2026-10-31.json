@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-10-31",
+  "generatedAt": "2026-10-31T10:55:53.525Z",
+  "attempt": 1,
+  "theme": {
+    "id": "gipfelsturm",
+    "title": "Gipfelsturm",
+    "mood": "entschlossen",
+    "description": "Schritt für Schritt nach oben, der Rückweg ist gesperrt.",
+    "keywords": [
+      "Gipfel",
+      "Seil",
+      "Höhe",
+      "Wille",
+      "Schritt",
+      "Aussicht"
+    ]
+  },
+  "challenge": {
+    "id": "vokal-fessel",
+    "title": "Vokal-Fessel",
+    "task": "Schreibe 8 Bars über „Gipfelsturm“, in denen jede Zeile auf denselben Vokalklang endet.",
+    "constraint": "Nutze mindestens einen internen Reim pro Doppelzeile.",
+    "bars": 8,
+    "bpm": 139
+  },
+  "wordPacks": [
+    {
+      "id": "gipfelsturm-thema",
+      "title": "Thema: Gipfelsturm",
+      "words": [
+        "Höhe",
+        "Schritt",
+        "Gipfel",
+        "Wille",
+        "Aussicht",
+        "Seil"
+      ]
+    },
+    {
+      "id": "2026-10-31-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Kompass",
+        "Funken",
+        "Fundament",
+        "Silhouette",
+        "Radar",
+        "Tinte"
+      ]
+    },
+    {
+      "id": "2026-10-31-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Instinkt",
+        "Feuer",
+        "Respekt",
+        "sprinten",
+        "klettern",
+        "schweben"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Wort",
+      "b": "Ort"
+    },
+    {
+      "a": "Zeit",
+      "b": "bereit"
+    },
+    {
+      "a": "Druck",
+      "b": "Ruck"
+    },
+    {
+      "a": "Licht",
+      "b": "Sicht"
+    },
+    {
+      "a": "Blick",
+      "b": "Genick"
+    },
+    {
+      "a": "Boden",
+      "b": "Methoden"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Höhe bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 12
+    },
+    {
+      "line": "Der Tag war Seil, doch die Nacht macht ihn zu meinem",
+      "syllables": 12
+    },
+    {
+      "line": "Seil als Kompass und die Snare gibt den Takt",
+      "syllables": 11
+    },
+    {
+      "line": "Ich zähl die Beats wie Höhe, alles landet exakt",
+      "syllables": 13
+    }
+  ],
+  "flowTip": {
+    "id": "hook-erst",
+    "title": "Hook zuerst",
+    "tip": "Schreibe die Hook vor den Strophen. Sie definiert Tempo, Ton und Thema – die Bars folgen ihr."
+  },
+  "quote": "Lieber acht ehrliche Bars als sechzehn geliehene.",
+  "beatPreset": {
+    "bpm": 139,
+    "pattern": "Trap Halftime",
+    "energy": "mittel"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-10-31",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

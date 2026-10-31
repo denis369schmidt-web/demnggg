@@ -1,5 +1,45 @@
 [
   {
+    "runAt": "2026-10-31T10:55:53.525Z",
+    "edition": "2026-10-31",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 22,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Gipfelsturm“, Trap Halftime @ 139 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Vokal-Fessel“ (8 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-10-31 veröffentlicht (Hash b89eaf9c)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-10-30T11:24:53.924Z",
     "edition": "2026-10-30",
     "attempt": 0,
@@ -1841,41 +1881,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-09-11 veröffentlicht (Hash df2c81ed)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-09-10T09:44:56.687Z",
-    "edition": "2026-09-10",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 25,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Zeitkapsel“, Lo-Fi Chill @ 80 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Double-Time-Drill“ (8 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-09-10 veröffentlicht (Hash 63741391)."
       }
     ]
   }

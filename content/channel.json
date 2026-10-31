@@ -1,125 +1,125 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-30",
-  "generatedAt": "2026-10-30T11:24:53.924Z",
-  "attempt": 0,
+  "edition": "2026-10-31",
+  "generatedAt": "2026-10-31T10:55:53.525Z",
+  "attempt": 1,
   "theme": {
-    "id": "labyrinth",
-    "title": "Labyrinth",
-    "mood": "suchend",
-    "description": "Verwinkelte Gedanken, aber der Flow findet den Ausgang.",
+    "id": "gipfelsturm",
+    "title": "Gipfelsturm",
+    "mood": "entschlossen",
+    "description": "Schritt für Schritt nach oben, der Rückweg ist gesperrt.",
     "keywords": [
-      "Labyrinth",
-      "Wege",
-      "Nebel",
-      "Kompass",
-      "Suche",
-      "Ausgang"
+      "Gipfel",
+      "Seil",
+      "Höhe",
+      "Wille",
+      "Schritt",
+      "Aussicht"
     ]
   },
   "challenge": {
-    "id": "leiser-lauter",
-    "title": "Leiser & Lauter",
-    "task": "Performe 8 Bars über „Labyrinth“ und steigere die Dynamik von Flüstern bis volle Energie.",
-    "constraint": "Mindestens zwei Zeilen enthalten einen Doppelreim.",
+    "id": "vokal-fessel",
+    "title": "Vokal-Fessel",
+    "task": "Schreibe 8 Bars über „Gipfelsturm“, in denen jede Zeile auf denselben Vokalklang endet.",
+    "constraint": "Nutze mindestens einen internen Reim pro Doppelzeile.",
     "bars": 8,
-    "bpm": 154
+    "bpm": 139
   },
   "wordPacks": [
     {
-      "id": "labyrinth-thema",
-      "title": "Thema: Labyrinth",
+      "id": "gipfelsturm-thema",
+      "title": "Thema: Gipfelsturm",
       "words": [
-        "Wege",
-        "Suche",
-        "Kompass",
-        "Ausgang",
-        "Nebel",
-        "Labyrinth"
+        "Höhe",
+        "Schritt",
+        "Gipfel",
+        "Wille",
+        "Aussicht",
+        "Seil"
       ]
     },
     {
-      "id": "2026-10-30-bilder",
+      "id": "2026-10-31-bilder",
       "title": "Bilder & Metaphern",
       "words": [
+        "Kompass",
+        "Funken",
+        "Fundament",
+        "Silhouette",
         "Radar",
-        "Anker",
-        "Neonlicht",
-        "Skyline",
-        "Leuchtturm",
-        "Kompass"
+        "Tinte"
       ]
     },
     {
-      "id": "2026-10-30-energie",
+      "id": "2026-10-31-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Glut",
-        "Stolz",
-        "Geduld",
-        "landen",
-        "steigen",
-        "kreisen"
+        "Instinkt",
+        "Feuer",
+        "Respekt",
+        "sprinten",
+        "klettern",
+        "schweben"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Kern",
-      "b": "fern"
+      "a": "Wort",
+      "b": "Ort"
+    },
+    {
+      "a": "Zeit",
+      "b": "bereit"
+    },
+    {
+      "a": "Druck",
+      "b": "Ruck"
+    },
+    {
+      "a": "Licht",
+      "b": "Sicht"
+    },
+    {
+      "a": "Blick",
+      "b": "Genick"
     },
     {
       "a": "Boden",
       "b": "Methoden"
-    },
-    {
-      "a": "Kette",
-      "b": "Wette"
-    },
-    {
-      "a": "Zeilen",
-      "b": "eilen"
-    },
-    {
-      "a": "Takt",
-      "b": "exakt"
-    },
-    {
-      "a": "Leben",
-      "b": "geben"
     }
   ],
   "starterBars": [
     {
-      "line": "Ich stapel Silben auf Suche, bis der Pegel sich häuft",
-      "syllables": 14
+      "line": "Höhe bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 12
     },
     {
-      "line": "Der Tag war Suche, doch die Nacht macht ihn zu meinem",
-      "syllables": 13
+      "line": "Der Tag war Seil, doch die Nacht macht ihn zu meinem",
+      "syllables": 12
     },
     {
-      "line": "Ich zähl die Beats wie Labyrinth, alles landet exakt",
-      "syllables": 14
+      "line": "Seil als Kompass und die Snare gibt den Takt",
+      "syllables": 11
     },
     {
-      "line": "Tinte in den Zeilen, jede Silbe nimmt mich mit",
+      "line": "Ich zähl die Beats wie Höhe, alles landet exakt",
       "syllables": 13
     }
   ],
   "flowTip": {
-    "id": "call-response",
-    "title": "Call & Response",
-    "tip": "Lass Zeile 2 auf Zeile 1 antworten – Frage/Antwort-Strukturen halten Zuhörer automatisch im Takt."
+    "id": "hook-erst",
+    "title": "Hook zuerst",
+    "tip": "Schreibe die Hook vor den Strophen. Sie definiert Tempo, Ton und Thema – die Bars folgen ihr."
   },
-  "quote": "Wer den Takt fühlt, muss ihn nicht mehr zählen.",
+  "quote": "Lieber acht ehrliche Bars als sechzehn geliehene.",
   "beatPreset": {
-    "bpm": 154,
-    "pattern": "Double-Time Drill",
-    "energy": "hoch"
+    "bpm": 139,
+    "pattern": "Trap Halftime",
+    "energy": "mittel"
   },
   "editorial": {
-    "score": 99,
+    "score": 100,
     "gates": [
       {
         "gate": "Vollständigkeit",
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-30",
+    "latestEdition": "2026-10-31",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

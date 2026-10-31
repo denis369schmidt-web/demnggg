@@ -337,20 +337,47 @@
       boom: [["sawtooth", 90, 25, 0.4, 0.15]],
       coin: [["square", 900, 1300, 0.07, 0.03]],
       zap: [["sawtooth", 1400, 300, 0.12, 0.05], ["square", 2200, 900, 0.08, 0.025]],
+      splat: [["noise", 1100, 160, 0.2, 0.16], ["sine", 130, 45, 0.12, 0.08]],
+      combo: [["square", 660, 990, 0.09, 0.045], ["triangle", 990, 1480, 0.14, 0.05]],
+      rage: [["sine", 75, 38, 0.55, 0.32], ["noise", 380, 60, 0.45, 0.14], ["sawtooth", 220, 660, 0.35, 0.04]],
     }[type];
     if (!cfg) return;
-    for (const [wave, f0, f1, dur, vol] of cfg) {
-      const o = actx.createOscillator();
+    // Rausch-Anteile machen Schüsse, Treffer und Explosionen wuchtiger
+    const extra = { shoot: [["noise", 4200, 1400, 0.05, 0.045]], kill: [["noise", 1300, 180, 0.17, 0.11]], hurt: [["noise", 900, 200, 0.2, 0.08]], boom: [["noise", 520, 50, 0.65, 0.34]] }[type];
+    for (const [wave, f0, f1, dur, vol] of extra ? cfg.concat(extra) : cfg) {
       const g = actx.createGain();
-      o.type = wave;
-      o.frequency.setValueAtTime(f0, now);
-      o.frequency.exponentialRampToValueAtTime(Math.max(f1, 20), now + dur);
       g.gain.setValueAtTime(vol, now);
       g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-      o.connect(g).connect(actx.destination);
-      o.start(now);
-      o.stop(now + dur + 0.02);
+      let src;
+      if (wave === "noise") {
+        src = actx.createBufferSource();
+        src.buffer = noiseBuffer();
+        const f = actx.createBiquadFilter();
+        f.type = "lowpass";
+        f.frequency.setValueAtTime(f0, now);
+        f.frequency.exponentialRampToValueAtTime(Math.max(f1, 20), now + dur);
+        src.connect(f).connect(g);
+        src.start(now, Math.random() * 0.5);
+      } else {
+        src = actx.createOscillator();
+        src.type = wave;
+        src.frequency.setValueAtTime(f0, now);
+        src.frequency.exponentialRampToValueAtTime(Math.max(f1, 20), now + dur);
+        src.connect(g);
+        src.start(now);
+      }
+      g.connect(actx.destination);
+      src.stop(now + dur + 0.02);
     }
+  }
+  let noiseBuf = null;
+  function noiseBuffer() {
+    if (!noiseBuf) {
+      noiseBuf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    return noiseBuf;
   }
 
   // ============================================================
@@ -369,6 +396,11 @@
   let supplyCrate = null;
   let floorCanvas = null;
   let floorCtx = null;
+  let glossCtx = null; // Glanzkarte des Bodens: frisches Blut glänzt in 3D nass im Licht
+  // gedeckelt (Modus „lighten“): voller Glanz ließe das Spekularlicht das Rot zu Rosa auswaschen
+  const BLOOD_GLOSS = "#3c3c3c";
+  let pools = []; // wachsende Blutlachen
+  let screenBlood = []; // Blutspritzer auf dem Bildschirm
   let corpses = []; // Leichen mit Physik – bleiben bis zum nächsten Raum
   let pieces = []; // abgetrennte Köpfe/Gliedmaßen
   let hazards = []; // brennende Pfützen am Boden
@@ -382,6 +414,7 @@
   let cine = 0; // sichtbare Kinobalken (0–1)
   let shake = 0;
   let banner = null;
+  let callout = null; // Kombo-Ansage unter dem HUD
   const volleyQueue = [];
 
   function newPlayer() {
@@ -413,11 +446,12 @@
     lastMode = mode;
     run = {
       mode, chapter: 1, room: 0, kills: 0, coins: 0, greed: 1 + 0.1 * save.talents.greed, time: 0, pendingPicks: 0, cleared: false,
-      adRevived: false, adWatched: false, earned: 0,
+      adRevived: false, adWatched: false, earned: 0, combo: 0, comboT: 0, bestCombo: 0, rage: 0,
     };
     // Überlebensmodus: Welt wechselt täglich
     if (mode === "survival") Object.assign(run, { survT: 0, spawnCd: 1.2, theme: THEME_ORDER[Math.floor(Date.now() / 864e5) % THEME_ORDER.length] });
     track("runs");
+    screenBlood = []; callout = null;
     player = newPlayer();
     // Goldener Held: +10 % Münzen
     if (save.skin === "gold") run.greed *= 1.1;
@@ -442,7 +476,7 @@
   // Räume
   // ============================================================
   function resetRoomState() {
-    enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; hazards = []; zaps = []; volleyQueue.length = 0;
+    enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; pools = []; hazards = []; zaps = []; volleyQueue.length = 0;
     roomFade = 1;
     run.doorK = 0;
     supplyCrate = null;
@@ -565,6 +599,8 @@
     floorCtx = c.getContext("2d");
     const res = c.width / W;
     floorCtx.setTransform(res, 0, 0, res, 0, 0);
+    glossCtx = c.gloss ? c.gloss.getContext("2d") : null;
+    if (glossCtx) { const gr = c.gloss.width / W; glossCtx.setTransform(gr, 0, 0, gr, 0, 0); glossCtx.fillStyle = BLOOD_GLOSS; glossCtx.globalCompositeOperation = "lighten"; }
     return c;
   }
 
@@ -584,9 +620,50 @@
     floorCtx.fillStyle = color;
     floorCtx.beginPath(); floorCtx.arc(x, y, r, 0, TAU); floorCtx.fill();
     floorCtx.globalAlpha = 1;
+    if (glossCtx) { glossCtx.globalAlpha = 0.6; glossCtx.beginPath(); glossCtx.arc(x, y, r, 0, TAU); glossCtx.fill(); }
   }
   function splatter(x, y, ang, size, color) {
-    stamp(Sprites.splat(color, randi(0, 5)), x, y, ang, size, 0.85);
+    const v = randi(0, 5);
+    stamp(Sprites.splat(color, v), x, y, ang, size, 0.85);
+    if (glossCtx && x > L && x < R && y > T && y < B) { glossCtx.globalAlpha = 0.8; Sprites.draw(glossCtx, Sprites.splat(BLOOD_GLOSS, v), x, y, ang, size); }
+  }
+  // Blutlachen wachsen unter liegenden Körpern langsam auf: mehrere überlappende Kreise mit wenig
+  // Deckkraft ergeben einen unregelmäßigen Rand und eine dunklere, nasse Mitte
+  function addPool(x, y, max, color, delay = rand(0.2, 0.6)) {
+    if (pools.length >= 40 || x < L || x > R || y < T || y > B) return;
+    const lobes = Array.from({ length: 3 }, () => ({ dx: rand(-0.45, 0.45), dy: rand(-0.35, 0.35), k: rand(0.55, 0.85) }));
+    pools.push({ x, y, r: 0, drawn: 0, max, color, lobes, delay });
+  }
+  function updatePools(dt) {
+    if (!floorCtx || !pools.length) return;
+    let clipped = false;
+    for (const q of pools) {
+      if (q.delay > 0) { q.delay -= dt; continue; }
+      q.r = Math.min(q.max, q.r + Math.max(1.2, (q.max - q.r) * 1.1) * dt); // erst schnell, dann langsam
+      if (q.r - q.drawn < 1.6 && q.r < q.max) continue;
+      q.drawn = q.r;
+      if (!clipped) {
+        clipped = true;
+        for (const g of glossCtx ? [floorCtx, glossCtx] : [floorCtx]) { g.save(); g.beginPath(); g.rect(L, T, R - L, B - T); g.clip(); }
+      }
+      floorDirty = true;
+      floorCtx.fillStyle = q.color;
+      for (const lb of q.lobes) {
+        const x = q.x + lb.dx * q.r, y = q.y + lb.dy * q.r, rr = q.r * lb.k;
+        floorCtx.globalAlpha = 0.28; floorCtx.beginPath(); floorCtx.arc(x, y, rr, 0, TAU); floorCtx.fill();
+        if (glossCtx) { glossCtx.globalAlpha = 0.3; glossCtx.beginPath(); glossCtx.arc(x, y, rr, 0, TAU); glossCtx.fill(); }
+      }
+    }
+    if (clipped) for (const g of glossCtx ? [floorCtx, glossCtx] : [floorCtx]) g.restore();
+    floorCtx.globalAlpha = 1;
+    pools = pools.filter((q) => q.r < q.max);
+  }
+  // Blut auf der „Kameralinse“: bei schweren Treffern und Zerplatzen direkt vor dem Helden
+  function splashScreen(n) {
+    for (let i = 0; i < n && screenBlood.length < 14; i++) {
+      const edge = Math.random() < 0.5;
+      screenBlood.push({ x: edge ? (Math.random() < 0.5 ? rand(10, 140) : rand(W - 140, W - 10)) : rand(40, W - 40), y: rand(130, H - 120), s: rand(1.6, 3.2), a: rand(0, TAU), v: randi(0, 5), life: rand(1.6, 2.6), max: 2.6, dy: 0 });
+    }
   }
 
   function spawnWave() {
@@ -762,8 +839,9 @@
     const v = inputVector();
     p.moving = !!v;
     if (v) {
-      p.x += v.x * p.speed * dt;
-      p.y += v.y * p.speed * dt;
+      const sp = p.speed * (run.rage > 0 ? 1.15 : 1); // Adrenalin
+      p.x += v.x * sp * dt;
+      p.y += v.y * sp * dt;
       p.aim = Math.atan2(v.y, v.x);
       p.walkT += dt * 10;
     }
@@ -795,7 +873,7 @@
       if (p.fireCd <= 0) {
         fire();
         const spinMul = p.weapon.spin ? 0.25 + 0.75 * p.spin : 1;
-        p.fireCd = 1 / (p.weapon.rate * p.rateMul * spinMul);
+        p.fireCd = 1 / (p.weapon.rate * p.rateMul * spinMul * (run.rage > 0 ? 1.4 : 1));
       }
     } else if (p.fireCd < 0) {
       p.fireCd = 0.12; // kurze Anlaufzeit nach dem Stehenbleiben
@@ -1004,6 +1082,7 @@
     shake = Math.max(shake, 8);
     addText(p.x + rand(-10, 10), p.y - 58, `-${Math.round(dmg)}`, "#ff5a5a", 18);
     fxBlood(p.x, p.y, rand(0, TAU), 8, RED, 160);
+    if (dmg >= p.maxHp * 0.08) splashScreen(dmg >= p.maxHp * 0.2 ? 4 : 2);
     p.hurtT = 0.35;
     hitStop = Math.max(hitStop, 0.05);
     sfx("hurt");
@@ -1133,6 +1212,7 @@
         b.dead = true;
         break;
       }
+      if (!b.dead && b.kind !== "flame" && b.kind !== "laser") hitBodies(b);
     }
     bullets = bullets.filter((b) => !b.dead);
 
@@ -1215,6 +1295,7 @@
     }
     if (!byPlayer && Math.sqrt(dist2(player, { x, y })) < radius + player.r) hurtPlayer(dmg);
     blastBodies(x, y, radius * 1.6);
+    if (dist2(player, { x, y }) < (radius + 60) ** 2 && enemies.some((e) => e.dead && dist2(e, { x, y }) < radius * radius)) splashScreen(2);
     for (const o of obstacles.slice()) {
       if (!o.hp || o.dead) continue;
       const cx = clamp(x, o.x, o.x + o.w), cy = clamp(y, o.y, o.y + o.h);
@@ -1268,7 +1349,17 @@
     e.hitT = 0.1;
     if (!o.silent && (!b || b.kind !== "flame")) {
       if (e.def.armor) fxSparks(e.x, e.y, e.hitAng + Math.PI, 0.8, 4, "200,230,255", 260);
-      else fxBlood(e.x, e.y, e.hitAng, crit ? 6 : 3, e.def.blood, crit ? 220 : 150);
+      else {
+        fxBlood(e.x, e.y, e.hitAng, crit ? 6 : 3, e.def.blood, crit ? 220 : 150);
+        // Austrittswunde: kräftige Treffer sprühen Blut hinter den Zombie und klatschen es auf den Boden
+        if (b && (crit || (b.big && Math.random() < 0.35) || (b.knock || 0) >= 12)) {
+          const a = e.hitAng, ex = e.x + Math.cos(a) * e.r, ey = e.y + Math.sin(a) * e.r;
+          fxBlood(ex, ey, a, crit ? 9 : 5, e.def.blood, 420);
+          fxMist(ex, ey, e.def.blood, crit ? 1.3 : 0.9);
+          if (Math.random() < 0.65) { const d = e.r + rand(10, 30); splatter(e.x + Math.cos(a) * d, e.y + Math.sin(a) * d, a, rand(0.35, 0.7), e.def.blood); }
+        }
+        if (b && e.hp > 0 && HUMANOID.has(e.type) && Math.random() < (crit ? 0.3 : (b.knock || 0) >= 12 ? 0.12 : 0)) severArm(e);
+      }
     }
     if (!o.silent && (!b || b.kind !== "flame" || Math.random() < 0.2)) {
       addText(e.x + rand(-8, 8), e.y - e.r - 4, Math.max(1, Math.round(dmg)) + (crit ? "!" : ""), crit ? "#ffb84a" : "#ffffff", crit ? 24 : 15, crit);
@@ -1277,10 +1368,38 @@
     if (e.hp <= 0) { if (crit) hitStop = Math.max(hitStop, 0.03); killEnemy(e); }
   }
 
+  // Kombo: Abschüsse in schneller Folge verketten. Stufen bringen Ansage und Münzbonus,
+  // jede 20er-Stufe einen Adrenalin-Rausch (schneller feuern und laufen).
+  const COMBO_TIME = 2.4, RAGE_TIME = 6;
+  const COMBO_STEPS = { 5: "KOMBO!", 10: "BLUTRAUSCH!", 20: "MASSAKER!", 35: "UNAUFHALTSAM!", 50: "ZOMBIE-SCHLÄCHTER!", 75: "APOKALYPSE!", 100: "LEGENDE!" };
+  function addCombo(e) {
+    const n = ++run.combo;
+    run.comboT = COMBO_TIME;
+    if (n > run.bestCombo) { run.bestCombo = n; trackMax("combo", n); }
+    const title = COMBO_STEPS[n] || (n > 100 && n % 50 === 0 ? COMBO_STEPS[100] : null);
+    if (!title) return;
+    const bonus = Math.round(n * 0.6 * (1 + (run.chapter - 1) * 0.25));
+    const k = Math.min(10, Math.ceil(bonus / 4));
+    for (let i = 0; i < k; i++) orbs.push(makeOrb(e.x, e.y, "coin", bonus / k));
+    callout = { title: tr(title), n, bonus, life: 1.4, max: 1.4 };
+    sfx("combo");
+    if (n % 20 === 0) startRage();
+  }
+  function startRage() {
+    run.rage = RAGE_TIME;
+    slowMo = Math.max(slowMo, 0.3);
+    shake = Math.max(shake, 6);
+    fxRing(player.x, player.y, 120, "255,60,40", 0.5);
+    fxFlash(player.x, player.y, 160, "255,40,30", 0.25);
+    sfx("rage");
+    if (save.vibration) Platform.vibrate(60);
+  }
+
   function killEnemy(e) {
     if (e.dead) return;
     e.dead = true;
     run.kills++;
+    addCombo(e);
     const def = e.def;
     fxBlood(e.x, e.y, e.hitAng, def.boss ? 40 : 12, def.blood, def.boss ? 320 : 220);
     fxGibs(e.x, e.y, def.boss ? 14 : randi(2, 4), def.blood);
@@ -1732,6 +1851,7 @@
       addP({ t: "blood", x, y, z: rand(4, 14), vx: Math.cos(a) * s, vy: Math.sin(a) * s, vz: rand(40, 170), life: 1.5, max: 1.5, color, size: rand(1.2, 2.8) });
     }
   }
+  function fxMist(x, y, color, size = 1) { addP({ t: "mist", x, y, z: rand(10, 20), vx: rand(-20, 20), vy: rand(-20, 20), life: 0.5, max: 0.5, size: 10 * size, color }); }
   function fxGibs(x, y, n, color) {
     const tone = color === GREEN ? "#4a7a2a" : color === PURPLE ? "#6e2a4a" : "#7a1f22";
     for (let i = 0; i < n; i++) {
@@ -1785,6 +1905,7 @@
           break;
         }
         case "smoke": p.x += p.vx * dt; p.y += p.vy * dt; p.size += dt * 0.8; p.rot += dt * 0.3; break;
+        case "mist": p.x += p.vx * dt; p.y += p.vy * dt; break;
         case "fire": case "ember": case "bubble": case "ice": p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 30 * dt; break;
         case "spark": p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - 5 * dt; p.vy *= 1 - 5 * dt; break;
       }
@@ -1825,7 +1946,10 @@
     if (death === "burst") {
       fxGibs(e.x, e.y, 9, e.def.blood);
       fxBlood(e.x, e.y, ang, 26, e.def.blood, 300);
+      fxMist(e.x, e.y, e.def.blood, 2);
       splatter(e.x, e.y, ang, 1.5 + e.r / 30, e.def.blood);
+      addPool(e.x, e.y, e.r * 1.6, e.def.blood, 0.1);
+      if (dist2(e, player) < 80 * 80) splashScreen(3);
       fxFlash(e.x, e.y, 60, "160,20,20", 0.12);
       for (let i = 0; i < 3; i++) addPiece(e, i === 0 && Math.random() < 0.6 ? "head" : "limb", ang + rand(-1.2, 1.2), rand(160, 320), rand(180, 360));
       shake = Math.max(shake, 5);
@@ -1875,6 +1999,60 @@
         push(h.force || 150, h.force > 250 ? 120 : 0);
     }
     corpses.push(c);
+  }
+  // Schüsse treffen auch, was am Boden liegt: Leichen zucken und rutschen weg, zu viele
+  // Treffer zerfetzen sie; Körperteile werden weggekickt.
+  function hitBodies(b) {
+    const len = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / len, uy = b.vy / len;
+    for (const c of corpses) {
+      if (c.gone || c.death === "freeze" || c.z > 6 || c.fall < 0.6 || b.hit.has(c)) continue;
+      const rr = c.r + b.r + 2;
+      if ((c.x - b.x) ** 2 + (c.y - b.y) ** 2 > rr * rr) continue;
+      b.hit.add(c);
+      const heavy = b.big || (b.knock || 0) >= 12, mass = c.boss ? 5 : Math.max(1, c.r / 12);
+      const push = (60 + (b.knock || 0) * 9) / mass;
+      c.vx += ux * push; c.vy += uy * push; c.vz += (heavy ? 60 : 20) / mass;
+      c.spin += rand(-3, 3) / mass; c.settled = false;
+      fxBlood(c.x, c.y, Math.atan2(uy, ux), heavy ? 4 : 2, c.blood, 150);
+      stampDot(c.x + rand(-4, 4), c.y + rand(-4, 4), rand(1.4, 2.6), c.blood);
+      if (!c.boss) { c.hp = (c.hp ?? 3 + c.r / 6) - (heavy || b.kind === "disc" ? 2 : 1); if (c.hp <= 0) gibCorpse(c, Math.atan2(uy, ux)); }
+    }
+    for (const q of pieces) {
+      if (q.z > 6 || (q.x - b.x) ** 2 + (q.y - b.y) ** 2 > 64) continue;
+      q.vx += ux * 160 + rand(-30, 30); q.vy += uy * 160 + rand(-30, 30); q.vz += rand(90, 170);
+      q.wx += rand(-12, 12); q.wy += rand(-12, 12); q.settled = false;
+      stampDot(q.x, q.y, 1.6, q.blood);
+    }
+  }
+  function gibCorpse(c, ang) {
+    c.gone = true;
+    fxGibs(c.x, c.y, 6, c.blood);
+    fxBlood(c.x, c.y, ang, 16, c.blood, 260);
+    fxMist(c.x, c.y, c.blood, 1.5);
+    splatter(c.x, c.y, ang, 0.8 + c.r / 40, c.blood);
+    addPool(c.x, c.y, c.r * 1.4 * c.sc, c.blood, 0.05);
+    const shim = { type: c.type, variant: c.v, scale: c.sc, r: c.r / 0.8, def: { blood: c.blood }, x: c.x, y: c.y };
+    for (let i = 0; i < 2; i++) addPiece(shim, "limb", ang + rand(-1.3, 1.3), rand(120, 240), rand(140, 260), 6);
+    if (!c.headless) addPiece(shim, "head", ang + rand(-0.6, 0.6), rand(140, 240), rand(180, 300), 6);
+    sfx("splat");
+    shake = Math.max(shake, 2.5);
+    track("gibs", 1);
+  }
+  // Abgeschossener Arm: fliegt von der Schulter weg, der Stumpf spritzt, der Zombie schlägt schwächer zu
+  const HUMANOID = new Set(["walker", "runner", "spitter", "bomber", "brute", "leaper", "burner", "screamer", "splitter", "electro"]);
+  function severArm(e) {
+    const free = [-1, 1].filter((s) => !(e.armOff && e.armOff[s]));
+    if (!free.length) return;
+    const s = free[Math.floor(Math.random() * free.length)];
+    (e.armOff ||= {})[s] = true;
+    if (e.type !== "bomber" && e.type !== "spitter") e.dmg *= 0.7; // Nahkampf mit nur einem Arm
+    e.stumpT = 1.6; e.stumpSide = s;
+    const a = e.face + s * Math.PI / 2, sx = e.x + Math.cos(a) * e.r * 0.7, sy = e.y + Math.sin(a) * e.r * 0.7;
+    const out = (e.hitAng ?? a) * 0.5 + a * 0.5;
+    addPiece({ ...e, x: sx, y: sy }, "limb", out + rand(-0.4, 0.4), rand(160, 260), rand(160, 280), e.r * 1.9 * e.scale);
+    fxBlood(sx, sy, a, 10, e.def.blood, 260);
+    fxMist(sx, sy, e.def.blood, 1.1);
+    sfx("splat");
   }
   // Kopf oder Gliedmaße als eigenes Physik-Objekt
   function addPiece(e, kind, ang, speed, up, z = e.r * 1.6) {
@@ -1944,7 +2122,15 @@
       const fallTime = c.death === "burn" ? 1.1 : c.death === "shock" ? 1.0 : c.death === "boss" ? 1.4 : 0.42;
       c.fall = Math.min(1, c.t / fallTime);
       if (c.death === "burn" && c.t < 2.5 && Math.random() < 0.3) { fxFire(c.x + rand(-8, 8), c.y + rand(-8, 8), 0.7, 0.5); if (Math.random() < 0.3) fxEmber(c.x, c.y); }
-      if (c.headless && c.t < 1.2 && Math.random() < 0.5) addP({ t: "blood", x: c.x, y: c.y, z: 8 + (1 - c.fall) * 20, vx: rand(-40, 40), vy: rand(-40, 40), vz: rand(60, 200), life: 1, max: 1, color: c.blood, size: rand(1.2, 2.4) });
+      if (c.headless && c.t < 2.4) {
+        // Halsschlagader: kräftige Stöße im Herzschlag, dazwischen ein Rinnsal, immer schwächer
+        const strong = (c.t * 2.2) % 1 < 0.16, fade = 1 - c.t / 2.4, na = c.face + (c.fallDir > 0 ? Math.PI : 0);
+        const nx = c.x + Math.cos(na) * 10 * c.fall, ny = c.y + Math.sin(na) * 10 * c.fall;
+        if (strong || Math.random() < 0.25 * fade) for (let i = 0; i < (strong ? 3 : 1); i++) {
+          const a = na + rand(-0.5, 0.5), sp = (strong ? rand(70, 190) : rand(10, 50)) * fade;
+          addP({ t: "blood", x: nx, y: ny, z: 6 + (1 - c.fall) * 22, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: (strong ? rand(150, 300) : rand(30, 90)) * (0.5 + fade * 0.5), life: 1.2, max: 1.2, color: c.blood, size: rand(1.2, 2.6) });
+        }
+      }
       if (c.settled) continue;
       const fast = Math.hypot(c.vx, c.vy);
       if (moveBody(c, dt, c.r, 0.25)) { splatter(c.x, c.y, Math.atan2(c.vy, c.vx), 0.5 + c.r / 40, c.blood); shake = Math.max(shake, 2); }
@@ -1953,7 +2139,10 @@
       c.spin *= c.z > 0 ? 1 : Math.exp(-5 * dt);
       // Blutspur beim Rutschen
       if (c.z === 0 && fast > 60 && Math.random() < 0.6) stampDot(c.x + rand(-3, 3), c.y + rand(-3, 3), rand(1.5, 3), c.blood);
-      if (c.z === 0 && fast < 8 && c.t > fallTime) c.settled = true;
+      if (c.z === 0 && fast < 8 && c.t > fallTime) {
+        c.settled = true;
+        if (!c.pooled && c.death !== "burn") { c.pooled = true; addPool(c.x, c.y, c.r * (c.headless ? 2.6 : 1.9) * (c.boss ? 1.5 : 1) * c.sc, c.blood); }
+      }
     }
     // Spieler schiebt herumliegende Körper beim Laufen etwas an
     if (player && player.moving) {
@@ -1969,7 +2158,7 @@
       if (moveBody(q, dt, 4, 0.45)) { stampDot(q.x, q.y, 2.5, q.blood); q.wx *= 0.6; q.wy *= 0.6; }
       q.rx += q.wx * dt; q.ry += q.wy * dt;
       if (q.z === 0) { q.wx *= Math.exp(-6 * dt); q.wy *= Math.exp(-6 * dt); if (Math.random() < 0.3) stampDot(q.x, q.y, 1.4, q.blood); }
-      if (q.z === 0 && Math.hypot(q.vx, q.vy) < 6 && q.t > 0.4) q.settled = true;
+      if (q.z === 0 && Math.hypot(q.vx, q.vy) < 6 && q.t > 0.4) { q.settled = true; if (!q.pooled) { q.pooled = true; addPool(q.x, q.y, q.kind === "head" ? 9 : 6, q.blood, 0.1); } }
     }
     // Zu viele Leichen: die ältesten ruhenden einbacken (bleiben sichtbar, kosten aber nichts mehr)
     let live = corpses.length;
@@ -2000,6 +2189,10 @@
 
   function updateFx(dt) {
     updateParticles(dt);
+    updatePools(dt);
+    if (callout && (callout.life -= dt) <= 0) callout = null;
+    for (const d of screenBlood) { d.life -= dt; d.dy += dt * (6 + d.s * 3); } // langsam herunterlaufen
+    if (screenBlood.length) screenBlood = screenBlood.filter((d) => d.life > 0);
     for (const t of texts) { t.life -= dt; t.y -= 34 * dt; }
     texts = texts.filter((t) => t.life > 0);
     updateCorpses(dt);
@@ -2021,11 +2214,28 @@
     if (state !== "play") return;
     if (run.mode === "survival") { updateSurvival(dt); if (state !== "play") return; }
     updateEnemies(dt);
+    // Schwer verletzte Zombies hinterlassen eine Blutspur
+    for (const e of enemies) {
+      if (e.stumpT > 0 && !e.dead) {
+        // Armstumpf pulsiert im Herzschlag
+        e.stumpT -= dt;
+        if ((run.time * 2.6) % 1 < 0.2 || Math.random() < 0.15) {
+          const a = e.face + e.stumpSide * Math.PI / 2, sx = e.x + Math.cos(a) * e.r * 0.7, sy = e.y + Math.sin(a) * e.r * 0.7, sp = rand(40, 130) * (0.4 + e.stumpT / 1.6);
+          const d = a + rand(-0.5, 0.5);
+          addP({ t: "blood", x: sx, y: sy, z: e.r * 1.8 * e.scale, vx: Math.cos(d) * sp, vy: Math.sin(d) * sp, vz: rand(40, 140), life: 1, max: 1, color: e.def.blood, size: rand(1.2, 2.2) });
+        }
+      }
+      if (e.dead || e.spawnT > 0 || e.def.armor || e.hp > e.maxHp * 0.5 || (e.dripT = (e.dripT || 0) - dt) > 0) continue;
+      e.dripT = rand(0.12, 0.35) * (0.4 + e.hp / e.maxHp);
+      stampDot(e.x + rand(-5, 5), e.y + rand(-5, 5), rand(0.9, 2) * (e.def.boss ? 2 : 1), e.def.blood);
+    }
     updateHazards(dt);
     updateBullets(dt);
     updateOrbs(dt);
     if (supplyCrate) supplyCrate.bob += dt;
     if (run.cleared) run.doorK = Math.min(1, (run.doorK || 0) + dt * 1.8);
+    if (run.comboT > 0 && (run.comboT -= dt) <= 0) run.combo = 0;
+    if (run.rage > 0) run.rage -= dt;
     // Fremder nach dem Bosssieg (wartet, bis Level-ups abgearbeitet sind)
     if (run.shrineT > 0 && state === "play" && run.pendingPicks === 0) {
       run.shrineT -= dt;
@@ -2094,6 +2304,7 @@
     $("overStats").innerHTML =
       line(surv ? "stopwatch" : "map", surv ? tr("Überlebt") : tr("Erreicht"), `${reached}${record ? `<em class="rec">${tr("REKORD")}</em>` : ""}`) +
       line("skull", tr("Abschüsse"), num(run.kills)) +
+      line("combo", tr("Beste Kombo"), `x${run.bestCombo}`) +
       line("upgrade", tr("Level"), player.level) +
       line("hourglass", tr("Zeit"), fmtTime(run.time)) +
       line("coin", tr("Münzen"), coinAmt(coins, "+"), "gold");
@@ -2264,6 +2475,7 @@
   function drawOverlay() {
     drawScreenFx();
     drawHud();
+    drawCombo();
     // Kinobalken bei Boss-Auftritt und Boss-Tod
     const bossIntro = enemies.some((e) => e.def.boss && e.spawnT > 0);
     cine += ((bossIntro || cineT > 0 ? 1 : 0) - cine) * Math.min(1, frameDt * 5);
@@ -2524,6 +2736,7 @@
       switch (p.t) {
         case "smoke": ctx.globalAlpha = Math.min(1, k * 1.4) * 0.8; Sprites.draw(ctx, smoke, p.x, p.y, p.rot, p.size); break;
         case "blood": ctx.globalAlpha = 1; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y - p.z, p.size, 0, TAU); ctx.fill(); break;
+        case "mist": ctx.globalAlpha = k * 0.35; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y - p.z, p.size * (1.6 - k * 0.6), 0, TAU); ctx.fill(); break;
         case "gib": case "casing": ctx.globalAlpha = 1; Sprites.draw(ctx, p.spr, p.x, p.y - p.z, p.rot); break;
         case "debris": ctx.globalAlpha = Math.min(1, k * 2); ctx.fillStyle = p.color; ctx.fillRect(p.x - p.size / 2, p.y - p.z - p.size / 2, p.size, p.size); break;
       }
@@ -2774,7 +2987,13 @@
     ctx.drawImage(vignette, 0, 0, vignette.width * LS, vignette.height * LS);
     const p = player;
     const low = p.hp / p.maxHp < 0.3 && state === "play" ? 0.25 + 0.15 * Math.sin(run.time * 6) : 0;
-    const a = Math.max((p.hurtT / 0.35) * 0.5, low);
+    for (const d of screenBlood) {
+      ctx.globalAlpha = Math.min(1, (d.life / d.max) * 2) * 0.8;
+      Sprites.draw(ctx, Sprites.splat("#5e070b", d.v), d.x, d.y + d.dy, d.a, d.s);
+    }
+    ctx.globalAlpha = 1;
+    const rage = run.rage > 0 ? Math.min(1, run.rage) * (0.3 + 0.12 * Math.sin(run.time * 11)) : 0; // Adrenalin pocht
+    const a = Math.max((p.hurtT / 0.35) * 0.5, low, rage);
     if (a > 0) {
       ctx.globalAlpha = Math.min(1, a);
       ctx.drawImage(hurtVignette, 0, 0, hurtVignette.width * LS, hurtVignette.height * LS);
@@ -2939,6 +3158,51 @@
     }
   }
 
+  // Kombo-Zähler links unter dem HUD, Ansage mittig, Adrenalin als Balken (+ pochender Rand in drawScreenFx)
+  const COMBO_COLORS = ["#ffffff", "#ffd27a", "#ff8a3d", "#ff4a3a"];
+  const comboColor = (n) => COMBO_COLORS[n >= 35 ? 3 : n >= 20 ? 2 : n >= 10 ? 1 : 0];
+  function drawCombo() {
+    const y0 = enemies.some((e) => e.def.boss && e.spawnT <= 0) ? 200 : 152; // unter der Boss-Leiste
+    ctx.save();
+    ctx.textAlign = "left";
+    ctx.lineJoin = "round";
+    if (run.combo >= 2) {
+      const k = run.comboT / COMBO_TIME, col = comboColor(run.combo);
+      const pop = 1 + Math.max(0, run.comboT - (COMBO_TIME - 0.12)) * 3; // kurz größer beim neuen Abschuss
+      ctx.globalAlpha = Math.min(1, k * 4);
+      ctx.font = FONT_UI(12); ctx.fillStyle = "#ffb733"; ctx.fillText(tr("KOMBO"), 22, y0);
+      ctx.save();
+      ctx.translate(20, y0 + 38); ctx.scale(pop, pop);
+      ctx.font = FONT_NUM(44, 700); ctx.lineWidth = 5; ctx.strokeStyle = "rgba(0,0,0,0.8)";
+      ctx.strokeText(`x${run.combo}`, 0, 0); ctx.fillStyle = col; ctx.fillText(`x${run.combo}`, 0, 0);
+      ctx.restore();
+      ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(22, y0 + 46, 76, 5);
+      ctx.fillStyle = col; ctx.fillRect(22, y0 + 46, 76 * k, 5);
+      ctx.globalAlpha = 1;
+    }
+    if (run.rage > 0) {
+      const y = y0 + (run.combo >= 2 ? 64 : 0), k = run.rage / RAGE_TIME;
+      drawIcon(ctx, "adrenaline", 30, y, 16, "#ff4a3a");
+      ctx.font = FONT_UI(12); ctx.fillStyle = "#ff6a5e"; ctx.fillText(tr("ADRENALIN"), 42, y + 5);
+      ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(22, y + 12, 76, 4);
+      ctx.fillStyle = "#ff4a3a"; ctx.fillRect(22, y + 12, 76 * k, 4);
+    }
+    if (callout) {
+      const age = callout.max - callout.life, sc = age < 0.12 ? 0.55 + age * 3.75 : 1 + Math.max(0, 0.22 - age) * 0.6;
+      ctx.globalAlpha = Math.min(1, (callout.life / callout.max) * 3);
+      ctx.translate(W / 2, y0 + 34); ctx.scale(sc, sc);
+      ctx.textAlign = "center";
+      ctx.font = FONT_NUM(42, 700); ctx.lineWidth = 6; ctx.strokeStyle = "rgba(0,0,0,0.85)";
+      ctx.strokeText(callout.title, 0, 0); ctx.fillStyle = comboColor(callout.n); ctx.fillText(callout.title, 0, 0);
+      const sub = `x${callout.n}   +${callout.bonus}`;
+      ctx.font = FONT_UI(15); ctx.lineWidth = 4;
+      const sw = ctx.measureText(sub).width;
+      ctx.strokeText(sub, 0, 24); ctx.fillStyle = "#ffe2a3"; ctx.fillText(sub, 0, 24);
+      drawIcon(ctx, "coin", sw / 2 + 12, 19, 16, "#ffb733");
+    }
+    ctx.restore();
+  }
+
   function drawJoystick() {
     ctx.fillStyle = "rgba(255,255,255,0.06)";
     ctx.strokeStyle = "rgba(140,255,74,0.35)"; ctx.lineWidth = 2;
@@ -3066,6 +3330,8 @@
     evolutions: { icon: "dna", text: "Löse {n} Evolutionen aus", one: "Löse eine Evolution aus", d: [1], w: 4 },
     level: { icon: "upgrade", text: "Erreiche Level {n} in einem Einsatz", d: [8, 10, 12], max: true },
     survival: { icon: "stopwatch", text: "Überlebe {n} Sekunden im Überlebensmodus", d: [90, 150], w: 300, max: true },
+    combo: { icon: "combo", text: "Erreiche eine Kombo von {n}", d: [15, 25], w: 50, max: true },
+    gibs: { icon: "blood", text: "Zerschieße {n} Leichen", d: [10, 20], w: 120 },
   };
   const MISSION_REWARD = { daily: { coins: 100, xp: 120 }, bonus: { coins: 250, xp: 200 }, weekly: { coins: 500, xp: 400 } };
   const missionText = (m) => { const M = MISSIONS[m.id]; return tr(m.goal === 1 && M.one ? M.one : M.text, { n: m.goal.toLocaleString(I18N.lang) }); };
@@ -3135,6 +3401,7 @@
     { id: "arsenal", icon: "weapons", name: tr("Waffennarr"), text: "Besitze {n} Waffen", tiers: [3, 8, 15], val: () => Object.keys(save.weapons).length },
     { id: "devil", icon: "devil", name: tr("Teufelsbündler"), text: "Schließe {n} Teufelspakte", one: "Schließe einen Teufelspakt", tiers: [1, 5, 20], val: () => save.stats.devil },
     { id: "headshots", icon: "headshot", name: tr("Scharfschütze"), text: "Erziele {n} Kopfschüsse", tiers: [100, 1000, 10000], val: () => save.stats.headshots },
+    { id: "combo", icon: "combo", name: tr("Kombo-König"), text: "Erreiche eine Kombo von {n}", tiers: [25, 60, 120], val: () => save.stats.combo || 0 },
   ];
   const ACH_REWARD = [250, 1000, 4000];
   const TIER = ["bronze", "silver", "gold"];
@@ -3354,7 +3621,7 @@
     const st = save.stats, box = document.createElement("div");
     box.className = "stats panel";
     const rows = [["zombie", "Zombies getötet", num(st.kills)], ["bossSkull", "Bosse besiegt", num(st.bosses)], ["star", "Elite-Zombies", num(st.elites)], ["door", "Räume gesäubert", num(st.rooms)],
-      ["play", "Einsätze", num(st.runs)], ["dna", "Evolutionen", num(st.evolutions)], ["headshot", "Kopfschüsse", num(st.headshots)], ["upgrade", "Höchstes Level", num(st.level)],
+      ["play", "Einsätze", num(st.runs)], ["dna", "Evolutionen", num(st.evolutions)], ["headshot", "Kopfschüsse", num(st.headshots)], ["combo", "Beste Kombo", `x${num(st.combo || 0)}`], ["upgrade", "Höchstes Level", num(st.level)],
       ["stopwatch", "Längstes Überleben", fmtTime(st.survival)], ["hourglass", "Spielzeit", `${Math.floor(st.time / 3600)} h ${Math.floor((st.time % 3600) / 60)} min`]];
     box.innerHTML = rows.map(([ic, k, v]) => `<span>${I(ic)}${tr(k)}</span><b>${v}</b>`).join("");
     list.appendChild(box);
@@ -3865,5 +4132,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, levelUp: () => addXp(player.xpNeed - player.xp), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

@@ -53,12 +53,14 @@ window.Render3D = (() => {
   }
   function group(x = 0, y = 0, z = 0) { const g = new T3.Group(); g.position.set(x, y, z); return g; }
 
-  function canvasTex(w, h, draw, repeat = false) {
+  function canvasTex(w, h, draw, repeat = false, scale = 1) {
     const c = document.createElement("canvas");
-    c.width = w; c.height = h;
+    c.width = w * scale; c.height = h * scale;
     // Kleine Texturen im Hauptspeicher zeichnen: die Normal-Map liest sie per getImageData aus –
     // bei einer GPU-Leinwand müsste der Browser dafür erst alles von der Grafikkarte zurückholen
-    draw(c.getContext("2d", { willReadFrequently: true }), w, h);
+    const g = c.getContext("2d", { willReadFrequently: true });
+    if (scale !== 1) g.scale(scale, scale); // Zeichencode bleibt in logischen Pixeln
+    draw(g, w, h);
     const t = new T3.CanvasTexture(c);
     t.colorSpace = T3.SRGBColorSpace;
     t.anisotropy = 4;
@@ -66,7 +68,45 @@ window.Render3D = (() => {
     return t;
   }
   const texCache = new Map();
-  const tex = (key, w, h, draw, repeat) => { let t = texCache.get(key); if (!t) { t = canvasTex(w, h, draw, repeat); texCache.set(key, t); } return t; };
+  // Wand-, Dach- und Hindernis-Texturen in doppelter Auflösung: aus der Nähe scharf statt verwaschen
+  // (einmalig je Sorte erzeugt und zwischengespeichert, Klone teilen sich den GPU-Speicher)
+  const TEX_SCALE = 2;
+  const tex = (key, w, h, draw, repeat) => { let t = texCache.get(key); if (!t) { t = canvasTex(w, h, draw, repeat, TEX_SCALE); texCache.set(key, t); } return t; };
+  const seededR = (seed) => { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; };
+  // Gebrauchsspuren: feines Korn, Kratzer, Schmutzflecken und dunklere Kanten
+  function grunge(g, w, h, R, o = {}) {
+    const { grain = 0.07, scratches = 8, dirt = 5, edge = 0.35, rust = 0 } = o;
+    for (let k = 0, n = (w * h) / 18; k < n; k++) { g.fillStyle = `rgba(${R() > 0.5 ? "255,255,255" : "0,0,0"},${grain * (0.4 + R())})`; g.fillRect(R() * w, R() * h, 0.5 + R(), 0.5 + R()); }
+    for (let k = 0; k < dirt; k++) {
+      const x = R() * w, y = R() * h, r = 8 + R() * 26, gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, `rgba(20,16,10,${0.12 + R() * 0.16})`); gr.addColorStop(1, "rgba(20,16,10,0)");
+      g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    for (let k = 0; k < rust; k++) {
+      // Rostfahnen laufen nach unten
+      const x = R() * w, y = R() * h * 0.6, len = 14 + R() * 40, gr = g.createLinearGradient(0, y, 0, y + len);
+      gr.addColorStop(0, "rgba(120,58,22,0.55)"); gr.addColorStop(1, "rgba(120,58,22,0)");
+      g.fillStyle = gr; g.fillRect(x, y, 1.5 + R() * 3, len);
+    }
+    g.lineCap = "round";
+    for (let k = 0; k < scratches; k++) {
+      const x = R() * w, y = R() * h, a = R() * TAU, l = 4 + R() * 18;
+      g.strokeStyle = `rgba(255,255,255,${0.1 + R() * 0.12})`; g.lineWidth = 0.5;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+      g.strokeStyle = "rgba(0,0,0,0.25)"; g.beginPath(); g.moveTo(x + 0.5, y + 0.5); g.lineTo(x + 0.5 + Math.cos(a) * l, y + 0.5 + Math.sin(a) * l); g.stroke();
+    }
+    if (edge > 0) for (const [x0, y0, x1, y1, rx, ry, rw, rh] of [[0, 0, 0, 10, 0, 0, w, 10], [0, h, 0, h - 10, 0, h - 10, w, 10], [0, 0, 10, 0, 0, 0, 10, h], [w, 0, w - 10, 0, w - 10, 0, 10, h]]) {
+      const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, `rgba(0,0,0,${edge})`); gr.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = gr; g.fillRect(rx, ry, rw, rh);
+    }
+  }
+  // Blutspritzer mit Tropfen und Laufspuren (für Wände und Matratzen)
+  function bloodSplat(g, x, y, size, R, a = 0.7) {
+    g.fillStyle = `rgba(110,8,12,${a})`;
+    for (let j = 0; j < 18; j++) { const d = R() * size, an = R() * TAU; g.beginPath(); g.arc(x + Math.cos(an) * d, y + Math.sin(an) * d * 0.8, 0.6 + R() * (size / 6) * (1 - d / size), 0, TAU); g.fill(); }
+    g.beginPath(); g.arc(x, y, size * 0.35, 0, TAU); g.fill();
+    for (let j = 0; j < 3; j++) { const dx = (R() - 0.5) * size * 0.6; g.fillRect(x + dx, y, 1 + R() * 1.2, size * (0.6 + R() * 1.4)); }
+  }
 
   // sRGB-"r,g,b" → lineare Farbwerte für Vertexfarben
   const linCache = new Map();
@@ -518,6 +558,15 @@ void main() {
         for (const [y, r, col] of [[106, 4, "#4a5a52"], [114, 3, "#7a3a2a"]]) { const gr = g.createLinearGradient(0, y - r, 0, y + r); gr.addColorStop(0, "#9aa8a0"); gr.addColorStop(0.4, col); gr.addColorStop(1, "#0c0f10"); g.fillStyle = gr; g.fillRect(0, y - r, 256, r * 2); }
         for (let x = 0; x < 256; x += 16) { g.fillStyle = (x / 16) % 2 ? "#151515" : "#d9b21a"; g.fillRect(x, 120, 16, 8); }
       }
+      // Gebrauchsspuren über alles: Schmutzfahnen von oben, Einschusslöcher, Blut
+      grunge(g, 256, 128, R, { grain: 0.06, scratches: 10, dirt: 6, edge: 0, rust: kind === "lab" ? 6 : 0 });
+      for (let k = 0; k < 16; k++) { const x = R() * 256, l = 30 + R() * 60, gr = g.createLinearGradient(0, 0, 0, l); gr.addColorStop(0, `rgba(0,0,0,${0.12 + R() * 0.2})`); gr.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gr; g.fillRect(x, 0, 1 + R() * 4, l); }
+      for (let k = 0; k < 5; k++) {
+        const x = 10 + R() * 236, y = 20 + R() * 70;
+        g.fillStyle = "rgba(0,0,0,0.75)"; g.beginPath(); g.arc(x, y, 1.3, 0, TAU); g.fill();
+        g.strokeStyle = "rgba(255,255,255,0.16)"; g.lineWidth = 0.6; g.beginPath(); g.arc(x, y, 2.4, 0, TAU); g.stroke();
+      }
+      if (kind !== "hospital") bloodSplat(g, 60 + R() * 140, 40 + R() * 40, 10 + R() * 6, R, 0.55);
     }, true);
   }
   // Dachfläche (Bitumen mit Kies), kachelbar
@@ -526,48 +575,112 @@ void main() {
       let s = 31 + kind.length;
       const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
       g.fillStyle = ROOF[kind] || ROOF.street; g.fillRect(0, 0, 128, 128);
-      for (let k = 0; k < 1400; k++) { g.fillStyle = `rgba(${R() > 0.5 ? "255,255,255" : "0,0,0"},${0.04 + R() * 0.08})`; g.fillRect(R() * 128, R() * 128, 1.5, 1.5); }
+      // ausgebesserte Stellen (dunkler Teer), dann feiner Kies
+      for (let k = 0; k < 4; k++) { g.fillStyle = "rgba(0,0,0,0.18)"; g.fillRect(R() * 110, R() * 110, 10 + R() * 26, 6 + R() * 16); }
+      for (let k = 0; k < 3600; k++) { g.fillStyle = `rgba(${R() > 0.5 ? "255,255,255" : "0,0,0"},${0.04 + R() * 0.1})`; const sz = 0.5 + R() * 1.1; g.fillRect(R() * 128, R() * 128, sz, sz); }
       g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 1; for (let y = 0; y < 128; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke(); }
+      g.strokeStyle = "rgba(255,255,255,0.06)"; g.lineWidth = 0.5; for (let y = 1; y < 128; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke(); }
     }, true);
   }
 
   function obstacleTexture(kind) {
     return tex(`obs:${kind}`, 128, 128, (g) => {
+      const R = seededR(kind.length * 7919 + kind.charCodeAt(0) * 31);
+      const rivets = (pts, col = "#9aa3a8") => { for (const [x, y] of pts) { g.fillStyle = "rgba(0,0,0,0.5)"; g.beginPath(); g.arc(x + 0.6, y + 0.6, 2, 0, TAU); g.fill(); g.fillStyle = col; g.beginPath(); g.arc(x, y, 1.8, 0, TAU); g.fill(); g.fillStyle = "rgba(255,255,255,0.5)"; g.fillRect(x - 0.9, y - 0.9, 0.8, 0.8); } };
+      const corners = (m) => [[m, m], [128 - m, m], [m, 128 - m], [128 - m, 128 - m]];
       switch (kind) {
-        case "crate":
-          g.fillStyle = "#7a5a34"; g.fillRect(0, 0, 128, 128);
-          for (let y = 0; y < 128; y += 32) { g.fillStyle = "#6a4c2a"; g.fillRect(0, y, 128, 3); }
-          g.strokeStyle = "#4e3820"; g.lineWidth = 10; g.strokeRect(5, 5, 118, 118);
+        case "crate": {
+          // Bretter mit eigener Tönung, Maserung und Astlöchern; Rahmen und Strebe mit Nägeln
+          for (let y = 0, i = 0; y < 128; y += 32, i++) {
+            const v = Math.floor(R() * 22) - 11;
+            g.fillStyle = `rgb(${122 + v},${90 + v * 0.8},${52 + v * 0.5})`; g.fillRect(0, y, 128, 32);
+            g.lineWidth = 0.6;
+            for (let k = 0; k < 9; k++) {
+              const yy = y + 2 + R() * 28, ph = R() * TAU, amp = 0.6 + R() * 1.4;
+              g.strokeStyle = `rgba(60,36,16,${0.2 + R() * 0.25})`; g.beginPath(); g.moveTo(0, yy);
+              for (let x = 8; x <= 128; x += 8) g.lineTo(x, yy + Math.sin(x * 0.06 + ph) * amp);
+              g.stroke();
+            }
+            if (R() < 0.8) { const kx = 14 + R() * 100, ky = y + 8 + R() * 16; g.fillStyle = "rgba(60,34,14,0.6)"; g.beginPath(); g.ellipse(kx, ky, 3 + R() * 2, 1.6 + R(), 0, 0, TAU); g.fill(); g.strokeStyle = "rgba(60,34,14,0.3)"; g.beginPath(); g.ellipse(kx, ky, 6, 3, 0, 0, TAU); g.stroke(); }
+            g.fillStyle = "rgba(30,18,8,0.75)"; g.fillRect(0, y, 128, 1.4);
+            g.fillStyle = "rgba(255,220,170,0.12)"; g.fillRect(0, y + 1.4, 128, 1);
+          }
+          g.strokeStyle = "#5a3f22"; g.lineWidth = 10; g.strokeRect(5, 5, 118, 118);
           g.beginPath(); g.moveTo(10, 10); g.lineTo(118, 118); g.stroke();
+          g.strokeStyle = "rgba(255,220,170,0.14)"; g.lineWidth = 1; g.strokeRect(0.5, 0.5, 127, 127); g.strokeRect(10.5, 10.5, 107, 107);
+          rivets(corners(5).concat([[30, 30], [98, 98], [64, 5], [64, 123], [5, 64], [123, 64]]), "#6d6a62");
+          g.save(); g.globalAlpha = 0.35; g.fillStyle = "#1a1208"; g.font = "bold 11px sans-serif"; g.textAlign = "center"; g.fillText("FRAGILE", 88, 46); g.restore();
+          grunge(g, 128, 128, R, { grain: 0.06, scratches: 10, dirt: 4, edge: 0.3 });
           break;
+        }
         case "medcrate":
           g.fillStyle = "#dfe2dc"; g.fillRect(0, 0, 128, 128);
+          g.fillStyle = "rgba(0,0,0,0.06)"; for (let y = 0; y < 128; y += 4) g.fillRect(0, y, 128, 1.2); // Kunststoff-Rippen
           g.strokeStyle = "#9aa09a"; g.lineWidth = 6; g.strokeRect(4, 4, 120, 120);
+          g.strokeStyle = "rgba(255,255,255,0.6)"; g.lineWidth = 1; g.strokeRect(1.5, 1.5, 125, 125);
+          g.fillStyle = "#b02428"; g.fillRect(53, 25, 24, 80); g.fillRect(25, 53, 80, 24);
           g.fillStyle = "#e5383b"; g.fillRect(52, 24, 24, 80); g.fillRect(24, 52, 80, 24);
+          g.fillStyle = "rgba(255,255,255,0.25)"; g.fillRect(52, 24, 24, 2); g.fillRect(24, 52, 80, 2);
+          rivets(corners(9));
+          grunge(g, 128, 128, R, { grain: 0.05, scratches: 14, dirt: 4, edge: 0.25 });
+          bloodSplat(g, 92, 96, 9, R, 0.6);
           break;
         case "labcrate":
           g.fillStyle = "#56606a"; g.fillRect(0, 0, 128, 128);
+          for (let k = 0; k < 40; k++) { g.fillStyle = `rgba(255,255,255,${0.02 + R() * 0.04})`; g.fillRect(0, R() * 96, 128, 0.6); } // gebürstetes Metall
           g.strokeStyle = "#3a434b"; g.lineWidth = 6; g.strokeRect(10, 10, 108, 108);
+          g.strokeStyle = "rgba(255,255,255,0.18)"; g.lineWidth = 1; g.strokeRect(13.5, 13.5, 101, 101);
           for (let x = -128; x < 128; x += 24) { g.fillStyle = "#e8c21a"; g.beginPath(); g.moveTo(x, 128); g.lineTo(x + 12, 128); g.lineTo(x + 40, 100); g.lineTo(x + 28, 100); g.fill(); }
           g.fillStyle = "#1c1c1c"; g.fillRect(0, 96, 128, 4);
+          // Biogefahr-Schild
+          g.fillStyle = "#e8c21a"; g.beginPath(); g.arc(64, 52, 20, 0, TAU); g.fill();
+          g.strokeStyle = "#1c1c1c"; g.lineWidth = 3; for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + i * TAU / 3; g.beginPath(); g.arc(64 + Math.cos(a) * 7, 52 + Math.sin(a) * 7, 7, 0, TAU); g.stroke(); }
+          g.fillStyle = "#1c1c1c"; g.beginPath(); g.arc(64, 52, 3, 0, TAU); g.fill();
+          rivets(corners(6).concat([[64, 6], [64, 122]]));
+          grunge(g, 128, 128, R, { grain: 0.06, scratches: 16, dirt: 3, edge: 0.3, rust: 4 });
           break;
         case "barricade":
           g.fillStyle = "#8d8c86"; g.fillRect(0, 0, 128, 128);
+          for (let k = 0; k < 700; k++) { g.fillStyle = `rgba(${R() > 0.5 ? "255,255,255" : "0,0,0"},${0.06 + R() * 0.1})`; g.fillRect(R() * 128, R() * 128, 1, 1); } // Betonporen
           for (let x = -128; x < 256; x += 32) { g.fillStyle = "#f2c81a"; g.beginPath(); g.moveTo(x, 128); g.lineTo(x + 16, 128); g.lineTo(x + 80, 64); g.lineTo(x + 64, 64); g.fill(); }
           g.fillStyle = "#151515"; g.fillRect(0, 60, 128, 4);
+          // abgeplatzte Ecken und Risse
+          for (let k = 0; k < 5; k++) { g.fillStyle = "#6c6b66"; g.beginPath(); const x = R() * 128, y = R() * 128; g.moveTo(x, y); for (let j = 0; j < 5; j++) g.lineTo(x + (R() - 0.5) * 14, y + (R() - 0.5) * 10); g.fill(); }
+          g.strokeStyle = "rgba(0,0,0,0.45)"; g.lineWidth = 0.7; for (let k = 0; k < 3; k++) { let x = R() * 128, y = R() * 50; g.beginPath(); g.moveTo(x, y); for (let j = 0; j < 6; j++) { x += (R() - 0.5) * 12; y += 3 + R() * 6; g.lineTo(x, y); } g.stroke(); }
+          grunge(g, 128, 128, R, { grain: 0.05, scratches: 6, dirt: 6, edge: 0.3 });
           break;
         case "dumpster":
           g.fillStyle = "#2f5a3a"; g.fillRect(0, 0, 128, 128);
-          g.fillStyle = "#264a30"; for (let x = 8; x < 128; x += 24) g.fillRect(x, 0, 6, 128);
+          for (let x = 8; x < 128; x += 24) {
+            g.fillStyle = "#264a30"; g.fillRect(x, 0, 6, 128);
+            g.fillStyle = "rgba(255,255,255,0.12)"; g.fillRect(x, 0, 1, 128);
+            g.fillStyle = "rgba(0,0,0,0.3)"; g.fillRect(x + 5, 0, 1, 128);
+          }
+          // abgeplatzter Lack, Rost, Graffiti-Tag
+          for (let k = 0; k < 10; k++) { g.fillStyle = `rgba(${90 + R() * 40},${50 + R() * 20},24,0.8)`; g.beginPath(); g.ellipse(R() * 128, R() * 128, 1 + R() * 4, 1 + R() * 3, R() * 3, 0, TAU); g.fill(); }
+          g.save(); g.globalAlpha = 0.7; g.strokeStyle = "#f5f5f0"; g.lineWidth = 2.2; g.lineCap = "round"; g.beginPath(); let gx = 30, gy = 70; g.moveTo(gx, gy); for (let k = 0; k < 8; k++) { gx += 5 + R() * 6; gy += (R() - 0.5) * 18; g.lineTo(gx, gy); } g.stroke(); g.restore();
+          grunge(g, 128, 128, R, { grain: 0.07, scratches: 12, dirt: 6, edge: 0.35, rust: 10 });
           break;
         case "cabinet":
           g.fillStyle = "#b7bec2"; g.fillRect(0, 0, 128, 128);
           g.fillStyle = "#7f878c"; g.fillRect(62, 0, 4, 128);
+          g.fillStyle = "rgba(255,255,255,0.35)"; g.fillRect(61, 0, 1, 128);
+          for (const hx of [54, 70]) { g.fillStyle = "#5d6468"; g.fillRect(hx, 56, 4, 18); g.fillStyle = "rgba(255,255,255,0.5)"; g.fillRect(hx, 56, 1, 18); }
           g.fillStyle = "#e5383b"; g.fillRect(28, 40, 12, 40); g.fillRect(14, 54, 40, 12);
+          for (let y = 96; y < 120; y += 4) { g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(80, y, 34, 2); } // Lüftungsschlitze
+          grunge(g, 128, 128, R, { grain: 0.05, scratches: 18, dirt: 3, edge: 0.3 });
+          bloodSplat(g, 96, 40, 8, R, 0.5);
           break;
         case "server":
           g.fillStyle = "#1a1f24"; g.fillRect(0, 0, 128, 128);
-          for (let y = 6; y < 128; y += 14) { g.fillStyle = "#2c3238"; g.fillRect(6, y, 116, 10); }
+          for (let y = 6; y < 128; y += 14) {
+            g.fillStyle = "#2c3238"; g.fillRect(6, y, 116, 10);
+            g.fillStyle = "rgba(255,255,255,0.12)"; g.fillRect(6, y, 116, 1);
+            g.fillStyle = "rgba(0,0,0,0.5)"; g.fillRect(6, y + 9, 116, 1);
+            for (let x = 70; x < 116; x += 3) { g.fillStyle = "rgba(0,0,0,0.55)"; g.fillRect(x, y + 3, 1.6, 5); } // Lüftungsgitter
+          }
+          rivets([[3, 4], [125, 4], [3, 124], [125, 124]], "#6a737a");
+          grunge(g, 128, 128, R, { grain: 0.04, scratches: 6, dirt: 2, edge: 0.2 });
           break;
         case "serverLeds":
           g.fillStyle = "#000"; g.fillRect(0, 0, 128, 128);
@@ -575,7 +688,16 @@ void main() {
           break;
         case "mattress":
           g.fillStyle = "#e8eef0"; g.fillRect(0, 0, 128, 128);
+          // gesteppte Rauten
+          g.strokeStyle = "rgba(90,110,120,0.25)"; g.lineWidth = 0.8;
+          for (let k = -128; k < 256; k += 16) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k + 128, 128); g.stroke(); g.beginPath(); g.moveTo(k, 128); g.lineTo(k + 128, 0); g.stroke(); }
+          for (let y = 8; y < 128; y += 16) for (let x = (y / 16 % 2 ? 0 : 8); x < 128; x += 16) { g.fillStyle = "rgba(90,110,120,0.35)"; g.beginPath(); g.arc(x, y, 1, 0, TAU); g.fill(); }
+          // Fleck: dunkler Kern, ausgefranster Rand, eingetrocknete Ränder
+          g.fillStyle = "rgba(150,70,60,0.25)"; g.beginPath(); g.ellipse(80, 70, 36, 27, 0.4, 0, TAU); g.fill();
           g.fillStyle = "rgba(120,10,14,0.85)"; g.beginPath(); g.ellipse(80, 70, 30, 22, 0.4, 0, TAU); g.fill();
+          g.fillStyle = "rgba(70,4,8,0.6)"; g.beginPath(); g.ellipse(84, 72, 16, 11, 0.5, 0, TAU); g.fill();
+          bloodSplat(g, 40, 30, 8, R, 0.7);
+          grunge(g, 128, 128, R, { grain: 0.04, scratches: 0, dirt: 5, edge: 0.2 });
           break;
       }
     });
@@ -711,7 +833,8 @@ void main() {
     const crop = (t) => { t.repeat.set(aw / D.W, ah / D.H); t.offset.set(D.L / D.W, 1 - D.B / D.H); return t; };
     const floorN = crop(gpuNormalMap(fc, 2.4, 720, T3.ClampToEdgeWrapping, 8));
     const floorMat = new T3.MeshPhongMaterial({ map: floorTex, color: 0xb4b4b4, normalMap: floorN, normalScale: new T3.Vector2(1, 1), specular: 0x4a5058, shininess: 60 });
-    if (fc.gloss) { floorMat.specularMap = crop(new T3.CanvasTexture(fc.gloss)); }
+    const glossTex = fc.gloss ? crop(new T3.CanvasTexture(fc.gloss)) : null; // frisches Blut wird hier nass glänzend eingestempelt
+    if (glossTex) floorMat.specularMap = glossTex;
     const floor = mesh(new T3.PlaneGeometry(aw, ah), floorMat, (D.L + D.R) / 2, 0, (D.T + D.B) / 2);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
@@ -809,7 +932,7 @@ void main() {
     g.add(deco);
     uncached = false;
 
-    room = { group: g, floorTex, door, lamps, lampRgb, obs };
+    room = { group: g, floorTex, glossTex, door, lamps, lampRgb, obs };
     builtFloor = fc;
     renderer.shadowMap.needsUpdate = true;
     warmPending = true; // neue Raum-Materialien (Wände, Hindernisse) gleich mit übersetzen
@@ -1350,6 +1473,7 @@ void main() {
     }
     M.root.visible = true;
     if (M.extra.head) M.extra.head.visible = true;
+    for (const A of M.arms) A.g.visible = true;
     M.root.rotation.set(0, 0, 0);
     M.root.position.set(0, 0, 0);
     M.mats.forEach((m) => { m.color.copy(m.userData.base); m.emissive.setRGB(0, 0, 0); });
@@ -1389,6 +1513,7 @@ void main() {
       if (e.mode !== "scream" && M.extra.head) M.extra.head.rotation.z = 0;
       if (e.mode !== "scream") for (const A of M.arms) if (!A.crawl) A.g.rotation.y = A.s * 0.18;
     }
+    if (e.armOff) for (const A of M.arms) A.g.visible = !e.armOff[A.s]; // abgeschossener Arm
     if (M.extra.blink) M.extra.blink.visible = Math.sin(t * 14 + e.wob) > 0;
     if (M.extra.sac) M.extra.sac.scale.setScalar(1 + 0.15 * Math.sin(ph * 2));
     if (M.extra.tail) M.extra.tail.rotation.y = Math.sin(t * 12) * 0.5;
@@ -2141,7 +2266,14 @@ void main() {
         case "ice": bill(addB, q.x, 24, q.y, q.size, CELL.glow, "170,230,255", k * 0.9); break;
         case "drip": bill(addB, q.x, 18, q.y, q.size * 2, CELL.glow, q.rgb, k * 0.5); break;
         case "smoke": bill(normB, q.x, 20 + (1 - k) * 40, q.y, 24 * q.size, CELL.smoke, "120,120,115", Math.min(1, k * 1.4) * 0.7, q.rot); break;
-        case "blood": bill(normB, q.x, q.z + 6, q.y, q.size * 1.4, CELL.blob, hexRgb(q.color), 1); break;
+        case "blood": {
+          // schnelle Tropfen als Streifen in Flugrichtung, langsame als runde Tropfen
+          const sp = Math.hypot(q.vx, q.vy);
+          if (sp > 70) { const len = q.size * Math.min(6, 1.5 + sp * 0.012), ux = q.vx / sp, uy = q.vy / sp; flat(normB, q.x - ux * len * 0.6, q.z + 6, q.y - uy * len * 0.6, Math.atan2(q.vy, q.vx), len, q.size * 0.85, CELL.streak, hexRgb(q.color), 1); }
+          else bill(normB, q.x, q.z + 6, q.y, q.size * 1.4, CELL.blob, hexRgb(q.color), 1);
+          break;
+        }
+        case "mist": bill(normB, q.x, q.z + 4, q.y, q.size * (1.6 - k * 0.6) * 1.4, CELL.smoke, hexRgb(q.color), k * 0.55, q.x * 0.05); break;
         case "lvl": {
           // aufsteigende Funken um die Lichtsäule
           for (let i = 0; i < 14; i++) { const a = i * 0.45 + (1 - k) * 6, h = ((i * 37) % 100) / 100 * 200 * (1 - k * 0.3) + (1 - k) * 60; bill(addB, p.x + Math.cos(a) * 30, h, p.y + Math.sin(a) * 30, 4 + (i % 3), CELL.star, "255,230,140", k); }
@@ -2321,7 +2453,7 @@ void main() {
     const t = time;
     if (w.floorCanvas !== builtFloor) buildRoom(w);
     // Neue Blutspuren erst gesammelt hochladen (Textur-Upload ist auf Handys teuer)
-    if (w.consumeFloorDirty && t - lastFloorUpload > (quality >= 2 ? 0.3 : 0.6) && w.consumeFloorDirty()) { room.floorTex.needsUpdate = true; lastFloorUpload = t; }
+    if (w.consumeFloorDirty && t - lastFloorUpload > (quality >= 2 ? 0.3 : 0.6) && w.consumeFloorDirty()) { room.floorTex.needsUpdate = true; if (room.glossTex) room.glossTex.needsUpdate = true; lastFloorUpload = t; }
     const sx = shake ? (Math.random() - 0.5) * shake * 1.6 : 0, sz = shake ? (Math.random() - 0.5) * shake * 1.6 : 0;
     const k = Math.min(1, dt * 3);
     CAM.fx += ((w.player.x - D.W / 2) * 0.025 - CAM.fx) * k;
@@ -2376,6 +2508,6 @@ void main() {
   return {
     init, resize, render, project, heightOf, setQuality, clear, preview, stopPreview, showcase,
     get ready() { return ready; },
-    get debug() { return { scene, camera, renderer, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
+    get debug() { return { scene, camera, renderer, models, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
   };
 })();

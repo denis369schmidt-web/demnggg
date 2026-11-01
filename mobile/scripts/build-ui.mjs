@@ -47,7 +47,7 @@ const ICONS = {
   door: "steel-door", explosion: "explosion-rays", dna: "dna1", upgrade: "upgrade", headshot: "helmet-head-shot",
   hazard: "hazard-sign", info: "info", firstAid: "first-aid-kit", ammo: "ammo-box", angel: "angel-outfit",
   dove: "peace-dove", devil: "devil-mask", heartArmor: "heart-armor", clover: "clover", run: "run", cash: "swap-bag",
-  combo: "triple-skulls", adrenaline: "heart-beats", music: "musical-notes", motion: "vibrating-smartphone", cinema: "film-projector", storm: "lightning-storm", beast: "spiked-dragon-head",
+  combo: "triple-skulls", adrenaline: "heart-beats", music: "musical-notes", motion: "3d-glasses", cinema: "film-projector", storm: "lightning-storm", beast: "spiked-dragon-head",
   // Skills
   multishot: "bullets", front: "heavy-bullets", diag: "arrow-cluster", side: "back-forth", rear: "return-arrow",
   pierce: "supersonic-bullet", ricochet: "ricochet", wall: "brick-wall", atk: "muscle-up", rate: "machine-gun-magazine",

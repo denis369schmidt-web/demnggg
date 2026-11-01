@@ -1,4 +1,4 @@
-/* Outbreak Hero – Zombie-Roguelite im Stil von Room-Clearing-Shootern.
+/* Escape from Germany (intern „Outbreak Hero“) – Zombie-Roguelite im Stil von Room-Clearing-Shootern.
  * Reines Canvas + Vanilla JS, keine Abhängigkeiten. Läuft als PWA auf Android.
  */
 "use strict";
@@ -17,22 +17,27 @@
   // Jedes Kapitel spielt in einer anderen Umgebung (Straße → Krankenhaus → Labor → …)
   const THEME_ORDER = ["street", "hospital", "lab"];
   const OBSTACLE_POOL = {
-    street: ["car", "car", "crate", "barrels", "barricade", "dumpster"],
+    street: ["car", "car", "crate", "barrels", "barricade", "dumpster", "automat"],
     hospital: ["bed", "bed", "cabinet", "medcrate", "medcrate", "barrels"],
     lab: ["tank", "tank", "server", "labcrate", "barrels"],
+    // Altstadt: Marktbuden, Bierbänke, Bierfässer, Brunnen, Böllerkisten und (höchstens einer) Maibaum
+    markt: ["bude", "bude", "bierbank", "fass", "brunnen", "boeller", "maibaum", "crate"],
   };
+  // Feste verschieben die Mischung: mehr Bierbänke & Fässer auf der Wiesn, mehr Buden am Weihnachtsmarkt …
+  const FEST_OBS = { wiesn: ["bierbank", "bierbank", "fass", "fass", "maibaum"], weihnachten: ["bude", "bude", "bude"], karneval: ["boeller", "boeller", "bude"], imbiss: ["bude"], bahn: ["automat"], hafen: ["crate", "fass"], apfelwein: ["bierbank", "fass"], werk: ["maibaum", "boeller"] };
   const OBSTACLE_SIZE = { // [wMin, wMax, hMin, hMax]
     car: [96, 118, 48, 52], crate: [46, 68, 40, 60], medcrate: [46, 62, 40, 54], labcrate: [48, 66, 42, 58],
     barrels: [52, 52, 52, 52], barricade: [90, 130, 26, 30], dumpster: [70, 86, 42, 46],
     bed: [88, 96, 46, 50], cabinet: [44, 60, 32, 36], tank: [56, 60, 56, 60], server: [40, 48, 70, 88],
+    bude: [72, 92, 46, 54], bierbank: [84, 104, 34, 38], fass: [48, 50, 48, 50], maibaum: [26, 26, 26, 26], brunnen: [66, 66, 66, 66], boeller: [40, 46, 30, 34], automat: [30, 34, 24, 28],
   };
-  const ROTATABLE = { car: true, bed: true };
-  const GLOWING = { barrels: "150,255,60", tank: "120,255,80" };
+  const ROTATABLE = { car: true, bed: true, bierbank: true };
+  const GLOWING = { barrels: "150,255,60", tank: "120,255,80", bude: "255,196,120" };
   // Walker-Outfits je Welt (Index in die Paletten von sprites.js/render3d.js):
   // 0–2 Zivil, 3 Polizist, 4 Bauarbeiter, 5 Anzug, 6 Patient, 7 Ärztin, 8 Pfleger, 9 Forscher, 10 Soldat, 11 Schutzanzug
-  const WALKER_LOOKS = { street: [0, 1, 2, 3, 4, 5, 0, 3], hospital: [6, 6, 7, 8, 0, 2], lab: [9, 9, 10, 11, 1, 10] };
+  const WALKER_LOOKS = { street: [0, 1, 2, 3, 4, 5, 0, 3], hospital: [6, 6, 7, 8, 0, 2], lab: [9, 9, 10, 11, 1, 10], markt: [0, 1, 2, 5, 0, 1, 3, 2] };
   // Zerstörbar: Giftfässer explodieren (Kettenreaktion!), Kisten zersplittern und lassen Beute fallen
-  const DESTRUCT = { barrels: 70, crate: 45, medcrate: 45, labcrate: 60 };
+  const DESTRUCT = { barrels: 70, crate: 45, medcrate: 45, labcrate: 60, bude: 90, bierbank: 50, fass: 40, maibaum: 110, boeller: 30, automat: 40 };
   const TAU = Math.PI * 2;
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -55,6 +60,7 @@
     sound: true,
     music: true,
     cine: true, // Kino-Effekte: Filmkorn, Blitze, Stromausfälle
+    storySeen: false, // Prolog schon gesehen
     menuMode: "campaign", // zuletzt gewählte Einsatzart im Hauptmenü
     motion: true, // 4D: Bewegungssensor steuert die Menükamera
     vibration: true,
@@ -232,6 +238,13 @@
     bloater: { name: "Gasbläher", r: 22, hp: 160, speed: 38, dmg: 18, xp: 5, coins: [2, 4], cost: 3, blood: GREEN },
     nest: { name: "Brutnest", r: 24, hp: 260, speed: 0, dmg: 8, xp: 6, coins: [3, 6], cost: 4, blood: PURPLE, anchored: true },
     gunner: { name: "Zombie-Schütze", r: 15, hp: 90, speed: 52, dmg: 9, xp: 4, coins: [1, 3], cost: 3, blood: RED },
+    // v2.0: deutsche Gegner – jede Stadt schickt ihre eigenen
+    wiesn: { name: "Wiesn-Zombie", r: 17, hp: 125, speed: 48, dmg: 14, xp: 4, coins: [1, 3], cost: 3, blood: RED },
+    jeck: { name: "Jeck", r: 14, hp: 70, speed: 82, dmg: 9, xp: 3, coins: [1, 3], cost: 2.5, blood: RED },
+    schaffner: { name: "Schaffner", r: 15, hp: 95, speed: 64, dmg: 12, xp: 4, coins: [1, 3], cost: 3, blood: RED },
+    beamter: { name: "Beamter", r: 15, hp: 105, speed: 40, dmg: 10, xp: 4, coins: [2, 4], cost: 3, blood: RED },
+    zwerg: { name: "Gartenzwerg", r: 8, hp: 16, speed: 150, dmg: 6, xp: 1, coins: [0, 1], cost: 0.5, pack: 4, blood: RED },
+    ultra: { name: "Ultra", r: 15, hp: 85, speed: 86, dmg: 13, xp: 4, coins: [1, 3], cost: 2.5, blood: RED },
     abom: { name: "ABSCHEULICHKEIT", r: 48, hp: 2200, speed: 60, dmg: 30, xp: 40, coins: [40, 60], boss: true, blood: PURPLE },
     mother: { name: "BRUTMUTTER", r: 52, hp: 2700, speed: 34, dmg: 28, xp: 50, coins: [50, 80], boss: true, blood: GREEN },
   };
@@ -251,7 +264,7 @@
     menu: $("menu"), armory: $("armory"), talents: $("talents"), skillPick: $("skillPick"),
     pause: $("pause"), over: $("over"), pauseBtn: $("pauseBtn"),
     shop: $("shop"), daily: $("daily"), settings: $("settings"), revive: $("revive"),
-    missions: $("missions"), pass: $("pass"), patrol: $("patrol"), codex: $("codex"),
+    missions: $("missions"), pass: $("pass"), patrol: $("patrol"), codex: $("codex"), route: $("route"),
   };
   const overlays = Object.values(ui).filter((o) => o !== ui.pauseBtn);
   // UI-Bausteine: Icons aus dem Sprite, Münzbeträge, Sechseck-Medaillons, Fortschritts-Pips
@@ -268,7 +281,7 @@
   let curOverlay = null;
   function show(el) {
     // Hauptmenü blendet in Wellen ein (Klasse neu setzen spielt die Animation erneut ab)
-    if (el === ui.menu && curOverlay !== ui.menu) { el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter"); }
+    if (el === ui.menu && curOverlay !== ui.menu) { el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter"); requestAnimationFrame(startTicker); }
     curOverlay = el;
     for (const o of overlays) o.classList.toggle("hidden", o !== el);
     ui.pauseBtn.classList.toggle("hidden", el !== null);
@@ -359,7 +372,7 @@
   function sfx(type) {
     if (!save.sound || !actx) return;
     const now = actx.currentTime;
-    const minGap = { shoot: 0.05, hit: 0.03, kill: 0.04, zap: 0.08, eshot: 0.05, dig: 0.1, heal: 0.2 }[type] || 0;
+    const minGap = { shoot: 0.05, hit: 0.03, kill: 0.04, zap: 0.08, eshot: 0.05, dig: 0.1, heal: 0.2, kick: 0.06, paper: 0.08, glass: 0.06 }[type] || 0;
     if (lastSfx[type] && now - lastSfx[type] < minGap) return;
     lastSfx[type] = now;
     const cfg = {
@@ -382,6 +395,13 @@
       phase: [["sine", 900, 200, 0.3, 0.05], ["triangle", 300, 1200, 0.25, 0.03]],
       shield: [["sine", 300, 900, 0.3, 0.06], ["square", 600, 1800, 0.12, 0.02]],
       eshot: [["square", 380, 120, 0.06, 0.04], ["noise", 3000, 800, 0.05, 0.05]],
+      // v2.0: Schaffner-Pfiff, Maßkrug, Fußball, Formular, Tröte, Stempel
+      whistle: [["square", 2650, 2550, 0.45, 0.035], ["sine", 3180, 3120, 0.45, 0.04], ["noise", 6000, 4000, 0.3, 0.02]],
+      glass: [["noise", 7000, 2500, 0.18, 0.12], ["triangle", 2400, 1900, 0.12, 0.04], ["triangle", 3300, 2800, 0.1, 0.03]],
+      kick: [["sine", 150, 55, 0.14, 0.14], ["noise", 1800, 300, 0.06, 0.08]],
+      paper: [["noise", 3600, 1600, 0.12, 0.06]],
+      troete: [["sawtooth", 330, 392, 0.22, 0.035], ["square", 660, 784, 0.22, 0.015]],
+      stamp: [["sine", 110, 50, 0.12, 0.14], ["noise", 900, 200, 0.08, 0.08]],
     }[type];
     if (!cfg) return;
     // Rausch-Anteile machen Schüsse, Treffer und Explosionen wuchtiger
@@ -512,15 +532,14 @@
     nextRoom();
     roomFade = 0; // beim Start übernimmt der Kameraflug aus dem Menü die Überblendung
     if (used.length) setTimeout(() => toast(`${tr("Boosts aktiv")}: ${used.join(" · ")}`, "gift"), 300);
-    show(null);
-    state = "play";
+    if (!run.storyOpen) { show(null); state = "play"; } // sonst läuft erst der Fluchtplan/Prolog
   }
 
   // ============================================================
   // Räume
   // ============================================================
   function resetRoomState() {
-    enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; pools = []; hazards = []; zaps = []; lobs = []; beams = []; volleyQueue.length = 0;
+    enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; pools = []; hazards = []; zaps = []; lobs = []; beams = []; fireworks = []; volleyQueue.length = 0;
     roomFade = 1;
     run.doorK = 0;
     supplyCrate = null;
@@ -532,13 +551,9 @@
   function nextRoom() {
     if (run.mode === "survival") { setupSurvival(); return; }
     run.room++;
-    if (run.room > ROOMS_PER_CHAPTER) {
-      const bonus = Math.round(100 * run.chapter * run.greed);
-      run.coins += bonus;
-      run.chapter++;
-      run.room = 1;
-      showBanner(tr("KAPITEL {n} ÜBERLEBT", { n: run.chapter - 1 }), tr("+{b} Münzen · Die Seuche wird stärker…", { b: bonus }));
-    }
+    if (run.room > ROOMS_PER_CHAPTER) { run.chapter++; run.room = 1; }
+    // Neue Stadt: Prämie für die durchbrochene, dann der Fluchtplan (pausiert bis „Weiter“)
+    if (districtIdx() === 0 && cityIdx() > 0) { run.cityBonus = Math.round(60 * cityIdx() * run.greed); run.coins += run.cityBonus; }
     resetRoomState();
     player.x = W / 2; player.y = B - 70;
 
@@ -549,21 +564,77 @@
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     initAmbient();
 
+    const city = curCity(), [dName] = curDistrict();
     if (isSupply) {
       supplyCrate = { x: W / 2, y: (T + B) / 2, r: 26, bob: 0 };
-      showBanner(tr("VERSORGUNGSRAUM"), tr("Öffne die Kiste"));
+      showBanner(dName.toUpperCase(), `${city.name} · ${tr("Versorgung – öffne die Kiste")}`);
     } else if (isBoss) {
       spawnEnemy(isBoss, W / 2, T + 180);
-      showBanner(tr("BOSS: {name}", { name: ZOMBIES[isBoss].name }), tr("Kapitel {c} · Raum {r}", { c: run.chapter, r: run.room }));
+      showBanner(tr("BOSS: {name}", { name: ZOMBIES[isBoss].name }), `${city.name} · ${dName}`);
       if (window.GameAudio) GameAudio.stinger("boss");
       fx4d("boss", 1100);
     } else {
       spawnWave();
-      if (!banner) showBanner(tr("RAUM {r}", { r: run.room }), tr("Kapitel {c}", { c: run.chapter }), 1.2);
+      if (!banner) showBanner(dName.toUpperCase(), `${city.name} · ${tr("Bezirk {n}/10", { n: districtIdx() + 1 })}`, 1.4);
     }
+    // Funkspruch beim Stadtwechsel; beim Einsatzstart nur bis der Prolog einmal gesehen wurde (kein Extra-Tippen bei jeder Runde)
+    if (districtIdx() === 0 && (run.time > 0.5 || !save.storySeen)) openCityCard();
   }
 
-  const theme = () => (run && run.theme) || THEME_ORDER[((run ? run.chapter : 1) - 1) % THEME_ORDER.length];
+
+  // ============================================================
+  // Fluchtroute „Escape from Germany“: 8 deutsche Städte à 10 Stadtteile
+  // (5. Bezirk = Versorgung, 10. = Boss), danach geht die Flucht durch Europa weiter.
+  // Intern bleiben Kapitel à 20 Räume (Schwierigkeit, Spielstände) – je Kapitel zwei Städte.
+  // ============================================================
+  const SR = "street", HO = "hospital", LB = "lab", MK = "markt";
+  const CITIES = [
+    { id: "berlin", name: "Berlin", day: 1, lat: 52.52, lon: 13.4, fest: "imbiss", weather: "rain", foes: ["beamter", "ultra", "zwerg"],
+      goal: "Raus aus der Sperrzone", radio: "Funkspruch der Marine: »Letzte Evakuierung – Schiff ARCHE, Hamburger Hafen.« Die Autobahn nach Norden ist eine Todeszone. Dein Plan: raus aus der Sperrzone und über den Süden nach Hamburg.",
+      d: [["Mitte", SR], ["Kreuzberg", SR], ["Neukölln", SR], ["Charité", HO], ["U-Bahnhof Alexanderplatz", SR], ["Friedrichshain", SR], ["Prenzlauer Berg", MK], ["Tempelhofer Feld", SR], ["Spandauer Altstadt", MK], ["Forschungscampus Buch", LB]] },
+    { id: "leipzig", name: "Leipzig", day: 3, lat: 51.34, lon: 12.37, fest: "bahn", weather: "rain", foes: ["schaffner", "ultra", "zwerg"],
+      goal: "Eine Lok nach Süden", radio: "Am Hauptbahnhof soll noch eine Diesellok stehen. Mit Glück bringt sie dich nach Süden, wo die Bundeswehr noch Stellungen hält.",
+      d: [["Hauptbahnhof", SR], ["Zentrum", MK], ["Connewitz", SR], ["Universitätsklinikum", HO], ["Auerbachs Keller", MK], ["Plagwitz", LB], ["Südvorstadt", SR], ["Gohlis", MK], ["Messegelände", LB], ["Völkerschlachtdenkmal", SR]] },
+    { id: "nuernberg", name: "Nürnberg", day: 6, lat: 49.45, lon: 11.08, fest: "weihnachten", weather: "snow", foes: ["zwerg", "beamter", "schaffner"],
+      goal: "Das Bundeswehr-Depot", radio: "Der Christkindlesmarkt leuchtet noch – und ist voller Untoter. Im Depot der Bundeswehr liegen Waffen und ein Funkgerät. Hol dir, was du tragen kannst.",
+      d: [["Hauptbahnhof", SR], ["Altstadt", MK], ["Christkindlesmarkt", MK], ["Klinikum Nord", HO], ["Lebkuchen-Bäckerei", MK], ["Gostenhof", SR], ["Burgviertel", MK], ["St. Johannis", SR], ["Bundeswehr-Depot", LB], ["Kaiserburg", MK]] },
+    { id: "muenchen", name: "München", day: 9, lat: 48.14, lon: 11.58, fest: "wiesn", weather: "clear", foes: ["wiesn", "wiesn", "ultra"],
+      goal: "Der letzte Sender", radio: "Die Seuche erreichte die Wiesn am ersten Festtag. Auf dem Olympiaturm steht der letzte Sender – nur von dort erreichst du die Marine.",
+      d: [["Hauptbahnhof", SR], ["Theresienwiese", MK], ["Schwabing", SR], ["Klinikum rechts der Isar", HO], ["Hofbräuhaus", MK], ["Maxvorstadt", SR], ["Viktualienmarkt", MK], ["Englischer Garten", SR], ["Olympiapark", SR], ["Olympiaturm", LB]] },
+    { id: "stuttgart", name: "Stuttgart", day: 12, lat: 48.78, lon: 9.18, fest: "werk", weather: "rain", foes: ["wiesn", "beamter", "zwerg"],
+      goal: "Ein Panzerwagen aus dem Werk", radio: "Die Marine hat geantwortet: Die ARCHE wartet zehn Tage. Im Autowerk steht ein gepanzerter Transporter – damit kommst du durch die Horden auf der A8.",
+      d: [["Schlossplatz", MK], ["Cannstatter Wasen", MK], ["Feuerbach", SR], ["Katharinenhospital", HO], ["Weinkeller", MK], ["Zuffenhausen – Werk", LB], ["Vaihingen", SR], ["Fernsehturm", SR], ["Untertürkheim – Werk", LB], ["Neckarhafen", SR]] },
+    { id: "frankfurt", name: "Frankfurt", day: 15, lat: 50.11, lon: 8.68, fest: "apfelwein", weather: "rain", foes: ["beamter", "beamter", "ultra"],
+      goal: "Treibstoff am Flughafen", radio: "Neue Meldung über Funk: Paris ist gefallen. Wien schweigt. Die Seuche ist nicht nur in Deutschland – sie ist überall in Europa. Am Flughafen lagert Treibstoff für die letzte Etappe.",
+      d: [["Bankenviertel", SR], ["Römerberg", MK], ["Sachsenhausen", MK], ["Uniklinik", HO], ["Apfelweinkneipe", MK], ["Bahnhofsviertel", SR], ["Messe", LB], ["Bornheim", MK], ["Funkzentrale", LB], ["Flughafen", LB]] },
+    { id: "koeln", name: "Köln", day: 18, lat: 50.94, lon: 6.96, fest: "karneval", weather: "confetti", foes: ["jeck", "jeck", "ultra"],
+      goal: "Ein Rheinschiff nach Norden", radio: "Der Karneval wurde nie abgesagt – die Jecken feiern weiter, auf ihre Art. Am Rheinauhafen liegt ein Schiff, das dich den Rhein hinauf nach Norden bringt.",
+      d: [["Hauptbahnhof", SR], ["Domplatte", MK], ["Altstadt", MK], ["Uniklinik", HO], ["Brauhaus", MK], ["Ehrenfeld", SR], ["Belgisches Viertel", MK], ["Deutz", SR], ["Chemiepark", LB], ["Rheinauhafen", SR]] },
+    { id: "hamburg", name: "Hamburg", day: 22, lat: 53.55, lon: 9.99, fest: "hafen", weather: "fog", foes: ["ultra", "schaffner", "jeck"],
+      goal: "Die ARCHE erreichen", radio: "Die ARCHE liegt am Containerterminal und legt bei Flut ab. Letzte Chance. Hinter dir liegt ganz Deutschland.",
+      d: [["Hauptbahnhof", SR], ["St. Pauli", SR], ["Reeperbahn", SR], ["UKE Eppendorf", HO], ["Fischbrötchen-Bude", MK], ["Speicherstadt", MK], ["Fischmarkt", MK], ["Elbtunnel", LB], ["Landungsbrücken", SR], ["Containerterminal", SR]] },
+  ];
+  // Nach der Flucht: Europa ist ebenfalls gefallen – die Route geht endlos weiter
+  const EUROPE = [
+    { id: "amsterdam", name: "Amsterdam", lat: 52.37, lon: 4.9, fest: "hafen", weather: "rain", foes: ["ultra", "zwerg"], goal: "Weiter nach Süden", radio: "Die ARCHE musste in Amsterdam anlegen – der Treibstoff reicht nicht. Auch hier: die Seuche.",
+      d: [["Centraal Station", SR], ["Grachtengordel", MK], ["Jordaan", MK], ["AMC Klinikum", HO], ["Hausboot", MK], ["De Pijp", SR], ["Vondelpark", SR], ["Haven", SR], ["Westergasfabriek", LB], ["Schiphol", LB]] },
+    { id: "paris", name: "Paris", lat: 48.86, lon: 2.35, fest: "markt", weather: "rain", foes: ["ultra", "jeck"], goal: "Das Institut Pasteur", radio: "Gerüchte über einen Impfstoff im Institut Pasteur. Wenn es ihn gibt, ist er in Paris.",
+      d: [["Gare du Nord", SR], ["Montmartre", MK], ["Le Marais", MK], ["Pitié-Salpêtrière", HO], ["Katakomben", SR], ["Quartier Latin", MK], ["Belleville", SR], ["La Défense", SR], ["Institut Pasteur", LB], ["Eiffelturm", SR]] },
+    { id: "wien", name: "Wien", lat: 48.21, lon: 16.37, fest: "weihnachten", weather: "snow", foes: ["beamter", "zwerg"], goal: "Der Bunker unter der Hofburg", radio: "Unter der Hofburg soll ein Bunker mit Überlebenden sein. Ein Lichtblick – vielleicht.",
+      d: [["Westbahnhof", SR], ["Innere Stadt", MK], ["Naschmarkt", MK], ["AKH", HO], ["Kaffeehaus", MK], ["Leopoldstadt", SR], ["Prater", SR], ["Favoriten", SR], ["Donaustadt", LB], ["Hofburg", MK]] },
+    { id: "prag", name: "Prag", lat: 50.08, lon: 14.44, fest: "markt", weather: "fog", foes: ["schaffner", "ultra"], goal: "Zurück nach Norden", radio: "Der Impfstoff war eine Lüge. Aber im Norden halten sich Gerüchte über eine sichere Insel. Die Flucht geht weiter.",
+      d: [["Hauptbahnhof", SR], ["Altstadt", MK], ["Karlsbrücke", MK], ["Klinikum Motol", HO], ["Bierkeller", MK], ["Žižkov", SR], ["Kleinseite", MK], ["Holešovice", LB], ["Vinohrady", SR], ["Hradschin", MK]] },
+  ];
+  // Kfz-Kennzeichen der Fluchtroute (Menü-Leiste)
+  const KFZ = { berlin: "B", leipzig: "L", nuernberg: "N", muenchen: "M", stuttgart: "S", frankfurt: "F", koeln: "K", hamburg: "HH" };
+  const cityIdx = (r = run) => (r.chapter - 1) * 2 + (r.room > 10 ? 1 : 0);
+  const cityAt = (i) => (i < CITIES.length ? CITIES[i] : EUROPE[(i - CITIES.length) % EUROPE.length]);
+  const districtIdx = (r = run) => (r.room - 1) % 10;
+  const curCity = () => cityAt(cityIdx());
+  const curDistrict = () => curCity().d[districtIdx()];
+  // Rekord-/Fortschrittsanzeige als Stadt · Stadtteil
+  const placeLabel = (chapter, room) => { if (!chapter) return "–"; const c = cityAt(cityIdx({ chapter, room })); return `${c.name} · ${c.d[districtIdx({ chapter, room })][0]}`; };
+  const theme = () => (run && run.theme) || (run && run.mode === "campaign" && run.room > 0 ? curDistrict()[1] : "street");
 
   // ============================================================
   // Überlebensmodus: 5 Minuten in einer Arena, die Wellen werden immer dichter und härter
@@ -580,6 +651,9 @@
     [80, ["healer", "bloater"]],
     [120, ["phantom", "thrower"]],
     [170, ["warden", "nest"]],
+    [50, ["zwerg", "ultra"]],
+    [90, ["beamter", "jeck"]],
+    [130, ["wiesn", "schaffner"]],
   ];
   function setupSurvival() {
     run.room = 1;
@@ -627,15 +701,17 @@
 
   function genObstacles(n) {
     const obs = [];
-    const pool = OBSTACLE_POOL[theme()];
+    const fest = run && run.mode === "campaign" && run.room > 0 ? curCity().fest : "";
+    const pool = OBSTACLE_POOL[theme()].concat(theme() === "markt" || (fest === "bahn" && theme() === "street") ? FEST_OBS[fest] || [] : []);
     let tries = 0;
     while (obs.length < n && tries++ < 200) {
       const kind = pick(pool);
+      if ((kind === "maibaum" || kind === "brunnen") && obs.some((q) => q.kind === kind)) continue;
       const [w0, w1, h0, h1] = OBSTACLE_SIZE[kind];
       let w = Math.round(rand(w0, w1)), h = Math.round(rand(h0, h1));
       const vert = ROTATABLE[kind] && Math.random() < 0.4;
       if (vert) [w, h] = [h, w];
-      const o = { kind, w, h, vert, seed: randi(1, 1e9) };
+      const o = { kind, w, h, vert, seed: randi(1, 1e9), fest };
       if (DESTRUCT[kind]) o.hp = DESTRUCT[kind] * (1 + 0.3 * ((run ? run.chapter : 1) - 1));
       o.x = rand(L + 30, R - 30 - o.w);
       o.y = rand(T + 130, B - 220 - o.h);
@@ -647,7 +723,8 @@
   }
 
   function makeFloor() {
-    const c = Sprites.floor(theme(), { W, H, L, T, R, B }, randi(1, 1e9));
+    const city = run && run.mode === "campaign" && run.room > 0 ? curCity() : null;
+    const c = Sprites.floor(theme(), { W, H, L, T, R, B }, randi(1, 1e9), { snow: !!city && city.weather === "snow", confetti: !!city && city.weather === "confetti", leaves: !!city && city.fest === "wiesn" });
     floorCtx = c.getContext("2d");
     const res = c.width / W;
     floorCtx.setTransform(res, 0, 0, res, 0, 0);
@@ -743,6 +820,8 @@
     if (room >= 9 || ch > 1) pool.push("phantom", ...(th === "hospital" ? ["phantom"] : []));
     if (room >= 10 || ch > 1) pool.push("nest");
     if (room >= 11 || ch > 1) pool.push("warden", ...(th === "lab" ? ["warden"] : []));
+    // Stadttypische Gegner (ab Bezirk 2 der Stadt, doppelt gewichtet): Wiesn-Zombies in München, Jecken in Köln …
+    if (run.mode === "campaign" && (districtIdx() >= 1 || cityIdx() > 0)) for (const f of curCity().foes || []) if (ZOMBIES[f]) pool.push(f, f);
     const maxCount = 14 + ch * 2;
     let count = 0;
     while (budget > 0.5 && count < maxCount) {
@@ -891,7 +970,15 @@
     return best;
   }
 
+  // Schwächungen durch deutsche Gegner: „Verspätung" (Feuerrate) und „Ausgebremst" (Tempo)
+  function debuff(key, t, label) {
+    const fresh = !(player[key] > 0);
+    player[key] = Math.max(player[key] || 0, t);
+    if (fresh) addText(player.x, player.y - 34, tr(label), key === "jamT" ? "#ffd84a" : "#c9d4ff", 16);
+  }
   function updatePlayer(dt) {
+    if (player.slowT > 0) player.slowT -= dt;
+    if (player.jamT > 0) player.jamT -= dt;
     const p = player;
     p.invuln = Math.max(0, p.invuln - dt);
     p.muzzle = Math.max(0, p.muzzle - dt);
@@ -900,12 +987,14 @@
     const v = inputVector();
     p.moving = !!v;
     if (v) {
-      const sp = p.speed * (run.rage > 0 ? 1.15 : 1); // Adrenalin
+      const sp = p.speed * (run.rage > 0 ? 1.15 : 1) * (p.slowT > 0 ? 0.55 : 1); // Adrenalin, Bierlache/Formular
       p.x += v.x * sp * dt;
       p.y += v.y * sp * dt;
       p.aim = Math.atan2(v.y, v.x);
       p.walkT += dt * 10;
     }
+    // Rückstoß (Fußball des Ultras)
+    if (p.kvx || p.kvy) { p.x += p.kvx * dt; p.y += p.kvy * dt; const f = Math.exp(-10 * dt); p.kvx *= f; p.kvy *= f; if (Math.abs(p.kvx) + Math.abs(p.kvy) < 4) p.kvx = p.kvy = 0; }
     collideWorld(p);
 
     // Tür
@@ -934,7 +1023,7 @@
       if (p.fireCd <= 0) {
         fire();
         const spinMul = p.weapon.spin ? 0.25 + 0.75 * p.spin : 1;
-        p.fireCd = 1 / (p.weapon.rate * p.rateMul * spinMul * (run.rage > 0 ? 1.4 : 1));
+        p.fireCd = 1 / (p.weapon.rate * p.rateMul * spinMul * (run.rage > 0 ? 1.4 : 1) * (p.jamT > 0 ? 0.5 : 1)); // „Verspätung“ halbiert die Feuerrate
       }
     } else if (p.fireCd < 0) {
       p.fireCd = 0.12; // kurze Anlaufzeit nach dem Stehenbleiben
@@ -1279,14 +1368,32 @@
     bullets = bullets.filter((b) => !b.dead);
 
     for (const b of eBullets) {
+      const px = b.x, py = b.y;
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-      if (b.life <= 0 || b.x < L || b.x > R || b.y < T || b.y > B) { b.dead = true; acidSplash(b); continue; }
-      if (!b.slug && Math.random() < 0.25) fxDrip(b);
-      if (obstacles.some((o) => pointInRect(b.x, b.y, o))) { b.dead = true; acidSplash(b); continue; }
+      if (b.kind) b.spin += dt * (b.kind === "ball" ? Math.hypot(b.vx, b.vy) / 9 : b.kind === "paper" ? 5 : 9);
+      if (b.kind === "ball") {
+        // Fußball: prallt von Wänden und Hindernissen ab, wird mit jedem Abpraller langsamer
+        let hit = false;
+        if (b.x < L + b.r || b.x > R - b.r) { b.vx = -b.vx; b.x = clamp(b.x, L + b.r, R - b.r); hit = true; }
+        if (b.y < T + b.r || b.y > B - b.r) { b.vy = -b.vy; b.y = clamp(b.y, T + b.r, B - b.r); hit = true; }
+        const o = !hit && obstacles.find((q) => pointInRect(b.x, b.y, q) && !pointInRect(px, py, q)); // nur beim Eintreten abprallen
+        if (o) { if (px > o.x && px < o.x + o.w) b.vy = -b.vy; else b.vx = -b.vx; b.x = px; b.y = py; hit = true; }
+        if (hit) {
+          b.vx *= 0.88; b.vy *= 0.88; fxDebris(b.x, b.y, rand(0, TAU), Math.PI, 3, "#8a8070"); sfx("kick");
+          if (--b.bounces < 0) { b.dead = true; acidSplash(b); continue; }
+        }
+        if (b.life <= 0) { b.dead = true; acidSplash(b); continue; }
+      } else {
+        if (b.life <= 0 || b.x < L || b.x > R || b.y < T || b.y > B) { b.dead = true; acidSplash(b); continue; }
+        if (!b.slug && !b.kind && Math.random() < 0.25) fxDrip(b);
+        if (obstacles.some((o) => pointInRect(b.x, b.y, o))) { b.dead = true; acidSplash(b); continue; }
+      }
       if ((player.x - b.x) ** 2 + (player.y - b.y) ** 2 < (player.r + b.r - 3) ** 2) {
         b.dead = true;
         acidSplash(b);
         hurtPlayer(b.dmg);
+        if (b.kind === "paper") debuff("slowT", 2.2, "AUSGEBREMST");
+        if (b.kind === "ball") { player.kvx = (player.kvx || 0) + b.vx * 0.4; player.kvy = (player.kvy || 0) + b.vy * 0.4; }
       }
     }
     eBullets = eBullets.filter((b) => !b.dead);
@@ -1300,6 +1407,13 @@
   function updateHazards(dt) {
     for (const h of hazards) {
       h.life -= dt;
+      if (h.kind === "foam" || h.kind === "bier") {
+        // Bierschaum: bremst (foam: Zombies, bier: den Helden), richtet keinen Schaden an
+        if (Math.random() < 0.25) fxGas(h.x + rand(-h.r, h.r) * 0.6, h.y + rand(-h.r, h.r) * 0.6, h.r / 50, "250,236,190", 1);
+        if (h.kind === "foam") { for (const e of enemies) if (!e.dead && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 < (h.r + e.r * 0.5) ** 2) e.slowT = Math.max(e.slowT, 0.4); }
+        else if ((player.x - h.x) ** 2 + (player.y - h.y) ** 2 < (h.r + player.r * 0.5) ** 2) player.slowT = Math.max(player.slowT || 0, 0.35);
+        continue;
+      }
       if (h.kind === "gas") { if (Math.random() < 0.3) fxGas(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, h.r / 40, "150,200,60"); }
       else if (Math.random() < 0.3) fxFire(h.x + rand(-h.r, h.r) * 0.6, h.y + rand(-h.r, h.r) * 0.6, 0.7, 0.45);
       if ((player.x - h.x) ** 2 + (player.y - h.y) ** 2 < (h.r + player.r * 0.5) ** 2) hurtPlayer(h.dmg);
@@ -1320,6 +1434,33 @@
       splatter(cx, cy, rand(0, TAU), 1.6, GREEN);
       for (let i = 0; i < 6; i++) fxBubble(cx + rand(-20, 20), cy + rand(-20, 20));
       explode(cx, cy, 100, player.power * 4, true);
+    } else if (o.kind === "fass") {
+      // Bierfass: Schaumwelle – Zombies darin kommen kaum voran
+      for (let i = 0; i < 5; i++) addHazard(cx + rand(-40, 40), cy + rand(-40, 40), 34, 6, 0, "foam");
+      splatter(cx, cy, rand(0, TAU), 1.4, "#c9a43a");
+      fxDebris(cx, cy, 0, Math.PI, 16, "#8a5a2c");
+      for (let i = 0; i < 12; i++) fxGas(cx + rand(-30, 30), cy + rand(-30, 30), 0.9, "250,240,210", 1.4);
+      addText(cx, cy - 20, tr("O'ZAPFT IS!"), "#ffd23a", 20, true);
+      sfx("splat"); shake = Math.max(shake, 4);
+    } else if (o.kind === "maibaum") {
+      // Maibaum kippt vom Helden weg und erschlägt alles auf seinem Weg
+      const a = Math.atan2(cy - player.y, cx - player.x), len = 230, ex = cx + Math.cos(a) * len, ey = cy + Math.sin(a) * len;
+      for (const e of enemies) {
+        if (e.dead || e.spawnT > 0) continue;
+        const t = clamp(((e.x - cx) * Math.cos(a) + (e.y - cy) * Math.sin(a)) / len, 0, 1), px = cx + Math.cos(a) * len * t, py = cy + Math.sin(a) * len * t;
+        if ((e.x - px) ** 2 + (e.y - py) ** 2 < (e.r + 18) ** 2) damageEnemy(e, 260 + player.power * 6, { aoe: true });
+      }
+      for (const q of obstacles) if (q.hp && circleRectOverlap({ x: (cx + ex) / 2, y: (cy + ey) / 2, r: 60 }, q)) hitObstacle(q, 999);
+      stamp(Sprites.fallenPole(), (cx + ex) / 2, (cy + ey) / 2, a, 1, 1);
+      for (let i = 0; i < 10; i++) { const t = i / 9; fxDebris(cx + (ex - cx) * t, cy + (ey - cy) * t, a + Math.PI / 2, Math.PI, 3, "#e8e0c8"); }
+      fxSmoke(ex, ey, 6, 1.2, 1); shake = Math.max(shake, 12); hitStop = Math.max(hitStop, 0.08);
+      addText(cx, cy - 26, tr("MAIBAUM FÄLLT!"), "#7fd0ff", 22, true);
+      sfx("boom"); fx4d("boom");
+    } else if (o.kind === "boeller") {
+      // Böllerkiste: Silvester-Feuerwerk – Raketen schlagen rundherum ein
+      for (let i = 0; i < 7; i++) fireworks.push({ x: cx + rand(-120, 120), y: cy + rand(-120, 120), t: 0.15 + i * 0.12, rgb: pick(["255,80,80", "255,210,60", "90,200,255", "140,255,120", "255,120,230"]) });
+      fxSparks(cx, cy, -Math.PI / 2, 1.2, 20, "255,220,120", 420); sfx("boom");
+      addText(cx, cy - 20, tr("FROHES NEUES!"), "#ffd23a", 20, true);
     } else {
       const col = o.kind === "crate" ? "#7a5a34" : o.kind === "medcrate" ? "#dfe2dc" : "#56606a";
       fxDebris(cx, cy, 0, Math.PI, 22, col);
@@ -1328,11 +1469,31 @@
       shake = Math.max(shake, 5);
       hitStop = Math.max(hitStop, 0.04);
       sfx("kill");
-      for (let i = randi(2, 4); i > 0; i--) orbs.push(makeOrb(cx, cy, "coin", 1));
-      if (o.kind === "medcrate" || Math.random() < 0.25) orbs.push(makeOrb(cx, cy, "heal", 0.15));
+      for (let i = o.kind === "automat" ? 9 : randi(2, 4); i > 0; i--) orbs.push(makeOrb(cx, cy, "coin", 1));
+      if (o.kind === "automat") addText(cx, cy - 18, tr("KLEINGELD!"), "#ffd23a", 18, true);
+      if (o.kind === "bude") {
+        // Marktbude: Essen je nach Stadt – heilt mehr als ein Medkit
+        const food = FOOD[o.fest] || FOOD.markt;
+        for (let i = 0; i < 2; i++) { const f = makeOrb(cx, cy, "heal", 0.2); f.food = food; orbs.push(f); }
+      } else if (o.kind === "medcrate" || Math.random() < 0.25) orbs.push(makeOrb(cx, cy, "heal", 0.15));
     }
   }
 
+  // Böller-Raketen: kurz zeitversetzt kleine bunte Explosionen
+  let fireworks = [];
+  function updateFireworks(dt) {
+    for (const f of fireworks) {
+      if ((f.t -= dt) > 0) continue;
+      f.done = true;
+      fxRing(f.x, f.y, 70, f.rgb, 0.4); fxFlash(f.x, f.y, 110, f.rgb, 0.2);
+      for (let i = 0; i < 3; i++) fxSparks(f.x, f.y, rand(0, TAU), Math.PI, 8, f.rgb, 300);
+      miniBlast(f.x, f.y, 55, player.power * 2.2);
+      sfx("hit");
+    }
+    if (fireworks.length) fireworks = fireworks.filter((f) => !f.done);
+  }
+  // Essen je Fest (Marktbuden): Name erscheint beim Aufsammeln
+  const FOOD = { imbiss: "Currywurst", wiesn: "Brezel", weihnachten: "Glühwein", apfelwein: "Grüne Soße", hafen: "Fischbrötchen", karneval: "Berliner", bahn: "Bockwurst", werk: "Maultaschen", markt: "Brezel" };
   function explode(x, y, radius, dmg, byPlayer) {
     shake = Math.max(shake, 9);
     hitStop = Math.max(hitStop, 0.06);
@@ -1367,6 +1528,12 @@
   }
 
   function acidSplash(b) {
+    if (b.kind) {
+      if (b.kind === "paper") { fxDebris(b.x, b.y, rand(0, TAU), Math.PI, 4, "#ece6d4"); sfx("paper"); }
+      else if (b.kind === "candy") fxSparks(b.x, b.y, 0, Math.PI, 4, b.rgb, 120);
+      else { fxDebris(b.x, b.y, 0, Math.PI, 5, "#8a8070"); fxSmoke(b.x, b.y, 1, 0.6, 0.6); }
+      return;
+    }
     const rgb = b.rgb || "183,255,74";
     fxSparks(b.x, b.y, 0, Math.PI, 5, rgb, 140);
     if (!b.slug && b.x > L && b.x < R && b.y > T && b.y < B) stamp(Sprites.splat(b.pink ? PURPLE : GREEN, randi(0, 5)), b.x, b.y, rand(0, TAU), 0.35, 0.7);
@@ -1501,6 +1668,7 @@
     for (let i = 0; i < nc; i++) orbs.push(makeOrb(e.x, e.y, "coin", 1));
 
     if (player.lifesteal > 0) healPlayer(player.maxHp * player.lifesteal);
+    if (!def.boss && Math.random() < 0.035) orbs.push(makeOrb(e.x, e.y, "pfand", 1)); // Pfandflasche
     if (def.split) for (let i = 0; i < def.split; i++) { const q = spawnEnemy("crawler", e.x + rand(-14, 14), e.y + rand(-14, 14)); q.spawnT = 0.12; q.kvx = rand(-260, 260); q.kvy = rand(-260, 260); }
     if (e.type === "burner") { for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU; addHazard(e.x + Math.cos(a) * 26, e.y + Math.sin(a) * 26, 16, 2.6, e.dmg * 0.6); } fxFlash(e.x, e.y, 120, "255,140,40", 0.2); }
     if (e.elite) { for (let i = 0; i < nc * 2 + 3; i++) orbs.push(makeOrb(e.x, e.y, "coin", 1)); fxRing(e.x, e.y, 60, "255,210,90", 0.4); }
@@ -1511,6 +1679,9 @@
       fxRing(e.x, e.y, 80, "170,230,70", 0.45); sfx("splat");
     }
     if (e.type === "nest") { fxRing(e.x, e.y, 90, "200,90,200", 0.5); shake = Math.max(shake, 6); for (let i = 0; i < 5; i++) addPiece(e, "limb", rand(0, TAU), rand(120, 240), rand(150, 260), 10); }
+    if (e.type === "zwerg") { fxDebris(e.x, e.y, 0, Math.PI, 6, "#c0281e"); fxDebris(e.x, e.y, 0, Math.PI, 4, "#e8e0d0"); } // Keramik-Scherben
+    if (e.type === "beamter") { addText(e.x, e.y - 30, tr("ABGELEHNT!"), "#ff5a4a", 15); sfx("stamp"); }
+    if (e.type === "jeck") for (let i = 0; i < 10; i++) fxSparks(e.x, e.y, rand(0, TAU), 0.5, 1, pick(KAMELLE), rand(120, 240));
     if (e.type === "warden") for (const q of enemies) if (q.shield > 0) { q.shield = 0; q.shieldT = 0; fxRing(q.x, q.y, q.r * 2.2, "140,210,255", 0.3); }
     save.bestiary[e.type] = (save.bestiary[e.type] || 0) + 1;
     if (e.type === "bomber") explode(e.x, e.y, 70, e.dmg, false);
@@ -1534,6 +1705,15 @@
     const pink = color === "#ff6ad5", slug = color === "#ffb84a"; // slug: Gewehrkugel des Zombie-Schützen
     eBullets.push({ x: e.x + Math.cos(angle) * e.r, y: e.y + Math.sin(angle) * e.r, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, r, dmg, color, life: 4, dead: false, pink, slug, rgb: pink ? "255,106,213" : slug ? "255,184,74" : "183,255,74" });
   }
+
+  // Sonderprojektile: Kamelle (bunt, Fächer), Formular (bremst), Fußball (prallt von Wänden ab)
+  function enemyShot(e, angle, speed, dmg, kind, r, rgb) {
+    // steht der Werfer direkt an einem Hindernis, startet das Projektil aus der Körpermitte (sonst prallt der Ball im Hindernis hin und her)
+    let x = e.x + Math.cos(angle) * e.r, y = e.y + Math.sin(angle) * e.r;
+    if (obstacles.some((o) => pointInRect(x, y, o))) { x = e.x; y = e.y; }
+    eBullets.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, r, dmg, kind, rgb, life: kind === "ball" ? 5 : 4, dead: false, spin: rand(0, TAU), bounces: kind === "ball" ? 3 : 0 });
+  }
+  const KAMELLE = ["255,80,80", "255,210,60", "90,200,255", "140,255,120", "255,120,220"];
 
   // Unsichtbare Zustände nutzen spawnT als Sperre: nicht treffbar, nicht anvisierbar, nicht gezeichnet
   // Strahl bis zur ersten Wand oder zum ersten Hindernis (Laser-Visier)
@@ -1591,6 +1771,17 @@
       q.t += dt; q.spin += dt * 8;
       const k = Math.min(1, q.t / q.T);
       q.x = q.x0 + (q.x1 - q.x0) * k; q.y = q.y0 + (q.y1 - q.y0) * k; q.z = 40 * (1 - k) + Math.sin(k * Math.PI) * 150;
+      if (k >= 1 && q.kind === "krug") {
+        // Maßkrug zerschellt: Scherben, Bierlache bremst den Helden
+        q.dead = true;
+        fxDebris(q.x, q.y, 0, Math.PI, 12, "#d8e6ea"); fxSparks(q.x, q.y, 0, Math.PI, 8, "250,220,120", 180);
+        for (let i = 0; i < 4; i++) fxGas(q.x + rand(-20, 20), q.y + rand(-20, 20), 1, "250,236,190", 1);
+        addHazard(q.x, q.y, 44, 4.5, 0, "bier");
+        stamp(Sprites.splat("#b8862a", randi(0, 5)), q.x, q.y, rand(0, TAU), 0.9, 0.5);
+        sfx("glass");
+        if ((player.x - q.x) ** 2 + (player.y - q.y) ** 2 < (q.r + player.r * 0.5) ** 2) hurtPlayer(q.dmg);
+        continue;
+      }
       if (k >= 1) {
         q.dead = true;
         fxDebris(q.x, q.y, 0, Math.PI, 18, "#6f6a62"); fxSmoke(q.x, q.y, 4, 1.1, 0.9); fxRing(q.x, q.y, q.r, "220,200,170", 0.35);
@@ -1814,6 +2005,80 @@
           } else if (d < 520 && e.cd <= 0) { e.mode = "aim"; e.aiT = 0.9; e.aimAng = Math.atan2(dy, dx); }
           break;
         }
+        case "wiesn": {
+          // Wiesn-Zombie: stemmt einen Maßkrug und wirft ihn im Bogen – die Bierlache bremst
+          e.cd -= dt;
+          if (e.mode === "lift") {
+            sp = 0; e.aiT -= dt;
+            if (e.aiT <= 0) {
+              e.mode = "walk"; e.cd = rand(2.6, 3.6);
+              const tx = clamp(p.x + (p.vx || 0) * 0.4 + rand(-24, 24), L + 20, R - 20), ty = clamp(p.y + (p.vy || 0) * 0.4 + rand(-24, 24), T + 20, B - 20);
+              lobs.push({ kind: "krug", x0: e.x, y0: e.y, x1: tx, y1: ty, t: 0, T: 0.8, r: 40, dmg: e.dmg, x: e.x, y: e.y, z: 40, spin: rand(0, TAU) });
+              sfx("throw");
+            }
+          } else if (d > 120 && d < 420 && e.cd <= 0) { e.mode = "lift"; e.aiT = 0.45; }
+          if (d > 120 && d < 240) sp *= 0.55;
+          break;
+        }
+        case "jeck": {
+          // Jeck: tanzt im Zickzack und wirft Kamelle im Fächer
+          if (d < 160) { mx = -mx; my = -my; } else if (d < 300) { const t2 = mx; mx = -my * e.side; my = t2 * e.side; sp *= 0.75; }
+          e.aiT -= dt; if (e.aiT <= 0) { e.side = -e.side; e.aiT = rand(0.6, 1.2); }
+          e.cd -= dt;
+          if (e.cd <= 0 && d < 430) {
+            e.cd = rand(2.2, 3);
+            const base = Math.atan2(dy, dx);
+            for (let i = 0; i < 5; i++) enemyShot(e, base + (i - 2) * 0.21, 220 + rand(-25, 25), e.dmg * 0.6, "candy", 5, pick(KAMELLE));
+            sfx("troete");
+          }
+          if (Math.random() < 0.08) fxSparks(e.x, e.y - 6, -Math.PI / 2, 1.2, 1, pick(KAMELLE), 90);
+          break;
+        }
+        case "schaffner": {
+          // Schaffner: pfeift ab – wer im Kreis steht, hat „Verspätung" (halbe Feuerrate), Fahrgäste werden rasend
+          e.cd -= dt;
+          if (e.mode === "whistle") {
+            sp = 0; e.aiT -= dt;
+            if (e.aiT <= 0) {
+              e.mode = "walk"; e.cd = rand(4, 5.2);
+              fxRing(e.x, e.y, 200, "255,236,140", 0.5); fxRing(e.x, e.y, 120, "255,255,255", 0.35); fxFlash(e.x, e.y, 90, "255,236,160", 0.12);
+              if (d < 200 + p.r) { debuff("jamT", 3.2, "VERSPÄTUNG"); hurtPlayer(e.dmg * 0.5); }
+              for (const q of enemies) if (q !== e && !q.def.boss && !q.under && dist2(q, e) < 200 * 200) q.rageT = Math.max(q.rageT, 1.6);
+              sfx("whistle");
+            }
+          } else if (d < 220 && e.cd <= 0) { e.mode = "whistle"; e.aiT = 0.75; }
+          break;
+        }
+        case "beamter": {
+          // Beamter: hält Abstand und wirft Formulare – ein Treffer bremst („Ausgebremst")
+          if (d < 220) { mx = -mx; my = -my; } else if (d < 340) { const t2 = mx; mx = -my * e.side; my = t2 * e.side; sp *= 0.5; }
+          e.cd -= dt;
+          if (e.cd <= 0 && d < 480) {
+            e.cd = rand(2.4, 3.2);
+            const base = Math.atan2(dy, dx);
+            for (let i = -1; i <= 1; i++) enemyShot(e, base + i * 0.16, 215, e.dmg, "paper", 7, "240,236,220");
+            sfx("paper");
+          }
+          break;
+        }
+        case "zwerg": {
+          // Gartenzwerge hüpfen im Rudel
+          e.jumpZ = Math.abs(Math.sin(e.wob * 1.7)) * 7;
+          break;
+        }
+        case "ultra": {
+          // Ultra: kickt einen Fußball (prallt von Wänden ab) und zündet Bengalos
+          if (d < 150) { /* drauf */ } else if (d < 330) { const t2 = mx; mx = mx * 0.5 - my * e.side * 0.8; my = my * 0.5 + t2 * e.side * 0.8; }
+          e.cd -= dt;
+          if (Math.random() < 0.35) { const a = e.face - Math.PI / 2; fxGas(e.x + Math.cos(a) * e.r, e.y + Math.sin(a) * e.r, 0.7, "210,40,40", 1.3); }
+          if (Math.random() < 0.2) { const a = e.face - Math.PI / 2; fxFire(e.x + Math.cos(a) * e.r, e.y + Math.sin(a) * e.r, 0.4, 0.25); }
+          if (e.cd <= 0 && d < 470) {
+            e.cd = rand(2.3, 3.1);
+            enemyShot(e, Math.atan2(dy, dx) + rand(-0.08, 0.08), 380, e.dmg, "ball", 7, "240,240,240");
+            sfx("kick");
+          }
+          break;
+        }
         case "dog": {
           // Sprung-Angriff aus kurzer Distanz
           e.cd -= dt;
@@ -1950,7 +2215,8 @@
       if (d < p.r + 6) {
         o.dead = true;
         if (o.type === "xp") addXp(o.val);
-        else if (o.type === "heal") { healPlayer(p.maxHp * o.val); fxRing(p.x, p.y, 40, "120,255,140", 0.35); sfx("coin"); }
+        else if (o.type === "heal") { healPlayer(p.maxHp * o.val); fxRing(p.x, p.y, 40, "120,255,140", 0.35); sfx("coin"); if (o.food) addText(p.x, p.y - 52, `${tr(o.food)}!`, "#ffd27a", 17); }
+        else if (o.type === "pfand") { run.coins += 2 * run.greed; sfx("coin"); addText(p.x, p.y - 48, tr("PFAND +25 ct"), "#9fe870", 15); track("pfand"); }
         else { run.coins += o.val * run.greed; sfx("coin"); }
       }
     }
@@ -2316,7 +2582,7 @@
     track("gibs", 1);
   }
   // Abgeschossener Arm: fliegt von der Schulter weg, der Stumpf spritzt, der Zombie schlägt schwächer zu
-  const HUMANOID = new Set(["walker", "runner", "spitter", "bomber", "brute", "leaper", "burner", "screamer", "splitter", "electro", "healer", "thrower", "burrower", "phantom", "warden", "bloater", "gunner"]);
+  const HUMANOID = new Set(["walker", "runner", "spitter", "bomber", "brute", "leaper", "burner", "screamer", "splitter", "electro", "healer", "thrower", "burrower", "phantom", "warden", "bloater", "gunner", "wiesn", "jeck", "schaffner", "beamter", "zwerg", "ultra"]);
   function severArm(e) {
     const free = [-1, 1].filter((s) => !(e.armOff && e.armOff[s]));
     if (!free.length) return;
@@ -2456,7 +2722,7 @@
     const th = theme();
     for (const a of ambient) {
       a.ph += dt;
-      if (th === "street") { a.x += (Math.sin(a.ph * 0.7) * 8 + 6) * dt; a.y += 14 * dt; }
+      if (th === "street" || th === "markt") { a.x += (Math.sin(a.ph * 0.7) * 8 + 6) * dt; a.y += 14 * dt; }
       else if (th === "hospital") { a.x += Math.sin(a.ph * 0.5) * 6 * dt; a.y += Math.cos(a.ph * 0.4) * 5 * dt; }
       else { a.y -= 12 * dt; a.x += Math.sin(a.ph) * 6 * dt; }
       if (a.y > B) a.y = T; else if (a.y < T) a.y = B;
@@ -2508,6 +2774,7 @@
     }
     updateHazards(dt);
     updateLobs(dt);
+    updateFireworks(dt);
     updateBullets(dt);
     updateOrbs(dt);
     if (supplyCrate) supplyCrate.bob += dt;
@@ -2578,7 +2845,7 @@
     const title = $("overTitle");
     title.textContent = won ? tr("ÜBERLEBT!") : quit ? tr("EINSATZ BEENDET") : tr("GEFALLEN");
     title.classList.toggle("win", won);
-    const reached = surv ? `${fmtTime(Math.min(run.survT, SURVIVAL_TIME))} / ${fmtTime(SURVIVAL_TIME)}` : tr("Kap. {c} · Raum {r}", { c: run.chapter, r: run.room });
+    const reached = surv ? `${fmtTime(Math.min(run.survT, SURVIVAL_TIME))} / ${fmtTime(SURVIVAL_TIME)}` : placeLabel(run.chapter, run.room);
     const line = (icon, label, value, cls = "") => `<span>${I(icon)}${label}</span><b class="${cls}">${value}</b>`;
     $("overStats").innerHTML =
       line(surv ? "stopwatch" : "map", surv ? tr("Überlebt") : tr("Erreicht"), `${reached}${record ? `<em class="rec">${tr("REKORD")}</em>` : ""}`) +
@@ -2622,6 +2889,7 @@
     get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; },
     get orbs() { return orbs; }, get particles() { return particles; }, get corpses() { return corpses; }, get pieces() { return pieces; },
     get zaps() { return zaps; }, get ambient() { return ambient; }, get roomLights() { return roomLights; }, get lobs() { return lobs; }, get beams() { return beams; },
+    get weather() { return curWeather(); }, get fest() { return curFest(); },
     get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },
     get theme() { return theme(); }, get isBossRoom() { return !!(run && BOSS_ROOMS[run.room]); }, get intro() { return roomFade; },
     consumeFloorDirty() { const d = floorDirty; floorDirty = false; return d; },
@@ -2639,25 +2907,28 @@
   // 3D-Hauptmenü: der Held sucht mit der Taschenlampe die nächtliche Straße ab,
   // Zombies schlurfen heran und umkreisen ihn (reine Kulisse, keine Spiellogik)
   let menu3d = null;
+  // Saison-Kulisse: Weihnachtsmarkt im Winter, Karneval im Februar, Wiesn im Herbst, sonst Altstadt im Regen
+  const MENU_SEASON = (() => { const m = new Date().getMonth(); return m >= 10 || m === 0 ? { fest: "weihnachten", weather: "snow" } : m === 1 ? { fest: "karneval", weather: "confetti" } : m === 8 || m === 9 ? { fest: "wiesn", weather: "clear" } : { fest: "", weather: "rain" }; })();
   function menuWorld() {
     if (!menu3d) {
       const p = { x: W / 2, y: (T + B) / 2 + 80, r: 16, aim: -Math.PI / 2, moving: false, walkT: 0, kick: 0, barrel: 0, orbit: 0, orbitAng: 0, drones: 0, muzzle: 0, invuln: 0, hp: 1, maxHp: 1 };
-      const types = ["walker", "runner", "gunner", "crawler", "brute", "spitter", "bloater", "walker", "thrower", "armored", "healer", "walker", "warden", "walker"];
+      const types = ["walker", "wiesn", "gunner", "zwerg", "brute", "jeck", "bloater", "walker", "schaffner", "armored", "ultra", "walker", "beamter", "zwerg"];
       const enemies = types.map((type, i) => menuFoe({ player: p }, type, i));
+      const { fest, weather } = MENU_SEASON;
       const obs = [
-        // Kulisse hinter dem Helden (von der Kamera aus gesehen): Streifenwagen mit Blaulicht, Container, Fässer
+        // Kulisse hinter dem Helden (von der Kamera aus gesehen): Streifenwagen mit Blaulicht, Marktbude, Bierfass und -bank
         { kind: "car", x: 288, y: 818, w: 104, h: 54, vert: false, seed: 7 },
-        { kind: "barrels", x: 102, y: 740, w: 56, h: 56, seed: 3 },
-        { kind: "crate", x: 140, y: 650, w: 48, h: 48, seed: 5 },
+        { kind: "bude", x: 84, y: 720, w: 86, h: 50, seed: 3 },
+        { kind: "fass", x: 150, y: 640, w: 48, h: 48, seed: 5 },
         { kind: "barricade", x: 392, y: 860, w: 120, h: 26, seed: 9 },
-        { kind: "dumpster", x: 380, y: 690, w: 92, h: 50, seed: 11 },
-      ];
+        { kind: "bierbank", x: 372, y: 696, w: 96, h: 36, seed: 11 },
+      ].map((o) => ({ ...o, fest }));
       menu3d = {
         state: "menu", run: { doorK: 0 }, player: p, enemies, bullets: [], eBullets: [], orbs: [], particles: [], corpses: [], zaps: [],
         ambient: Array.from({ length: 28 }, () => ({ x: rand(L, R), y: rand(T, B), size: rand(1, 2.4), ph: rand(0, TAU) })),
         roomLights: obs.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3 })),
-        obstacles: obs, supplyCrate: null, floorCanvas: Sprites.floor("street", { W, H, L, T, R, B }, 4242),
-        theme: "street", isBossRoom: false, consumeFloorDirty: () => false,
+        obstacles: obs, supplyCrate: null, floorCanvas: Sprites.floor("markt", { W, H, L, T, R, B }, 4242, { snow: weather === "snow", confetti: weather === "confetti", leaves: fest === "wiesn" }),
+        theme: "markt", weather, fest, isBossRoom: false, consumeFloorDirty: () => false,
         muzzlePoint: () => muzzlePoint(p), dronePos: () => ({ x: p.x, y: p.y }), menuCam: true, t: 0,
       };
     }
@@ -2942,9 +3213,21 @@
     const t = run.time;
     for (const o of orbs) {
       if (o.type === "coin") Sprites.draw(ctx, Sprites.coin(Math.floor(t * 12 + o.x * 0.1)), o.x, o.y);
-      else if (o.type === "heal") {
+      else if (o.type === "heal" && o.food) {
+        // Brezel: drei verschlungene Bögen
+        ctx.strokeStyle = "#7a4a1c"; ctx.lineWidth = 5; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.arc(o.x - 4, o.y, 5.5, 0.3, 5.9); ctx.stroke(); ctx.beginPath(); ctx.arc(o.x + 4, o.y, 5.5, -2.8, 2.8, true); ctx.stroke();
+        ctx.strokeStyle = "#c98a3a"; ctx.lineWidth = 2.6;
+        ctx.beginPath(); ctx.arc(o.x - 4, o.y, 5.5, 0.3, 5.9); ctx.stroke(); ctx.beginPath(); ctx.arc(o.x + 4, o.y, 5.5, -2.8, 2.8, true); ctx.stroke();
+        ctx.fillStyle = "#fff"; for (const [dx, dy] of [[-6, -2], [5, 3], [-2, 4]]) ctx.fillRect(o.x + dx, o.y + dy, 1.4, 1.4);
+      } else if (o.type === "heal") {
         ctx.fillStyle = "#f2f2ec"; roundRect(o.x - 8, o.y - 7, 16, 14, 3); ctx.fill();
         ctx.fillStyle = "#e5383b"; ctx.fillRect(o.x - 1.8, o.y - 5, 3.6, 10); ctx.fillRect(o.x - 5, o.y - 1.8, 10, 3.6);
+      } else if (o.type === "pfand") {
+        ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(0.6 + o.t * 2);
+        ctx.fillStyle = "#2f7a3a"; roundRect(-3.5, -7, 7, 12, 2.5); ctx.fill(); ctx.fillRect(-1.6, -10, 3.2, 4);
+        ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(-2, -5, 1.2, 8); ctx.fillStyle = "#e8e0c8"; ctx.fillRect(-3.5, -2, 7, 3);
+        ctx.restore();
       }
     }
   }
@@ -2955,10 +3238,16 @@
     if (th === "lab") {
       for (const a of ambient) glowAt("140,255,90", a.x, a.y, a.size * 2.5, 0.3 + 0.2 * Math.sin(a.ph * 2));
     } else {
-      ctx.fillStyle = th === "street" ? "rgba(190,190,190,0.35)" : "rgba(230,240,235,0.22)";
+      const wx = curWeather();
+      if (wx === "snow" && (th === "street" || th === "markt")) { ctx.fillStyle = "rgba(245,248,255,0.85)"; for (const a of ambient) { ctx.beginPath(); ctx.arc(a.x, a.y, a.size * 1.3, 0, TAU); ctx.fill(); } return; }
+      if (wx === "confetti" && (th === "street" || th === "markt")) { ambient.forEach((a, i) => { ctx.fillStyle = ["#ff4a5a", "#ffd23a", "#4ad1ff", "#7dff6a", "#ff7ae0"][i % 5]; ctx.fillRect(a.x, a.y, a.size * 2, a.size * 1.2); }); return; }
+      ctx.fillStyle = th === "street" || th === "markt" ? "rgba(190,190,190,0.35)" : "rgba(230,240,235,0.22)";
       for (const a of ambient) ctx.fillRect(a.x, a.y, a.size, a.size);
     }
   }
+  // Wetter/Fest der aktuellen Stadt (Kampagne), sonst Regen auf der Straße
+  const curWeather = () => (run && run.mode === "campaign" && run.room > 0 ? curCity().weather : "rain");
+  const curFest = () => (run && run.mode === "campaign" && run.room > 0 ? curCity().fest : "");
 
   function drawCorpses() {
     for (const c of corpses) {
@@ -3272,6 +3561,31 @@
   function drawEnemyBullets() {
     const green = Sprites.acidGlob("183,255,74", "60,120,20"), pink = Sprites.acidGlob("255,106,213", "140,30,100");
     for (const b of eBullets) {
+      if (b.kind) {
+        ctx.save(); ctx.translate(b.x, b.y);
+        if (b.kind === "ball") {
+          // Fußball mit Schatten und rollenden Flecken
+          ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.ellipse(2, 5, 7, 3.5, 0, 0, TAU); ctx.fill();
+          ctx.fillStyle = "#f4f4f0"; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+          ctx.fillStyle = "#1a1a1a";
+          for (let i = 0; i < 3; i++) { const a = b.spin + i * 2.1, k = Math.cos(b.spin * 0.7 + i); ctx.beginPath(); ctx.arc(Math.cos(a) * b.r * 0.5 * k, Math.sin(a) * b.r * 0.5, b.r * 0.28, 0, TAU); ctx.fill(); }
+          ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.stroke();
+        } else if (b.kind === "paper") {
+          // Formular mit Zeilen und rotem Stempel
+          ctx.rotate(b.spin); ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(-5, -6, 12, 15);
+          ctx.fillStyle = "#f2eee0"; ctx.fillRect(-6, -8, 12, 15);
+          ctx.fillStyle = "#8a8a9a"; for (let y = -5; y < 4; y += 2.5) ctx.fillRect(-4, y, 8, 0.9);
+          ctx.strokeStyle = "#d02a2a"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(2, 3.5, 2.6, 0, TAU); ctx.stroke();
+        } else {
+          // Kamelle: Bonbon mit gedrehtem Papier
+          ctx.rotate(b.spin); ctx.fillStyle = `rgb(${b.rgb})`;
+          ctx.beginPath(); ctx.ellipse(0, 0, 4.5, 3.2, 0, 0, TAU); ctx.fill();
+          for (const s2 of [-1, 1]) { ctx.beginPath(); ctx.moveTo(s2 * 4, 0); ctx.lineTo(s2 * 8, -3); ctx.lineTo(s2 * 8, 3); ctx.closePath(); ctx.fill(); }
+          ctx.fillStyle = "rgba(255,255,255,0.6)"; ctx.beginPath(); ctx.ellipse(-1, -1.2, 2, 1, 0, 0, TAU); ctx.fill();
+        }
+        ctx.restore();
+        continue;
+      }
       if (b.slug) {
         // Leuchtspur in Flugrichtung
         const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
@@ -3284,17 +3598,27 @@
 
   function drawLobTargets() {
     for (const q of lobs) {
-      const k = Math.min(1, q.t / q.T);
-      ctx.fillStyle = `rgba(255,50,30,${0.1 + 0.18 * k})`; ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r, 0, TAU); ctx.fill();
-      ctx.strokeStyle = `rgba(255,80,60,${0.5 + 0.4 * Math.sin(run.time * 24)})`; ctx.lineWidth = 2.5;
+      const k = Math.min(1, q.t / q.T), c = q.kind === "krug" ? "255,190,60" : "255,60,40";
+      ctx.fillStyle = `rgba(${c},${0.1 + 0.18 * k})`; ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(${c},${0.5 + 0.4 * Math.sin(run.time * 24)})`; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r, 0, TAU); ctx.stroke();
-      ctx.fillStyle = "rgba(255,80,60,0.35)"; ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r * k, 0, TAU); ctx.fill();
+      ctx.fillStyle = `rgba(${c},0.35)`; ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r * k, 0, TAU); ctx.fill();
     }
   }
   function drawLobs() {
     for (const q of lobs) {
       drawShadow(q.x, q.y, 10 * (1 - q.z / 300));
       ctx.save(); ctx.translate(q.x, q.y - q.z); ctx.rotate(q.spin);
+      if (q.kind === "krug") {
+        // Maßkrug: Glas mit Bier, Schaumkrone, Henkel
+        ctx.strokeStyle = "#d8e6ea"; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.arc(8, 0, 5, -1.3, 1.3); ctx.stroke();
+        ctx.fillStyle = "rgba(220,235,240,0.85)"; ctx.fillRect(-8, -9, 16, 18);
+        ctx.fillStyle = "#e0a42a"; ctx.fillRect(-6.5, -5, 13, 13);
+        ctx.fillStyle = "#fff8e8"; ctx.beginPath(); ctx.ellipse(0, -7, 8, 3.5, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(-6, -4, 2, 11);
+        ctx.restore();
+        continue;
+      }
       ctx.fillStyle = "#6f6a62"; ctx.beginPath(); ctx.moveTo(-11, -6); ctx.lineTo(-3, -11); ctx.lineTo(9, -8); ctx.lineTo(12, 3); ctx.lineTo(4, 11); ctx.lineTo(-9, 8); ctx.closePath(); ctx.fill();
       ctx.fillStyle = "#8a847a"; ctx.beginPath(); ctx.moveTo(-6, -5); ctx.lineTo(2, -8); ctx.lineTo(7, -3); ctx.lineTo(-2, 1); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = "#4a463f"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-4, 2); ctx.lineTo(5, 6); ctx.stroke();
@@ -3322,6 +3646,13 @@
       } else if (e.mode === "zap") {
         ctx.strokeStyle = `rgba(127,231,255,${0.3 + 0.3 * Math.sin(run.time * 25)})`; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.arc(e.x, e.y, 150 * (1 - Math.max(0, e.aiT) / 0.75 * 0.4), 0, TAU); ctx.stroke();
+      } else if (e.mode === "whistle") {
+        // Schaffner holt Luft: gelber Kreis zeigt die Reichweite des Pfiffs
+        const k = 1 - Math.max(0, e.aiT) / 0.75;
+        ctx.fillStyle = `rgba(255,220,90,${0.06 + 0.1 * k})`; ctx.beginPath(); ctx.arc(e.x, e.y, 200, 0, TAU); ctx.fill();
+        ctx.strokeStyle = `rgba(255,230,120,${0.4 + 0.3 * Math.sin(run.time * 28)})`; ctx.lineWidth = 2.5; ctx.setLineDash([10, 7]);
+        ctx.beginPath(); ctx.arc(e.x, e.y, 200, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = "rgba(255,240,170,0.7)"; ctx.beginPath(); ctx.arc(e.x, e.y, 200 * k, 0, TAU); ctx.stroke();
       }
       if (e.mode !== "wind") continue;
       const k = 1 - Math.max(0, e.aiT) / 0.65;
@@ -3357,6 +3688,8 @@
     if (seg > 4) for (let x = seg; x < bw * k; x += seg) ctx.fillRect(px - bw / 2 + x, y, 1, 6);
     ctx.fillStyle = "#fff"; ctx.font = FONT_NUM(15); ctx.textAlign = "center";
     ctx.fillText(Math.ceil(p.hp), px, y - 3);
+    const debuff = p.jamT > 0 ? tr("VERSPÄTUNG") : p.slowT > 0 ? tr("AUSGEBREMST") : "";
+    if (debuff) { ctx.font = FONT_UI(11); ctx.fillStyle = `rgba(255,${180 + 60 * Math.sin(run.time * 10)},80,0.95)`; ctx.fillText(debuff, px, y + 20); }
   }
 
   function drawTexts() {
@@ -3429,9 +3762,9 @@
     g.stroke();
   }
   // Schräges Fortschrittssegment (Raum bzw. Zeitabschnitt)
-  function segPath(g, i) {
-    const x = 90 + i * 12.5;
-    g.moveTo(x + 3, 54); g.lineTo(x + 11, 54); g.lineTo(x + 8, 60); g.lineTo(x, 60); g.closePath();
+  function segPath(g, i, n = 20) {
+    const w = 250 / n, x = 90 + i * w;
+    g.moveTo(x + 3, 54); g.lineTo(x + w - 1.5, 54); g.lineTo(x + w - 4.5, 60); g.lineTo(x, 60); g.closePath();
   }
   // Offscreen-Ebene in Geräteauflösung, die nur bei geänderten Werten neu gezeichnet wird.
   // Vektor-Icons, Verläufe und Leuchteffekte jedes Frame neu zu rastern hat die Bildrate fast halbiert.
@@ -3480,13 +3813,13 @@
 
     // Fortschritt aus schrägen Segmenten (Kampagne: Räume, Überleben: 15-s-Abschnitte), Bossabschnitte mit Totenkopf.
     // Das aktuelle Segment pulsiert und wird live in drawHud gezeichnet.
-    const segs = (cur, bossIdx, supplyIdx = []) => {
+    const segs = (cur, bossIdx, supplyIdx = [], n = 20) => {
       for (const [color, test] of [["#a8ff3e", (i) => i < cur], ["#6a1814", (i) => i > cur && bossIdx.includes(i)], ["#1f3b5c", (i) => i > cur && supplyIdx.includes(i)], ["#26302c", (i) => i > cur && !bossIdx.includes(i) && !supplyIdx.includes(i)]]) {
         g.fillStyle = color; g.beginPath();
-        for (let i = 0; i < 20; i++) if (test(i)) segPath(g, i);
+        for (let i = 0; i < n; i++) if (test(i)) segPath(g, i, n);
         g.fill();
       }
-      for (const i of bossIdx) drawIcon(g, "bossSkull", 90 + i * 12.5 + 5.5, 69, 13, i < cur ? "#4a5a50" : "#ff4338");
+      for (const i of bossIdx) drawIcon(g, "bossSkull", 90 + (i + 0.45) * (250 / n), 69, 13, i < cur ? "#4a5a50" : "#ff4338");
     };
     g.textAlign = "left"; g.fillStyle = "#76857b"; g.font = FONT_UI(12);
     if (survival) {
@@ -3497,12 +3830,15 @@
       g.fillText(fmtTime(left), 111, 46);
       segs(Math.floor(run.survT / SURV_STEP), SURVIVAL_BOSSES.map(([bt]) => Math.floor(bt / SURV_STEP)));
     } else {
-      g.fillText(tr("Kapitel {c}", { c: run.chapter }).toUpperCase(), 90, 22);
-      g.fillStyle = "#fff"; g.font = FONT_NUM(24);
-      g.fillText(`${tr("Raum")} ${run.room}`, 90, 46);
-      const rw = g.measureText(`${tr("Raum")} ${run.room}`).width;
-      g.fillStyle = "#76857b"; g.font = FONT_NUM(18); g.fillText(`/${ROOMS_PER_CHAPTER}`, 92 + rw, 46);
-      segs(run.room - 1, Object.keys(BOSS_ROOMS).map((r) => r - 1), SUPPLY_ROOMS.map((r) => r - 1));
+      // Stadt (klein, mit Tag der Flucht) und Stadtteil (groß, passt sich der Breite an)
+      const c = curCity(), dn = curDistrict()[0];
+      g.fillStyle = "#ffc41a"; g.fillText(c.name.toUpperCase(), 90, 22);
+      const cwid = g.measureText(c.name.toUpperCase()).width;
+      g.fillStyle = "#76857b"; g.fillText(` · ${tr("Bezirk {n}/10", { n: districtIdx() + 1 })}`, 90 + cwid, 22);
+      let fs = 24; g.font = FONT_NUM(fs);
+      while (g.measureText(dn).width > 228 && fs > 15) g.font = FONT_NUM(--fs);
+      g.fillStyle = "#fff"; g.fillText(dn, 90, 46);
+      segs(districtIdx(), [9], [4], 10);
     }
     // Münzen-Kapsel und Abschüsse (links vom Pause-Knopf)
     const coins = num(run.coins);
@@ -3538,10 +3874,10 @@
       survival ? `${Math.ceil(left)}|${left < 30 ? Math.floor(t * 12) : 0}|${Math.floor(run.survT / SURV_STEP)}` : ""].join("|");
     ctx.drawImage(cachedLayer(hudCache, key, 100, paintHud), 0, 0, W, 100);
     // aktuelles Segment pulsiert
-    const cur = survival ? Math.floor(run.survT / SURV_STEP) : run.room - 1;
-    if (cur >= 0 && cur < 20) {
+    const cur = survival ? Math.floor(run.survT / SURV_STEP) : districtIdx(), nSeg = survival ? 20 : 10;
+    if (cur >= 0 && cur < nSeg) {
       ctx.fillStyle = `rgba(255,255,255,${0.65 + 0.35 * Math.sin(t * 6)})`;
-      ctx.beginPath(); segPath(ctx, cur); ctx.fill();
+      ctx.beginPath(); segPath(ctx, cur, nSeg); ctx.fill();
     }
     const boss = enemies.find((e) => e.def.boss && e.spawnT <= 0);
     if (boss) {
@@ -3816,7 +4152,7 @@
     { id: "kills", icon: "zombie", name: tr("Zombiejäger"), text: "Töte {n} Zombies", tiers: [500, 5000, 50000], val: () => save.stats.kills },
     { id: "bosses", icon: "bossSkull", name: tr("Bossbezwinger"), text: "Besiege {n} Bosse", one: "Besiege einen Boss", tiers: [1, 10, 50], val: () => save.stats.bosses },
     { id: "elites", icon: "star", name: tr("Elitejäger"), text: "Töte {n} Elite-Zombies", tiers: [10, 100, 500], val: () => save.stats.elites },
-    { id: "chapter", icon: "map", name: tr("Kapitelstürmer"), text: "Erreiche Kapitel {n}", tiers: [2, 3, 5], val: () => save.best.chapter },
+    { id: "chapter", icon: "map", name: tr("Fluchthelfer"), text: "Erreiche Stadt {n} der Fluchtroute", tiers: [3, 5, 9], val: () => (save.best.chapter ? cityIdx(save.best) + 1 : 0) },
     { id: "survival", icon: "hourglass", name: tr("Überlebenskünstler"), text: "Überlebe {n} Sekunden", tiers: [60, 180, 300], val: () => save.stats.survival },
     { id: "evolutions", icon: "dna", name: tr("Evolutionär"), text: "Löse {n} Evolutionen aus", one: "Löse eine Evolution aus", tiers: [1, 10, 40], val: () => save.stats.evolutions },
     { id: "codex", icon: "codex", name: tr("Forscher"), text: "Entdecke {n} Evolutionen", tiers: [2, 5, 8], val: () => Object.keys(save.codex).length },
@@ -3915,9 +4251,44 @@
   // ============================================================
   // Menüs
   // ============================================================
+  // Fluchtroute im Menü: acht Städte als Kennzeichen, erreichte grün, die Rekord-Stadt golden
+  function renderRouteStrip() {
+    const box = $("rsNodes"), n = CITIES.length, best = save.best.chapter ? cityIdx(save.best) : -1;
+    if (!box.children.length) box.innerHTML = CITIES.map((c) => `<span class="rs-node"><em>${KFZ[c.id] || c.name[0]}</em></span>`).join("");
+    [...box.children].forEach((el, i) => { el.classList.toggle("done", i < best || best >= n); el.classList.toggle("cur", i === Math.min(best, n - 1) && best < n); });
+    $("rsFill").style.width = `${Math.max(0, Math.min(1, best / (n - 1))) * 100}%`;
+    $("rsLabel").textContent = tr(best < 0 ? "Fluchtroute" : "Rekord");
+    $("menuBest").textContent = best < 0 ? tr("Ziel: Hamburg") : best >= n ? `${tr("Europa")} · ${cityAt(best).name}` : `${cityAt(best).name} · ${tr("Bezirk {n}/10", { n: districtIdx(save.best) + 1 })}`;
+  }
+  // Eilmeldungen: Lauftext mit Schlagzeilen aus dem gefallenen Deutschland (läuft nur, solange das Menü sichtbar ist)
+  const NEWS = [
+    "Deutschland ist gefallen. Dein Plan: raus hier.",
+    "Bundesregierung rät: Ruhe bewahren, Fenster schließen, Formulare ausfüllen",
+    "Bahnchaos: Alle Züge fallen aus – Grund: Personen im Gleis",
+    "Hamburger Hafen: Die ARCHE legt in wenigen Tagen ab",
+    "Wiesn abgesagt – Besucher weigern sich zu gehen",
+    "Köln: Karneval findet trotzdem statt",
+    "Kleingartenverein meldet: Gartenzwerge außer Kontrolle",
+    "Spieltag abgesagt – Ultras weiter im Stadion",
+    "Bürgeramt geöffnet – aktuelle Wartenummer 9312",
+  ];
+  function startTicker() {
+    const el = $("tickerText"), track = el.parentElement;
+    const items = NEWS.slice(1).sort(() => Math.random() - 0.5);
+    items.unshift(NEWS[0]);
+    items.splice(2, 0, tr("Infektionsrate: {p} %", { p: Math.min(99, 71 + (Math.floor(Date.now() / 864e5) % 28)) }));
+    if (save.best.chapter) items.splice(4, 0, tr("Überlebender zuletzt gesehen in {city}", { city: cityAt(cityIdx(save.best)).name }));
+    el.textContent = "";
+    items.forEach((t, i) => { if (i) { const em = document.createElement("em"); em.textContent = "+++"; el.appendChild(em); } el.appendChild(document.createTextNode(tr(t))); });
+    requestAnimationFrame(() => {
+      const w = el.offsetWidth, tw = track.clientWidth || 200;
+      el.style.setProperty("--tk-from", `${tw}px`); el.style.setProperty("--tk-to", `${-w}px`); el.style.setProperty("--tk-dur", `${((w + tw) / 46).toFixed(1)}s`);
+      el.style.animation = "none"; void el.offsetWidth; el.style.animation = "";
+    });
+  }
   function refreshMenu() {
     $("menuCoins").textContent = num(save.coins);
-    $("menuBest").textContent = save.best.chapter ? tr("Kap. {c} · Raum {r}", { c: save.best.chapter, r: save.best.room }) : "–";
+    renderRouteStrip();
     const w = WEAPONS[save.equipped], lvl = save.weapons[save.equipped];
     $("menuWeaponImg").src = Sprites.weaponIcon(save.equipped, weaponTier(lvl));
     $("menuEquipped").textContent = softHyphen(w.name);
@@ -3933,9 +4304,9 @@
     const mode = save.menuMode === "survival" ? "survival" : "campaign";
     $("modeCampaign").classList.toggle("active", mode === "campaign");
     $("survivalBtn").classList.toggle("active", mode === "survival");
-    $("campaignInfo").textContent = save.best.chapter ? tr("Rekord: Kap. {c} · Raum {r}", { c: save.best.chapter, r: save.best.room }) : tr("20 Räume · 2 Bosse");
+    $("campaignInfo").textContent = save.best.chapter ? `${tr("Rekord")}: ${cityAt(cityIdx(save.best)).name} · ${tr("Bezirk {n}/10", { n: districtIdx(save.best) + 1 })}` : tr("Berlin → Hamburg · 8 Städte");
     const todayWorld = THEME_ORDER[Math.floor(Date.now() / 864e5) % THEME_ORDER.length];
-    $("ctaSub").textContent = mode === "campaign" ? tr("Kampagne · Kapitel 1") : `${tr("Überleben")} · ${tr(WORLD_NAME[todayWorld])}`;
+    $("ctaSub").textContent = mode === "campaign" ? tr("Kampagne · Start in Berlin") : `${tr("Überleben")} · ${tr(WORLD_NAME[todayWorld])}`;
     $("playBtn").classList.toggle("primary", mode === "campaign");
     $("playBtn").classList.toggle("amber", mode === "survival");
     for (const el of document.querySelectorAll(".coinsVal")) el.textContent = num(save.coins);
@@ -4150,10 +4521,16 @@
     phantom: "Taucht auf, greift an, verschwindet. Nur sichtbar ist er verwundbar.",
     nest: "Spuckt Ratten und Kriecher aus, bis es zerstört ist.",
     warden: "Gibt Zombies in der Nähe Energieschilde. Fällt er, brechen alle Schilde.",
+    wiesn: "Stemmt den Maßkrug und wirft ihn im Bogen. Die Bierlache bremst dich – raus da!",
+    jeck: "Tanzt im Zickzack und wirft Kamelle im Fächer. Zwischen den Bonbons hindurch!",
+    schaffner: "Pfeift ab: Wer im gelben Kreis steht, hat Verspätung – halbe Feuerrate.",
+    beamter: "Wirft Formulare aus sicherer Distanz. Ein Treffer bremst dich aus.",
+    zwerg: "Gartenzwerge im Rudel: klein, schnell, zerbrechlich.",
+    ultra: "Kickt Fußbälle, die von Wänden abprallen, und zündet Bengalos.",
     abom: "Boss: Sturmangriffe und Stachelringe. Ab halber Energie rasend.",
     mother: "Boss: Säurefächer und Kriecher-Brut. Ab halber Energie gefährlicher.",
   };
-  const NEW_FOES = new Set(["burrower", "bloater", "gunner", "healer", "thrower", "phantom", "nest", "warden"]);
+  const NEW_FOES = new Set(["wiesn", "jeck", "schaffner", "beamter", "zwerg", "ultra"]);
   let codexTab = "evo";
   function renderBestiary(list) {
     let seen = 0;
@@ -4173,6 +4550,144 @@
       if (!n) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = "source-atop"; g.fillStyle = "#3b4743"; g.fillRect(0, 0, 128, 128); }
     }
     $("codexNote").textContent = tr("{n} von {m} Gegnern erledigt.", { n: seen, m: Object.keys(BESTIARY).length });
+  }
+
+  // ============================================================
+  // Story: Prolog, Fluchtplan-Karte, Funkspruch je Stadt, Ende in Hamburg
+  // ============================================================
+  const PROLOG = [
+    { where: "Tag 0 · Berlin-Buch", title: "Der Ausbruch", text: "Ein ganz normaler Montag. Im Forschungscampus Berlin-Buch läuft ein Experiment aus dem Ruder: Der Erreger N-17 entkommt aus dem Hochsicherheitslabor." },
+    { where: "Tag 3 · Berlin", title: "Die Stadt fällt", text: "Erst die Charité, dann die U-Bahn, dann ganz Berlin. Die Regierung ruft den Notstand aus und riegelt die Hauptstadt ab – mit dir darin." },
+    { where: "Tag 7 · Europa", title: "Funkstille", text: "Die Grenzen sind dicht, die Flughäfen gesperrt. Aus Paris, Wien und Warschau kommt nur noch Rauschen. Die Seuche hat ganz Europa erreicht." },
+    { where: "Tag 7 · 23:41 Uhr", title: "Der Plan", text: "Ein letzter Funkspruch der Marine: Das Schiff ARCHE evakuiert vom Hamburger Hafen. Der direkte Weg ist abgeriegelt. Dein Plan: quer durch Deutschland – Stadt für Stadt, Bezirk für Bezirk. Acht Städte. Ein Ziel: raus hier.", map: true },
+  ];
+  const ENDING = { where: "Tag 25 · Hamburger Hafen", title: "Die ARCHE legt ab", text: "Hinter dir versinkt der Containerterminal im Nebel. Du hast es geschafft – raus aus Deutschland. Doch der Funk bringt keine guten Nachrichten: Amsterdam, Paris, Wien … überall dasselbe. Die Seuche ist überall. Die Flucht geht weiter." };
+  // Umriss Deutschlands (vereinfacht, Breite/Länge) für die Fluchtplan-Karte
+  const DE_SHAPE = [[54.9, 8.6], [54.8, 9.4], [54.5, 10.0], [54.35, 10.9], [54.0, 10.9], [54.2, 11.8], [54.15, 12.3], [54.6, 13.3], [54.5, 13.7], [53.95, 14.2], [53.3, 14.4], [52.85, 14.15], [52.3, 14.6], [51.85, 14.7], [51.05, 14.98], [50.85, 14.6], [50.9, 14.3], [50.65, 13.55], [50.3, 12.3], [50.2, 12.1], [49.75, 12.5], [49.3, 12.95], [48.95, 13.65], [48.75, 13.85], [48.55, 13.45], [48.2, 12.95], [47.85, 13.0], [47.65, 12.95], [47.7, 12.25], [47.55, 11.65], [47.4, 11.0], [47.55, 10.45], [47.5, 9.95], [47.6, 9.55], [47.7, 8.9], [47.65, 8.45], [47.6, 7.6], [48.1, 7.6], [48.6, 7.8], [48.98, 8.2], [49.1, 7.3], [49.25, 6.75], [49.5, 6.37], [49.95, 6.15], [50.3, 6.4], [50.75, 6.05], [51.05, 5.95], [51.25, 6.2], [51.65, 5.95], [51.85, 6.35], [52.1, 6.75], [52.35, 7.05], [52.65, 6.75], [53.2, 7.2], [53.55, 7.05], [53.7, 7.5], [53.75, 8.1], [53.55, 8.55], [53.9, 8.7], [54.05, 8.85], [54.4, 8.6], [54.75, 8.55]];
+  let story = null; // { mode: "prolog"|"city"|"ending"|"menu", page, onDone }
+  const cityDay = (i) => (i < CITIES.length ? CITIES[i].day : 26 + 3 * (i - CITIES.length));
+  const storyPages = (mode) => {
+    if (mode === "prolog") return PROLOG;
+    const i = mode === "menu" ? Math.min(cityIdx({ chapter: Math.max(1, save.best.chapter), room: Math.max(1, save.best.room) }), CITIES.length + EUROPE.length - 1) : cityIdx();
+    const c = cityAt(i), pages = [];
+    if (mode === "ending") pages.push(ENDING);
+    pages.push({ where: `${tr("Tag {d}", { d: cityDay(i) })} · ${c.name}`, title: tr(c.goal), text: tr(c.radio), map: true, city: i });
+    return pages;
+  };
+  function openStory(mode, onDone) {
+    story = { mode, page: 0, pages: storyPages(mode), onDone };
+    $("routeBack").style.visibility = mode === "menu" ? "" : "hidden";
+    show(ui.route);
+    renderStory();
+    if (window.GameAudio) GameAudio.stinger("radio");
+  }
+  let typeTimer = 0;
+  function renderStory() {
+    const pg = story.pages[story.page], last = story.page === story.pages.length - 1;
+    const ci = pg.city ?? (story.mode === "prolog" ? 0 : cityIdx());
+    $("storyWhere").textContent = tr(pg.where);
+    $("storyTitle").textContent = tr(pg.title);
+    $("routeDay").textContent = pg.city !== undefined ? tr("Tag {d}", { d: cityDay(ci) }) : "";
+    $("storyCard").classList.toggle("radio", pg.city !== undefined);
+    const reward = story.mode === "city" && run && run.cityBonus ? tr("Stadt durchbrochen: +{b} Münzen", { b: num(run.cityBonus) }) : "";
+    $("storyReward").textContent = reward; $("storyReward").classList.toggle("hidden", !reward);
+    $("storyDots").innerHTML = story.pages.length > 1 ? story.pages.map((_, i) => `<i class="${i === story.page ? "on" : ""}"></i>`).join("") : "";
+    $("storyGoTxt").textContent = !last ? tr("WEITER") : story.mode === "menu" ? tr("Prolog ansehen") : story.mode === "prolog" && !run ? tr("Zurück") : tr("Los geht's");
+    $("routeMap").parentElement.classList.toggle("dim", !pg.map);
+    routeView = { upto: pg.map ? ci : -1, europe: ci >= CITIES.length, t0: routeView ? routeView.t0 : performance.now() };
+    // Schreibmaschine: Text tippt sich ein (Antippen zeigt ihn sofort ganz)
+    const full = tr(pg.text), el = $("storyText");
+    clearInterval(typeTimer);
+    let n = 0;
+    el.textContent = "";
+    typeTimer = setInterval(() => { n += 3; el.textContent = full.slice(0, n); if (n >= full.length) clearInterval(typeTimer); }, 16);
+    el.onclick = () => { clearInterval(typeTimer); el.textContent = full; };
+    if (!routeLoop) { routeLoop = true; requestAnimationFrame(routeTick); }
+  }
+  // Ein einziger Zeichen-Takt für die Karte, solange der Fluchtplan offen ist
+  let routeLoop = false;
+  function routeTick() {
+    if (!routeView || ui.route.classList.contains("hidden")) { routeLoop = false; return; }
+    drawRouteMap();
+    requestAnimationFrame(routeTick);
+  }
+  function storyNext() {
+    if (!story) return;
+    if (story.page < story.pages.length - 1) { story.page++; renderStory(); return; }
+    if (story.mode === "menu") { openStory("prolog", () => openStory("menu")); return; }
+    clearInterval(typeTimer);
+    const done = story.onDone; story = null; routeView = null;
+    if (done) done(); else { show(null); state = "play"; }
+  }
+  // Wird beim Betreten des 1. Stadtteils einer Stadt aufgerufen
+  function openCityCard() {
+    if (!run || run.mode !== "campaign") return;
+    const i = cityIdx();
+    run.storyOpen = true;
+    state = "story";
+    const resume = () => { run.storyOpen = false; show(null); state = "play"; };
+    if (i === 0 && !save.storySeen) { save.storySeen = true; persist(); openStory("prolog", () => openStory("city", resume)); }
+    else openStory(i === CITIES.length ? "ending" : "city", resume);
+  }
+
+  // Karte: Deutschland mit Fluchtroute, Infektionszonen und Standort (animiert, solange sichtbar)
+  let routeView = null;
+  function drawRouteMap() {
+    const cv = $("routeMap");
+    if (!routeView || !cv.offsetParent) return;
+    const dprr = Math.min(2, window.devicePixelRatio || 1), cw = cv.clientWidth, ch = cv.clientHeight;
+    if (cv.width !== Math.round(cw * dprr)) { cv.width = Math.round(cw * dprr); cv.height = Math.round(ch * dprr); }
+    const g = cv.getContext("2d");
+    g.setTransform(dprr, 0, 0, dprr, 0, 0);
+    g.clearRect(0, 0, cw, ch);
+    const eu = routeView.europe, B0 = eu ? { lo0: 1.6, lo1: 17.2, la0: 46.6, la1: 55.4 } : { lo0: 5.6, lo1: 15.3, la0: 47.1, la1: 55.2 };
+    const kx = Math.cos(51 * DEG), k = Math.min((cw - 24) / ((B0.lo1 - B0.lo0) * kx), (ch - 24) / (B0.la1 - B0.la0));
+    const ox = (cw - (B0.lo1 - B0.lo0) * kx * k) / 2, oy = (ch - (B0.la1 - B0.la0) * k) / 2;
+    const P = (la, lo) => [ox + (lo - B0.lo0) * kx * k, oy + (B0.la1 - la) * k];
+    const t = (performance.now() - routeView.t0) / 1000, upto = routeView.upto;
+    // Raster wie auf einem Lagetisch
+    g.strokeStyle = "rgba(168,255,62,0.06)"; g.lineWidth = 1;
+    for (let x = 0; x < cw; x += 24) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, ch); g.stroke(); }
+    for (let y = 0; y < ch; y += 24) { g.beginPath(); g.moveTo(0, y); g.lineTo(cw, y); g.stroke(); }
+    // Land
+    g.beginPath(); DE_SHAPE.forEach(([la, lo], i) => { const [x, y] = P(la, lo); if (i) g.lineTo(x, y); else g.moveTo(x, y); }); g.closePath();
+    const lg = g.createLinearGradient(0, 0, 0, ch); lg.addColorStop(0, "#1b2622"); lg.addColorStop(1, "#121a17");
+    g.fillStyle = lg; g.fill();
+    g.save(); g.clip();
+    // Infektionszonen: breiten sich von Berlin aus und folgen der Route
+    const route = [...CITIES, ...(eu ? EUROPE : [])];
+    for (let i = 0; i <= Math.max(0, upto); i++) {
+      const c = route[Math.min(i, route.length - 1)], [x, y] = P(c.lat, c.lon), r = k * (i === 0 ? 1.6 : 1.1) * (1 + 0.04 * Math.sin(t * 2 + i));
+      const rg = g.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, "rgba(255,40,30,0.38)"); rg.addColorStop(1, "rgba(255,40,30,0)");
+      g.fillStyle = rg; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    g.restore();
+    g.strokeStyle = "rgba(168,255,62,0.55)"; g.lineWidth = 1.6; g.shadowColor = "rgba(168,255,62,0.6)"; g.shadowBlur = 8;
+    g.beginPath(); DE_SHAPE.forEach(([la, lo], i) => { const [x, y] = P(la, lo); if (i) g.lineTo(x, y); else g.moveTo(x, y); }); g.closePath(); g.stroke();
+    g.shadowBlur = 0;
+    // Route: geschafft = durchgezogen, offen = gestrichelt (wandert)
+    for (let i = 0; i < route.length - 1; i++) {
+      const [x1, y1] = P(route[i].lat, route[i].lon), [x2, y2] = P(route[i + 1].lat, route[i + 1].lon), done = i < upto;
+      g.strokeStyle = done ? "#a8ff3e" : "rgba(255,196,26,0.7)"; g.lineWidth = done ? 3 : 2;
+      g.setLineDash(done ? [] : [6, 6]); g.lineDashOffset = done ? 0 : -t * 14;
+      g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+    }
+    g.setLineDash([]);
+    // Städte
+    g.textAlign = "left"; g.textBaseline = "middle";
+    route.forEach((c, i) => {
+      const [x, y] = P(c.lat, c.lon), cur = i === upto, done = i < upto, goal = c.id === "hamburg";
+      if (cur) { const pr = 9 + 6 * ((t * 1.4) % 1); g.strokeStyle = `rgba(255,196,26,${1 - ((t * 1.4) % 1)})`; g.lineWidth = 2; g.beginPath(); g.arc(x, y, pr, 0, TAU); g.stroke(); }
+      g.fillStyle = done ? "#a8ff3e" : cur ? "#ffc41a" : goal ? "#7fd0ff" : "#3b4743";
+      g.beginPath(); g.arc(x, y, cur ? 6 : 4.5, 0, TAU); g.fill();
+      g.strokeStyle = "#060908"; g.lineWidth = 1.5; g.stroke();
+      if (goal && !eu) { g.fillStyle = "#7fd0ff"; g.font = FONT_UI(10); g.fillText(tr("ZIEL: ARCHE"), x + 8, y + 14); }
+      g.font = FONT_UI(cur ? 14 : 12); g.fillStyle = cur ? "#fff" : done ? "#c9f59a" : "#8a968f";
+      const right = c.lon > (B0.lo0 + B0.lo1) / 2 + 2.5;
+      g.textAlign = right ? "right" : "left";
+      g.fillText(c.name.toUpperCase(), x + (right ? -10 : 10), y);
+      g.textAlign = "left";
+    });
   }
   function renderCodex() {
     const list = $("codexList");
@@ -4472,7 +4987,7 @@
     // In der App im selben WebView öffnen: externe Links leitet Capacitor an den Browser weiter,
     // lokale Seiten bleiben per Zurück-Taste erreichbar.
     if (Platform.isNative) $("privacyLink").removeAttribute("target");
-    $("versionLine").innerHTML = `Outbreak Hero v${Platform.cfg.version || "1.0.0"}${Platform.isNative ? " · Android" : " · Web"}<br>${tr("Icons: game-icons.net (CC BY 3.0) · Schriften: Teko, Barlow, Saira Stencil (SIL OFL)")}`;
+    $("versionLine").innerHTML = `Escape from Germany v${Platform.cfg.version || "1.0.0"}${Platform.isNative ? " · Android" : " · Web"}<br>${tr("Icons: game-icons.net (CC BY 3.0) · Schriften: Teko, Barlow, Saira Stencil (SIL OFL)")}`;
   }
 
   // Vollbild-Werbung nur an natürlichen Pausen, nie für Käufer von "Werbefrei"
@@ -4546,6 +5061,10 @@
   for (const b of document.querySelectorAll("#missionTabs button")) b.addEventListener("click", () => { missionTab = b.dataset.tab; renderMissions(); });
   $("passBtn").addEventListener("click", () => { ensureAudio(); renderPass(); show(ui.pass); });
   $("codexBtn").addEventListener("click", () => { ensureAudio(); renderCodex(); show(ui.codex); });
+  $("routeBtn").addEventListener("click", () => { ensureAudio(); openStory("menu", () => { show(ui.menu); }); });
+  $("routeStrip").addEventListener("click", () => { ensureAudio(); openStory("menu", () => { show(ui.menu); }); });
+  $("storyGo").addEventListener("click", storyNext);
+  window.addEventListener("resize", () => { if (routeView) drawRouteMap(); });
   for (const b of document.querySelectorAll("#codexTabs button")) b.addEventListener("click", () => { codexTab = b.dataset.tab; renderCodex(); });
   $("patrolBtn").addEventListener("click", () => { ensureAudio(); renderPatrol(); show(ui.patrol); });
   $("patrolClaim").addEventListener("click", () => { claimPatrol(1); renderPatrol(); refreshMenu(); });
@@ -4652,6 +5171,7 @@
     if (Platform.ads.busy) return;
     if (state === "play" || state === "pause") togglePause();
     else if (state === "over") leaveOver(toMenu);
+    else if (state === "story") storyNext();
     else if (state === "menu") {
       if (ui.menu.classList.contains("hidden")) toMenu(); else Platform.exitApp();
     }
@@ -4674,5 +5194,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

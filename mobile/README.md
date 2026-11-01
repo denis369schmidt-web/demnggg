@@ -1,4 +1,4 @@
-# Outbreak Hero – Android-App (Capacitor)
+# Escape from Germany – Android-App (Capacitor)
 
 Dieses Verzeichnis verpackt das Web-Spiel aus [`../zombie`](../zombie) als native
 Android-App mit **AdMob-Werbung**, **Google-Play-Käufen**, Haptik, Zurück-Taste und

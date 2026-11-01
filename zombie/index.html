@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0f0e" />
-  <meta name="description" content="Outbreak Hero – Zombie-Roguelite: Räume säubern, Skills kombinieren, die Epidemie überleben." />
+  <meta name="description" content="Escape from Germany – Zombie-Roguelite: Deutschland ist gefallen. Kämpf dich Stadt für Stadt bis nach Hamburg durch und entkomme." />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Outbreak Hero</title>
+  <title>Escape from Germany</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -27,15 +27,20 @@
     <section id="menu" class="overlay menu">
       <header class="menu-top">
         <div class="wallet"><i class="coin" data-ic="coin"></i><b id="menuCoins">0</b></div>
-        <div class="record"><small data-i18n>Rekord</small><b id="menuBest">–</b></div>
+        <!-- Eilmeldungs-Ticker: Nachrichten aus dem gefallenen Deutschland -->
+        <div class="ticker" aria-hidden="true"><b data-i18n>EILMELDUNG</b><div class="tk-track"><span id="tickerText"></span></div></div>
         <button class="round" id="settingsBtn" aria-label="Einstellungen"><i data-ic="gear"></i></button>
       </header>
 
       <div class="brand">
-        <div class="brand-top">OUTBREAK</div>
-        <div class="brand-bottom"><span>HERO</span></div>
-        <p class="tagline" data-i18n>Überlebe die Epidemie. Raum für Raum.</p>
+        <div class="brand-top">ESCAPE</div>
+        <div class="brand-bottom"><span>FROM GERMANY</span></div>
       </div>
+      <!-- Fluchtroute als Fortschritt: Städte mit Kfz-Kennzeichen, Rekord leuchtet -->
+      <button class="route-strip" id="routeStrip" aria-label="Fluchtplan">
+        <span class="rs-head"><small id="rsLabel">Fluchtroute</small><b id="menuBest">–</b></span>
+        <span class="rs-track"><span class="rs-line"><i id="rsFill"></i></span><span class="rs-nodes" id="rsNodes"></span></span>
+      </button>
 
       <nav class="rail rail-l">
         <button class="rail-btn" id="dailyBtn"><i data-ic="daily"></i><span data-i18n>Täglich</span><b class="badge hidden" id="dailyBadge">!</b></button>
@@ -45,6 +50,7 @@
       <nav class="rail rail-r">
         <button class="rail-btn" id="patrolBtn"><i data-ic="patrol"></i><span data-i18n>Patrouille</span><small id="patrolMini"></small><b class="badge hidden" id="patrolBadge">!</b></button>
         <button class="rail-btn" id="codexBtn"><i data-ic="codex"></i><span data-i18n>Kodex</span></button>
+        <button class="rail-btn route" id="routeBtn"><i data-ic="map"></i><span data-i18n>Fluchtplan</span></button>
       </nav>
 
       <!-- Bühne: Ziehen dreht die Kamera um den Helden -->
@@ -160,6 +166,26 @@
     </section>
 
     <!-- ============ Kodex der Evolutionen ============ -->
+    <!-- ============ Fluchtplan: Karte, Funksprüche, Prolog & Ende ============ -->
+    <section id="route" class="overlay screen story hidden">
+      <header class="bar">
+        <button class="back" data-back id="routeBack" aria-label="Zurück"></button>
+        <div class="title"><small id="routeKicker" data-i18n>FUNKPROTOKOLL</small><h2 data-i18n>Fluchtplan</h2></div>
+        <div class="route-day" id="routeDay"></div>
+      </header>
+      <div class="body story-body">
+        <div class="route-map"><canvas id="routeMap"></canvas><span class="route-legend" id="routeLegend"></span></div>
+        <div class="story-card" id="storyCard">
+          <small id="storyWhere"></small>
+          <h3 id="storyTitle"></h3>
+          <p id="storyText"></p>
+          <p class="story-reward hidden" id="storyReward"></p>
+        </div>
+        <div class="story-dots" id="storyDots"></div>
+        <button class="btn primary xl" id="storyGo"><span id="storyGoTxt"></span></button>
+      </div>
+    </section>
+
     <section id="codex" class="overlay screen hidden">
       <header class="bar">
         <button class="back" data-back aria-label="Zurück"></button>

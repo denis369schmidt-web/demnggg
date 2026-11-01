@@ -1,7 +1,7 @@
 {
-  "name": "Outbreak Hero",
-  "short_name": "Outbreak",
-  "description": "Zombie-Roguelite: Räume säubern, Skills kombinieren, die Epidemie überleben.",
+  "name": "Escape from Germany",
+  "short_name": "Escape DE",
+  "description": "Zombie-Roguelite: Deutschland ist gefallen – kämpf dich Stadt für Stadt nach Hamburg durch und entkomme.",
   "lang": "de",
   "id": "./",
   "start_url": "./index.html",

@@ -1,4 +1,4 @@
-# Play-Store-Eintrag – Outbreak Hero
+# Play-Store-Eintrag – Escape from Germany
 
 Texte zum Kopieren in die Play Console (Hauptseite des Store-Eintrags).
 Grafiken: `de/` und `en/` (8 Screenshots 1080×1920, Feature-Grafik 1024×500),
@@ -10,14 +10,20 @@ Promo-Poster für Stories/TikTok/Reels (1080×1920): `promo/poster-de.png`, `pro
 ## Deutsch (de-DE) – Standardsprache
 
 **App-Name (max. 30):**
-Outbreak Hero: Zombie Shooter
+Escape from Germany: Zombies
 
 **Kurzbeschreibung (max. 80):**
-Zombie-Roguelite mit 22 Gegnerarten, Kino-Atmosphäre & Soundtrack – offline!
+Flucht durch Deutschland: Zombie-Roguelite mit Story & 28 Gegnern – offline!
 
 **Vollständige Beschreibung:**
 
-Die Epidemie hat die Stadt überrannt. Du bist der letzte Held, der zwischen den Untoten und dem Ende der Menschheit steht.
+Deutschland ist gefallen. Eine Zombie-Epidemie hat das Land überrannt, und dein Plan ist einfach: raus hier. Kämpf dich von Berlin über Leipzig, Nürnberg, München, Stuttgart, Frankfurt und Köln bis nach Hamburg, wo die letzte Fähre ablegt – die ARCHE.
+
+🗺️ ACHT STÄDTE, 80 STADTTEILE
+Jeder Raum ist ein echter Stadtteil: Mitte, Kreuzberg, Prenzlauer Berg, Schwabing, Ehrenfeld, St. Pauli … Nach zehn Bezirken und einem Boss wartet die nächste Stadt. Funksprüche und eine Fluchtkarte erzählen die Geschichte der Epidemie – und nach Hamburg geht die Flucht durch Europa weiter.
+
+🍺 DEUTSCHLAND, WIE DU ES NOCH NIE GESEHEN HAST
+Weihnachtsmarkt im Schnee, Wiesn-Gaudi, Karneval im Konfettiregen, Nebel am Hafen. Zapf das Bierfass an, schieß den Maibaum auf die Horde, zünde die Böllerkiste und stärk dich an der Currywurstbude. Und pass auf: Wiesn-Zombies werfen Maßkrüge, Jecken werfen Kamelle, der Schaffner sorgt für Verspätung, der Beamte für Papierkram – und die Gartenzwerge kommen im Rudel.
 
 🧟 STEHEN = SCHIESSEN
 Ziehe mit einem Finger, um auszuweichen. Bleib stehen und dein Held feuert automatisch auf den nächsten Zombie. Einfach zu lernen – schwer zu meistern.
@@ -28,7 +34,7 @@ Mehrfachschuss, Querschläger, Kreissägen, Kampfdrohne, Brand-, Kryo- und Toxin
 🔫 15 WAFFEN
 Pistole, Schrotflinte, Maschinenpistole, Magnum, Armbrust, Flammenwerfer, Sturmgewehr, Scharfschützengewehr, Sägeblattwerfer, Granatwerfer, Kryo-Kanone, Tesla-Gewehr mit Kettenblitz, zielsuchender Raketenwerfer, eine Minigun, die sich warmläuft, und die Laserkanone – jede spielt sich komplett anders und lässt sich bis Stufe 10 aufrüsten. Ab Stufe 5 glänzt sie in Gold.
 
-🧟 22 ZOMBIE-ARTEN & ELITE-GEGNER
+🧟 28 ZOMBIE-ARTEN & ELITE-GEGNER
 Schlurfer in Dutzenden Outfits, Sprinter, Kriecher, Spucker, Bomber, Zombie-Hunde, Riot-Zombies, der Koloss, Springer, Brenner, Kreischer, Teiler, Elektro-Zombies und Seuchenratten – und neu: Seuchenpriester, die die Horde heilen, Schildwächter mit Energieschilden, Wühler, die unter dir aus dem Boden brechen, unsichtbare Schemen, Brocken-Werfer, platzende Gasbläher, Brutnester und Zombie-Schützen mit Laservisier. Jeder Gegner hat eine Schwäche – das Bestiarium verrät sie. Elite-Zombies mit goldener Aura halten dreimal so viel aus und lassen mehr Beute fallen.
 
 🎬 KINO-ATMOSPHÄRE & INTERAKTIVER SOUNDTRACK
@@ -58,8 +64,8 @@ Dein Trupp sammelt Münzen, auch wenn du nicht spielst – bis zu 12 Stunden.
 ⚡ KEINE ENERGIE, KEINE WARTEZEIT
 Spiel so viele Einsätze, wie du willst.
 
-🌆 3 WELTEN
-Kämpf dich in 3D durch nächtliche Straßen, ein verlassenes Krankenhaus und ein geheimes Labor – mit Echtzeit-Schatten, Taschenlampe, nassen Straßen, die im Licht glänzen, und gewaltigen Explosionen. Jag Giftfässer in die Luft, zerschieß Kisten für Beute und erlebe Bosskämpfe wie im Kino. Läuft auch auf älteren Handys flüssig dank automatischer Grafikanpassung.
+🌆 4 WELTEN
+Kämpf dich in 3D durch nächtliche Straßen, Altstädte mit Fachwerk und Kopfsteinpflaster, ein verlassenes Krankenhaus und ein geheimes Labor – mit Echtzeit-Schatten, Taschenlampe, nassen Straßen, die im Licht glänzen, und gewaltigen Explosionen. Jag Giftfässer in die Luft, zerschieß Kisten für Beute und erlebe Bosskämpfe wie im Kino. Läuft auch auf älteren Handys flüssig dank automatischer Grafikanpassung.
 
 👹 EPISCHE BOSSKÄMPFE
 Die Abscheulichkeit stürmt auf dich zu und feuert Projektil-Ringe, die Brutmutter ruft Horden von Kriechern. Unter 50 % Leben mutieren sie und werden noch gefährlicher.
@@ -73,21 +79,27 @@ Hol dir jeden Tag Gratis-Münzen – an Tag 7 wartet der Jackpot.
 ✈️ OFFLINE SPIELBAR
 Kein Konto, keine Internetverbindung nötig. Dein Fortschritt bleibt auf deinem Gerät.
 
-Kannst du die Epidemie überleben?
+Schaffst du es raus aus Deutschland?
 
 ---
 
 ## English (en-US)
 
 **App name (max 30):**
-Outbreak Hero: Zombie Shooter
+Escape from Germany: Zombies
 
 **Short description (max 80):**
-Zombie roguelite: 22 enemy types, cinematic atmosphere & soundtrack – offline!
+Escape through Germany: zombie roguelite with story & 28 enemy types – offline!
 
 **Full description:**
 
-The outbreak has overrun the city. You are the last hero standing between the undead and the end of humanity.
+Germany has fallen. A zombie epidemic has overrun the country, and your plan is simple: get out. Fight your way from Berlin through Leipzig, Nuremberg, Munich, Stuttgart, Frankfurt and Cologne to Hamburg, where the last ferry departs – the ARCHE.
+
+🗺️ EIGHT CITIES, 80 DISTRICTS
+Every room is a real district: Mitte, Kreuzberg, Prenzlauer Berg, Schwabing, Ehrenfeld, St. Pauli … After ten districts and a boss, the next city awaits. Radio messages and an escape map tell the story of the epidemic – and after Hamburg the escape continues across Europe.
+
+🍺 GERMANY LIKE YOU'VE NEVER SEEN IT
+Christmas markets in the snow, beer festivals, carnival in a rain of confetti, fog in the harbour. Tap the beer barrel, shoot the maypole onto the horde, light the firework crate and grab a currywurst. And watch out: beer fest zombies throw steins, carnival jesters throw candy, the conductor makes you late, the bureaucrat buries you in paperwork – and the garden gnomes come in packs.
 
 🧟 STAND STILL = SHOOT
 Drag with one finger to dodge. Stand still and your hero automatically fires at the nearest zombie. Easy to learn – hard to master.
@@ -98,7 +110,7 @@ Multishot, ricochet, buzzsaws, combat drone, incendiary, cryo and toxin rounds, 
 🔫 15 WEAPONS
 Pistol, shotgun, SMG, magnum, crossbow, flamethrower, assault rifle, sniper rifle, saw launcher, grenade launcher, cryo cannon, a chain-lightning Tesla rifle, a homing rocket launcher, a spin-up minigun and the laser cannon – each plays completely differently and can be upgraded to level 10. From level 5 it shines in gold.
 
-🧟 22 KINDS OF ZOMBIES & ELITES
+🧟 28 KINDS OF ZOMBIES & ELITES
 Walkers in dozens of outfits, sprinters, crawlers, spitters, bombers, zombie dogs, riot zombies, the brute, leapers, burners, screamers, splitters, electro zombies and plague rats – and new: plague priests that heal the horde, shield wardens with energy shields, burrowers that burst out of the ground beneath you, invisible wraiths, boulder throwers, exploding gas bloaters, brood nests and zombie gunners with laser sights. Every enemy has a weakness – the bestiary reveals it. Elite zombies with a golden aura take three times the damage and drop more loot.
 
 🎬 CINEMATIC ATMOSPHERE & INTERACTIVE SOUNDTRACK
@@ -128,8 +140,8 @@ Your squad collects coins even while you're away – for up to 12 hours.
 ⚡ NO ENERGY, NO WAITING
 Play as many runs as you like.
 
-🌆 3 WORLDS
-Fight in 3D through night-time streets, an abandoned hospital and a secret lab – with real-time shadows, a flashlight, rain-soaked streets that glisten in the light and massive explosions. Blow up toxic barrels, shoot crates for loot and experience cinematic boss fights. Runs smoothly even on older phones thanks to automatic graphics scaling.
+🌆 4 WORLDS
+Fight in 3D through night-time streets, half-timbered old towns with cobblestones, an abandoned hospital and a secret lab – with real-time shadows, a flashlight, rain-soaked streets that glisten in the light and massive explosions. Blow up toxic barrels, shoot crates for loot and experience cinematic boss fights. Runs smoothly even on older phones thanks to automatic graphics scaling.
 
 👹 EPIC BOSS FIGHTS
 The Abomination charges at you and fires rings of projectiles, the Brood Mother summons swarms of crawlers. Below 50% health they mutate and get even deadlier.
@@ -143,7 +155,7 @@ Claim free coins every day – day 7 is the jackpot.
 ✈️ PLAY OFFLINE
 No account, no internet connection required. Your progress stays on your device.
 
-Can you survive the outbreak?
+Can you make it out of Germany?
 
 ---
 

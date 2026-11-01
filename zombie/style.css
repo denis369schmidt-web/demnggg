@@ -1,5 +1,5 @@
 /* =====================================================================
-   Outbreak Hero – Design-System „Quarantäne-Einsatzkommando“
+   Escape from Germany – Design-System „Quarantäne-Einsatzkommando“
    Stahlplatten mit taktischen Eckwinkeln, Warnstreifen, Schablonenschrift.
    Giftgrün nur als Akzent; Bernstein für Währung & Aufmerksamkeit.
    ===================================================================== */
@@ -594,7 +594,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 /* Logo: Lichtschimmer läuft alle paar Sekunden darüber, ab und zu ein Flackern wie eine kaputte Leuchtreklame */
 .brand-top { position: relative; animation: logo-flicker 9s steps(1) infinite; }
 .brand-top::after {
-  content: "OUTBREAK"; position: absolute; inset: 0; color: transparent; text-shadow: none; pointer-events: none;
+  content: "ESCAPE"; position: absolute; inset: 0; color: transparent; text-shadow: none; pointer-events: none;
   background: linear-gradient(100deg, transparent 42%, rgba(255, 255, 255, 0.85) 50%, transparent 58%); background-size: 300% 100%; background-position: 120% 0;
   -webkit-background-clip: text; background-clip: text; animation: logo-sweep 6s ease-in-out infinite;
 }
@@ -691,3 +691,89 @@ canvas { display: block; background: #121a16; touch-action: none; }
   .menu .tagline { font-size: 11px; }
   .menu .rail-btn > [data-ic] { width: 42px; height: 42px; font-size: 22px; }
 }
+
+/* =====================================================================
+   v2.0 Escape from Germany – Logo mit Schwarz-Rot-Gold-Akzent
+   ===================================================================== */
+.brand-top { font-size: 64px; letter-spacing: 0.06em; }
+.brand-bottom { margin-top: 4px; padding: 0 16px; }
+.brand-bottom::before {
+  height: 9px; top: 50%; transform: translateY(-50%) skewX(-12deg); opacity: 1;
+  background: linear-gradient(180deg, #121212 0 33.3%, #d81e1e 33.3% 66.6%, #ffc41a 66.6% 100%);
+}
+.brand-bottom span { font-size: 25px; letter-spacing: 0.3em; text-indent: 0.3em; padding: 5px 12px 1px; box-shadow: 0 0 0 2px #0b0f0e, 0 0 0 3px rgba(255, 196, 26, 0.55), 0 0 22px rgba(216, 30, 30, 0.2); }
+@media (max-height: 680px) { .brand-top { font-size: 54px; } .brand-bottom span { font-size: 22px; } }
+
+
+/* =====================================================================
+   v2.0 Fluchtplan / Story: Lagetisch-Karte und Funkspruch-Karte
+   ===================================================================== */
+.story { background: radial-gradient(120% 70% at 50% 30%, #121b18 0%, #070a09 70%), var(--bg-0); }
+.route-day { min-width: 74px; text-align: right; font: 600 22px/1 var(--f-display); color: var(--amber); letter-spacing: 0.04em; }
+.story-body { gap: 10px; padding-top: 10px; }
+.route-map { position: relative; width: 100%; max-width: 380px; flex: 1 1 auto; min-height: 220px; max-height: 46vh; clip-path: var(--chamfer); background: linear-gradient(180deg, #0c1210, #080c0b); box-shadow: inset 0 0 0 1px rgba(168, 255, 62, 0.18); transition: opacity 0.4s, filter 0.4s; }
+.route-map canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.route-map.dim { opacity: 0.28; filter: blur(1px) saturate(0.4); }
+.story-card { position: relative; width: 100%; max-width: 380px; padding: 14px 16px 16px; --cut: 10px; clip-path: var(--chamfer); background: linear-gradient(180deg, rgba(26, 34, 32, 0.96), rgba(12, 17, 16, 0.96)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), inset 3px 0 0 var(--amber); }
+.story-card.radio { box-shadow: inset 0 0 0 1px rgba(168, 255, 62, 0.16), inset 3px 0 0 var(--toxic); }
+.story-card small { display: block; font: 700 11px/1 var(--f-ui); letter-spacing: 0.2em; text-transform: uppercase; color: var(--amber); }
+.story-card.radio small { color: var(--toxic); }
+.story-card h3 { margin: 6px 0 8px; font: 700 30px/0.95 var(--f-display); letter-spacing: 0.02em; text-transform: uppercase; color: var(--text); }
+.story-card p { margin: 0; min-height: 5.6em; font: 500 15px/1.4 var(--f-body); color: var(--text-2); cursor: pointer; }
+.story-card p::after { content: "▌"; margin-left: 2px; color: var(--toxic); animation: caret 0.9s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+.story-reward { margin-top: 10px !important; min-height: 0 !important; font: 700 14px/1.2 var(--f-ui) !important; color: var(--gold) !important; letter-spacing: 0.04em; }
+.story-reward::after { content: none !important; }
+.story-dots { display: flex; gap: 6px; min-height: 6px; }
+.story-dots i { width: 18px; height: 4px; background: #2e3b37; }
+.story-dots i.on { background: var(--toxic); box-shadow: 0 0 8px rgba(168, 255, 62, 0.6); }
+#storyGo { width: 100%; max-width: 380px; }
+.rail-btn.route > [data-ic] { color: #ffe6a8; border-color: #8a6a24; background: radial-gradient(circle at 50% 28%, #4a3a1c 0%, #1e170a 70%); }
+@media (max-height: 680px) { .story-card h3 { font-size: 26px; } .story-card p { font-size: 14px; } .route-map { max-height: 40vh; } }
+
+/* =====================================================================
+   v2.0 Hauptmenü – Eilmeldungs-Ticker, Fluchtroute mit Kennzeichen
+   ===================================================================== */
+.ticker {
+  flex: 1; min-width: 0; height: 28px; display: flex; align-items: stretch; overflow: hidden; --cut: 6px; clip-path: var(--chamfer);
+  background: linear-gradient(180deg, rgba(20, 10, 10, 0.86), rgba(10, 8, 8, 0.86)); box-shadow: inset 0 0 0 1px rgba(255, 74, 60, 0.35);
+}
+.ticker > b {
+  flex: none; display: flex; align-items: center; padding: 0 8px; font: 800 10px/1 var(--f-ui); letter-spacing: 0.14em; color: #fff;
+  background: linear-gradient(180deg, #ff4a3a, #b8141a); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); animation: tk-alert 1.6s steps(1) infinite;
+}
+@keyframes tk-alert { 50% { background: linear-gradient(180deg, #d8261e, #8a0e12); } }
+.tk-track { position: relative; flex: 1; min-width: 0; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 14px), transparent); mask-image: linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 14px), transparent); }
+.tk-track span {
+  position: absolute; left: 0; top: 50%; white-space: nowrap; font: 600 12px/1 var(--f-ui); letter-spacing: 0.03em; color: var(--text);
+  transform: translate(var(--tk-from, 100%), -50%); animation: tk-run var(--tk-dur, 30s) linear infinite; will-change: transform;
+}
+.tk-track span em { font-style: normal; color: #ff6a5a; margin: 0 10px; }
+@keyframes tk-run { from { transform: translate(var(--tk-from, 200px), -50%); } to { transform: translate(var(--tk-to, -100%), -50%); } }
+.menu.enter > .route-strip { animation-delay: 0.3s; }
+
+.route-strip {
+  position: relative; z-index: 3; width: 100%; max-width: 218px; margin-top: 8px; padding: 5px 8px 6px; border: 0; cursor: pointer; color: var(--text);
+  display: flex; flex-direction: column; gap: 4px; --cut: 7px; clip-path: var(--chamfer);
+  background: linear-gradient(180deg, rgba(14, 20, 18, 0.82), rgba(8, 12, 11, 0.7)); box-shadow: inset 0 0 0 1px rgba(255, 183, 51, 0.28);
+}
+.route-strip:active { transform: scale(0.98); }
+.rs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; line-height: 1; }
+.rs-head small { font: 700 9px/1 var(--f-ui); letter-spacing: 0.24em; text-transform: uppercase; color: var(--amber, #ffb733); }
+.rs-head b { min-width: 0; font: 600 12px/1 var(--f-display); letter-spacing: 0.02em; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-track { position: relative; display: block; height: 26px; }
+.rs-line { position: absolute; left: 10px; right: 10px; top: 4px; height: 2px; background: repeating-linear-gradient(90deg, rgba(237, 242, 232, 0.35) 0 5px, transparent 5px 9px); }
+.rs-line i { position: absolute; left: 0; top: -1px; bottom: -1px; width: 0; background: var(--toxic); box-shadow: 0 0 8px rgba(168, 255, 62, 0.7); }
+.rs-nodes { position: absolute; inset: 0; display: flex; justify-content: space-between; }
+.rs-node { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 20px; }
+.rs-node::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: #1a2220; box-shadow: 0 0 0 2px rgba(237, 242, 232, 0.4); }
+.rs-node.done::before { background: var(--toxic); box-shadow: 0 0 0 2px #0b0f0e, 0 0 6px rgba(168, 255, 62, 0.8); }
+.rs-node.cur::before { background: #ffd36a; box-shadow: 0 0 0 2px #0b0f0e, 0 0 0 4px rgba(255, 211, 106, 0.5), 0 0 12px rgba(255, 211, 106, 0.9); animation: rs-pulse 1.4s ease-in-out infinite; }
+@keyframes rs-pulse { 50% { box-shadow: 0 0 0 2px #0b0f0e, 0 0 0 6px rgba(255, 211, 106, 0.15), 0 0 16px rgba(255, 211, 106, 0.9); } }
+/* Kennzeichen: weiß, schwarzer Rand, blauer EU-Streifen links */
+.rs-node em {
+  position: relative; display: block; padding: 1px 2px 1px 5px; font: 700 9px/1 var(--f-ui); font-style: normal; letter-spacing: 0.02em; color: #111;
+  background: #f2f2ea; border-radius: 2px; box-shadow: 0 0 0 1px #111; white-space: nowrap;
+}
+.rs-node em::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #1d3f9a; border-radius: 2px 0 0 2px; }
+.rs-node:not(.done):not(.cur) em { opacity: 0.55; }

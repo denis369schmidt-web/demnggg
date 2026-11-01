@@ -301,6 +301,11 @@ window.GameAudio = (() => {
       const e = env(t, 0.02, 0.2, 2.6); const lp = filter("lowpass", 900); e.connect(lp).connect(out);
       for (const d of [-10, 10]) { const o = ctx.createOscillator(); o.type = "sawtooth"; o.detune.value = d; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(36, t + 2.6); o.connect(e); o.start(t); o.stop(t + 2.8); }
       kick(t, out, 1);
+    } else if (name === "radio") {
+      // Funkgerät: Rauschen mit Bandpass, dann zwei Pieptöne
+      const bp = filter("bandpass", 1800, 1.6); bp.connect(out);
+      const e = env(t, 0.01, 0.12, 0.45); e.connect(bp); noiseSrc(t, 0.5, e);
+      for (let i = 0; i < 2; i++) { const b = env(t + 0.5 + i * 0.16, 0.003, 0.05, 0.1); b.connect(out); osc("sine", 1320, t + 0.5 + i * 0.16, 0.12, b); }
     } else if (name === "start") {
       kick(t, out, 1); const lp = filter("lowpass", 600); lp.connect(out); const e = env(t, 0.005, 0.35, 1.2); e.connect(lp); noiseSrc(t, 1.3, e);
       braam(t, 38, out, 1.6, 0.16);

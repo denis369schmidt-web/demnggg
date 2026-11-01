@@ -7,7 +7,7 @@ Trainings-Content, prüft ihn gegen Qualitätsgates, veröffentlicht ihn
 selbstständig ins Repository und hält Archiv & Protokoll aktuell – ganz ohne
 manuelle Arbeit.
 
-> **Neu:** [Outbreak Hero](zombie/) – ein Zombie-Roguelite für Web und Android (inkl. Monetarisierung). Android-Build & Release: [mobile/](mobile/README.md), Launch-Checkliste: [mobile/LAUNCH.md](mobile/LAUNCH.md).
+> **Neu:** [Escape from Germany](zombie/) – ein Zombie-Roguelite mit Fluchtgeschichte quer durch Deutschland, für Web und Android (inkl. Monetarisierung). Android-Build & Release: [mobile/](mobile/README.md), Launch-Checkliste: [mobile/LAUNCH.md](mobile/LAUNCH.md).
 
 ## Architektur des Agent-Systems
 

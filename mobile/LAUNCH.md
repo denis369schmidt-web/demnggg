@@ -24,7 +24,7 @@ kann niemand für dich erledigen.
 
 ## 3. AdMob einrichten
 
-- [ ] AdMob → *Apps → App hinzufügen* → Android → „Noch nicht im Store“ → Name „Outbreak Hero“.
+- [ ] AdMob → *Apps → App hinzufügen* → Android → „Noch nicht im Store“ → Name „Escape from Germany“.
 - [ ] Zwei Anzeigenblöcke anlegen: **Prämie (Rewarded)** und **Interstitial**.
 - [ ] Secrets setzen: `ADMOB_APP_ID` (`ca-app-pub-…~…`), `ADMOB_REWARDED_ID`, `ADMOB_INTERSTITIAL_ID` (`ca-app-pub-…/…`).
 - [ ] AdMob → *Datenschutz & Mitteilungen* → **DSGVO-Mitteilung** erstellen und veröffentlichen
@@ -49,7 +49,7 @@ base64 -w0 outbreak-upload.jks > outbreak-upload.b64   # macOS: base64 -i outbre
 
 ## 5. Play Console: App anlegen
 
-- [ ] *App erstellen* → Name „Outbreak Hero: Zombie Shooter“, Standardsprache Deutsch, **Spiel**, **Kostenlos**.
+- [ ] *App erstellen* → Name „Escape from Germany: Zombies“, Standardsprache Deutsch, **Spiel**, **Kostenlos**.
 - [ ] Paketname ist `de.outbreakhero.game` – **nach dem ersten Upload nicht mehr änderbar**.
       Anders gewünscht? Vorher `applicationId` in `android/app/build.gradle` und `appId` in `capacitor.config.json` ändern.
 - [ ] **Store-Eintrag**: Texte aus `store/listing.md`, Grafiken aus `store/de` und `store/en`, Icon `zombie/icons/icon-512.png`.

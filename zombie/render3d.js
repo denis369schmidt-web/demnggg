@@ -416,11 +416,12 @@ window.Render3D = (() => {
     street: { sky: 0x8090b8, ground: 0x2a2420, hemi: 2.4, moon: 0xa8b8ff, moonI: 2.4, fog: 0x0b1018, wall: "street" },
     hospital: { sky: 0xa8c8b8, ground: 0x30302a, hemi: 2.8, moon: 0xd8f0e8, moonI: 2.0, fog: 0x0e1612, wall: "hospital" },
     lab: { sky: 0x7fae90, ground: 0x1c2420, hemi: 2.2, moon: 0x9fffc8, moonI: 1.7, fog: 0x08100c, wall: "lab" },
+    markt: { sky: 0xa89a88, ground: 0x2a2018, hemi: 2.5, moon: 0xffd9b4, moonI: 1.9, fog: 0x120e0b, wall: "markt" },
   };
-  const ROOF = { street: "#221d1a", hospital: "#2b322e", lab: "#1b2125" };
-  const EDGE = { street: "#6b5a50", hospital: "#c9d4ce", lab: "#56626a" };
+  const ROOF = { street: "#221d1a", hospital: "#2b322e", lab: "#1b2125", markt: "#6e2a1c" };
+  const EDGE = { street: "#6b5a50", hospital: "#c9d4ce", lab: "#56626a", markt: "#8a7a62" };
   const PROP = { street: "#3a3532", hospital: "#5b6661", lab: "#38434a" };
-  const LAMP = { street: "255,176,90", hospital: "205,255,235", lab: "130,255,150" };
+  const LAMP = { street: "255,176,90", hospital: "205,255,235", lab: "130,255,150", markt: "255,196,120" };
   let room = null; // { group, floorTex, door: {...}, builtFor }
   let builtFloor = null;
   let warmPending = true; // Shader beim nächsten Bild vorab übersetzen (siehe warmShaders)
@@ -551,6 +552,33 @@ void main() {
         g.fillStyle = "#2f3a35"; g.fillRect(0, 120, 256, 8);
         // Blutspritzer
         for (let k = 0; k < 2; k++) { const x = 40 + R() * 180, y = 30 + R() * 50; for (let j = 0; j < 14; j++) { g.fillStyle = "rgba(120,10,14,0.7)"; g.beginPath(); g.arc(x + (R() - 0.5) * 24, y + (R() - 0.5) * 18, 1 + R() * 3, 0, TAU); g.fill(); } g.fillStyle = "rgba(120,10,14,0.5)"; g.fillRect(x, y, 2, 20 + R() * 20); }
+      } else if (kind === "markt") {
+        // Fachwerk: heller Putz, dunkle Balken (Ständer, Riegel, Streben), Fenster mit Läden und Blumenkasten, Sockel aus Sandstein
+        g.fillStyle = "#e4d9c2"; g.fillRect(0, 0, 256, 128);
+        for (let k = 0; k < 500; k++) { g.fillStyle = `rgba(${R() > 0.5 ? "120,100,70" : "255,255,255"},0.06)`; g.fillRect(R() * 256, R() * 104, 3, 3); }
+        g.fillStyle = "#8a7a62"; g.fillRect(0, 104, 256, 24);
+        for (let x = 0; x < 256; x += 32) { g.fillStyle = `rgb(${130 + Math.floor(R() * 20)},${116 + Math.floor(R() * 16)},${92})`; g.fillRect(x + 1, 106, 30, 9); g.fillRect(x + 17 - 16 * ((x / 32) % 2), 117, 30, 9); }
+        const beam = (x1, y1, x2, y2, w = 6) => { g.strokeStyle = "#3e2616"; g.lineWidth = w; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.strokeStyle = "rgba(255,220,180,0.1)"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x1 - 2, y1); g.lineTo(x2 - 2, y2); g.stroke(); };
+        g.lineCap = "butt";
+        beam(0, 3, 256, 3, 7); beam(0, 52, 256, 52, 6); beam(0, 101, 256, 101, 7);
+        for (let x = 0; x <= 256; x += 64) beam(x, 0, x, 104, 7);
+        for (let i = 0; i < 4; i++) {
+          const x0 = i * 64;
+          if (i % 2 === 0) { beam(x0 + 4, 50, x0 + 60, 6, 5); beam(x0 + 4, 6, x0 + 60, 50, 5); beam(x0 + 4, 99, x0 + 32, 56, 5); beam(x0 + 60, 99, x0 + 32, 56, 5); }
+          else {
+            // Fenster mit Sprossen, Läden und Blumenkasten
+            for (const wy of [12, 60]) {
+              g.fillStyle = "#1c2430"; g.fillRect(x0 + 18, wy, 28, 30);
+              g.fillStyle = "rgba(255,200,120,0.35)"; if (R() < 0.5) g.fillRect(x0 + 19, wy + 1, 26, 28);
+              g.fillStyle = "#3e2616"; g.fillRect(x0 + 31, wy, 2, 30); g.fillRect(x0 + 18, wy + 14, 28, 2);
+              const sh = R() < 0.5 ? "#2f5a34" : "#7a2a1c";
+              g.fillStyle = sh; g.fillRect(x0 + 8, wy, 9, 30); g.fillRect(x0 + 47, wy, 9, 30);
+              g.fillStyle = "rgba(0,0,0,0.3)"; for (let k = wy + 3; k < wy + 30; k += 4) { g.fillRect(x0 + 9, k, 7, 1); g.fillRect(x0 + 48, k, 7, 1); }
+              g.fillStyle = "#5a3a1e"; g.fillRect(x0 + 16, wy + 30, 32, 5);
+              for (let k = 0; k < 6; k++) { g.fillStyle = R() < 0.5 ? "#d8283a" : "#ff6a8a"; g.beginPath(); g.arc(x0 + 19 + k * 5.2, wy + 29, 2.2, 0, TAU); g.fill(); }
+            }
+          }
+        }
       } else {
         g.fillStyle = "#20272c"; g.fillRect(0, 0, 256, 128);
         for (let x = 0; x < 256; x += 64) {
@@ -573,7 +601,7 @@ void main() {
         g.fillStyle = "rgba(0,0,0,0.75)"; g.beginPath(); g.arc(x, y, 1.3, 0, TAU); g.fill();
         g.strokeStyle = "rgba(255,255,255,0.16)"; g.lineWidth = 0.6; g.beginPath(); g.arc(x, y, 2.4, 0, TAU); g.stroke();
       }
-      if (kind !== "hospital") bloodSplat(g, 60 + R() * 140, 40 + R() * 40, 10 + R() * 6, R, 0.55);
+      if (kind !== "hospital") bloodSplat(g, 60 + R() * 140, 40 + R() * 40, 10 + R() * 6, R, kind === "markt" ? 0.4 : 0.55);
     }, true);
   }
   // Dachfläche (Bitumen mit Kies), kachelbar
@@ -582,6 +610,22 @@ void main() {
       let s = 31 + kind.length;
       const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
       g.fillStyle = ROOF[kind] || ROOF.street; g.fillRect(0, 0, 128, 128);
+      if (kind === "markt") {
+        // Biberschwanz-Ziegel: große versetzte Reihen mit runden Enden, dunkle Fugen,
+        // Licht oben / Schatten unten je Ziegel, vereinzelt dunklere und moosige Steine
+        g.fillStyle = "#2a120b"; g.fillRect(0, 0, 128, 128);
+        for (let y = -8, row = 0; y < 128; y += 16, row++) for (let x = -(row % 2) * 8; x < 128; x += 16) {
+          const v = Math.floor(R() * 34) - 17, dark = R() < 0.12 ? -30 : 0, moss = R() < 0.07;
+          const r = 150 + v + dark, gg = 62 + v / 2 + dark / 2, b = 40 + v / 3 + dark / 3;
+          const grd = g.createLinearGradient(0, y, 0, y + 20);
+          grd.addColorStop(0, `rgb(${r + 24},${gg + 14},${b + 8})`); grd.addColorStop(0.55, `rgb(${r},${gg},${b})`); grd.addColorStop(1, `rgb(${r - 46},${gg - 26},${b - 16})`);
+          g.fillStyle = grd; g.beginPath(); g.moveTo(x + 1, y); g.lineTo(x + 15, y); g.lineTo(x + 15, y + 13); g.arc(x + 8, y + 13, 7, 0, Math.PI); g.closePath(); g.fill();
+          if (moss) { g.fillStyle = "rgba(70,90,40,0.55)"; g.beginPath(); g.arc(x + 4 + R() * 8, y + 14, 3 + R() * 2, 0, TAU); g.fill(); }
+          g.fillStyle = "rgba(255,220,190,0.18)"; g.fillRect(x + 2, y + 1, 12, 1.2);
+        }
+        for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(${R() > 0.5 ? "255,240,220" : "0,0,0"},${0.03 + R() * 0.07})`; g.fillRect(R() * 128, R() * 128, 0.8, 0.8); }
+        return;
+      }
       // ausgebesserte Stellen (dunkler Teer), dann feiner Kies
       for (let k = 0; k < 4; k++) { g.fillStyle = "rgba(0,0,0,0.18)"; g.fillRect(R() * 110, R() * 110, 10 + R() * 26, 6 + R() * 16); }
       for (let k = 0; k < 3600; k++) { g.fillStyle = `rgba(${R() > 0.5 ? "255,255,255" : "0,0,0"},${0.04 + R() * 0.1})`; const sz = 0.5 + R() * 1.1; g.fillRect(R() * 128, R() * 128, sz, sz); }
@@ -789,6 +833,63 @@ void main() {
         add(mesh(box(W, 80, Hd), [rack, rack, lid, lid, rack, rack], 0, 40, 0));
         break;
       }
+      case "bude": {
+        // Marktbude: Holzhütte mit Satteldach, Theke, Markise und warmer Lichterkette
+        const len = W, dep = Hd, wood = slam("#6a4426"), roofC = slam(o.fest === "wiesn" ? "#e8eef4" : o.fest === "weihnachten" ? "#7a2a1e" : "#5e2a1a");
+        add(mesh(box(len, 34, dep * 0.8), wood, 0, 17, -dep * 0.08));
+        add(mesh(box(len + 4, 4, dep * 0.3), slam("#8a5a30"), 0, 22, dep * 0.4));
+        for (const sd of [-1, 1]) { const rf = add(mesh(box(len + 8, 3, dep * 0.62), roofC, 0, 44, sd * dep * 0.24)); rf.rotation.x = sd * 0.5; }
+        for (let k = 0; k < 6; k++) g.add(mesh(box(len / 6, 6, 2), slam(k % 2 ? "#f0ece0" : "#c0281e"), -len / 2 + (k + 0.5) * (len / 6), 33, dep * 0.52));
+        for (let k = 0; k < 7; k++) g.add(mesh(ico(1.6, 0), sbasic("#ffe08a"), -len / 2 + 4 + k * (len - 8) / 6, 38, dep * 0.55));
+        if (o.fest === "weihnachten") add(mesh(cone(9, 26, 7), slam("#1e5a2a"), len * 0.42, 57, 0));
+        break;
+      }
+      case "bierbank": {
+        const len = o.vert ? Hd : W, wid = o.vert ? W : Hd, c = group(); if (o.vert) c.rotation.y = Math.PI / 2;
+        const wood = slam("#c89a62"), dark = slam("#3a3a3e");
+        c.add(add(mesh(box(len, 2.5, wid * 0.42), wood, 0, 19, 0)));
+        for (const sd of [-1, 1]) { c.add(add(mesh(box(len, 2, wid * 0.16), slam("#8a6238"), 0, 11, sd * wid * 0.4))); for (const lx of [-0.4, 0.4]) c.add(mesh(box(1.5, 11, wid * 0.16), dark, lx * len, 5, sd * wid * 0.4)); }
+        for (const lx of [-0.42, 0.42]) c.add(mesh(box(1.5, 19, wid * 0.38), dark, lx * len, 9.5, 0));
+        for (let k = -len / 2 + 10; k < len / 2 - 6; k += 20) { c.add(mesh(cyl(3.2, 3, 8, 8), slam("#f2c94a"), k, 24.5, (R() - 0.5) * 6)); c.add(mesh(cyl(3.3, 3.3, 2, 8), slam("#fffaf0"), k, 29, 0)); }
+        g.add(c);
+        break;
+      }
+      case "fass": {
+        const br = Math.min(W, Hd) * 0.27;
+        for (const [px, pz, y0] of [[-0.22, -0.18, 0], [0.22, -0.18, 0], [0, 0.22, 0]]) {
+          const f = add(mesh(cyl(br, br, 30, 12), slam("#8a5a2c"), px * W, y0 + br, pz * Hd)); f.rotation.z = Math.PI / 2;
+          for (const rx of [-11, 11]) { const ring = mesh(cyl(br * 1.04, br * 1.04, 2, 12), slam("#3a3a3e"), px * W + rx, y0 + br, pz * Hd); ring.rotation.z = Math.PI / 2; g.add(ring); }
+        }
+        break;
+      }
+      case "maibaum": {
+        // Maibaum: weiß-blau gestreift, Kranz und Zunftschilder – hoch hinaus
+        for (let k = 0; k < 12; k++) add(mesh(cyl(2.6, 2.6, 12, 8), slam(k % 2 ? "#3a7fd0" : "#f2f2ee"), 0, 6 + k * 12, 0));
+        const wr = mesh(torus(9, 2.2), slam("#2f6a2a"), 0, 140, 0); wr.rotation.x = Math.PI / 2; g.add(wr);
+        for (let k = 0; k < 4; k++) { const a = k * 1.57, sign = mesh(box(12, 7, 1.2), slam(["#c0281e", "#e8c21a", "#3a7fd0", "#f2f2ee"][k]), Math.cos(a) * 6, 70 + k * 16, Math.sin(a) * 6); sign.rotation.y = -a; g.add(sign); }
+        add(mesh(cyl(7, 9, 4, 10), slam("#5a5a52"), 0, 2, 0));
+        break;
+      }
+      case "brunnen": {
+        const r0 = Math.min(W, Hd) / 2;
+        add(mesh(cyl(r0, r0 + 2, 10, 20), slam("#8a847a"), 0, 5, 0));
+        g.add(mesh(cyl(r0 * 0.84, r0 * 0.84, 1, 20), new T3.MeshPhongMaterial({ color: 0x2a6a88, specular: 0x88aacc, shininess: 80 }), 0, 9, 0));
+        add(mesh(cyl(4, 5, 30, 10), slam("#a49e94"), 0, 15, 0));
+        add(mesh(ico(6, 1), slam("#b4aea4"), 0, 31, 0));
+        break;
+      }
+      case "boeller": {
+        add(mesh(box(W, 14, Hd), slam("#c0281e"), 0, 7, 0));
+        for (let k = 0; k < 5; k++) g.add(mesh(ico(1.8, 0), sbasic("#ffd23a"), -W / 2 + 6 + R() * (W - 12), 14.5, -Hd / 2 + 5 + R() * (Hd - 10)));
+        for (let k = 0; k < 4; k++) add(mesh(cyl(1.6, 1.6, 16, 6), slam("#e8e0c8"), -W / 2 + 8 + k * (W - 16) / 3, 22, 0));
+        break;
+      }
+      case "automat": {
+        add(mesh(box(W, 44, Hd), slam("#ec0016"), 0, 22, 0));
+        g.add(mesh(box(W * 0.7, 12, 1), sbasic("#7fd0ff"), 0, 32, Hd / 2 + 0.6));
+        g.add(mesh(box(W, 4, Hd + 1), slam("#f4f4f0"), 0, 42, 0));
+        break;
+      }
       default:
         add(mesh(box(W, 30, Hd), slam("#555555"), 0, 15, 0));
     }
@@ -826,7 +927,7 @@ void main() {
     hemi.intensity = th.hemi * (boss ? 0.75 : 1);
     moon.color.setHex(th.moon); moon.intensity = th.moonI * (boss ? 0.7 : 1);
     const baseHemi = hemi.intensity, baseMoon = moon.intensity;
-    setupAtmo(w.theme);
+    setupAtmo(w.theme, w.weather, w.fest);
     scene.fog.color.setHex(th.fog);
     renderer.setClearColor(th.fog, 1);
 
@@ -1007,6 +1108,13 @@ void main() {
     bloater: [{ shirt: "#6a7a3a", pants: "#4a4a2a", skin: "#9aa84a", bloat: true, pustules: "#d8ff5a", eye: "#eaff00" }],
     gunner: [{ shirt: "#4f5a38", pants: "#3e4630", skin: "#8a9c74", hat: "helmet", tactical: true, rifle: true }],
     nest: [{ skin: "#6a3a5a" }],
+    // v2.0: deutsche Gegner
+    wiesn: [{ shirt: "#f2efe6", pants: "#5a3a1e", skin: "#94a37c", lederhosen: true, hat: "tracht", krug: true, belly: true }],
+    jeck: [{ shirt: "#d8202a", pants: "#f2efe6", skin: "#a3ad92", hat: "jester", nose: true, motley: true, eye: "#ffd84a" }],
+    schaffner: [{ shirt: "#1e2a4a", pants: "#1a2236", skin: "#8fa67a", hat: "conductor", kelle: true, whistle: true }],
+    beamter: [{ shirt: "#6a6e72", pants: "#4a4e52", skin: "#9aa684", tie: "#2a4a8a", glasses: true, folder: true, hair: "#8a8a84" }],
+    zwerg: [{ shirt: "#2a5aa8", pants: "#5a3a1e", skin: "#c8b49a", hat: "gnome", beard: true }],
+    ultra: [{ shirt: "#1a1a1a", pants: "#2a2a30", skin: "#9caa8a", hood: true, scarf: "#c8102e", bengalo: true, torn: true }],
   };
 
   // Jede Figur bekommt eigene Materialien für Treffer-Blitz/Eis/Wut (emissive)
@@ -1022,7 +1130,7 @@ void main() {
 
   function buildHumanoid(type, r, P) {
     const M = makeModel(type);
-    const bulk = P.brute ? 1.18 : P.pustules ? 1.28 : P.bloat ? 1.1 : P.thin ? 0.84 : 1;
+    const bulk = P.brute ? 1.18 : P.pustules ? 1.28 : P.bloat ? 1.1 : P.belly ? 1.14 : P.thin ? 0.84 : 1;
     const la = P.longArms ? 1.3 : 1;
     const shirt = flashMat(M, P.shirt), pants = flashMat(M, P.pants), skin = flashMat(M, P.skin);
     const dark = slam("#1a1a1a");
@@ -1189,6 +1297,79 @@ void main() {
     if (P.coils) for (const s of [-1, 1]) {
       B.add(mesh(cyl(0.1 * r, 0.1 * r, 0.7 * r, 8), sbasic("#7fe7ff"), -0.46 * r, 1.75 * r, s * 0.22 * r));
       for (let k = 0; k < 3; k++) { const t2 = mesh(torus(0.13 * r, 0.03 * r), slam("#c87533"), -0.46 * r, 1.5 * r + k * 0.22 * r, s * 0.22 * r); t2.rotation.x = Math.PI / 2; B.add(t2); }
+    }
+    // ---- v2.0: Tracht, Fasching, Bahn, Amt, Garten, Kurve ----
+    if (P.belly) { const b2 = mesh(ico(0.42 * r, 1), shirt, 0.2 * r, 1.36 * r, 0); b2.scale.set(0.9, 0.85, 1.1); B.add(b2); }
+    if (P.lederhosen) {
+      const lb = slam("#4a2e16");
+      for (const z of [-0.3, 0.3]) B.add(mesh(box(0.8 * r, 0.95 * r, 0.1 * r), lb, 0.02 * r, 1.58 * r, z * r)); // Hosenträger
+      B.add(mesh(box(0.08 * r, 0.32 * r, 0.66 * r), lb, 0.42 * r, 1.42 * r, 0)); // Brustlatz
+      B.add(mesh(box(0.05 * r, 0.12 * r, 0.12 * r), slam("#d8c8a0"), 0.47 * r, 1.42 * r, 0));
+      for (const L of M.legs) L.g.add(mesh(cyl(0.21 * r, 0.2 * r, 0.32 * r, 8), slam("#efece2"), 0, -0.62 * r, 0)); // Kniestrümpfe
+    }
+    if (P.hat === "tracht") {
+      const felt = slam("#2f4a2a");
+      head.add(mesh(cyl(hr * 1.4, hr * 1.4, 0.05 * r, 14), felt, -0.04 * r, hr * 0.62, 0));
+      head.add(mesh(cyl(hr * 0.72, hr * 0.92, 0.42 * r, 12), felt, -0.04 * r, hr * 0.98, 0));
+      head.add(mesh(cyl(hr * 0.94, hr * 0.94, 0.08 * r, 12), slam("#1a1a14"), -0.04 * r, hr * 0.72, 0));
+      const gams = mesh(cone(0.13 * r, 0.5 * r, 6), slam("#d8c8a0"), -0.3 * r, hr * 1.1, 0.26 * r); gams.rotation.x = -0.4; gams.rotation.z = 0.35; head.add(gams);
+    }
+    if (P.krug && armR) {
+      armR.g.add(mesh(cyl(0.22 * r, 0.22 * r, 0.5 * r, 10), slam("#e0a42a"), 1.12 * r, 0.12 * r, 0));
+      armR.g.add(mesh(cyl(0.24 * r, 0.24 * r, 0.12 * r, 10), slam("#fff8e8"), 1.12 * r, 0.42 * r, 0));
+      armR.g.add(mesh(torus(0.14 * r, 0.04 * r), slam("#cfdde2"), 1.12 * r, 0.14 * r, -0.26 * r));
+    }
+    if (P.hat === "jester") {
+      const ruff = mesh(torus(hr * 0.95, 0.12 * r), slam("#f2efe6"), 0, -hr * 0.85, 0); ruff.rotation.x = Math.PI / 2; head.add(ruff);
+      const cap2 = mesh(ico(hr * 1.05, 1), slam("#d8202a"), -0.04 * r, 0.1 * r, 0); cap2.scale.set(1, 0.7, 1.04); head.add(cap2);
+      for (const [z, col] of [[-1, "#d8202a"], [0, "#f2efe6"], [1, "#d8202a"]]) {
+        const lobe = group(-0.05 * r, hr * 0.55, z * hr * 0.55);
+        const cn = mesh(cone(0.16 * r, 0.85 * r, 6), slam(col), 0, 0.4 * r, 0); lobe.add(cn);
+        lobe.add(mesh(ico(0.11 * r, 0), sbasic("#f2c21a"), 0, 0.85 * r, 0));
+        lobe.rotation.x = z * 0.9; lobe.rotation.z = z === 0 ? 0.7 : 0.3;
+        head.add(lobe);
+      }
+    }
+    if (P.nose) head.add(mesh(ico(0.12 * r, 1), sbasic("#ff2a2a"), hr * 1.02, -0.02 * r, 0));
+    if (P.motley) {
+      B.add(mesh(box(0.74 * r, 0.42 * r, 0.56 * r), slam("#f2efe6"), 0, 1.74 * r, 0.28 * r));
+      B.add(mesh(box(0.74 * r, 0.42 * r, 0.56 * r), slam("#f2efe6"), 0, 1.28 * r, -0.28 * r));
+      for (let i = -1; i <= 1; i++) { const d2 = mesh(box(0.06 * r, 0.16 * r, 0.16 * r), sbasic("#f2c21a"), 0.38 * r, 1.52 * r + i * 0.28 * r, 0); d2.rotation.x = Math.PI / 4; B.add(d2); }
+    }
+    if (P.hat === "conductor") {
+      head.add(mesh(cyl(hr * 1.08, hr * 0.98, 0.3 * r, 12), slam("#1e2a4a"), -0.02 * r, hr * 0.78, 0));
+      head.add(mesh(cyl(hr * 1.0, hr * 1.0, 0.1 * r, 12), slam("#c8102e"), -0.02 * r, hr * 0.62, 0));
+      head.add(mesh(box(0.36 * r, 0.04 * r, 0.6 * r), slam("#0f1424"), hr * 0.76, hr * 0.56, 0));
+      head.add(mesh(box(0.04 * r, 0.1 * r, 0.1 * r), sbasic("#e8c64a"), hr * 1.0, hr * 0.8, 0));
+      B.add(mesh(box(0.7 * r, 0.1 * r, 1.08 * r), slam("#c8102e"), 0, 1.94 * r, 0)); // roter Kragen
+      for (let i = 0; i < 3; i++) B.add(mesh(box(0.04 * r, 0.06 * r, 0.06 * r), sbasic("#e8c64a"), 0.36 * r, 1.36 * r + i * 0.18 * r, 0));
+    }
+    if (P.whistle) { const w2 = mesh(cyl(0.05 * r, 0.05 * r, 0.22 * r, 6), slam("#c9ced4"), hr * 1.02, -0.16 * r, 0.06 * r); w2.rotation.z = Math.PI / 2; head.add(w2); }
+    if (P.kelle && armR) {
+      armR.g.add(mesh(cyl(0.035 * r, 0.035 * r, 0.7 * r, 5), slam("#222222"), 1.1 * r, 0.32 * r, 0));
+      const disc = mesh(cyl(0.3 * r, 0.3 * r, 0.04 * r, 14), slam("#f2f2ea"), 1.1 * r, 0.78 * r, 0); disc.rotation.x = Math.PI / 2; armR.g.add(disc);
+      const dc = mesh(cyl(0.2 * r, 0.2 * r, 0.05 * r, 14), sbasic("#1f9a4a"), 1.1 * r, 0.78 * r, 0); dc.rotation.x = Math.PI / 2; armR.g.add(dc);
+    }
+    if (P.glasses) {
+      head.add(mesh(box(0.05 * r, 0.05 * r, 0.6 * r), slam("#1a1410"), hr * 0.98, 0.08 * r, 0));
+      for (const z of [-1, 1]) head.add(mesh(box(0.04 * r, 0.16 * r, 0.2 * r), sbasic("#cfe2ea"), hr * 0.99, 0.06 * r, z * 0.16 * r));
+    }
+    if (P.folder && armL) {
+      armL.g.add(mesh(box(0.5 * r, 0.12 * r, 0.7 * r), slam("#c9b27a"), 0.95 * r, 0.12 * r, 0.1 * r));
+      armL.g.add(mesh(box(0.14 * r, 0.13 * r, 0.12 * r), sbasic("#d02a2a"), 0.95 * r, 0.14 * r, 0.3 * r));
+    }
+    if (P.hat === "gnome") {
+      const cn = mesh(cone(hr * 1.08, 1.5 * r, 10), slam("#c0281e"), -0.12 * r, hr * 0.5 + 0.7 * r, 0); cn.rotation.z = 0.32; head.add(cn);
+      head.add(mesh(ico(0.08 * r, 0), slam("#f2efe6"), -0.5 * r, hr * 0.5 + 1.38 * r, 0));
+    }
+    if (P.beard) { const bd = mesh(ico(hr * 0.78, 1), slam("#f2efe6"), hr * 0.62, -0.32 * r, 0); bd.scale.set(0.7, 1.15, 1); head.add(bd); const belt = mesh(cyl(0.44 * r, 0.44 * r, 0.12 * r, 10), slam("#1a1a1a"), 0, 1.16 * r, 0); belt.scale.set(0.84, 1, 1.32); B.add(belt); }
+    if (P.scarf) {
+      for (let i = 0; i < 2; i++) { const sc = mesh(torus(hr * 0.86, 0.1 * r), slam(i ? "#f2efe6" : P.scarf), 0, 2.0 * r + i * 0.1 * r, 0); sc.rotation.x = Math.PI / 2; B.add(sc); }
+      for (let k = 0; k < 4; k++) B.add(mesh(box(0.06 * r, 0.16 * r, 0.22 * r), slam(k % 2 ? "#f2efe6" : P.scarf), 0.4 * r, 1.82 * r - k * 0.16 * r, 0.18 * r));
+    }
+    if (P.bengalo && armL) {
+      armL.g.add(mesh(cyl(0.06 * r, 0.06 * r, 0.5 * r, 6), slam("#b0201a"), 1.12 * r, 0.3 * r, 0));
+      armL.g.add(mesh(ico(0.12 * r, 1), sbasic("#ffe0c8"), 1.12 * r, 0.58 * r, 0));
     }
   }
 
@@ -1583,7 +1764,9 @@ void main() {
       else if (e.mode === "leap") { M.body.rotation.z -= 0.6; for (const L of M.legs) L.g.rotation.z = -0.9; for (const A of M.arms) A.g.rotation.z = 0.9; }
       else if (e.mode === "scream") { if (M.extra.head) M.extra.head.rotation.z = 0.55; for (const A of M.arms) { A.g.rotation.y = A.s * 1.1; A.g.rotation.z = 0.5; } M.body.rotation.z += 0.2; }
       else if (e.mode === "zap") { for (const A of M.arms) A.g.rotation.z = 1.25 + Math.random() * 0.2; M.body.rotation.x += (Math.random() - 0.5) * 0.2; }
-      if (e.mode !== "scream" && M.extra.head) M.extra.head.rotation.z = 0;
+      else if (e.mode === "lift") { for (const A of M.arms) A.g.rotation.z = A.s > 0 ? 2.3 : 0.6; M.body.rotation.z += 0.18; }
+      else if (e.mode === "whistle") { for (const A of M.arms) A.g.rotation.z = A.s > 0 ? 1.9 + Math.sin(t * 30) * 0.1 : 0.3; if (M.extra.head) M.extra.head.rotation.z = 0.25; }
+      if (e.mode !== "scream" && e.mode !== "whistle" && M.extra.head) M.extra.head.rotation.z = 0;
       if (e.mode !== "scream") for (const A of M.arms) if (!A.crawl) A.g.rotation.y = A.s * 0.18;
     }
     if (e.armOff) for (const A of M.arms) A.g.visible = !e.armOff[A.s]; // abgeschossener Arm
@@ -1913,7 +2096,7 @@ void main() {
   // ------------------------------------------------------------------
   // Instanzen: Schatten, Münzen, Projektile
   // ------------------------------------------------------------------
-  let blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, headIM, limbIM, rocketIM, discIM, pillar, doorBeam;
+  let ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, headIM, limbIM, rocketIM, discIM, pillar, doorBeam;
   const booms = [];
   const dummy = new T3.Object3D();
   function setupInstanced() {
@@ -1942,6 +2125,9 @@ void main() {
     const cpos = [...crossGeo.toNonIndexed().attributes.position.array, ...cross2.toNonIndexed().attributes.position.array];
     const cg2 = new T3.BufferGeometry(); cg2.setAttribute("position", new T3.BufferAttribute(new Float32Array(cpos), 3)); cg2.computeVertexNormals();
     healCrossIM = new T3.InstancedMesh(cg2, new T3.MeshBasicMaterial({ color: 0xff3a3a }), 20);
+    // Brezel (Essen aus Marktbuden) und grüne Pfandflasche
+    foodIM = new T3.InstancedMesh(new T3.TorusGeometry(6.5, 2.4, 6, 14), new T3.MeshLambertMaterial({ color: 0xa8642a, emissive: 0x2a1404 }), 20);
+    pfandIM = new T3.InstancedMesh(new T3.CylinderGeometry(2.4, 2.4, 10, 8), new T3.MeshLambertMaterial({ color: 0x2f8a3a, emissive: 0x0a2a10 }), 40);
     // Rakete (Körper + rote Spitze als ein Mesh) und Sägeblatt
     const rb = new T3.CylinderGeometry(2.6, 2.6, 16, 8).toNonIndexed(); rb.rotateZ(-Math.PI / 2);
     const rt = new T3.ConeGeometry(2.6, 6, 8).toNonIndexed(); rt.rotateZ(-Math.PI / 2); rt.translate(11, 0, 0);
@@ -1951,7 +2137,17 @@ void main() {
     rocketGeo.setAttribute("color", new T3.BufferAttribute(new Float32Array(rcol), 3)); rocketGeo.computeVertexNormals();
     rocketIM = new T3.InstancedMesh(rocketGeo, new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true }), 40);
     discIM = new T3.InstancedMesh(new T3.CylinderGeometry(9, 9, 1.4, 16), new T3.MeshLambertMaterial({ color: 0xd8dee4, emissive: 0x303438, flatShading: true }), 60);
-    for (const im of [blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, rocketIM, discIM]) { im.frustumCulled = false; im.count = 0; scene.add(im); }
+    // v2.0: Fußball (Ultra), Formular (Beamter), Kamelle (Jeck)
+    const ballTex = tex("ball", 64, 32, (g) => {
+      g.fillStyle = "#f4f4f0"; g.fillRect(0, 0, 64, 32); g.fillStyle = "#151515";
+      for (let y = 0; y < 3; y++) for (let x = 0; x < 5; x++) { const cx = x * 12.8 + (y % 2) * 6.4 + 3, cy = 5 + y * 11; g.beginPath(); for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2 - Math.PI / 2; g.lineTo(cx + Math.cos(a) * 3.4, cy + Math.sin(a) * 3.4); } g.closePath(); g.fill(); }
+    });
+    ballIM = new T3.InstancedMesh(new T3.IcosahedronGeometry(1, 2), new T3.MeshLambertMaterial({ map: ballTex }), 40);
+    paperIM = new T3.InstancedMesh(new T3.BoxGeometry(12, 0.5, 15), new T3.MeshLambertMaterial({ color: 0xf2eee0, emissive: 0x2a2a28 }), 90);
+    candyIM = new T3.InstancedMesh(new T3.IcosahedronGeometry(1, 0), new T3.MeshLambertMaterial({ flatShading: true, emissive: 0x202020 }), 150);
+    candyIM.setColorAt(0, tmpColor.setRGB(1, 1, 1));
+    for (const im of [ballIM, paperIM, candyIM]) im.castShadow = true;
+    for (const im of [ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, rocketIM, discIM]) { im.frustumCulled = false; im.count = 0; scene.add(im); }
     healIM.castShadow = true;
     // abgetrennte Köpfe und Gliedmaßen
     headIM = new T3.InstancedMesh(new T3.IcosahedronGeometry(1, 1), new T3.MeshLambertMaterial({ flatShading: true }), 100);
@@ -2219,8 +2415,12 @@ void main() {
     coinsIM.count = n; coinsIM.instanceMatrix.needsUpdate = true;
     // Gegner-Projektile, Granaten, Bolzen
     let a = 0, pk = 0, gr = 0, bo = 0, rk = 0, dk = 0;
+    let bl = 0, pp = 0, cd = 0;
     for (const b of w.eBullets) {
       const s = b.r * 1.1;
+      if (b.kind === "ball") { if (bl < 40) inst(ballIM, bl++, b.x, b.r, b.y, b.spin * 0.6, b.spin, b.r, b.r, b.r); continue; }
+      if (b.kind === "paper") { if (pp < 90) inst(paperIM, pp++, b.x, 20, b.y, b.spin, Math.sin(b.spin * 1.3) * 0.5); continue; }
+      if (b.kind === "candy") { if (cd < 150) { inst(candyIM, cd, b.x, 16, b.y, b.spin, b.spin * 0.5, 5, 3.5, 3.5); const [cr, cg3, cb] = b.rgb.split(",").map((v) => v / 255); candyIM.setColorAt(cd++, tmpColor.setRGB(cr, cg3, cb)); } continue; }
       if (b.slug) continue; // Gewehrkugeln als Leuchtspur (fillBatches)
       if (b.pink) { if (pk < 200) inst(pinkIM, pk++, b.x, 18, b.y, 0, 0, s, s, s); } else if (a < 200) inst(acidIM, a++, b.x, 18, b.y, 0, 0, s, s, s);
     }
@@ -2230,12 +2430,22 @@ void main() {
       else if (b.kind === "rocket" && rk < 40) inst(rocketIM, rk++, b.x, 22, b.y, -Math.atan2(b.vy, b.vx));
       else if (b.kind === "disc" && dk < 60) inst(discIM, dk++, b.x, 16, b.y, b.spin);
     }
+    ballIM.count = bl; paperIM.count = pp; candyIM.count = cd;
+    for (const im of [ballIM, paperIM, candyIM]) im.instanceMatrix.needsUpdate = true;
+    if (cd && candyIM.instanceColor) candyIM.instanceColor.needsUpdate = true;
     acidIM.count = a; pinkIM.count = pk; grenadeIM.count = gr; boltIM.count = bo; rocketIM.count = rk; discIM.count = dk;
     for (const im of [acidIM, pinkIM, grenadeIM, boltIM, rocketIM, discIM]) im.instanceMatrix.needsUpdate = true;
     // Medikits
     let hk = 0;
-    for (const o of w.orbs) if (o.type === "heal" && hk < 20) { const y = 7 + Math.sin(t * 4 + o.x) * 2; inst(healIM, hk, o.x, y, o.y, t * 1.5); inst(healCrossIM, hk++, o.x, y, o.y, t * 1.5); }
+    let fk = 0, pk2 = 0;
+    for (const o of w.orbs) {
+      const y = 7 + Math.sin(t * 4 + o.x) * 2;
+      if (o.type === "heal" && o.food && fk < 20) inst(foodIM, fk++, o.x, y + 2, o.y, t * 1.5, 1.2);
+      else if (o.type === "heal" && hk < 20) { inst(healIM, hk, o.x, y, o.y, t * 1.5); inst(healCrossIM, hk++, o.x, y, o.y, t * 1.5); }
+      else if (o.type === "pfand" && pk2 < 40) inst(pfandIM, pk2++, o.x, 6, o.y, 0, 1.2 + Math.sin(t * 3 + o.x) * 0.3);
+    }
     healIM.count = healCrossIM.count = hk; healIM.instanceMatrix.needsUpdate = true; healCrossIM.instanceMatrix.needsUpdate = true;
+    foodIM.count = fk; pfandIM.count = pk2; foodIM.instanceMatrix.needsUpdate = true; pfandIM.instanceMatrix.needsUpdate = true;
     // Brocken, Trümmer, Hülsen
     let ch = 0, cs = 0;
     for (const q of w.particles) {
@@ -2322,7 +2532,7 @@ void main() {
   }
 
   const FIRE = ["200,60,20", "255,140,40", "255,220,120"];
-  const EYE = { spitter: "234,255,0", abom: "234,255,0", armored: "80,170,230", burner: "255,176,58", screamer: "255,74,240", splitter: "255,106,213", electro: "127,231,255", healer: "140,255,138", phantom: "232,240,255", warden: "143,212,255", bloater: "234,255,0", nest: "224,112,224" };
+  const EYE = { jeck: "255,216,74", spitter: "234,255,0", abom: "234,255,0", armored: "80,170,230", burner: "255,176,58", screamer: "255,74,240", splitter: "255,106,213", electro: "127,231,255", healer: "140,255,138", phantom: "232,240,255", warden: "143,212,255", bloater: "234,255,0", nest: "224,112,224" };
   const fireRgb = (k) => FIRE[k > 0.6 ? 2 : k > 0.3 ? 1 : 0];
 
   function fillBatches(w, t) {
@@ -2410,10 +2620,11 @@ void main() {
     for (const e of w.enemies) if (e.under === "burrow") { flat(floorB, e.x, 1.1, e.y, e.face, 16, 11, CELL.blob, "60,46,32", 0.85); flat(floorB, e.x, 1.2, e.y, e.face, 9, 6, CELL.blob, "110,90,66", 0.7); }
     // Geworfene Brocken mit Zielkreis
     for (const q of w.lobs || []) {
-      const k = Math.min(1, q.t / q.T);
-      flat(floorB, q.x1, 1.3, q.y1, 0, q.r, q.r, CELL.ring, "255,60,40", 0.55 + 0.35 * Math.sin(t * 24));
-      flat(floorB, q.x1, 1.2, q.y1, 0, q.r * k, q.r * k, CELL.glow, "255,60,40", 0.4);
-      bill(normB, q.x, q.z + 6, q.y, 14, CELL.gib, "122,117,108", 1, q.spin);
+      const k = Math.min(1, q.t / q.T), krug = q.kind === "krug", c = krug ? "255,190,60" : "255,60,40";
+      flat(floorB, q.x1, 1.3, q.y1, 0, q.r, q.r, CELL.ring, c, 0.55 + 0.35 * Math.sin(t * 24));
+      flat(floorB, q.x1, 1.2, q.y1, 0, q.r * k, q.r * k, CELL.glow, c, 0.4);
+      if (krug) { bill(normB, q.x, q.z + 6, q.y, 11, CELL.blob, "224,164,42", 1); bill(normB, q.x, q.z + 12, q.y, 8, CELL.blob, "255,248,232", 1); }
+      else bill(normB, q.x, q.z + 6, q.y, 14, CELL.gib, "122,117,108", 1, q.spin);
       flat(floorB, q.x, 0.9, q.y, 0, 10, 10, CELL.blob, "0,0,0", 0.35);
     }
     // Strahlen: Heilung, Schildverbindung, Laser-Visier
@@ -2429,6 +2640,8 @@ void main() {
     // Gegner-Projektile, XP-Kugeln, Augen, Status
     for (const b of w.eBullets) {
       if (b.slug) { const sp = Math.hypot(b.vx, b.vy) || 1; flat(addB, b.x - (b.vx / sp) * 14, 22, b.y - (b.vy / sp) * 14, Math.atan2(b.vy, b.vx), 14, 2, CELL.streak, "255,190,90", 1); bill(addB, b.x, 22, b.y, 9, CELL.glow, "255,220,150", 0.9); continue; }
+      if (b.kind === "candy") { bill(addB, b.x, 16, b.y, 12, CELL.glow, b.rgb, 0.45); continue; }
+      if (b.kind) { flat(floorB, b.x, 0.9, b.y, 0, 8, 8, CELL.blob, "0,0,0", 0.3); continue; }
       bill(addB, b.x, 18, b.y, b.r * 3.2, CELL.glow, b.rgb, 0.7);
     }
     for (const o of w.orbs) if (o.type === "heal") { bill(addB, o.x, 9, o.y, 20 + Math.sin(t * 6) * 3, CELL.glow, "120,255,140", 0.55); flat(floorB, o.x, 0.9, o.y, 0, 16, 16, CELL.ring, "120,255,140", 0.6); }
@@ -2454,6 +2667,8 @@ void main() {
       if (e.type === "nest") flat(floorB, e.x, 1, e.y, 0, e.r * 2.2, e.r * 2.2, CELL.glow, "200,80,200", 0.25 + 0.1 * Math.sin(t * 4 + e.wob));
       if (e.mode === "crouch") { const a = Math.atan2(e.dirY, e.dirX), L = 200; flat(normB, e.x + Math.cos(a) * L / 2, 1.2, e.y + Math.sin(a) * L / 2, a, L / 2, e.r * 0.8, CELL.band, "255,70,50", 0.3 + 0.25 * Math.sin(t * 30)); }
       if (e.mode === "zap") { const rr = 150 * (1 - Math.max(0, e.aiT) / 0.75 * 0.4); flat(floorB, e.x, 1.3, e.y, 0, rr, rr, CELL.ring, "127,231,255", 0.55 + 0.3 * Math.sin(t * 25)); }
+      if (e.mode === "whistle") { const k = 1 - Math.max(0, e.aiT) / 0.75; flat(floorB, e.x, 1.3, e.y, 0, 200, 200, CELL.ring, "255,230,120", 0.5 + 0.3 * Math.sin(t * 28)); flat(floorB, e.x, 1.25, e.y, 0, 200 * k, 200 * k, CELL.ring, "255,245,190", 0.6); flat(floorB, e.x, 1.2, e.y, 0, 200, 200, CELL.glow, "255,220,90", 0.12 * k); }
+      if (e.type === "ultra") { const a = e.face - Math.PI / 2, bx = e.x + Math.cos(a) * e.r * 1.1, bz = e.y + Math.sin(a) * e.r * 1.1; bill(addB, bx, hh * 0.72, bz, e.r * (1.5 + 0.4 * Math.random()), CELL.glow, "255,70,40", 0.75); bill(addB, bx, hh * 0.72, bz, e.r * 0.5, CELL.glow, "255,240,220", 0.9); }
       // Warnfläche vor Sturmangriff
       if (e.mode === "wind") {
         const kk = 1 - Math.max(0, e.aiT) / 0.65, L = e.type === "abom" ? 380 : 260, a = Math.atan2(e.dirY, e.dirX);
@@ -2510,15 +2725,28 @@ void main() {
   // ------------------------------------------------------------------
   // Atmosphäre: Regen mit Spritzern, Blitze, Bodennebel, flackernde Lampen, Alarmlicht
   // ------------------------------------------------------------------
-  const atmo = { theme: "street", flash: 0, flashT: -9, bolt: 0, drops: [], splash: [], mist: [], outT: -9, nextOut: 0 };
+  const atmo = { theme: "street", weather: "rain", fest: "", flash: 0, flashT: -9, bolt: 0, drops: [], splash: [], mist: [], outT: -9, nextOut: 0, strings: [] };
+  const OUTDOOR = { street: true, markt: true };
+  const CONFETTI = ["255,74,90", "255,210,58", "74,209,255", "125,255,106", "255,122,224", "255,255,255"];
   let cinematic = true; // Blitze & Stromausfälle (Einstellung „Kino-Effekte“)
   const newDrop = (d, anyY) => { d.x = D.L - 140 + Math.random() * (D.R - D.L + 280); d.z = D.T - 260 + Math.random() * (D.B - D.T + 340); d.y = anyY ? Math.random() * 380 : 320 + Math.random() * 80; d.v = 820 + Math.random() * 280; return d; };
-  function setupAtmo(theme) {
-    atmo.theme = theme; atmo.flashT = -9; atmo.bolt = time + 4 + Math.random() * 6; atmo.nextOut = time + 8 + Math.random() * 8; atmo.splash.length = 0;
+  function setupAtmo(theme, weather, fest = "") {
+    // Wetter nur draußen (Straße, Altstadt); Nebel überall
+    const wx = weather || (theme === "street" ? "rain" : "none");
+    atmo.weather = OUTDOOR[theme] || wx === "fog" ? wx : "none";
+    atmo.theme = theme; atmo.fest = fest; atmo.flashT = -9; atmo.bolt = time + 4 + Math.random() * 6; atmo.nextOut = time + 8 + Math.random() * 8; atmo.splash.length = 0;
     atmo.drops.length = 0;
-    if (theme === "street") for (let i = 0; i < 300; i++) atmo.drops.push(newDrop({}, true));
+    const n = atmo.weather === "rain" || atmo.weather === "fog" && OUTDOOR[theme] ? 300 : atmo.weather === "snow" || atmo.weather === "confetti" ? 220 : 0;
+    for (let i = 0; i < n; i++) { const d = newDrop({}, true); d.c = i % CONFETTI.length; d.ph = Math.random() * TAU; atmo.drops.push(d); }
     atmo.mist.length = 0;
-    for (let i = 0; i < 12; i++) atmo.mist.push({ x: D.L + Math.random() * (D.R - D.L), z: D.T + Math.random() * (D.B - D.T), s: 90 + Math.random() * 120, v: 5 + Math.random() * 9, rot: Math.random() * TAU });
+    for (let i = 0; i < (atmo.weather === "fog" ? 22 : 12); i++) atmo.mist.push({ x: D.L + Math.random() * (D.R - D.L), z: D.T + Math.random() * (D.B - D.T), s: 90 + Math.random() * 120, v: 5 + Math.random() * 9, rot: Math.random() * TAU });
+    // Lichterketten quer über Altstadt und Festplätze
+    atmo.strings.length = 0;
+    if (theme === "markt" || ((fest === "weihnachten" || fest === "wiesn" || fest === "karneval") && theme === "street")) {
+      for (const [y0, dy] of [[D.T + 170, 40], [D.T + 420, -30], [D.T + 660, 30]]) {
+        for (let k = 0; k <= 22; k++) { const u = k / 22, x = D.L + u * (D.R - D.L), z = y0 + dy * u, h = 72 - Math.sin(u * Math.PI) * 18; atmo.strings.push([x, h, z, k]); }
+      }
+    }
   }
   function lampLevel(l, t) {
     let k = 1;
@@ -2529,9 +2757,10 @@ void main() {
   }
   const alarmPulse = (t) => Math.pow(Math.max(0, Math.sin(t * 3.4)), 3);
   function updateAtmo(dt, t) {
-    const n = atmo.theme === "street" ? Math.min(atmo.drops.length, quality >= 2 ? 300 : 180) : 0;
+    const n = Math.min(atmo.drops.length, quality >= 2 ? 300 : 180), slow = atmo.weather === "snow" || atmo.weather === "confetti";
     for (let i = 0; i < n; i++) {
       const d = atmo.drops[i];
+      if (slow) { d.y -= d.v * 0.09 * dt; d.x += Math.sin(t * 1.3 + d.ph) * 22 * dt; d.ph += dt * 3; if (d.y <= 0) newDrop(d, false); continue; }
       d.y -= d.v * dt; d.x += 70 * dt;
       if (d.y <= 0) { if (atmo.splash.length < 70 && d.x > D.L && d.x < D.R && d.z > D.T && d.z < D.B) atmo.splash.push({ x: d.x, z: d.z, t: 0 }); newDrop(d, false); }
     }
@@ -2540,7 +2769,7 @@ void main() {
     atmo.splash.length = j;
     for (const m of atmo.mist) { m.x += m.v * dt; m.rot += dt * 0.04; if (m.x - m.s > D.R + 80) { m.x = D.L - m.s; m.z = D.T + Math.random() * (D.B - D.T); } }
     // Blitz (Straße): doppeltes Aufflackern, Donner mit Laufzeit
-    if (cinematic && atmo.theme === "street" && t > atmo.bolt) {
+    if (cinematic && atmo.weather === "rain" && t > atmo.bolt) {
       atmo.bolt = t + 7 + Math.random() * 12; atmo.flashT = t;
       const delay = 0.4 + Math.random() * 1.3;
       if (window.GameAudio) GameAudio.thunder(delay, 0.6 + Math.random() * 0.4);
@@ -2557,16 +2786,25 @@ void main() {
     for (const c of room.cones) c.material.opacity = 0.075 * lampLevel(c.userData.lamp, t);
   }
   function drawAtmo(t) {
+    const n = Math.min(atmo.drops.length, quality >= 2 ? 300 : 180);
+    if (n && atmo.weather === "snow") for (let i = 0; i < n; i++) { const d = atmo.drops[i]; bill(normB, d.x, d.y, d.z, 2.6 + (i % 3) * 0.8, CELL.blob, "240,246,255", 0.9); }
+    else if (n && atmo.weather === "confetti") for (let i = 0; i < n; i++) { const d = atmo.drops[i]; bill(normB, d.x, d.y, d.z, 2.4, CELL.blob, CONFETTI[d.c], 1, d.ph); }
     // Regen: senkrechte Schlieren, zur Kamera gedreht
-    const n = atmo.theme === "street" ? Math.min(atmo.drops.length, quality >= 2 ? 300 : 180) : 0;
-    if (n) {
+    else if (n) {
       const [r, g, b] = lin("195,210,240"), hx = camR.x * 1.05, hz = camR.z * 1.05;
       for (let i = 0; i < n; i++) { const d = atmo.drops[i]; addB.add(d.x, d.y + 14, d.z, 1.6, 14, 0, hx, 0, hz, CELL.streak, r, g, b, 0.34 + atmo.flash * 0.4); }
       for (const sp of atmo.splash) { const k = sp.t / 0.3, rr = 2 + k * 9; flat(floorB, sp.x, 0.9, sp.z, 0, rr, rr, CELL.ring, "190,210,240", 0.45 * (1 - k)); }
     }
-    // Bodennebel
-    const tint = atmo.theme === "lab" ? "120,170,130" : atmo.theme === "hospital" ? "170,190,180" : "120,135,160";
-    for (const m of atmo.mist) flat(normB, m.x, 3 + (m.s % 7), m.z, m.rot, m.s, m.s * 0.7, CELL.smoke, tint, 0.12 + atmo.flash * 0.06);
+    // Bodennebel (Hafennebel deutlich dichter)
+    const tint = atmo.theme === "lab" ? "120,170,130" : atmo.theme === "hospital" ? "170,190,180" : atmo.theme === "markt" ? "150,140,130" : "120,135,160";
+    const ma = atmo.weather === "fog" ? 0.2 : 0.12;
+    for (const m of atmo.mist) flat(normB, m.x, 3 + (m.s % 7), m.z, m.rot, m.s, m.s * 0.7, CELL.smoke, tint, ma + atmo.flash * 0.06);
+    // Lichterketten: Weihnachtsmarkt warmweiß, Wiesn weiß-blau, Karneval bunt
+    for (const [x, h, z, k] of atmo.strings) {
+      const rgb = atmo.fest === "wiesn" ? (k % 2 ? "120,170,255" : "255,255,255") : atmo.fest === "karneval" ? CONFETTI[k % CONFETTI.length] : "255,206,130";
+      const tw = 0.75 + 0.25 * Math.sin(t * 3 + k * 1.7);
+      bill(addB, x, h, z, 7, CELL.glow, rgb, 0.8 * tw); bill(addB, x, h, z, 2.2, CELL.glow, "255,255,240", tw);
+    }
     // Labor: rotierender Alarmschein
     if (room && room.beacons.length) {
       const k = alarmPulse(t);
@@ -2595,6 +2833,26 @@ void main() {
         else if (k === 1) { deco.add(mesh(cyl(7, 6, 16, 10), slam("#e8c21a"), x, 8, z)); deco.add(mesh(cyl(7.5, 7.5, 2, 10), slam("#c9a514"), x, 17, z)); }
         else if (k === 2) { deco.add(mesh(box(14, 2, 14), slam("#6a7a80"), x, 10, z)); deco.add(mesh(box(2, 14, 14), slam("#6a7a80"), x + side * 6, 17, z)); for (const [dx, dz] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) deco.add(mesh(box(1.5, 10, 1.5), slam("#3a4248"), x + dx, 5, z + dz)); }
         else { deco.add(mesh(box(26, 3, 14), slam("#c8d0d4"), x - side * 4, 16, z)); deco.add(mesh(box(26, 2, 14), slam("#8a9298"), x - side * 4, 5, z)); deco.add(mesh(box(8, 4, 6), slam("#f4f4f0"), x - side * 6, 19.5, z + 2)); for (const [dx, dz] of [[-11, -6], [11, -6], [-11, 6], [11, 6]]) deco.add(mesh(box(1.5, 16, 1.5), slam("#4a5258"), x - side * 4 + dx, 8, z + dz)); }
+      } else if (w.theme === "markt") {
+        if (k === 0) {
+          // Gartenzwerg mit roter Zipfelmütze und weißem Bart
+          deco.add(mesh(cyl(3.6, 4.6, 8, 8), slam("#2f5a9a"), x, 4, z)); deco.add(mesh(ico(3.2, 1), slam("#f0c8a0"), x, 10.5, z));
+          deco.add(mesh(cone(3.6, 8, 8), slam("#c0281e"), x, 16, z)); deco.add(mesh(cone(2.4, 5, 6), slam("#f4f4f0"), x - side * 2.6, 8.4, z));
+          deco.add(mesh(cyl(4.5, 4.5, 1.2, 8), slam("#3a6a2a"), x, 0.6, z));
+        } else if (k === 1) {
+          // Litfaßsäule mit Plakaten
+          deco.add(mesh(cyl(9, 9, 44, 14), slam("#e8e0c8"), x, 22, z));
+          for (const [y, c] of [[12, "#c0281e"], [22, "#e8c21a"], [32, "#3a7fd0"]]) deco.add(mesh(cyl(9.3, 9.3, 7, 14), slam(c), x, y, z));
+          deco.add(mesh(cone(11, 8, 14), slam("#2f4a3a"), x, 48, z)); deco.add(mesh(cyl(10.5, 10.5, 2, 14), slam("#2f4a3a"), x, 44, z));
+        } else if (k === 2) {
+          deco.add(mesh(cyl(8, 6, 10, 10), slam("#7a5a3a"), x, 5, z));
+          for (let i = 0; i < 6; i++) deco.add(mesh(ico(2.2, 0), slam(i % 2 ? "#d8283a" : "#ffd23a"), x + Math.cos(i) * 4, 11 + (i % 2), z + Math.sin(i) * 4));
+          deco.add(mesh(ico(5, 1), slam("#3a6a2a"), x, 9.5, z));
+        } else {
+          // Fahrrad am Ständer
+          for (const dz of [-9, 9]) { const wh = mesh(torus(6, 0.9), slam("#1a1a1a"), x, 6.5, z + dz); wh.rotation.y = Math.PI / 2; deco.add(wh); }
+          deco.add(mesh(box(1.4, 1.4, 18), slam("#c0281e"), x, 10, z)); deco.add(mesh(box(1.2, 8, 1.2), slam("#c0281e"), x, 9, z - 3)); deco.add(mesh(box(5, 1, 3), slam("#222"), x, 13.5, z - 3));
+        }
       } else {
         if (k === 0 || k === 1) { deco.add(mesh(cyl(6, 6, 26, 12), slam("#3a4a58"), x, 13, z)); deco.add(mesh(cyl(6.3, 6.3, 3, 12), sbasic(k ? "#7fffb0" : "#ffcf4a"), x, 18, z)); deco.add(mesh(cyl(3, 3, 3, 8), slam("#8a949b"), x, 27, z)); }
         else if (k === 2) { deco.add(mesh(box(12, 22, 16), slam("#1e2328"), x, 11, z)); deco.add(mesh(box(1, 8, 11), sbasic("#4af0ff"), x - side * 6.2, 15, z)); }
@@ -2620,6 +2878,8 @@ void main() {
     for (const e of w.enemies) {
       if (e.burnT > 0 || e.type === "burner") lightCands.push([e.x, 26, e.y, "255,140,40", 1.4, 150, 4]);
       if (e.mode === "zap") lightCands.push([e.x, 40, e.y, "127,231,255", 2.2, 200, 7]);
+      if (e.type === "ultra") lightCands.push([e.x, 34, e.y, "255,60,40", 1.3 + Math.random() * 0.5, 170, 4]); // Bengalo flackert
+      if (e.mode === "whistle") lightCands.push([e.x, 40, e.y, "255,226,130", 1.6, 220, 6]);
     }
     for (const b of w.bullets) if (b.kind === "rocket") lightCands.push([b.x, 26, b.y, "255,160,60", 2, 160, 6]);
     let fires = 0;

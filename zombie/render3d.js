@@ -322,15 +322,22 @@ window.Render3D = (() => {
 
   // Menü: langsame Kamerafahrt um den Helden, flacher Blickwinkel
   let menuMode = false;
+  // Hauptmenü-Kamera: Einflug von oben, dann langsame Kreisfahrt um den Helden in Nahaufnahme.
+  // Ziehen dreht (menuOrbit), der Bewegungssensor neigt (setTilt), dazu leichtes Handkamera-Wackeln.
+  const menuCam = { yaw: 0, drag: false, tiltX: 0, tiltY: 0, t0: -1 };
   function placeMenuCamera(t, w) {
-    if (!menuMode) { menuMode = true; camera.clearViewOffset(); camera.fov = 40; camera.updateProjectionMatrix(); }
-    // Held im unteren Bilddrittel (unter den Menü-Buttons), Horde dahinter
-    const yaw = Math.sin(t * 0.06) * 0.7, elev = 0.58, d = 430;
+    if (!menuMode) { menuMode = true; menuCam.t0 = t; camera.fov = 36; camera.setViewOffset(D.W, D.H, 0, D.H * 0.075, D.W, D.H); camera.updateProjectionMatrix(); }
+    const k = Math.min(1, (t - menuCam.t0) / 3.4), ease = 1 - Math.pow(1 - k, 3);
+    if (!menuCam.drag) menuCam.yaw *= Math.exp(-0.35 * Math.min(0.1, frameDt)); // lässt man los, schwingt sie langsam zurück
+    const yaw = Math.PI + 0.42 + Math.sin(t * 0.07) * 0.32 + menuCam.yaw + menuCam.tiltX * 0.3;
+    const elev = 0.27 + menuCam.tiltY * 0.1 + (1 - ease) * 0.55, d = 400 + (1 - ease) * 520;
     const tx = w.player.x, tz = w.player.y;
-    camera.position.set(tx + Math.sin(yaw) * d * Math.cos(elev), Math.sin(elev) * d, tz + Math.cos(yaw) * d * Math.cos(elev));
-    camera.lookAt(tx - Math.sin(yaw) * 300, 0, tz - Math.cos(yaw) * 300);
+    camera.position.set(tx + Math.sin(yaw) * d * Math.cos(elev), 20 + Math.sin(elev) * d, tz + Math.cos(yaw) * d * Math.cos(elev));
+    camera.lookAt(tx, 34, tz);
+    camera.rotateZ(Math.sin(t * 0.83) * 0.007 + Math.sin(t * 1.9) * 0.003);
     camera.updateMatrixWorld();
   }
+  let frameDt = 0.016;
   // Spielstart: Kamera fliegt aus der Menü-Perspektive in die Spielansicht
   let fly = null;
   function placeCamera(dist, sx = 0, sz = 0) {
@@ -818,6 +825,8 @@ void main() {
     const boss = w.isBossRoom;
     hemi.intensity = th.hemi * (boss ? 0.75 : 1);
     moon.color.setHex(th.moon); moon.intensity = th.moonI * (boss ? 0.7 : 1);
+    const baseHemi = hemi.intensity, baseMoon = moon.intensity;
+    setupAtmo(w.theme);
     scene.fog.color.setHex(th.fog);
     renderer.setClearColor(th.fog, 1);
 
@@ -921,18 +930,31 @@ void main() {
     const lamp = (x, z, nx, nz) => {
       deco.add(mesh(box(nx ? 5 : 16, 6, nz ? 5 : 16), lampMat, x + nx * 3, 48, z + nz * 3));
       deco.add(mesh(box(nx ? 3 : 20, 3, nz ? 3 : 20), slam("#2a2a2a"), x + nx * 1.5, 52, z + nz * 1.5));
-      lamps.push({ x: x + nx * 6, z: z + nz * 6, px: x + nx * 62, pz: z + nz * 62, flicker: lamps.length === 2 && w.theme !== "hospital" });
+      lamps.push({ x: x + nx * 6, z: z + nz * 6, px: x + nx * 62, pz: z + nz * 62, flicker: w.theme === "hospital" ? lamps.length === 1 || lamps.length === 4 : lamps.length === 2, fluor: w.theme === "hospital" });
     };
     lamp(D.L, D.T + 190, 1, 0); lamp(D.L, D.T + 540, 1, 0);
     lamp(D.R, D.T + 360, -1, 0); lamp(D.R, D.T + 700, -1, 0);
     lamp(D.L + 90, D.T, 0, 1); lamp(D.R - 90, D.T, 0, 1);
+    // Volumetrische Lichtkegel: staubige Luft unter den Lampen (additiv, kostet nur Füllrate)
+    const cones = [];
+    const coneGeo = new T3.ConeGeometry(46, 96, 16, 1, true); coneGeo.translate(0, -48, 0); coneGeo.rotateX(-Math.PI / 2);
+    const coneTex = tex("cone", 4, 64, (cg) => { const gr = cg.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, "#000"); gr.addColorStop(0.6, "#777"); gr.addColorStop(1, "#fff"); cg.fillStyle = gr; cg.fillRect(0, 0, 4, 64); });
+    for (const l of lamps) {
+      const cm = new T3.MeshBasicMaterial({ map: coneTex, color: new T3.Color(lr, lg, lb), transparent: true, opacity: 0.075, blending: T3.AdditiveBlending, depthWrite: false, side: T3.DoubleSide, fog: false });
+      const m = new T3.Mesh(coneGeo, cm); m.position.set(l.x, 49, l.z); m.lookAt(l.px, 0, l.pz); m.renderOrder = 25; m.userData.lamp = l;
+      g.add(m); cones.push(m);
+    }
+    // Labor: Alarm-Rundumleuchten über der Tür
+    const beacons = w.theme === "lab" ? [[D.W / 2 - D.DOOR_W / 2 - 26, D.T - 8], [D.W / 2 + D.DOOR_W / 2 + 26, D.T - 8]] : [];
+    for (const [bx, bz] of beacons) { deco.add(mesh(cyl(6, 7, 6, 10), slam("#2a2a2a"), bx, 64, bz)); deco.add(mesh(cyl(5, 5, 8, 10), sbasic("#ff3020"), bx, 71, bz)); }
+    addProps(deco, w);
 
     bakeStatic(deco);
     deco.traverse((c) => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
     g.add(deco);
     uncached = false;
 
-    room = { group: g, floorTex, glossTex, door, lamps, lampRgb, obs };
+    room = { group: g, floorTex, glossTex, door, lamps, lampRgb, obs, cones, beacons, baseHemi, baseMoon };
     builtFloor = fc;
     renderer.shadowMap.needsUpdate = true;
     warmPending = true; // neue Raum-Materialien (Wände, Hindernisse) gleich mit übersetzen
@@ -976,6 +998,15 @@ void main() {
     dog: [{ shirt: "#4f3f32", skin: "#6b5644" }],
     abom: [{ skin: "#8a4a6a" }],
     mother: [{ skin: "#3f5a3a" }],
+    // v1.9
+    healer: [{ shirt: "#2b2a24", pants: "#22201b", skin: "#8fa67a", hood: true, robe: "#3a3326", staff: true, eye: "#8cff8a", torn: true }],
+    thrower: [{ shirt: "#4a4f3a", pants: "#2f3326", skin: "#7c8c6a", brute: true, rock: true }],
+    burrower: [{ shirt: "#5a4630", pants: "#3a3024", skin: "#8a9a72", hat: "miner", pick: true, torn: true }],
+    phantom: [{ shirt: "#26232c", pants: "#1c1a22", skin: "#c9cfd8", longHair: "#0e0c12", eye: "#e8f0ff", thin: true, lean: 0.18, torn: true }],
+    warden: [{ shirt: "#2f3a48", pants: "#232b36", skin: "#7f9474", gen: true, eye: "#8fd4ff", tactical: true }],
+    bloater: [{ shirt: "#6a7a3a", pants: "#4a4a2a", skin: "#9aa84a", bloat: true, pustules: "#d8ff5a", eye: "#eaff00" }],
+    gunner: [{ shirt: "#4f5a38", pants: "#3e4630", skin: "#8a9c74", hat: "helmet", tactical: true, rifle: true }],
+    nest: [{ skin: "#6a3a5a" }],
   };
 
   // Jede Figur bekommt eigene Materialien für Treffer-Blitz/Eis/Wut (emissive)
@@ -1128,6 +1159,32 @@ void main() {
     if (P.burning) {
       for (let i = 0; i < 8; i++) { const a = i * 2.1; B.add(mesh(box(0.05 * r, 0.24 * r, 0.04 * r), sbasic("#ff8a2a"), 0.36 * r * Math.cos(a), 1.2 * r + (i % 4) * 0.2 * r, 0.48 * r * Math.sin(a))); }
       B.add(mesh(box(0.34 * r, 0.5 * r, 0.22 * r), slam("#a01818"), -0.44 * r, 1.6 * r, 0));
+    }
+    if (P.hat === "miner") {
+      const h = mesh(ico(hr * 1.14, 1), slam("#c9a21a"), -0.02 * r, 0.12 * r, 0); h.scale.set(1, 0.66, 1); head.add(h);
+      head.add(mesh(cyl(0.1 * r, 0.12 * r, 0.08 * r, 8), sbasic("#fff6c0"), hr * 0.92, 0.26 * r, 0).rotateZ(Math.PI / 2));
+    }
+    const armR = M.arms.find((A) => A.s === 1), armL = M.arms.find((A) => A.s === -1);
+    if (P.robe) { const robe = mesh(cyl(0.46 * r, 0.66 * r, 1.25 * r, 10), slam(P.robe), -0.04 * r, 0.62 * r, 0); robe.scale.set(0.9, 1, 1.15); B.add(robe); }
+    if (P.staff && armR) {
+      const st = mesh(cyl(0.05 * r, 0.05 * r, 2.6 * r, 6), slam("#5a4630"), 1.04 * r, 0.5 * r, 0); armR.g.add(st);
+      armR.g.add(mesh(ico(0.2 * r, 1), sbasic("#8cff8a"), 1.04 * r, 1.85 * r, 0));
+    }
+    if (P.rifle && armR) {
+      armR.g.add(mesh(box(1.7 * r, 0.2 * r, 0.16 * r), slam("#1c1e1a"), 1.15 * r, 0.06 * r, -0.12 * r));
+      armR.g.add(mesh(box(0.34 * r, 0.12 * r, 0.12 * r), slam("#2c2f28"), 0.85 * r, 0.22 * r, -0.12 * r));
+      armR.g.add(mesh(box(0.1 * r, 0.36 * r, 0.12 * r), slam("#2c2f28"), 0.7 * r, -0.16 * r, -0.12 * r));
+    }
+    if (P.rock && armR) { const rk = mesh(ico(0.55 * r, 0), slam("#7a756c"), 1.2 * r, 0.25 * r, 0); rk.scale.set(1, 0.85, 1.1); armR.g.add(rk); }
+    if (P.pick && armL) {
+      armL.g.add(mesh(cyl(0.05 * r, 0.05 * r, 1.4 * r, 6), slam("#6a4a2a"), 1.04 * r, 0.3 * r, 0));
+      const hd = mesh(box(0.12 * r, 0.12 * r, 0.9 * r), slam("#9aa3ad"), 1.04 * r, 0.95 * r, 0); armL.g.add(hd);
+    }
+    if (P.gen) {
+      B.add(mesh(box(0.42 * r, 0.8 * r, 0.7 * r), slam("#4a5568"), -0.48 * r, 1.6 * r, 0));
+      B.add(mesh(ico(0.2 * r, 1), sbasic("#7fd0ff"), -0.72 * r, 1.6 * r, 0));
+      B.add(mesh(cyl(0.03 * r, 0.03 * r, 0.9 * r, 5), slam("#9aa3ad"), -0.56 * r, 2.3 * r, 0.2 * r));
+      B.add(mesh(ico(0.07 * r, 0), sbasic("#ff4a3a"), -0.56 * r, 2.76 * r, 0.2 * r));
     }
     if (P.coils) for (const s of [-1, 1]) {
       B.add(mesh(cyl(0.1 * r, 0.1 * r, 0.7 * r, 8), sbasic("#7fe7ff"), -0.46 * r, 1.75 * r, s * 0.22 * r));
@@ -1456,7 +1513,23 @@ void main() {
     M.mats = [lit, ...kept];
   }
 
-  const builders = { crawler: buildCrawler, dog: buildDog, rat: buildRat, abom: buildAbom, mother: buildMother };
+  // Brutnest: pulsierender Fleischsack mit Ranken und leuchtenden Eiern
+  function buildNest(r, P) {
+    const M = makeModel("nest");
+    const skin = flashMat(M, P.skin), dark = flashMat(M, "#3a1a30");
+    const sac = group(0, 0.5 * r, 0);
+    for (const [x, y, z, k] of [[0, 0, 0, 0.85], [-0.32, 0.12, -0.36, 0.55], [0.34, 0.08, -0.3, 0.5], [-0.26, 0.04, 0.42, 0.52], [0.32, 0.1, 0.36, 0.48], [0.02, 0.5, 0, 0.45]]) sac.add(mesh(ico(k * r, 1), skin, x * r, y * r, z * r));
+    for (let i = 0; i < 8; i++) { const a = i * 0.8; sac.add(mesh(ico(0.1 * r + (i % 3) * 0.03 * r, 0), sbasic("#e070e0"), Math.cos(a) * 0.66 * r, 0.05 * r + (i % 3) * 0.2 * r, Math.sin(a) * 0.66 * r)); }
+    sac.add(mesh(ico(0.2 * r, 0), basic(0x1a0510), 0.02 * r, 0.9 * r, 0));
+    M.body.add(sac); M.extra.sac = sac;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * TAU, t2 = mesh(cyl(0.05 * r, 0.12 * r, 1.4 * r, 5), dark, Math.cos(a) * 0.95 * r, 0.12 * r, Math.sin(a) * 0.95 * r);
+      t2.rotation.set(Math.sin(a) * 1.35, 0, -Math.cos(a) * 1.35); M.body.add(t2);
+    }
+    M.height = 1.7 * r;
+    return M;
+  }
+  const builders = { crawler: buildCrawler, dog: buildDog, rat: buildRat, abom: buildAbom, mother: buildMother, nest: buildNest };
   const pools = new Map();
   function acquireModel(type, r, variant) {
     const pal = PAL[type] || PAL.walker, pi = variant % pal.length;
@@ -1529,6 +1602,8 @@ void main() {
     else if (e.mode === "zap") { const k = Math.random() < 0.5 ? 0.7 : 0.2; r = k * 0.4; g = k * 0.9; b = k; }
     else if (e.slowT > 0) { r = 0.15; g = 0.4; b = 0.7; }
     else if (e.burnT > 0 || e.type === "burner") { const k = 0.3 + 0.2 * Math.sin(t * 20 + e.wob); r = k; g = k * 0.4; }
+    else if (e.shield > 0) { const k = 0.22 + 0.1 * Math.sin(t * 9 + e.wob); r = k * 0.35; g = k * 0.7; b = k; }
+    else if (e.type === "phantom") { const k = 0.3 + 0.12 * Math.sin(t * 7 + e.wob); r = k * 0.6; g = k * 0.5; b = k; }
     else if (e.elite) { const k = 0.18 + 0.1 * Math.sin(t * 5); r = k; g = k * 0.75; }
     for (const m of M.mats) m.emissive.setRGB(r, g, b);
   }
@@ -1943,6 +2018,7 @@ void main() {
       M.root.scale.setScalar(s);
       animate(M, e, t, near);
       tint(M, e, t);
+      M.root.visible = !e.under && (e.type !== "phantom" || (e.glitchT > 0 ? Math.random() < 0.5 : Math.random() > 0.04));
     }
     // Gestorbene: Pose und Flugbahn kommen aus der Körper-Physik des Spiels
     for (const c of w.corpses) {
@@ -2145,6 +2221,7 @@ void main() {
     let a = 0, pk = 0, gr = 0, bo = 0, rk = 0, dk = 0;
     for (const b of w.eBullets) {
       const s = b.r * 1.1;
+      if (b.slug) continue; // Gewehrkugeln als Leuchtspur (fillBatches)
       if (b.pink) { if (pk < 200) inst(pinkIM, pk++, b.x, 18, b.y, 0, 0, s, s, s); } else if (a < 200) inst(acidIM, a++, b.x, 18, b.y, 0, 0, s, s, s);
     }
     for (const b of w.bullets) {
@@ -2245,7 +2322,7 @@ void main() {
   }
 
   const FIRE = ["200,60,20", "255,140,40", "255,220,120"];
-  const EYE = { spitter: "234,255,0", abom: "234,255,0", armored: "80,170,230", burner: "255,176,58", screamer: "255,74,240", splitter: "255,106,213", electro: "127,231,255" };
+  const EYE = { spitter: "234,255,0", abom: "234,255,0", armored: "80,170,230", burner: "255,176,58", screamer: "255,74,240", splitter: "255,106,213", electro: "127,231,255", healer: "140,255,138", phantom: "232,240,255", warden: "143,212,255", bloater: "234,255,0", nest: "224,112,224" };
   const fireRgb = (k) => FIRE[k > 0.6 ? 2 : k > 0.3 ? 1 : 0];
 
   function fillBatches(w, t) {
@@ -2265,6 +2342,7 @@ void main() {
         case "bubble": bill(addB, q.x, 30 + (1 - k) * 20, q.y, q.size, CELL.glow, "140,255,74", k * 0.8); break;
         case "ice": bill(addB, q.x, 24, q.y, q.size, CELL.glow, "170,230,255", k * 0.9); break;
         case "drip": bill(addB, q.x, 18, q.y, q.size * 2, CELL.glow, q.rgb, k * 0.5); break;
+        case "gas": bill(normB, q.x, 12 + (1 - k) * 16, q.y, 26 * q.size, CELL.smoke, q.rgb, Math.min(1, k * 1.6) * 0.42, q.rot); break;
         case "smoke": bill(normB, q.x, 20 + (1 - k) * 40, q.y, 24 * q.size, CELL.smoke, "120,120,115", Math.min(1, k * 1.4) * 0.7, q.rot); break;
         case "blood": {
           // schnelle Tropfen als Streifen in Flugrichtung, langsame als runde Tropfen
@@ -2328,11 +2406,31 @@ void main() {
       }
       bill(addB, z.x2, 26, z.y2, 22, CELL.glow, "127,231,255", k);
     }
+    // Wühler unter dem Boden: wandernder Erdhügel
+    for (const e of w.enemies) if (e.under === "burrow") { flat(floorB, e.x, 1.1, e.y, e.face, 16, 11, CELL.blob, "60,46,32", 0.85); flat(floorB, e.x, 1.2, e.y, e.face, 9, 6, CELL.blob, "110,90,66", 0.7); }
+    // Geworfene Brocken mit Zielkreis
+    for (const q of w.lobs || []) {
+      const k = Math.min(1, q.t / q.T);
+      flat(floorB, q.x1, 1.3, q.y1, 0, q.r, q.r, CELL.ring, "255,60,40", 0.55 + 0.35 * Math.sin(t * 24));
+      flat(floorB, q.x1, 1.2, q.y1, 0, q.r * k, q.r * k, CELL.glow, "255,60,40", 0.4);
+      bill(normB, q.x, q.z + 6, q.y, 14, CELL.gib, "122,117,108", 1, q.spin);
+      flat(floorB, q.x, 0.9, q.y, 0, 10, 10, CELL.blob, "0,0,0", 0.35);
+    }
+    // Strahlen: Heilung, Schildverbindung, Laser-Visier
+    for (const b of w.beams || []) {
+      const k = Math.min(1, (b.life / b.max) * 2), dx = b.x2 - b.x1, dy = b.y2 - b.y1, len = Math.hypot(dx, dy) || 1, a = Math.atan2(dy, dx);
+      flat(addB, (b.x1 + b.x2) / 2, b.h || 24, (b.y1 + b.y2) / 2, a, len / 2, b.w * 1.4, CELL.bolt, b.rgb, 0.45 * k);
+      flat(addB, (b.x1 + b.x2) / 2, (b.h || 24) + 0.5, (b.y1 + b.y2) / 2, a, len / 2, b.w * 0.4, CELL.bolt, "255,255,255", 0.6 * k);
+      bill(addB, b.x2, b.h || 24, b.y2, b.w * 4, CELL.glow, b.rgb, 0.8 * k);
+    }
     // Markierungsring unter dem Spieler
     flat(normB, p.x, 0.9, p.y, 0, 25, 25, CELL.ring, "140,255,74", 0.5);
     flat(floorB, p.x, 1, p.y, 0, 30, 30, CELL.glow, "140,255,74", 0.18);
     // Gegner-Projektile, XP-Kugeln, Augen, Status
-    for (const b of w.eBullets) bill(addB, b.x, 18, b.y, b.r * 3.2, CELL.glow, b.rgb, 0.7);
+    for (const b of w.eBullets) {
+      if (b.slug) { const sp = Math.hypot(b.vx, b.vy) || 1; flat(addB, b.x - (b.vx / sp) * 14, 22, b.y - (b.vy / sp) * 14, Math.atan2(b.vy, b.vx), 14, 2, CELL.streak, "255,190,90", 1); bill(addB, b.x, 22, b.y, 9, CELL.glow, "255,220,150", 0.9); continue; }
+      bill(addB, b.x, 18, b.y, b.r * 3.2, CELL.glow, b.rgb, 0.7);
+    }
     for (const o of w.orbs) if (o.type === "heal") { bill(addB, o.x, 9, o.y, 20 + Math.sin(t * 6) * 3, CELL.glow, "120,255,140", 0.55); flat(floorB, o.x, 0.9, o.y, 0, 16, 16, CELL.ring, "120,255,140", 0.6); }
     for (const o of w.orbs) if (o.type === "xp") { const y = 12 + Math.sin(t * 6 + o.x) * 2; bill(addB, o.x, y, o.y, 11, CELL.glow, "90,200,255", 0.85); bill(addB, o.x, y, o.y, 4, CELL.glow, "220,250,255", 1); }
     for (const e of w.enemies) {
@@ -2348,6 +2446,12 @@ void main() {
       if (e.elite) { flat(floorB, e.x, 1, e.y, 0, e.r * 2.6, e.r * 2.6, CELL.glow, "255,200,80", 0.45 + 0.15 * Math.sin(t * 5)); flat(floorB, e.x, 1.1, e.y, t, e.r * 1.8, e.r * 1.8, CELL.ring, "255,215,110", 0.6); }
       if (e.type === "burner") bill(addB, e.x, hh * 0.6 + (e.jumpZ || 0), e.y, e.r * 2.2, CELL.glow, "255,140,40", 0.45 + 0.15 * Math.sin(t * 17 + e.wob));
       if (e.type === "electro") bill(addB, e.x - fx * e.r * 0.5, hh * 0.75, e.y - fy * e.r * 0.5, e.r * (e.mode === "zap" ? 2.4 : 1.1), CELL.glow, "127,231,255", e.mode === "zap" ? 0.8 : 0.35);
+      if (e.shield > 0) { const k = 0.45 + 0.2 * Math.sin(t * 12 + e.wob); bill(addB, e.x, hh * 0.5, e.y, e.r * 2.6, CELL.ring, "140,210,255", k); bill(addB, e.x, hh * 0.5, e.y, e.r * 2.4, CELL.glow, "120,190,255", 0.18); flat(floorB, e.x, 1.2, e.y, t * 2, e.r * 1.8, e.r * 1.8, CELL.ring, "140,210,255", k * 0.8); }
+      if (e.type === "healer") { bill(addB, e.x + fx * e.r * 1.2, hh * 1.1, e.y + fy * e.r * 1.2, e.r * (e.mode === "heal" ? 1.6 : 0.9), CELL.glow, "140,255,138", 0.7); }
+      if (e.type === "warden") bill(addB, e.x - fx * e.r * 0.75, hh * 0.68, e.y - fy * e.r * 0.75, e.r * (0.9 + 0.2 * Math.sin(t * 6)), CELL.glow, "127,208,255", 0.6);
+      if (e.type === "burrower") bill(addB, e.x + fx * e.r * 0.55, hh * 1.02, e.y + fy * e.r * 0.55, e.r * 0.7, CELL.glow, "255,246,192", 0.9);
+      if (e.type === "phantom") bill(addB, e.x, hh * 0.6, e.y, e.r * 2.2, CELL.glow, "150,110,220", 0.18 + 0.08 * Math.sin(t * 9 + e.wob));
+      if (e.type === "nest") flat(floorB, e.x, 1, e.y, 0, e.r * 2.2, e.r * 2.2, CELL.glow, "200,80,200", 0.25 + 0.1 * Math.sin(t * 4 + e.wob));
       if (e.mode === "crouch") { const a = Math.atan2(e.dirY, e.dirX), L = 200; flat(normB, e.x + Math.cos(a) * L / 2, 1.2, e.y + Math.sin(a) * L / 2, a, L / 2, e.r * 0.8, CELL.band, "255,70,50", 0.3 + 0.25 * Math.sin(t * 30)); }
       if (e.mode === "zap") { const rr = 150 * (1 - Math.max(0, e.aiT) / 0.75 * 0.4); flat(floorB, e.x, 1.3, e.y, 0, rr, rr, CELL.ring, "127,231,255", 0.55 + 0.3 * Math.sin(t * 25)); }
       // Warnfläche vor Sturmangriff
@@ -2383,15 +2487,122 @@ void main() {
       if (th === "lab") bill(addB, a.x, y, a.y, a.size * 2.5, CELL.glow, "140,255,90", 0.3 + 0.2 * Math.sin(a.ph * 2));
       else bill(normB, a.x, y, a.y, a.size * 1.2, CELL.blob, th === "street" ? "190,190,190" : "230,240,235", 0.35);
     }
+    drawAtmo(t);
+    // Menü: Lichtbalken auf dem Polizeiwagen
+    if (w.menuCam) for (const o of w.obstacles) if (o.kind === "car") {
+      const cx = o.x + o.w / 2, cz = o.y + o.h / 2, red = Math.floor(t * 4) % 2 === 0;
+      bill(addB, cx - 8, 46, cz, red ? 30 : 12, CELL.glow, "255,40,40", red ? 1 : 0.35);
+      bill(addB, cx + 8, 46, cz, red ? 12 : 30, CELL.glow, "60,110,255", red ? 0.35 : 1);
+      flat(floorB, cx, 1, cz, 0, 120, 120, CELL.glow, red ? "255,40,40" : "60,110,255", 0.22);
+    }
     // Wandlampen
     if (room) for (let i = 0; i < room.lamps.length; i++) {
       const l = room.lamps[i];
-      const fl = l.flicker ? (Math.sin(t * 23) + Math.sin(t * 7.3 + 1) > 1.25 ? 0.15 : 1) : 1;
+      const fl = lampLevel(l, t);
       flat(floorB, l.px, 0.8, l.pz, 0, 92, 92, CELL.glow, room.lampRgb, 0.3 * fl);
       bill(addB, l.x, 48, l.z, 15, CELL.glow, room.lampRgb, 0.95 * fl);
       bill(addB, l.x, 48, l.z, 5, CELL.glow, "255,255,240", fl);
     }
     addB.end(); normB.end(); floorB.end();
+  }
+
+
+  // ------------------------------------------------------------------
+  // Atmosphäre: Regen mit Spritzern, Blitze, Bodennebel, flackernde Lampen, Alarmlicht
+  // ------------------------------------------------------------------
+  const atmo = { theme: "street", flash: 0, flashT: -9, bolt: 0, drops: [], splash: [], mist: [], outT: -9, nextOut: 0 };
+  let cinematic = true; // Blitze & Stromausfälle (Einstellung „Kino-Effekte“)
+  const newDrop = (d, anyY) => { d.x = D.L - 140 + Math.random() * (D.R - D.L + 280); d.z = D.T - 260 + Math.random() * (D.B - D.T + 340); d.y = anyY ? Math.random() * 380 : 320 + Math.random() * 80; d.v = 820 + Math.random() * 280; return d; };
+  function setupAtmo(theme) {
+    atmo.theme = theme; atmo.flashT = -9; atmo.bolt = time + 4 + Math.random() * 6; atmo.nextOut = time + 8 + Math.random() * 8; atmo.splash.length = 0;
+    atmo.drops.length = 0;
+    if (theme === "street") for (let i = 0; i < 300; i++) atmo.drops.push(newDrop({}, true));
+    atmo.mist.length = 0;
+    for (let i = 0; i < 12; i++) atmo.mist.push({ x: D.L + Math.random() * (D.R - D.L), z: D.T + Math.random() * (D.B - D.T), s: 90 + Math.random() * 120, v: 5 + Math.random() * 9, rot: Math.random() * TAU });
+  }
+  function lampLevel(l, t) {
+    let k = 1;
+    if (l.flicker) k = l.fluor ? (Math.sin(t * 31 + l.x) + Math.sin(t * 5.1 + l.z) > 1.4 ? 0.2 : Math.random() < 0.03 ? 0.5 : 1) : Math.sin(t * 23) + Math.sin(t * 7.3 + 1) > 1.25 ? 0.15 : 1;
+    const ot = t - atmo.outT;
+    if (ot >= 0 && ot < 0.6) k *= Math.sin(ot * 70) > 0 ? 0.08 : 0.7; // kurzer Stromausfall
+    return k;
+  }
+  const alarmPulse = (t) => Math.pow(Math.max(0, Math.sin(t * 3.4)), 3);
+  function updateAtmo(dt, t) {
+    const n = atmo.theme === "street" ? Math.min(atmo.drops.length, quality >= 2 ? 300 : 180) : 0;
+    for (let i = 0; i < n; i++) {
+      const d = atmo.drops[i];
+      d.y -= d.v * dt; d.x += 70 * dt;
+      if (d.y <= 0) { if (atmo.splash.length < 70 && d.x > D.L && d.x < D.R && d.z > D.T && d.z < D.B) atmo.splash.push({ x: d.x, z: d.z, t: 0 }); newDrop(d, false); }
+    }
+    let j = 0;
+    for (const sp of atmo.splash) if ((sp.t += dt) < 0.3) atmo.splash[j++] = sp;
+    atmo.splash.length = j;
+    for (const m of atmo.mist) { m.x += m.v * dt; m.rot += dt * 0.04; if (m.x - m.s > D.R + 80) { m.x = D.L - m.s; m.z = D.T + Math.random() * (D.B - D.T); } }
+    // Blitz (Straße): doppeltes Aufflackern, Donner mit Laufzeit
+    if (cinematic && atmo.theme === "street" && t > atmo.bolt) {
+      atmo.bolt = t + 7 + Math.random() * 12; atmo.flashT = t;
+      const delay = 0.4 + Math.random() * 1.3;
+      if (window.GameAudio) GameAudio.thunder(delay, 0.6 + Math.random() * 0.4);
+      if (window.__fx4d) window.__fx4d("thunder", delay * 1000);
+    }
+    const ft = t - atmo.flashT;
+    atmo.flash = ft < 0 ? 0 : ft < 0.07 ? 1 : ft < 0.15 ? 0.2 : ft < 0.22 ? 0.8 : Math.max(0, 0.8 - (ft - 0.22) * 3.5);
+    // Krankenhaus: Stromausfall-Flackern ab und zu
+    if (cinematic && atmo.theme === "hospital" && t > atmo.nextOut) { atmo.nextOut = t + 11 + Math.random() * 12; atmo.outT = t; }
+    if (!room) return;
+    const ot = t - atmo.outT, out = ot >= 0 && ot < 0.6 ? (Math.sin(ot * 70) > 0 ? 0.55 : 0.85) : 1;
+    hemi.intensity = room.baseHemi * (1 + atmo.flash * 1.5) * out;
+    moon.intensity = room.baseMoon * (1 + atmo.flash * 2.4);
+    for (const c of room.cones) c.material.opacity = 0.075 * lampLevel(c.userData.lamp, t);
+  }
+  function drawAtmo(t) {
+    // Regen: senkrechte Schlieren, zur Kamera gedreht
+    const n = atmo.theme === "street" ? Math.min(atmo.drops.length, quality >= 2 ? 300 : 180) : 0;
+    if (n) {
+      const [r, g, b] = lin("195,210,240"), hx = camR.x * 1.05, hz = camR.z * 1.05;
+      for (let i = 0; i < n; i++) { const d = atmo.drops[i]; addB.add(d.x, d.y + 14, d.z, 1.6, 14, 0, hx, 0, hz, CELL.streak, r, g, b, 0.34 + atmo.flash * 0.4); }
+      for (const sp of atmo.splash) { const k = sp.t / 0.3, rr = 2 + k * 9; flat(floorB, sp.x, 0.9, sp.z, 0, rr, rr, CELL.ring, "190,210,240", 0.45 * (1 - k)); }
+    }
+    // Bodennebel
+    const tint = atmo.theme === "lab" ? "120,170,130" : atmo.theme === "hospital" ? "170,190,180" : "120,135,160";
+    for (const m of atmo.mist) flat(normB, m.x, 3 + (m.s % 7), m.z, m.rot, m.s, m.s * 0.7, CELL.smoke, tint, 0.12 + atmo.flash * 0.06);
+    // Labor: rotierender Alarmschein
+    if (room && room.beacons.length) {
+      const k = alarmPulse(t);
+      for (const [bx, bz] of room.beacons) { bill(addB, bx, 72, bz, 26 * (0.4 + k), CELL.glow, "255,50,30", 0.3 + 0.7 * k); flat(floorB, bx, 1.4, bz + 140, t * 3.4, 150, 22, CELL.band, "255,40,30", 0.18 * k); }
+    }
+  }
+  // 3D-Requisiten an den Wänden: rein dekorativ, keine Kollision (Kugeln fliegen hindurch)
+  function addProps(deco, w) {
+    let s = 7 + (w.obstacles ? w.obstacles.length * 13 : 0) + w.theme.length * 31;
+    const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    const free = (x, z, r) => !(w.obstacles || []).some((o) => x + r > o.x - 10 && x - r < o.x + o.w + 10 && z + r > o.y - 10 && z - r < o.y + o.h + 10);
+    const spots = [];
+    for (let i = 0; i < 26 && spots.length < 9; i++) {
+      const side = R() < 0.5 ? -1 : 1, x = side < 0 ? D.L + 15 : D.R - 15, z = D.T + 70 + R() * (D.B - D.T - 140);
+      if (free(x, z, 14) && !spots.some(([px, pz]) => Math.abs(pz - z) < 60 && px === x)) spots.push([x, z, side]);
+    }
+    for (const [x, z, side] of spots) {
+      const k = Math.floor(R() * 4);
+      if (w.theme === "street") {
+        if (k === 0) { deco.add(mesh(box(14, 2, 14), slam("#1a1a1a"), x, 1, z)); deco.add(mesh(cone(6, 18, 8), slam("#ff6a1a"), x, 11, z)); deco.add(mesh(cyl(3.6, 4.4, 3, 8), slam("#f0f0e8"), x, 11, z)); }
+        else if (k === 1) for (const y of [3.2, 9.6]) { const tr = mesh(torus(7, 3), slam("#1c1c1e"), x, y, z); tr.rotation.x = Math.PI / 2; deco.add(tr); }
+        else if (k === 2) for (const [dx, dz, rr] of [[0, 0, 8], [-side * 6, 10, 6.5], [-side * 3, -9, 6]]) { const bag = mesh(ico(rr, 1), slam("#141618"), x + dx, rr * 0.7, z + dz); bag.scale.set(1, 0.75, 1); deco.add(bag); }
+        else { deco.add(mesh(cyl(4, 5, 16, 10), slam("#b8231c"), x, 8, z)); deco.add(mesh(ico(4.6, 1), slam("#b8231c"), x, 16, z)); for (const d of [-1, 1]) { const c2 = mesh(cyl(1.6, 1.6, 4, 6), slam("#d8b23a"), x, 10, z + d * 5); c2.rotation.x = Math.PI / 2; deco.add(c2); } }
+      } else if (w.theme === "hospital") {
+        if (k === 0) { deco.add(mesh(cyl(0.9, 0.9, 42, 6), slam("#b8c0c4"), x, 21, z)); deco.add(mesh(box(6, 10, 3), slam("#cfe8e0"), x, 36, z)); deco.add(mesh(box(16, 1.5, 2), slam("#5a6066"), x, 1, z)); deco.add(mesh(box(2, 1.5, 16), slam("#5a6066"), x, 1, z)); }
+        else if (k === 1) { deco.add(mesh(cyl(7, 6, 16, 10), slam("#e8c21a"), x, 8, z)); deco.add(mesh(cyl(7.5, 7.5, 2, 10), slam("#c9a514"), x, 17, z)); }
+        else if (k === 2) { deco.add(mesh(box(14, 2, 14), slam("#6a7a80"), x, 10, z)); deco.add(mesh(box(2, 14, 14), slam("#6a7a80"), x + side * 6, 17, z)); for (const [dx, dz] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) deco.add(mesh(box(1.5, 10, 1.5), slam("#3a4248"), x + dx, 5, z + dz)); }
+        else { deco.add(mesh(box(26, 3, 14), slam("#c8d0d4"), x - side * 4, 16, z)); deco.add(mesh(box(26, 2, 14), slam("#8a9298"), x - side * 4, 5, z)); deco.add(mesh(box(8, 4, 6), slam("#f4f4f0"), x - side * 6, 19.5, z + 2)); for (const [dx, dz] of [[-11, -6], [11, -6], [-11, 6], [11, 6]]) deco.add(mesh(box(1.5, 16, 1.5), slam("#4a5258"), x - side * 4 + dx, 8, z + dz)); }
+      } else {
+        if (k === 0 || k === 1) { deco.add(mesh(cyl(6, 6, 26, 12), slam("#3a4a58"), x, 13, z)); deco.add(mesh(cyl(6.3, 6.3, 3, 12), sbasic(k ? "#7fffb0" : "#ffcf4a"), x, 18, z)); deco.add(mesh(cyl(3, 3, 3, 8), slam("#8a949b"), x, 27, z)); }
+        else if (k === 2) { deco.add(mesh(box(12, 22, 16), slam("#1e2328"), x, 11, z)); deco.add(mesh(box(1, 8, 11), sbasic("#4af0ff"), x - side * 6.2, 15, z)); }
+        else { deco.add(mesh(box(18, 8, 12), slam("#4a5560"), x, 4, z)); for (let i = 0; i < 6; i++) deco.add(mesh(cyl(1.2, 1.2, 7, 6), sbasic(["#7fffb0", "#ff6ad5", "#4af0ff"][i % 3]), x - 6 + (i % 3) * 6, 11, z - 3 + Math.floor(i / 3) * 6)); }
+      }
+    }
+    // Labor: Rohrleitungen entlang beider Wände
+    if (w.theme === "lab") for (const x of [D.L + 5, D.R - 5]) for (const [y, c] of [[10, "#4a5a52"], [17, "#7a3a2a"]]) { const pipe = mesh(cyl(2.4, 2.4, D.B - D.T - 40, 8), slam(c), x, y, (D.T + D.B) / 2); pipe.rotation.x = Math.PI / 2; deco.add(pipe); }
   }
 
   // Punktlicht-Pool: die stärksten Lichtquellen des Frames bekommen echtes Licht
@@ -2416,6 +2627,14 @@ void main() {
     for (const l of w.roomLights) lightCands.push([l.x, 50, l.y, l.rgb, 1.3 + 0.2 * Math.sin(t * 3 + l.x), l.r * 1.8, 2]);
     if ((w.run.doorK || 0) > 0) lightCands.push([D.W / 2, 40, D.T + 10, "140,255,74", 1.6 * w.run.doorK, 220, 3]);
     if (w.supplyCrate) lightCands.push([w.supplyCrate.x, 50, w.supplyCrate.y, "140,255,74", 1.6, 220, 3]);
+    if (w.menuCam) {
+      for (const o of w.obstacles) if (o.kind === "car") { const red = Math.floor(t * 4) % 2 === 0; lightCands.push([o.x + o.w / 2, 52, o.y + o.h / 2, red ? "255,40,40" : "60,110,255", 3.4, 320, 6]); }
+      // Studio-Licht für den Helden: warmes Führungslicht von der Kamera, kühles Gegenlicht von hinten
+      const kx = camera.position.x - p.x, kz = camera.position.z - p.y, kl = Math.hypot(kx, kz) || 1;
+      lightCands.push([p.x + (kx / kl) * 110, 105, p.y + (kz / kl) * 110, "255,234,212", 2.4, 330, 12]);
+      lightCands.push([p.x - (kx / kl) * 80, 85, p.y - (kz / kl) * 80, "120,165,255", 2.6, 240, 11]);
+    }
+    if (room && room.beacons.length) { const k = alarmPulse(t); if (k > 0.05) for (const [bx, bz] of room.beacons) lightCands.push([bx, 70, bz + 30, "255,40,30", 3 * k, 380, 3]); }
     lightCands.sort((a, b) => b[6] - a[6] || b[4] - a[4]);
     for (let i = 0; i < pool.length; i++) {
       const L = pool[i], c = lightCands[i];
@@ -2465,8 +2684,10 @@ void main() {
     CAM.boss += (bossK - CAM.boss) * Math.min(1, dt * 5);
     // Raumwechsel: Kamera setzt aus etwas größerer Höhe auf
     const intro = w.intro || 0;
+    frameDt = dt;
     if (w.menuCam) placeMenuCamera(t, w);
     else placeCamera(CAM.dist * (1 - 0.3 * CAM.boss + 0.22 * intro * intro), sx + CAM.fx + bx * 0.6 * CAM.boss, sz + CAM.fz + bz * 0.6 * CAM.boss - 60 * intro * intro);
+    updateAtmo(dt, t);
     syncEnemies(w, t, dt);
     syncPlayer(w, t);
     syncDoor(w);
@@ -2507,7 +2728,10 @@ void main() {
 
   return {
     init, resize, render, project, heightOf, setQuality, clear, preview, stopPreview, showcase,
+    setCinematic(on) { cinematic = on; }, get flash() { return atmo.flash; },
+    menuOrbit(d, end = false) { if (end) { menuCam.drag = false; return; } menuCam.drag = true; menuCam.yaw = Math.max(-1.6, Math.min(1.6, menuCam.yaw + d)); },
+    setTilt(x, y) { menuCam.tiltX += (x - menuCam.tiltX) * 0.15; menuCam.tiltY += (y - menuCam.tiltY) * 0.15; },
     get ready() { return ready; },
-    get debug() { return { scene, camera, renderer, models, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
+    get debug() { return { scene, camera, renderer, models, atmo, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
   };
 })();

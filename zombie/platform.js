@@ -257,6 +257,21 @@ window.Platform = (() => {
     if (navigator.vibrate) { try { navigator.vibrate(ms); } catch { /* egal */ } }
   }
 
+  // Vibrationsmuster [an, aus, an, …] in ms – die „4D“-Rückmeldung zu Explosionen, Bossen, Donner
+  let lastHaptic = 0;
+  function haptic(pattern) {
+    const now = performance.now();
+    if (now - lastHaptic < 50) return; // nicht zum Dauerbrummen aufaddieren
+    lastHaptic = now;
+    const pat = Array.isArray(pattern) ? pattern : [pattern];
+    if (isNative && N.Haptics) {
+      let t = 0;
+      pat.forEach((ms, i) => { if (i % 2 === 0) setTimeout(() => N.Haptics.vibrate({ duration: ms }).catch(() => {}), t); t += ms; });
+      return;
+    }
+    if (navigator.vibrate) { try { navigator.vibrate(pat); } catch { /* egal */ } }
+  }
+
   async function requestReview() {
     if (!isNative || !N.InAppReview) return;
     try { await N.InAppReview.requestReview(); } catch (e) { console.warn(e); }
@@ -295,5 +310,5 @@ window.Platform = (() => {
     console.log(`[Outbreak] Plattform: ${isNative ? "android" : "web"}${fakeAds ? " (Test-Werbung)" : ""}`);
   }
 
-  return { isNative, fakeAds, cfg, ads, iap, on, init, hideSplash, vibrate, requestReview, openUrl, exitApp };
+  return { isNative, fakeAds, cfg, ads, iap, on, init, hideSplash, vibrate, haptic, requestReview, openUrl, exitApp };
 })();

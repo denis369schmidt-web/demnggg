@@ -53,6 +53,10 @@
     talents: { hp: 0, atk: 0, speed: 0, greed: 0 },
     best: { chapter: 0, room: 0 },
     sound: true,
+    music: true,
+    cine: true, // Kino-Effekte: Filmkorn, Blitze, Stromausfälle
+    menuMode: "campaign", // zuletzt gewählte Einsatzart im Hauptmenü
+    motion: true, // 4D: Bewegungssensor steuert die Menükamera
     vibration: true,
     noAds: false,
     starterOwned: false,
@@ -71,6 +75,7 @@
     missions: { day: "", daily: [], bonus: false, week: "", weekly: [] },
     ach: {}, // Erfolg-ID → Anzahl abgeholter Stufen
     codex: {}, // entdeckte Evolutionen
+    bestiary: {}, // Gegnertyp → Abschüsse (Bestiarium)
     pass: { season: 0, xp: 0, premium: 0, free: [], prem: [] },
     patrol: { since: 0, quickDay: "", quick: 0 },
   });
@@ -93,6 +98,7 @@
           missions: { ...d.missions, ...s.missions },
           ach: { ...s.ach },
           codex: { ...s.codex },
+          bestiary: { ...s.bestiary },
           pass: { ...d.pass, ...s.pass },
           patrol: { ...d.patrol, ...s.patrol },
           txns: Array.isArray(s.txns) ? s.txns : [],
@@ -217,6 +223,15 @@
     screamer: { name: "Kreischer", r: 14, hp: 70, speed: 70, dmg: 10, xp: 3, coins: [1, 2], cost: 2.5, blood: RED },
     splitter: { name: "Teiler", r: 19, hp: 110, speed: 48, dmg: 16, xp: 4, coins: [1, 3], cost: 3, split: 3, blood: PURPLE },
     electro: { name: "Elektro-Zombie", r: 15, hp: 95, speed: 58, dmg: 14, xp: 4, coins: [1, 3], cost: 3, blood: GREEN },
+    // v1.9: acht neue Gegner mit eigener Mechanik
+    healer: { name: "Seuchenpriester", r: 15, hp: 85, speed: 50, dmg: 10, xp: 4, coins: [1, 3], cost: 3, blood: GREEN },
+    thrower: { name: "Brocken", r: 19, hp: 150, speed: 42, dmg: 22, xp: 5, coins: [2, 4], cost: 3.5, blood: RED },
+    burrower: { name: "Wühler", r: 14, hp: 70, speed: 72, dmg: 16, xp: 4, coins: [1, 3], cost: 2.5, blood: RED },
+    phantom: { name: "Schemen", r: 13, hp: 55, speed: 95, dmg: 14, xp: 4, coins: [1, 3], cost: 2.5, blood: PURPLE },
+    warden: { name: "Schildwächter", r: 16, hp: 120, speed: 48, dmg: 12, xp: 5, coins: [2, 4], cost: 3.5, blood: RED },
+    bloater: { name: "Gasbläher", r: 22, hp: 160, speed: 38, dmg: 18, xp: 5, coins: [2, 4], cost: 3, blood: GREEN },
+    nest: { name: "Brutnest", r: 24, hp: 260, speed: 0, dmg: 8, xp: 6, coins: [3, 6], cost: 4, blood: PURPLE, anchored: true },
+    gunner: { name: "Zombie-Schütze", r: 15, hp: 90, speed: 52, dmg: 9, xp: 4, coins: [1, 3], cost: 3, blood: RED },
     abom: { name: "ABSCHEULICHKEIT", r: 48, hp: 2200, speed: 60, dmg: 30, xp: 40, coins: [40, 60], boss: true, blood: PURPLE },
     mother: { name: "BRUTMUTTER", r: 52, hp: 2700, speed: 34, dmg: 28, xp: 50, coins: [50, 80], boss: true, blood: GREEN },
   };
@@ -252,6 +267,8 @@
 
   let curOverlay = null;
   function show(el) {
+    // Hauptmenü blendet in Wellen ein (Klasse neu setzen spielt die Animation erneut ab)
+    if (el === ui.menu && curOverlay !== ui.menu) { el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter"); }
     curOverlay = el;
     for (const o of overlays) o.classList.toggle("hidden", o !== el);
     ui.pauseBtn.classList.toggle("hidden", el !== null);
@@ -310,6 +327,23 @@
   window.addEventListener("resize", resize);
   resize();
 
+  // Kino-Look: animiertes Filmkorn + Vignette über dem Bild (reines CSS, eine Rauschkachel)
+  const grain = document.createElement("div");
+  grain.className = "grain";
+  view.appendChild(grain);
+  {
+    const gc = document.createElement("canvas"); gc.width = gc.height = 96;
+    const gg = gc.getContext("2d"), img = gg.createImageData(96, 96);
+    for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = Math.random() * 120; }
+    gg.putImageData(img, 0, 0);
+    grain.style.backgroundImage = `url(${gc.toDataURL()})`;
+  }
+  function applyCine() {
+    const on = save.cine !== false;
+    grain.classList.toggle("off", !on);
+    if (window.Render3D && Render3D.setCinematic) Render3D.setCinematic(on);
+  }
+
   // ============================================================
   // Audio (synthetisch, keine Dateien)
   // ============================================================
@@ -318,13 +352,14 @@
   function ensureAudio() {
     if (!actx) {
       try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { actx = null; }
+      if (actx && window.GameAudio) { GameAudio.init(actx); GameAudio.setMuted(!save.sound); GameAudio.setMusic(save.music !== false); }
     }
     if (actx && actx.state === "suspended") actx.resume();
   }
   function sfx(type) {
     if (!save.sound || !actx) return;
     const now = actx.currentTime;
-    const minGap = { shoot: 0.05, hit: 0.03, kill: 0.04, zap: 0.08 }[type] || 0;
+    const minGap = { shoot: 0.05, hit: 0.03, kill: 0.04, zap: 0.08, eshot: 0.05, dig: 0.1, heal: 0.2 }[type] || 0;
     if (lastSfx[type] && now - lastSfx[type] < minGap) return;
     lastSfx[type] = now;
     const cfg = {
@@ -340,6 +375,13 @@
       splat: [["noise", 1100, 160, 0.2, 0.16], ["sine", 130, 45, 0.12, 0.08]],
       combo: [["square", 660, 990, 0.09, 0.045], ["triangle", 990, 1480, 0.14, 0.05]],
       rage: [["sine", 75, 38, 0.55, 0.32], ["noise", 380, 60, 0.45, 0.14], ["sawtooth", 220, 660, 0.35, 0.04]],
+      heal: [["sine", 520, 880, 0.35, 0.05], ["triangle", 780, 1170, 0.3, 0.03]],
+      throw: [["noise", 700, 200, 0.25, 0.08], ["sine", 110, 60, 0.2, 0.08]],
+      dig: [["noise", 600, 120, 0.35, 0.1]],
+      erupt: [["noise", 900, 80, 0.45, 0.2], ["sine", 80, 30, 0.4, 0.2]],
+      phase: [["sine", 900, 200, 0.3, 0.05], ["triangle", 300, 1200, 0.25, 0.03]],
+      shield: [["sine", 300, 900, 0.3, 0.06], ["square", 600, 1800, 0.12, 0.02]],
+      eshot: [["square", 380, 120, 0.06, 0.04], ["noise", 3000, 800, 0.05, 0.05]],
     }[type];
     if (!cfg) return;
     // Rausch-Anteile machen Schüsse, Treffer und Explosionen wuchtiger
@@ -366,7 +408,7 @@
         src.connect(g);
         src.start(now);
       }
-      g.connect(actx.destination);
+      g.connect(window.GameAudio && GameAudio.ready ? GameAudio.sfxOut() : actx.destination);
       src.stop(now + dur + 0.02);
     }
   }
@@ -405,6 +447,8 @@
   let pieces = []; // abgetrennte Köpfe/Gliedmaßen
   let hazards = []; // brennende Pfützen am Boden
   let zaps = [];
+  let lobs = []; // geworfene Brocken (Bogenflug mit Zielkreis)
+  let beams = []; // Lichtstrahlen: Heilung, Laser-Visier, Schild-Verbindung
   let ambient = [];
   let roomLights = [];
   let slowMo = 0;
@@ -476,7 +520,7 @@
   // Räume
   // ============================================================
   function resetRoomState() {
-    enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; pools = []; hazards = []; zaps = []; volleyQueue.length = 0;
+    enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; pools = []; hazards = []; zaps = []; lobs = []; beams = []; volleyQueue.length = 0;
     roomFade = 1;
     run.doorK = 0;
     supplyCrate = null;
@@ -511,6 +555,8 @@
     } else if (isBoss) {
       spawnEnemy(isBoss, W / 2, T + 180);
       showBanner(tr("BOSS: {name}", { name: ZOMBIES[isBoss].name }), tr("Kapitel {c} · Raum {r}", { c: run.chapter, r: run.room }));
+      if (window.GameAudio) GameAudio.stinger("boss");
+      fx4d("boss", 1100);
     } else {
       spawnWave();
       if (!banner) showBanner(tr("RAUM {r}", { r: run.room }), tr("Kapitel {c}", { c: run.chapter }), 1.2);
@@ -530,6 +576,10 @@
     [60, ["leaper", "bomber", "walker"]],
     [100, ["burner", "screamer", "armored"]],
     [140, ["brute", "splitter", "electro", "runner"]],
+    [40, ["burrower", "gunner"]],
+    [80, ["healer", "bloater"]],
+    [120, ["phantom", "thrower"]],
+    [170, ["warden", "nest"]],
   ];
   function setupSurvival() {
     run.room = 1;
@@ -569,6 +619,8 @@
       const pos = survivalSpot();
       spawnEnemy(type, pos.x, pos.y);
       showBanner(tr("BOSS: {name}", { name: ZOMBIES[type].name }), tr("Noch {s}", { s: fmtTime(SURVIVAL_TIME - run.survT) }));
+      if (window.GameAudio) GameAudio.stinger("boss");
+      fx4d("boss", 1100);
     }
   }
   const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -683,11 +735,20 @@
     if (room >= 9 || ch > 1) pool.push("screamer", ...(th === "hospital" ? ["screamer"] : []));
     if (room >= 12 || ch > 1) pool.push("splitter");
     if (room >= 14 || ch > 1) pool.push("electro", ...(th === "lab" ? ["electro", "electro"] : []));
+    if (room >= 4 || ch > 1) pool.push("burrower", ...(th === "street" ? ["burrower"] : []));
+    if (room >= 5 || ch > 1) pool.push("bloater", ...(th !== "street" ? ["bloater"] : []));
+    if (room >= 6 || ch > 1) pool.push("gunner", ...(th !== "hospital" ? ["gunner"] : []));
+    if (room >= 7 || ch > 1) pool.push("healer", ...(th === "hospital" ? ["healer"] : []));
+    if (room >= 8 || ch > 1) pool.push("thrower", ...(th === "street" ? ["thrower"] : []));
+    if (room >= 9 || ch > 1) pool.push("phantom", ...(th === "hospital" ? ["phantom"] : []));
+    if (room >= 10 || ch > 1) pool.push("nest");
+    if (room >= 11 || ch > 1) pool.push("warden", ...(th === "lab" ? ["warden"] : []));
     const maxCount = 14 + ch * 2;
     let count = 0;
     while (budget > 0.5 && count < maxCount) {
       const type = pick(pool);
       const def = ZOMBIES[type];
+      if (type === "nest" && enemies.some((q) => q.type === "nest")) continue; // höchstens ein Nest pro Raum
       const n = def.pack || 1;
       if (def.cost * n > budget + 0.5) { if (budget < 1) break; continue; }
       budget -= def.cost * n;
@@ -718,7 +779,7 @@
       aiT: rand(1, 2.5), mode: "walk", cd: rand(1, 2.2), dirX: 0, dirY: 0,
       blocked: 0, side: Math.random() < 0.5 ? -1 : 1, bladeCd: 0, wob: rand(0, 6), phase2: false, kvx: 0, kvy: 0, lastHit: null,
       face: Math.PI / 2, anim: rand(0, 8), variant: type === "walker" ? pick(WALKER_LOOKS[theme()]) : randi(0, 2), scale: def.boss ? 1 : rand(0.93, 1.08), hitAng: rand(0, TAU),
-      rageT: 0, jumpZ: 0, elite: false,
+      rageT: 0, jumpZ: 0, elite: false, shield: 0, shieldT: 0, under: null, glitchT: 0,
     };
     // Elite: goldene Aura, dreifaches Leben, mehr Beute (ab Raum 4, häufiger in späteren Kapiteln)
     if (!def.boss && !def.pack && (room >= 4 || ch > 1) && Math.random() < 0.04 + 0.03 * (ch - 1)) {
@@ -1010,6 +1071,7 @@
     }
     if (w.kind === "grenade" || w.kind === "rocket") fxSmoke(mz.x, mz.y, 2, 0.6, 0.6);
     if (w.kind !== "flame" || Math.random() < 0.25) sfx("shoot");
+    if (w.flash === "big") fx4d("kick"); // schwere Waffen: spürbarer Rückstoß
   }
 
   // Tesla: Kettenblitz auf das nächste Ziel im Kegel, springt dann weiter
@@ -1086,7 +1148,7 @@
     p.hurtT = 0.35;
     hitStop = Math.max(hitStop, 0.05);
     sfx("hurt");
-    if (save.vibration) Platform.vibrate(30);
+    fx4d(dmg >= p.maxHp * 0.2 ? "heavyHurt" : "hurt");
     if (p.hp <= 0) {
       if (p.revives > 0) {
         p.revives--;
@@ -1219,7 +1281,7 @@
     for (const b of eBullets) {
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
       if (b.life <= 0 || b.x < L || b.x > R || b.y < T || b.y > B) { b.dead = true; acidSplash(b); continue; }
-      if (Math.random() < 0.25) fxDrip(b);
+      if (!b.slug && Math.random() < 0.25) fxDrip(b);
       if (obstacles.some((o) => pointInRect(b.x, b.y, o))) { b.dead = true; acidSplash(b); continue; }
       if ((player.x - b.x) ** 2 + (player.y - b.y) ** 2 < (player.r + b.r - 3) ** 2) {
         b.dead = true;
@@ -1230,15 +1292,16 @@
     eBullets = eBullets.filter((b) => !b.dead);
   }
 
-  function addHazard(x, y, r, life, dmg) {
+  function addHazard(x, y, r, life, dmg, kind = "fire") {
     if (hazards.length > 40) hazards.shift();
-    hazards.push({ x, y, r, life, max: life, dmg });
-    if (Math.random() < 0.5) stamp(Sprites.scorch(), x, y, rand(0, TAU), r / 40, 0.35);
+    hazards.push({ x, y, r, life, max: life, dmg, kind });
+    if (kind === "fire" && Math.random() < 0.5) stamp(Sprites.scorch(), x, y, rand(0, TAU), r / 40, 0.35);
   }
   function updateHazards(dt) {
     for (const h of hazards) {
       h.life -= dt;
-      if (Math.random() < 0.3) fxFire(h.x + rand(-h.r, h.r) * 0.6, h.y + rand(-h.r, h.r) * 0.6, 0.7, 0.45);
+      if (h.kind === "gas") { if (Math.random() < 0.3) fxGas(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, h.r / 40, "150,200,60"); }
+      else if (Math.random() < 0.3) fxFire(h.x + rand(-h.r, h.r) * 0.6, h.y + rand(-h.r, h.r) * 0.6, 0.7, 0.45);
       if ((player.x - h.x) ** 2 + (player.y - h.y) ** 2 < (h.r + player.r * 0.5) ** 2) hurtPlayer(h.dmg);
     }
     hazards = hazards.filter((h) => h.life > 0);
@@ -1273,7 +1336,7 @@
   function explode(x, y, radius, dmg, byPlayer) {
     shake = Math.max(shake, 9);
     hitStop = Math.max(hitStop, 0.06);
-    if (save.vibration) Platform.vibrate(25);
+    fx4d("boom");
     sfx("boom");
     fxFlash(x, y, radius * 1.7, "255,190,90", 0.28);
     fxRing(x, y, radius, "255,200,120", 0.35);
@@ -1289,7 +1352,7 @@
       const d = Math.sqrt(dist2(e, { x, y }));
       if (d < radius + e.r) {
         e.hitAng = Math.atan2(e.y - y, e.x - x);
-        if (!e.def.boss) { const f = 520 * (1 - d / (radius + e.r)) * (e.type === "brute" ? 0.35 : 1); e.kvx += Math.cos(e.hitAng) * f; e.kvy += Math.sin(e.hitAng) * f; }
+        if (!e.def.boss && !e.def.anchored) { const f = 520 * (1 - d / (radius + e.r)) * (e.type === "brute" ? 0.35 : 1); e.kvx += Math.cos(e.hitAng) * f; e.kvy += Math.sin(e.hitAng) * f; }
         damageEnemy(e, byPlayer ? dmg : dmg * 2, { aoe: true });
       }
     }
@@ -1306,7 +1369,7 @@
   function acidSplash(b) {
     const rgb = b.rgb || "183,255,74";
     fxSparks(b.x, b.y, 0, Math.PI, 5, rgb, 140);
-    if (b.x > L && b.x < R && b.y > T && b.y < B) stamp(Sprites.splat(b.pink ? PURPLE : GREEN, randi(0, 5)), b.x, b.y, rand(0, TAU), 0.35, 0.7);
+    if (!b.slug && b.x > L && b.x < R && b.y > T && b.y < B) stamp(Sprites.splat(b.pink ? PURPLE : GREEN, randi(0, 5)), b.x, b.y, rand(0, TAU), 0.35, 0.7);
   }
 
   // ============================================================
@@ -1327,13 +1390,21 @@
     }
     // Panzerung (Riot-Zombie) schluckt einen Teil des Schadens – Exekution ignoriert sie
     if (e.def.armor && !o.silent && !exec) dmg *= 1 - e.def.armor;
+    // Energieschild des Schildwächters fängt Schaden ab, bis er bricht
+    if (e.shield > 0) {
+      const a = Math.min(e.shield, dmg);
+      e.shield -= a; dmg -= a;
+      if (Math.random() < 0.6) fxSparks(e.x, e.y, (e.hitAng ?? 0) + Math.PI, 0.9, 3, "140,210,255", 220);
+      if (e.shield <= 0) { e.shieldT = 0; fxRing(e.x, e.y, e.r * 2.4, "140,210,255", 0.3); fxFlash(e.x, e.y, 50, "140,210,255", 0.12); sfx("zap"); }
+      if (dmg <= 0) { e.hitT = 0.06; return; }
+    }
     const b = o.bullet;
     if (b) {
       e.hitAng = Math.atan2(b.vy, b.vx);
       if (b.burn && !e.def.fireproof) { e.burnT = 2.5; e.burnDps = Math.max(e.burnDps, p.power * 0.35 * b.burn * (p.evo.inferno ? 2 : 1)); }
       if (b.freeze) { e.slowT = 1.2 + 0.6 * b.freeze; if (b.cryo && Math.random() < 0.5) fxIce(e.x + rand(-e.r, e.r), e.y + rand(-e.r, e.r)); }
       if (b.poison) e.poisonDps = Math.min(e.poisonDps + p.power * 0.08 * b.poison, p.power * 1.5 * b.poison);
-      if (!e.def.boss && b.kind !== "flame") {
+      if (!e.def.boss && !e.def.anchored && b.kind !== "flame") {
         // Rückstoß als Geschwindigkeit (klingt in updateEnemies ab) – schwere Zombies wanken weniger
         const heavy = e.type === "brute" || e.type === "armored";
         const k = (heavy ? 35 : 90) + (b.knock || 0) * (heavy ? 3 : 10);
@@ -1392,7 +1463,7 @@
     fxRing(player.x, player.y, 120, "255,60,40", 0.5);
     fxFlash(player.x, player.y, 160, "255,40,30", 0.25);
     sfx("rage");
-    if (save.vibration) Platform.vibrate(60);
+    fx4d("rage");
   }
 
   function killEnemy(e) {
@@ -1433,6 +1504,15 @@
     if (def.split) for (let i = 0; i < def.split; i++) { const q = spawnEnemy("crawler", e.x + rand(-14, 14), e.y + rand(-14, 14)); q.spawnT = 0.12; q.kvx = rand(-260, 260); q.kvy = rand(-260, 260); }
     if (e.type === "burner") { for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU; addHazard(e.x + Math.cos(a) * 26, e.y + Math.sin(a) * 26, 16, 2.6, e.dmg * 0.6); } fxFlash(e.x, e.y, 120, "255,140,40", 0.2); }
     if (e.elite) { for (let i = 0; i < nc * 2 + 3; i++) orbs.push(makeOrb(e.x, e.y, "coin", 1)); fxRing(e.x, e.y, 60, "255,210,90", 0.4); }
+    if (e.type === "bloater") {
+      // platzt zu einer Giftwolke – nicht in der Nähe erledigen!
+      addHazard(e.x, e.y, 72, 5.5, e.dmg * 0.5, "gas");
+      for (let i = 0; i < 10; i++) fxGas(e.x + rand(-30, 30), e.y + rand(-30, 30), 1.4, "150,200,60", 2);
+      fxRing(e.x, e.y, 80, "170,230,70", 0.45); sfx("splat");
+    }
+    if (e.type === "nest") { fxRing(e.x, e.y, 90, "200,90,200", 0.5); shake = Math.max(shake, 6); for (let i = 0; i < 5; i++) addPiece(e, "limb", rand(0, TAU), rand(120, 240), rand(150, 260), 10); }
+    if (e.type === "warden") for (const q of enemies) if (q.shield > 0) { q.shield = 0; q.shieldT = 0; fxRing(q.x, q.y, q.r * 2.2, "140,210,255", 0.3); }
+    save.bestiary[e.type] = (save.bestiary[e.type] || 0) + 1;
     if (e.type === "bomber") explode(e.x, e.y, 70, e.dmg, false);
     else if (player.deathBlast > 0) explode(e.x, e.y, 45 + 15 * player.deathBlast, player.power * 1.2 * player.deathBlast, true);
     if (e.type === "abom" || e.type === "mother") {
@@ -1451,18 +1531,91 @@
   }
 
   function enemyShoot(e, angle, speed, dmg, color = "#b7ff4a", r = 8) {
-    const pink = color === "#ff6ad5";
-    eBullets.push({ x: e.x + Math.cos(angle) * e.r, y: e.y + Math.sin(angle) * e.r, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, r, dmg, color, life: 4, dead: false, pink, rgb: pink ? "255,106,213" : "183,255,74" });
+    const pink = color === "#ff6ad5", slug = color === "#ffb84a"; // slug: Gewehrkugel des Zombie-Schützen
+    eBullets.push({ x: e.x + Math.cos(angle) * e.r, y: e.y + Math.sin(angle) * e.r, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, r, dmg, color, life: 4, dead: false, pink, slug, rgb: pink ? "255,106,213" : slug ? "255,184,74" : "183,255,74" });
+  }
+
+  // Unsichtbare Zustände nutzen spawnT als Sperre: nicht treffbar, nicht anvisierbar, nicht gezeichnet
+  // Strahl bis zur ersten Wand oder zum ersten Hindernis (Laser-Visier)
+  function rayEnd(x, y, a, max) {
+    const c = Math.cos(a), s = Math.sin(a);
+    for (let t = 8; t < max; t += 8) { const px = x + c * t, py = y + s * t; if (px < L || px > R || py < T || py > B || obstacles.some((o) => pointInRect(px, py, o))) return { x: px, y: py }; }
+    return { x: x + c * max, y: y + s * max };
+  }
+  function burrow(e) {
+    e.under = "burrow"; e.spawnT = e.spawnMax = 9; e.aiT = rand(2.2, 3.2);
+    fxDebris(e.x, e.y, 0, Math.PI, 10, "#5a4a3a"); fxSmoke(e.x, e.y, 3, 0.8, 0.8);
+    stamp(Sprites.crack(), e.x, e.y, rand(0, TAU), e.r / 14, 0.6);
+    sfx("dig");
+  }
+  function phase(e) {
+    e.under = "phantom"; e.spawnT = e.spawnMax = 9; e.aiT = rand(0.9, 1.4);
+    for (let i = 0; i < 6; i++) fxGas(e.x + rand(-10, 10), e.y + rand(-10, 10), 0.9, "120,80,170", 0.9);
+    fxFlash(e.x, e.y, 60, "190,140,255", 0.12);
+    const a = rand(0, TAU), r = rand(95, 150);
+    e.goalX = clamp(player.x + Math.cos(a) * r, L + 30, R - 30); e.goalY = clamp(player.y + Math.sin(a) * r, T + 30, B - 30);
+    sfx("phase");
+  }
+  function updateUnder(e, dt) {
+    const p = player;
+    e.aiT -= dt;
+    if (e.under === "burrow") {
+      // Erdwelle wandert unter dem Boden auf den Helden zu
+      const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1, sp = 165 * (e.slowT > 0 ? 0.5 : 1);
+      e.x += (dx / d) * sp * dt; e.y += (dy / d) * sp * dt;
+      e.x = clamp(e.x, L + e.r, R - e.r); e.y = clamp(e.y, T + e.r, B - e.r);
+      e.face = Math.atan2(dy, dx);
+      if (Math.random() < 0.5) fxDebris(e.x + rand(-6, 6), e.y + rand(-6, 6), rand(0, TAU), Math.PI, 1, "#5a4a3a");
+      if (Math.random() < 0.12) stamp(Sprites.crack(), e.x, e.y, rand(0, TAU), 0.4, 0.35);
+      if (d < 26 || e.aiT <= 0) {
+        // Ausbruch: Erde spritzt, wer drübersteht, wird erwischt
+        e.under = null; e.spawnT = e.spawnMax = 0.3; e.aiT = rand(2.6, 3.6); e.mode = "walk";
+        fxDebris(e.x, e.y, 0, Math.PI, 16, "#5a4a3a"); fxRing(e.x, e.y, 60, "200,170,120", 0.35); fxSmoke(e.x, e.y, 4, 1, 0.9);
+        stamp(Sprites.crack(), e.x, e.y, rand(0, TAU), 1.2, 0.7);
+        shake = Math.max(shake, 4); sfx("erupt");
+        if (dist2(e, p) < 56 * 56) hurtPlayer(e.dmg * 1.3);
+      }
+    } else {
+      // Schemen gleitet unsichtbar an seinen Zielpunkt, nur ein Nebelschleier verrät ihn
+      e.x += (e.goalX - e.x) * Math.min(1, dt * 4); e.y += (e.goalY - e.y) * Math.min(1, dt * 4);
+      if (Math.random() < 0.3) fxGas(e.x + rand(-8, 8), e.y + rand(-8, 8), 0.5, "90,60,130", 0.6);
+      if (e.aiT <= 0) {
+        e.under = null; e.spawnT = 0; e.glitchT = 0.35; e.aiT = rand(1.8, 2.6); e.cd = 0.3;
+        e.face = Math.atan2(p.y - e.y, p.x - e.x);
+        fxFlash(e.x, e.y, 80, "190,140,255", 0.18); fxRing(e.x, e.y, 46, "190,140,255", 0.3);
+      }
+    }
+  }
+  function updateLobs(dt) {
+    for (const q of lobs) {
+      q.t += dt; q.spin += dt * 8;
+      const k = Math.min(1, q.t / q.T);
+      q.x = q.x0 + (q.x1 - q.x0) * k; q.y = q.y0 + (q.y1 - q.y0) * k; q.z = 40 * (1 - k) + Math.sin(k * Math.PI) * 150;
+      if (k >= 1) {
+        q.dead = true;
+        fxDebris(q.x, q.y, 0, Math.PI, 18, "#6f6a62"); fxSmoke(q.x, q.y, 4, 1.1, 0.9); fxRing(q.x, q.y, q.r, "220,200,170", 0.35);
+        stamp(Sprites.crack(), q.x, q.y, rand(0, TAU), 1.4, 0.75);
+        shake = Math.max(shake, 5); sfx("boom");
+        if ((player.x - q.x) ** 2 + (player.y - q.y) ** 2 < (q.r + player.r * 0.5) ** 2) hurtPlayer(q.dmg);
+        for (const o of obstacles) if (o.hp && circleRectOverlap({ x: q.x, y: q.y, r: q.r }, o)) hitObstacle(o, 60);
+        blastBodies(q.x, q.y, q.r * 1.4);
+      }
+    }
+    if (lobs.length) lobs = lobs.filter((q) => !q.dead);
   }
 
   function updateEnemies(dt) {
     const p = player;
+    if (beams.length) beams = beams.filter((b) => (b.life -= dt) > 0);
     for (const e of enemies) {
       if (e.dead) continue;
       e.hitT = Math.max(0, e.hitT - dt);
       e.bladeCd = Math.max(0, e.bladeCd - dt);
       e.wob += dt * 6;
+      if (e.under) { updateUnder(e, dt); continue; }
       if (e.spawnT > 0) { e.spawnT -= dt; continue; }
+      if (e.shieldT > 0 && (e.shieldT -= dt) <= 0) e.shield = 0;
+      if (e.glitchT > 0) e.glitchT -= dt;
 
       // Statuseffekte
       if (e.burnT > 0) { e.burnT -= dt; e.hp -= e.burnDps * dt; if (Math.random() < 0.35) fxFire(e.x + rand(-e.r, e.r) * 0.6, e.y + rand(-e.r, e.r) * 0.6, 0.6 + e.r / 40, 0.4); }
@@ -1551,6 +1704,116 @@
           } else if (d < 175 && e.cd <= 0) { e.mode = "zap"; e.aiT = 0.75; e.cd = rand(2.6, 3.6); }
           break;
         }
+        case "healer": {
+          // hält Abstand und heilt verletzte Zombies mit einem grünen Strahl
+          if (d < 210) { mx = -mx; my = -my; } else if (d < 330) { const t = mx; mx = -my * e.side; my = t * e.side; sp *= 0.5; }
+          e.cd -= dt;
+          if (e.mode === "heal") {
+            sp = 0; e.aiT -= dt;
+            const q = e.target;
+            if (!q || q.dead || q.under) e.mode = "walk";
+            else {
+              beams.push({ x1: e.x, y1: e.y, x2: q.x, y2: q.y, rgb: "120,255,140", w: 5, life: 0.001, max: 0.001, h: 28 });
+              q.hp = Math.min(q.maxHp, q.hp + q.maxHp * 0.42 * dt);
+              if (Math.random() < 0.4) fxGas(q.x + rand(-8, 8), q.y + rand(-8, 8), 0.5, "120,255,140", 0.6);
+              if (e.aiT <= 0) e.mode = "walk";
+            }
+          } else if (e.cd <= 0) {
+            let best = null, worst = 0.9;
+            for (const q of enemies) if (q !== e && !q.dead && !q.under && q.spawnT <= 0 && q.hp / q.maxHp < worst && dist2(q, e) < 280 * 280) { worst = q.hp / q.maxHp; best = q; }
+            e.cd = best ? rand(2.8, 3.6) : 0.6;
+            if (best) { e.mode = "heal"; e.aiT = 1.1; e.target = best; fxRing(e.x, e.y, 40, "120,255,140", 0.3); sfx("heal"); }
+          }
+          break;
+        }
+        case "thrower": {
+          // hebt einen Betonbrocken und wirft ihn im Bogen auf den Helden (roter Zielkreis warnt)
+          e.cd -= dt;
+          if (e.mode === "lift") {
+            sp = 0; e.aiT -= dt;
+            if (e.aiT <= 0) {
+              e.mode = "walk"; e.cd = rand(3, 4.2);
+              const lead = 0.5, tx = clamp(p.x + (p.vx || 0) * lead + rand(-20, 20), L + 20, R - 20), ty = clamp(p.y + (p.vy || 0) * lead + rand(-20, 20), T + 20, B - 20);
+              lobs.push({ x0: e.x, y0: e.y, x1: tx, y1: ty, t: 0, T: 0.95, r: 48, dmg: e.dmg, x: e.x, y: e.y, z: 40, spin: rand(0, TAU) });
+              sfx("throw");
+            }
+          } else if (d > 150 && d < 470 && e.cd <= 0) { e.mode = "lift"; e.aiT = 0.6; }
+          if (d < 150) sp *= 1.3; // auf kurze Distanz schlägt er zu
+          break;
+        }
+        case "burrower": {
+          // läuft kurz oben, gräbt sich dann ein und taucht unter dem Helden wieder auf
+          e.aiT -= dt;
+          if (e.aiT <= 0 && d > 90) burrow(e);
+          break;
+        }
+        case "phantom": {
+          // sichtbar nur kurz: Sprungangriff, dann löst er sich auf und erscheint woanders
+          e.aiT -= dt; e.cd -= dt;
+          if (e.mode === "lunge") { mx = e.dirX; my = e.dirY; sp = 330 * slow; if ((e.lungeT -= dt) <= 0) e.mode = "walk"; }
+          else if (d < 150 && e.cd <= 0) { e.mode = "lunge"; e.lungeT = 0.3; e.dirX = mx; e.dirY = my; e.cd = rand(1.4, 2); }
+          if (Math.random() < 0.25) fxGas(e.x + rand(-6, 6), e.y + rand(-6, 6), 0.45, "120,80,170", 0.7);
+          if (e.aiT <= 0) phase(e);
+          break;
+        }
+        case "warden": {
+          // Schildwächter: hält Abstand, versorgt Verbündete im Umkreis mit Energieschilden
+          if (d < 200) { mx = -mx; my = -my; } else if (d < 320) { const t = mx; mx = -my * e.side; my = t * e.side; sp *= 0.5; }
+          e.cd -= dt;
+          if (e.cd <= 0) {
+            e.cd = rand(4.2, 5.2);
+            let n = 0;
+            for (const q of enemies) {
+              if (q === e || q.dead || q.under || q.spawnT > 0 || q.def.boss || dist2(q, e) > 230 * 230) continue;
+              q.shield = Math.max(q.shield, q.maxHp * 0.4); q.shieldT = 6; n++;
+              beams.push({ x1: e.x, y1: e.y, x2: q.x, y2: q.y, rgb: "140,210,255", w: 4, life: 0.35, max: 0.35, h: 30 });
+            }
+            fxRing(e.x, e.y, 230, "140,210,255", 0.5); fxFlash(e.x, e.y, 70, "140,210,255", 0.15);
+            if (n) sfx("shield");
+          }
+          break;
+        }
+        case "bloater": {
+          // träge Giftblase: hinterlässt Dunst, platzt beim Tod zu einer Gaswolke
+          if (Math.random() < 0.18) fxGas(e.x + rand(-e.r, e.r) * 0.6, e.y + rand(-e.r, e.r) * 0.6, 0.6, "150,200,60", 1);
+          break;
+        }
+        case "nest": {
+          // Brutnest: pulsiert und spuckt Ratten und Kriecher, bis es zerstört ist
+          sp = 0; e.cd -= dt; e.anim += dt * 3;
+          if (e.cd <= 0) {
+            e.cd = rand(3.6, 4.6);
+            const brood = enemies.filter((q) => !q.dead && q.brood === e).length;
+            if (brood < 8) {
+              const kind = Math.random() < 0.6 ? "rat" : "crawler", n = kind === "rat" ? 3 : 2;
+              for (let i = 0; i < n; i++) { const a = rand(0, TAU), q = spawnEnemy(kind, e.x + Math.cos(a) * (e.r + 6), e.y + Math.sin(a) * (e.r + 6)); q.spawnT = 0.2; q.brood = e; q.kvx = Math.cos(a) * 160; q.kvy = Math.sin(a) * 160; }
+              fxBlood(e.x, e.y, rand(0, TAU), 8, e.def.blood, 160); fxGas(e.x, e.y, 1, "170,90,170", 1); sfx("splat");
+            }
+          }
+          break;
+        }
+        case "gunner": {
+          // Zombie-Schütze: roter Laser markiert das Ziel, dann ein Feuerstoß – seitlich ausweichen!
+          if (d < 200) { mx = -mx; my = -my; sp *= 0.7; } else if (d < 380) { const t = mx; mx = -my * e.side; my = t * e.side; sp *= 0.45; }
+          e.cd -= dt;
+          if (e.mode === "aim") {
+            sp = 0; e.aiT -= dt;
+            if (e.aiT > 0.25) e.aimAng = Math.atan2(dy, dx); // zuletzt eingefroren: Zeit zum Ausweichen
+            const end = rayEnd(e.x, e.y, e.aimAng, 900);
+            beams.push({ x1: e.x + Math.cos(e.aimAng) * e.r, y1: e.y + Math.sin(e.aimAng) * e.r, x2: end.x, y2: end.y, rgb: "255,40,30", w: e.aiT < 0.25 ? 2.6 : 1.4, life: 0.001, max: 0.001, h: 24 });
+            if (e.aiT <= 0) { e.mode = "burst"; e.burstN = 3; e.burstT = 0; }
+          } else if (e.mode === "burst") {
+            sp = 0; e.burstT -= dt;
+            if (e.burstT <= 0) {
+              e.burstT = 0.09;
+              enemyShoot(e, e.aimAng + rand(-0.04, 0.04), 600, e.dmg, "#ffb84a", 5);
+              fxFlash(e.x + Math.cos(e.aimAng) * e.r * 1.6, e.y + Math.sin(e.aimAng) * e.r * 1.6, 30, "255,200,120", 0.06);
+              sfx("eshot");
+              if (--e.burstN <= 0) { e.mode = "walk"; e.cd = rand(2.6, 3.6); }
+            }
+          } else if (d < 520 && e.cd <= 0) { e.mode = "aim"; e.aiT = 0.9; e.aimAng = Math.atan2(dy, dx); }
+          break;
+        }
         case "dog": {
           // Sprung-Angriff aus kurzer Distanz
           e.cd -= dt;
@@ -1615,7 +1878,7 @@
       e.x += mx * sp * dt;
       e.y += my * sp * dt;
       // Blickrichtung weich nachführen, Laufanimation an Tempo koppeln
-      const lookAt = e.type === "spitter" || e.mode === "wind" ? Math.atan2(dy, dx) : Math.atan2(my, mx);
+      const lookAt = e.mode === "aim" || e.mode === "burst" ? e.aimAng : e.type === "spitter" || e.mode === "wind" || e.mode === "lift" || e.mode === "heal" || ((e.type === "gunner" || e.type === "warden" || e.type === "healer") && d < 380) ? Math.atan2(dy, dx) : Math.atan2(my, mx);
       let dFace = lookAt - e.face;
       while (dFace > Math.PI) dFace -= TAU;
       while (dFace < -Math.PI) dFace += TAU;
@@ -1641,7 +1904,7 @@
         const d2 = dx * dx + dy * dy;
         if (d2 < min * min && d2 > 0.01) {
           const d = Math.sqrt(d2), push = (min - d) / 2;
-          const wa = a.def.boss ? 0.1 : 1, wb = b.def.boss ? 0.1 : 1;
+          const wa = a.def.anchored ? 0 : a.def.boss ? 0.1 : 1, wb = b.def.anchored ? 0 : b.def.boss ? 0.1 : 1;
           a.x -= (dx / d) * push * wa; a.y -= (dy / d) * push * wa;
           b.x += (dx / d) * push * wb; b.y += (dy / d) * push * wb;
         }
@@ -1656,6 +1919,7 @@
     run.cleared = true;
     track("rooms");
     sfx("door");
+    if (window.GameAudio) GameAudio.stinger(BOSS_ROOMS[run.room] ? "victory" : "clear");
     addText(W / 2, T + 40, tr("TÜR OFFEN ↑"), "#8cff4a", 22);
     if (BOSS_ROOMS[run.room]) {
       healPlayer(player.maxHp * 0.2);
@@ -1701,6 +1965,8 @@
       p.level++;
       p.xpNeed = Math.round(12 + p.level * 6 + p.level * p.level * 0.6);
       run.pendingPicks++;
+      if (window.GameAudio) GameAudio.stinger("level");
+      fx4d("level");
       fxRing(p.x, p.y, 70, "255,230,120", 0.5);
       fxFlash(p.x, p.y, 120, "255,230,120", 0.3);
       particles.push({ t: "lvl", x: p.x, y: p.y, life: 1.3, max: 1.3 });
@@ -1876,6 +2142,8 @@
   }
   function fxFire(x, y, size = 1, life = 0.45) { addP({ t: "fire", x, y, vx: rand(-18, 18), vy: rand(-50, -15), life, max: life, size: rand(9, 15) * size }); }
   function fxEmber(x, y) { addP({ t: "ember", x, y, vx: rand(-30, 30), vy: rand(-60, -20), life: rand(0.3, 0.6), max: 0.6, size: rand(2, 4) }); }
+  // farbiger Dunst (Giftgas, Schemen-Nebel, Heilaura)
+  function fxGas(x, y, size = 1, rgb = "150,200,60", life = 1.4) { addP({ t: "gas", x, y, vx: rand(-14, 14), vy: rand(-14, 8), life: life * rand(0.8, 1.2), max: life, size: rand(0.8, 1.2) * size, rot: rand(0, TAU), rgb }); }
   function fxBubble(x, y) { addP({ t: "bubble", x, y, vx: rand(-6, 6), vy: rand(-26, -12), life: 0.7, max: 0.7, size: rand(3, 5) }); }
   function fxIce(x, y) { addP({ t: "ice", x, y, vx: 0, vy: -10, life: 0.5, max: 0.5, size: rand(4, 7) }); }
   function fxFlash(x, y, r, rgb, life = 0.15) { addP({ t: "flash", x, y, r, rgb, life, max: life }); }
@@ -1905,6 +2173,7 @@
           break;
         }
         case "smoke": p.x += p.vx * dt; p.y += p.vy * dt; p.size += dt * 0.8; p.rot += dt * 0.3; break;
+        case "gas": p.x += p.vx * dt; p.y += p.vy * dt; p.size += dt * 0.5; p.rot += dt * 0.4; break;
         case "mist": p.x += p.vx * dt; p.y += p.vy * dt; break;
         case "fire": case "ember": case "bubble": case "ice": p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 30 * dt; break;
         case "spark": p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - 5 * dt; p.vy *= 1 - 5 * dt; break;
@@ -1929,7 +2198,8 @@
   function deathOf(e) {
     const h = e.lastHit || {}, def = e.def;
     if (def.boss) return "boss";
-    if (e.type === "bomber") return "burst";
+    if (e.type === "bomber" || e.type === "nest" || e.type === "bloater") return "burst";
+    if (e.type === "phantom") return "fade";
     if (h.kind === "blast") return Math.random() < 0.35 ? "burst" : "blast";
     if (h.kind === "shock") return "shock";
     if (e.slowT > 0 && (h.kind === "cryo" || Math.random() < 0.6)) return "freeze";
@@ -1943,6 +2213,12 @@
     const death = deathOf(e), h = e.lastHit || {}, ang = h.ang ?? e.hitAng;
     e.death = death;
     const zh = e.r * 2.4 * e.scale; // ungefähre Kopfhöhe
+    if (death === "fade") {
+      // Schemen zerfallen zu Nebel – kein Körper bleibt zurück
+      for (let i = 0; i < 10; i++) fxGas(e.x + rand(-12, 12), e.y + rand(-12, 12), 1.1, "120,80,170", 1.2);
+      fxFlash(e.x, e.y, 90, "190,140,255", 0.25); fxRing(e.x, e.y, 70, "190,140,255", 0.4);
+      return;
+    }
     if (death === "burst") {
       fxGibs(e.x, e.y, 9, e.def.blood);
       fxBlood(e.x, e.y, ang, 26, e.def.blood, 300);
@@ -2036,10 +2312,11 @@
     if (!c.headless) addPiece(shim, "head", ang + rand(-0.6, 0.6), rand(140, 240), rand(180, 300), 6);
     sfx("splat");
     shake = Math.max(shake, 2.5);
+    fx4d("gib");
     track("gibs", 1);
   }
   // Abgeschossener Arm: fliegt von der Schulter weg, der Stumpf spritzt, der Zombie schlägt schwächer zu
-  const HUMANOID = new Set(["walker", "runner", "spitter", "bomber", "brute", "leaper", "burner", "screamer", "splitter", "electro"]);
+  const HUMANOID = new Set(["walker", "runner", "spitter", "bomber", "brute", "leaper", "burner", "screamer", "splitter", "electro", "healer", "thrower", "burrower", "phantom", "warden", "bloater", "gunner"]);
   function severArm(e) {
     const free = [-1, 1].filter((s) => !(e.armOff && e.armOff[s]));
     if (!free.length) return;
@@ -2230,6 +2507,7 @@
       stampDot(e.x + rand(-5, 5), e.y + rand(-5, 5), rand(0.9, 2) * (e.def.boss ? 2 : 1), e.def.blood);
     }
     updateHazards(dt);
+    updateLobs(dt);
     updateBullets(dt);
     updateOrbs(dt);
     if (supplyCrate) supplyCrate.bob += dt;
@@ -2275,6 +2553,7 @@
 
   function gameOver(quit, won = false) {
     state = "over";
+    if (window.GameAudio && !quit) GameAudio.stinger(won ? "victory" : "death");
     joy.active = false;
     clearInterval(reviveTimer);
     const surv = run.mode === "survival";
@@ -2342,7 +2621,7 @@
     get state() { return state; }, get run() { return run; }, get player() { return player; },
     get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; },
     get orbs() { return orbs; }, get particles() { return particles; }, get corpses() { return corpses; }, get pieces() { return pieces; },
-    get zaps() { return zaps; }, get ambient() { return ambient; }, get roomLights() { return roomLights; },
+    get zaps() { return zaps; }, get ambient() { return ambient; }, get roomLights() { return roomLights; }, get lobs() { return lobs; }, get beams() { return beams; },
     get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },
     get theme() { return theme(); }, get isBossRoom() { return !!(run && BOSS_ROOMS[run.room]); }, get intro() { return roomFade; },
     consumeFloorDirty() { const d = floorDirty; floorDirty = false; return d; },
@@ -2363,21 +2642,15 @@
   function menuWorld() {
     if (!menu3d) {
       const p = { x: W / 2, y: (T + B) / 2 + 80, r: 16, aim: -Math.PI / 2, moving: false, walkT: 0, kick: 0, barrel: 0, orbit: 0, orbitAng: 0, drones: 0, muzzle: 0, invuln: 0, hp: 1, maxHp: 1 };
-      const types = ["walker", "runner", "walker", "crawler", "brute", "spitter", "dog", "walker", "bomber", "armored", "walker", "walker"];
-      const enemies = types.map((type, i) => {
-        const def = ZOMBIES[type], a = (i / types.length) * TAU, d = rand(170, 330);
-        return {
-          type, def, r: def.r, variant: i % 3, scale: rand(0.95, 1.05), x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.8,
-          face: a + Math.PI, anim: rand(0, 8), wob: rand(0, TAU), spawnT: 0, spawnMax: 1, hitT: 0, mode: "walk", aiT: 0, dirX: 0, dirY: 0,
-          burnT: 0, slowT: 0, phase2: false, ang: a, dist: d, spd: def.speed * 0.25, want: rand(120, 200),
-        };
-      });
+      const types = ["walker", "runner", "gunner", "crawler", "brute", "spitter", "bloater", "walker", "thrower", "armored", "healer", "walker", "warden", "walker"];
+      const enemies = types.map((type, i) => menuFoe({ player: p }, type, i));
       const obs = [
-        { kind: "car", x: L + 40, y: T + 150, w: 104, h: 54, vert: false, seed: 7 },
-        { kind: "barrels", x: R - 110, y: T + 300, w: 56, h: 56, seed: 3 },
-        { kind: "crate", x: L + 70, y: B - 260, w: 48, h: 48, seed: 5 },
-        { kind: "barricade", x: R - 170, y: B - 180, w: 120, h: 26, seed: 9 },
-        { kind: "dumpster", x: W / 2 + 40, y: T + 60, w: 92, h: 50, seed: 11 },
+        // Kulisse hinter dem Helden (von der Kamera aus gesehen): Streifenwagen mit Blaulicht, Container, Fässer
+        { kind: "car", x: 288, y: 818, w: 104, h: 54, vert: false, seed: 7 },
+        { kind: "barrels", x: 102, y: 740, w: 56, h: 56, seed: 3 },
+        { kind: "crate", x: 140, y: 650, w: 48, h: 48, seed: 5 },
+        { kind: "barricade", x: 392, y: 860, w: 120, h: 26, seed: 9 },
+        { kind: "dumpster", x: 380, y: 690, w: 92, h: 50, seed: 11 },
       ];
       menu3d = {
         state: "menu", run: { doorK: 0 }, player: p, enemies, bullets: [], eBullets: [], orbs: [], particles: [], corpses: [], zaps: [],
@@ -2390,20 +2663,76 @@
     }
     return menu3d;
   }
+  // Menü-Szene: Zombies schlurfen im Hintergrund (abgewandte Seite der Kamera), der Held schaut
+  // in die Kamera und dreht sich ab und zu für einen Feuerstoß um – getroffene fallen, neue steigen auf.
+  const MENU_ARC = 1.15; // Richtung vom Helden weg von der Kamera
+  const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
+  function menuFoe(w, type, i) {
+    const def = ZOMBIES[type], a = MENU_ARC + rand(-1.15, 1.15), d = rand(210, 380), p = w.player;
+    return {
+      type, def, r: def.r, variant: i % 3, scale: rand(0.95, 1.05), x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.8,
+      face: a + Math.PI, anim: rand(0, 8), wob: rand(0, TAU), spawnT: 0, spawnMax: 1, hitT: 0, mode: "walk", aiT: 0, dirX: 0, dirY: 0,
+      burnT: 0, slowT: 0, phase2: false, ang: a, dist: d, spd: def.speed * 0.25, want: rand(140, 300),
+    };
+  }
   function updateMenuWorld(dt) {
     const w = menuWorld(), p = w.player;
     w.t += dt;
     p.weaponId = save.equipped; p.weapon = WEAPONS[save.equipped]; p.tier = weaponTier(save.weapons[save.equipped] || 1); p.skin = save.skin;
-    p.aim = -Math.PI / 2 + Math.sin(w.t * 0.45) * 1.1 + Math.sin(w.t * 1.3) * 0.12;
+    p.muzzle = Math.max(0, (p.muzzle || 0) - dt); p.kick = Math.max(0, (p.kick || 0) - dt * 30);
     for (const e of w.enemies) {
-      // langsam enger kreisen, dann wieder zurückweichen
+      if (e.spawnT > 0) { e.spawnT -= dt; continue; }
+      e.hitT = Math.max(0, e.hitT - dt);
+      // langsam enger kreisen, dann wieder zurückweichen – immer im Hintergrund
       e.dist += (e.want - e.dist) * dt * 0.15;
-      if (Math.abs(e.dist - e.want) < 6) e.want = rand(120, 320);
+      if (Math.abs(e.dist - e.want) < 6) e.want = rand(200, 360);
       e.ang += (e.spd / Math.max(80, e.dist)) * dt * (e.variant % 2 ? 1 : -1);
+      if (Math.abs(angTo(MENU_ARC, e.ang)) > 1.3) e.variant++; // an den Rändern umkehren
       const nx = p.x + Math.cos(e.ang) * e.dist, ny = p.y + Math.sin(e.ang) * e.dist * 0.8;
       e.face = Math.atan2(p.y - ny, p.x - nx);
       e.anim += dt * 4;
       e.x = nx; e.y = ny;
+    }
+    // Feuerstöße
+    let aimGoal = MENU_ARC + Math.PI + 0.55 + Math.sin(w.t * 0.5) * 0.25; // grob Richtung Kamera
+    w.shotT = (w.shotT ?? 3) - dt;
+    if (w.burst) {
+      const e = w.burst.e;
+      aimGoal = Math.atan2(e.y - p.y, e.x - p.x);
+      w.burst.t -= dt;
+      if (w.burst.t <= 0 && Math.abs(angTo(p.aim, aimGoal)) < 0.2) {
+        const mz = muzzlePoint(p), a = Math.atan2(e.y - mz.y, e.x - mz.x) + rand(-0.03, 0.03), sp = 1400;
+        w.bullets.push({ x: mz.x, y: mz.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 3, kind: "bullet", tracer: p.weapon.tracer || "255,224,138", long: false, life: Math.hypot(e.x - mz.x, e.y - mz.y) / sp, maxLife: 1, spin: 0 });
+        p.muzzle = 0.06; p.kick = 4; e.hitT = 0.1; sfx("shoot");
+        for (let i = 0; i < 4; i++) w.particles.push({ t: "blood", x: e.x, y: e.y, z: 26, vx: Math.cos(a) * rand(60, 200) + rand(-40, 40), vy: Math.sin(a) * rand(60, 200) + rand(-40, 40), vz: rand(80, 220), life: 0.8, max: 0.8, color: e.def.blood, size: rand(1.4, 2.6) });
+        w.burst.t = 0.12;
+        if (--w.burst.n <= 0) {
+          // Treffer: Zombie kippt um, nach ein paar Sekunden steigt hinten ein neuer aus dem Boden
+          w.enemies.splice(w.enemies.indexOf(e), 1);
+          w.corpses.push({ type: e.type, v: e.variant, f: 0, x: e.x, y: e.y, z: 0, r: e.r * 0.8, face: e.face, sc: e.scale, t: 0, blood: e.def.blood, boss: false, ref: e, death: "shot",
+            vx: Math.cos(a) * 150, vy: Math.sin(a) * 150, vz: 90, spin: rand(-2, 2), roll: 0, rollV: 0, fall: 0, settled: false, headless: Math.random() < 0.35, fallDir: 1, side: 1 });
+          for (let i = 0; i < 10; i++) w.particles.push({ t: "blood", x: e.x, y: e.y, z: 30, vx: Math.cos(a) * rand(80, 260) + rand(-60, 60), vy: Math.sin(a) * rand(80, 260) + rand(-60, 60), vz: rand(120, 300), life: 1, max: 1, color: e.def.blood, size: rand(1.6, 3) });
+          w.burst = null; w.shotT = rand(2.8, 5);
+        }
+      }
+    } else if (w.shotT <= 0) {
+      const cands = w.enemies.filter((e) => e.spawnT <= 0 && e.dist < 380);
+      if (cands.length) w.burst = { e: pick(cands), n: 3 + randi(0, 2), t: 0.35 }; else w.shotT = 1;
+    }
+    p.aim += angTo(p.aim, aimGoal) * Math.min(1, dt * (w.burst ? 9 : 2.5));
+    for (const b of w.bullets) { b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt; }
+    w.bullets = w.bullets.filter((b) => b.life > 0);
+    for (const q of w.particles) { q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; q.vz -= 900 * dt; q.life -= dt; if (q.z < 0) q.life = 0; }
+    w.particles = w.particles.filter((q) => q.life > 0);
+    for (const c of w.corpses) {
+      c.t += dt; c.fall = Math.min(1, c.t / 0.42);
+      c.x += c.vx * dt; c.y += c.vy * dt; const f = Math.exp(-5 * dt); c.vx *= f; c.vy *= f;
+      c.z = Math.max(0, c.z + c.vz * dt); c.vz -= 1400 * dt; c.face += c.spin * dt; c.spin *= f;
+    }
+    const gone = w.corpses.filter((c) => c.t > 4.5);
+    if (gone.length) {
+      w.corpses = w.corpses.filter((c) => c.t <= 4.5);
+      for (const c of gone) { const q = menuFoe(w, c.type, randi(0, 5)); q.spawnT = q.spawnMax = 1.2; w.enemies.push(q); }
     }
     for (const a of w.ambient) { a.ph += dt; a.x += (Math.sin(a.ph * 0.7) * 8 + 6) * dt; a.y += 14 * dt; if (a.y > B) a.y = T; if (a.x > R) a.x = L; }
   }
@@ -2428,7 +2757,7 @@
       if (mode3d) {
         ctx.clearRect(0, 0, W, H);
         updateMenuWorld(frameDt);
-        if (render3d(menuWorld(), 0)) { ctx.drawImage(vignette, 0, 0, vignette.width * LS, vignette.height * LS); return; }
+        if (render3d(menuWorld(), 0)) { ctx.drawImage(vignette, 0, 0, vignette.width * LS, vignette.height * LS); drawFlash(); return; }
       }
       ctx.fillStyle = "#0d1210"; ctx.fillRect(0, 0, W, H); drawMenuBg(); return;
     }
@@ -2453,8 +2782,10 @@
     drawOrbs();
     if (supplyCrate) drawSupply();
     drawCorpses();
+    drawLobTargets();
     drawActors();
     drawProjectilesBase();
+    drawLobs();
     drawParticlesBase();
     // 2) Licht & Dunkelheit
     drawLighting();
@@ -2465,6 +2796,7 @@
     ctx.globalAlpha = 1;
     // 4) Lesbarkeit
     drawEnemyBullets();
+    drawBeams();
     drawTelegraphs();
     drawBars();
     drawTexts();
@@ -2662,6 +2994,15 @@
 
   function drawEnemy(e) {
     const f = Math.floor(e.anim) % Sprites.FRAMES;
+    if (e.under === "burrow") {
+      // Erdhügel wandert unter dem Boden
+      const w = Math.sin(run.time * 18 + e.wob) * 1.5;
+      ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.ellipse(e.x, e.y + 3, 17, 9, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#5a4a3a"; ctx.beginPath(); ctx.ellipse(e.x, e.y + w, 14, 8, e.face, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#7a6650"; ctx.beginPath(); ctx.ellipse(e.x - 2, e.y - 2 + w, 8, 4, e.face, 0, TAU); ctx.fill();
+      return;
+    }
+    if (e.under) return;
     if (e.spawnT > 0) {
       const k = Math.min(1, Math.max(0, 1 - e.spawnT / e.spawnMax));
       ctx.globalAlpha = k;
@@ -2673,8 +3014,19 @@
     let x = e.x, y = e.y - e.jumpZ;
     if (e.mode === "wind" || e.mode === "zap") { x += rand(-1.5, 1.5); y += rand(-1.5, 1.5); }
     if (e.elite) glowAt("255,200,80", e.x, e.y, e.r * 2.2, 0.35 + 0.15 * Math.sin(run.time * 5));
-    const sc = e.scale * (1 + Math.sin(e.anim * 0.8) * 0.015);
+    const sc = e.scale * (e.type === "nest" ? 1 + Math.sin(run.time * 4 + e.wob) * 0.05 : 1 + Math.sin(e.anim * 0.8) * 0.015);
+    if (e.type === "phantom") ctx.globalAlpha = e.glitchT > 0 ? (Math.random() < 0.5 ? 0.15 : 0.9) : 0.6 + 0.18 * Math.sin(run.time * 9 + e.wob);
     Sprites.draw(ctx, Sprites.zombie(e.type, f, e.variant), x, y, e.face, sc);
+    ctx.globalAlpha = 1;
+    if (e.shield > 0) {
+      // Energieschild: blaue Blase, flackert stärker, je schwächer sie wird
+      const k = Math.min(1, e.shield / (e.maxHp * 0.4)), rr = e.r * e.scale * 1.7;
+      const gr = ctx.createRadialGradient(x, y, rr * 0.55, x, y, rr);
+      gr.addColorStop(0, "rgba(140,210,255,0)"); gr.addColorStop(1, `rgba(140,210,255,${0.25 + 0.2 * k})`);
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, rr, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(190,235,255,${0.45 + 0.35 * k * (0.7 + 0.3 * Math.sin(run.time * 12 + e.wob))})`; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(x, y, rr, 0, TAU); ctx.stroke();
+    }
     if (e.slowT > 0) { ctx.globalAlpha = 0.8; Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "ice"), x, y, e.face, sc); }
     if (e.phase2 || e.rageT > 0) { ctx.globalAlpha = 0.35 + 0.25 * Math.sin(run.time * 10); Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "rage"), x, y, e.face, sc); }
     if (e.hitT > 0) { ctx.globalAlpha = Math.min(1, e.hitT / 0.1); Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "hit"), x, y, e.face, sc); }
@@ -2736,6 +3088,7 @@
       switch (p.t) {
         case "smoke": ctx.globalAlpha = Math.min(1, k * 1.4) * 0.8; Sprites.draw(ctx, smoke, p.x, p.y, p.rot, p.size); break;
         case "blood": ctx.globalAlpha = 1; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y - p.z, p.size, 0, TAU); ctx.fill(); break;
+        case "gas": { ctx.globalAlpha = Math.min(1, k * 1.6) * (1 - k * 0.3) * 0.2; ctx.fillStyle = `rgb(${p.rgb})`; ctx.beginPath(); ctx.arc(p.x, p.y, 22 * p.size, 0, TAU); ctx.fill(); break; }
         case "mist": ctx.globalAlpha = k * 0.35; ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y - p.z, p.size * (1.6 - k * 0.6), 0, TAU); ctx.fill(); break;
         case "gib": case "casing": ctx.globalAlpha = 1; Sprites.draw(ctx, p.spr, p.x, p.y - p.z, p.rot); break;
         case "debris": ctx.globalAlpha = Math.min(1, k * 2); ctx.fillStyle = p.color; ctx.fillRect(p.x - p.size / 2, p.y - p.z - p.size / 2, p.size, p.size); break;
@@ -2918,9 +3271,49 @@
 
   function drawEnemyBullets() {
     const green = Sprites.acidGlob("183,255,74", "60,120,20"), pink = Sprites.acidGlob("255,106,213", "140,30,100");
-    for (const b of eBullets) Sprites.draw(ctx, b.pink ? pink : green, b.x, b.y, 0, (b.r * 2.3) / 24);
+    for (const b of eBullets) {
+      if (b.slug) {
+        // Leuchtspur in Flugrichtung
+        const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
+        ctx.strokeStyle = "rgba(255,190,90,0.9)"; ctx.lineWidth = 3; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(b.x - ux * 22, b.y - uy * 22); ctx.lineTo(b.x, b.y); ctx.stroke();
+        ctx.fillStyle = "#fff4d8"; ctx.beginPath(); ctx.arc(b.x, b.y, 2.4, 0, TAU); ctx.fill();
+      } else Sprites.draw(ctx, b.pink ? pink : green, b.x, b.y, 0, (b.r * 2.3) / 24);
+    }
   }
 
+  function drawLobTargets() {
+    for (const q of lobs) {
+      const k = Math.min(1, q.t / q.T);
+      ctx.fillStyle = `rgba(255,50,30,${0.1 + 0.18 * k})`; ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(255,80,60,${0.5 + 0.4 * Math.sin(run.time * 24)})`; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r, 0, TAU); ctx.stroke();
+      ctx.fillStyle = "rgba(255,80,60,0.35)"; ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r * k, 0, TAU); ctx.fill();
+    }
+  }
+  function drawLobs() {
+    for (const q of lobs) {
+      drawShadow(q.x, q.y, 10 * (1 - q.z / 300));
+      ctx.save(); ctx.translate(q.x, q.y - q.z); ctx.rotate(q.spin);
+      ctx.fillStyle = "#6f6a62"; ctx.beginPath(); ctx.moveTo(-11, -6); ctx.lineTo(-3, -11); ctx.lineTo(9, -8); ctx.lineTo(12, 3); ctx.lineTo(4, 11); ctx.lineTo(-9, 8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#8a847a"; ctx.beginPath(); ctx.moveTo(-6, -5); ctx.lineTo(2, -8); ctx.lineTo(7, -3); ctx.lineTo(-2, 1); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "#4a463f"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-4, 2); ctx.lineTo(5, 6); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  function drawBeams() {
+    if (!beams.length) return;
+    ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+    for (const b of beams) {
+      const k = Math.min(1, b.life / b.max * 2);
+      const x2 = b.x2, y2 = b.y2;
+      ctx.strokeStyle = `rgba(${b.rgb},${0.25 * k})`; ctx.lineWidth = b.w * 3;
+      ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(x2, y2); ctx.stroke();
+      ctx.strokeStyle = `rgba(${b.rgb},${0.85 * k})`; ctx.lineWidth = b.w * 0.6;
+      ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(x2, y2); ctx.stroke();
+    }
+    ctx.restore();
+  }
   function drawTelegraphs() {
     for (const e of enemies) {
       if (e.mode === "crouch") {
@@ -2983,8 +3376,14 @@
     ctx.globalAlpha = 1;
   }
 
+  // Blitz: kurz bläulich-weiß aufhellen
+  function drawFlash() {
+    const f = mode3d && save.cine !== false ? Render3D.flash : 0;
+    if (f > 0.02) { ctx.fillStyle = `rgba(200,220,255,${f * 0.16})`; ctx.fillRect(0, 0, W, H); }
+  }
   function drawScreenFx() {
     ctx.drawImage(vignette, 0, 0, vignette.width * LS, vignette.height * LS);
+    drawFlash();
     const p = player;
     const low = p.hp / p.maxHp < 0.3 && state === "play" ? 0.25 + 0.15 * Math.sin(run.time * 6) : 0;
     for (const d of screenBlood) {
@@ -3287,6 +3686,26 @@
     }
   }
   let pauseFrames = 0, splashGone = false;
+  // 4D-Effekte: Vibrationsmuster [an, aus, an, …] passend zum Geschehen (Einstellung „Vibration“)
+  const HAPTIC = { boom: [55, 30, 35], hurt: [28], heavyHurt: [45, 25, 30], boss: [140, 70, 140, 70, 240], level: [16, 40, 16, 40, 50], gib: [14], thunder: [24, 90, 170], heart: [26, 120, 40], rage: [70, 40, 70], kick: [9] };
+  function fx4d(name, delay = 0) {
+    if (!save.vibration || !HAPTIC[name]) return;
+    if (delay > 0) setTimeout(() => Platform.haptic(HAPTIC[name]), delay); else Platform.haptic(HAPTIC[name]);
+  }
+  window.__fx4d = fx4d; // Donner kommt aus dem 3D-Renderer
+  let heartT = 0;
+  // Interaktiver Soundtrack: Modus und Intensität aus dem Spielgeschehen
+  function musicInfo() {
+    if (!run) return { mode: "menu", theme: "street", intensity: 0 };
+    let n = 0, near = 0, boss = false;
+    for (const e of enemies) {
+      if (e.dead || e.under || e.spawnT > 0) continue;
+      n++; if (e.def.boss) boss = true;
+      if ((e.x - player.x) ** 2 + (e.y - player.y) ** 2 < 230 * 230) near++;
+    }
+    const intensity = run.cleared ? 0.05 : Math.min(1, (n / 14) * 0.5 + Math.min(1, near / 5) * 0.3 + Math.min(0.25, run.combo / 40) + (player.hurtT > 0 ? 0.15 : 0) + 0.1);
+    return { mode: state === "over" ? "over" : boss ? "boss" : "play", theme: theme(), intensity, hp: player.hp / player.maxHp, rage: run.rage > 0, paused: state !== "play" && state !== "over" };
+  }
   function loop(now) {
     requestAnimationFrame(loop);
     const I = frameMs();
@@ -3294,7 +3713,8 @@
     nextDue = Math.max(nextDue + I, now);
     // Lange Bilder (30-FPS-Modus, Ruckler) in Teilschritte von höchstens 1/60 s zerlegen:
     // Kugeln prüfen Treffer pro Schritt und würden sonst durch kleine Gegner hindurchfliegen
-    const real = Math.min(0.05, (now - last) / 1000);
+    // rAF-Zeitstempel können vor dem letzten performance.now() liegen (erstes Bild nach langem Start) → nie negativ
+    const real = Math.max(0, Math.min(0.05, (now - last) / 1000));
     last = now;
     frameDt = real;
     // Zeitlupe nach Boss-Sieg
@@ -3305,6 +3725,8 @@
     if (state === "play") trackPerformance(now - lastFrameAt);
     lastFrameAt = now;
     if (run) updateFx(state === "play" ? dt : dt * 0.15);
+    if (actx && window.GameAudio) GameAudio.update(real, musicInfo());
+    if (state === "play" && player && player.hp < player.maxHp * 0.3 && (heartT -= real) <= 0) { heartT = 1.05; fx4d("heart"); }
     // Nichts zeichnen, was niemand sieht: undurchsichtige Bildschirme (Shop, Arsenal …) verdecken alles,
     // in der Pause steht das Bild still – die GPU darf schlafen
     if (curOverlay && curOverlay.classList.contains("screen")) return;
@@ -3498,12 +3920,26 @@
     $("menuBest").textContent = save.best.chapter ? tr("Kap. {c} · Raum {r}", { c: save.best.chapter, r: save.best.room }) : "–";
     const w = WEAPONS[save.equipped], lvl = save.weapons[save.equipped];
     $("menuWeaponImg").src = Sprites.weaponIcon(save.equipped, weaponTier(lvl));
-    $("menuEquipped").innerHTML = `${w.name}<span class="lv">${tr("Stufe {n}", { n: lvl })}</span>`;
+    $("menuEquipped").textContent = softHyphen(w.name);
+    $("menuWeaponLv").textContent = tr("St. {n}", { n: lvl });
     const sk = SKINS.find((q) => q.id === save.skin) || SKINS[0];
+    $("menuSkinName").textContent = sk.name;
     const bs = BOOSTS.filter((q) => save.boosts[q.id] > 0).map((q) => `${q.name} ×${save.boosts[q.id]}`).join(" · ");
-    $("menuSkin").textContent = bs ? `${sk.name} · ${tr("Boosts")}: ${bs}` : sk.name;
+    $("menuSkin").textContent = bs ? `${tr("Boosts")}: ${bs}` : "";
+    $("menuSkin").classList.toggle("hidden", !bs);
+    for (const b of document.querySelectorAll("#heroPicker .pk-arrow")) b.disabled = ownedSkins().length < 2;
+    for (const b of document.querySelectorAll("#weaponPicker .pk-arrow")) b.disabled = ownedWeapons().length < 2;
+    // Einsatzart
+    const mode = save.menuMode === "survival" ? "survival" : "campaign";
+    $("modeCampaign").classList.toggle("active", mode === "campaign");
+    $("survivalBtn").classList.toggle("active", mode === "survival");
+    $("campaignInfo").textContent = save.best.chapter ? tr("Rekord: Kap. {c} · Raum {r}", { c: save.best.chapter, r: save.best.room }) : tr("20 Räume · 2 Bosse");
+    const todayWorld = THEME_ORDER[Math.floor(Date.now() / 864e5) % THEME_ORDER.length];
+    $("ctaSub").textContent = mode === "campaign" ? tr("Kampagne · Kapitel 1") : `${tr("Überleben")} · ${tr(WORLD_NAME[todayWorld])}`;
+    $("playBtn").classList.toggle("primary", mode === "campaign");
+    $("playBtn").classList.toggle("amber", mode === "survival");
     for (const el of document.querySelectorAll(".coinsVal")) el.textContent = num(save.coins);
-    $("survivalBest").textContent = save.stats.survival ? `${tr("Rekord")} ${fmtTime(save.stats.survival)}` : tr("5 Minuten");
+    $("survivalBest").textContent = save.stats.survival ? `${tr("Rekord")} ${fmtTime(save.stats.survival)}` : tr("5 Minuten · Welt des Tages");
     $("missionsBadge").classList.toggle("hidden", !missionsClaimable());
     $("passBadge").classList.toggle("hidden", !passClaimable());
     const pc = patrolCoins();
@@ -3511,6 +3947,9 @@
     $("patrolMini").textContent = pc > 0 ? `+${num(pc)}` : "";
   }
 
+  const ownedSkins = () => SKINS.filter((q) => save.skins[q.id]).map((q) => q.id);
+  const ownedWeapons = () => Object.keys(WEAPONS).filter((id) => save.weapons[id] > 0);
+  const WORLD_NAME = { street: "Straße", hospital: "Krankenhaus", lab: "Geheimlabor" };
   // Weiche Trennstellen für lange deutsche Komposita (schmale Handys)
   const softHyphen = (name) => name.replace(/(Maschinen|Scharfschützen|Flammen|Granat|Sägeblatt|Raketen|Sturm|Laser)/g, "$1\u00AD");
 
@@ -3687,9 +4126,60 @@
   }
 
   // ---------- Kodex der Evolutionen ----------
+  // Bestiarium: Beschreibung und Taktik je Gegner (Reihenfolge = Anzeige)
+  const BESTIARY = {
+    walker: "Langsam, aber überall. Kommt meist in Gruppen.",
+    runner: "Schnell und wendig – stehen bleiben und schießen statt weglaufen.",
+    crawler: "Kriecht im Rudel heran. Klein, flink, schwach.",
+    rat: "Seuchenratten im Schwarm – Flächenschaden hilft.",
+    dog: "Springt aus kurzer Distanz an. Kommt zu zweit.",
+    spitter: "Hält Abstand und spuckt Säure. Früh ausschalten.",
+    bomber: "Rennt los und explodiert. Auf Abstand halten!",
+    leaper: "Duckt sich und springt weit – die rote Linie zeigt wohin.",
+    burner: "Brennt, hinterlässt Feuerpfützen und ist immun gegen Feuer.",
+    screamer: "Sein Schrei macht Zombies in der Nähe rasend.",
+    brute: "Koloss mit Sturmangriff – raus aus der roten Warnfläche!",
+    armored: "Panzerung schluckt ein Drittel des Schadens.",
+    splitter: "Zerfällt beim Tod in drei Kriecher.",
+    electro: "Lädt sich auf und entlädt einen Stromschlag im Umkreis.",
+    burrower: "Gräbt sich ein und bricht unter dir hervor – achte auf den wandernden Erdhügel!",
+    bloater: "Platzt beim Tod zu einer Giftwolke. Nicht aus der Nähe erledigen!",
+    gunner: "Ein roter Laser zielt, dann folgt ein Feuerstoß – zur Seite ausweichen!",
+    healer: "Heilt verletzte Zombies mit einem grünen Strahl. Immer zuerst erledigen!",
+    thrower: "Wirft Betonbrocken im hohen Bogen. Der rote Kreis zeigt den Einschlag.",
+    phantom: "Taucht auf, greift an, verschwindet. Nur sichtbar ist er verwundbar.",
+    nest: "Spuckt Ratten und Kriecher aus, bis es zerstört ist.",
+    warden: "Gibt Zombies in der Nähe Energieschilde. Fällt er, brechen alle Schilde.",
+    abom: "Boss: Sturmangriffe und Stachelringe. Ab halber Energie rasend.",
+    mother: "Boss: Säurefächer und Kriecher-Brut. Ab halber Energie gefährlicher.",
+  };
+  const NEW_FOES = new Set(["burrower", "bloater", "gunner", "healer", "thrower", "phantom", "nest", "warden"]);
+  let codexTab = "evo";
+  function renderBestiary(list) {
+    let seen = 0;
+    for (const [type, desc] of Object.entries(BESTIARY)) {
+      const def = ZOMBIES[type], n = save.bestiary[type] || 0;
+      if (n) seen++;
+      const row = document.createElement("div");
+      row.className = `item codex beast${n ? " found" : " unknown"}`;
+      const tags = `${def.boss ? `<span class="tag red">${tr("BOSS")}</span>` : ""}${NEW_FOES.has(type) ? `<span class="tag gold">${tr("NEU")}</span>` : ""}`;
+      row.innerHTML = `<div class="ico beast-art"><canvas width="128" height="128"></canvas></div><div>${tags}<div class="name">${n ? def.name : "???"}</div><div class="desc">${tr(desc)}</div><div class="recipe">${n ? tr("{n} erledigt", { n: n.toLocaleString(I18N.lang) }) : tr("Noch nicht begegnet")}</div></div><div></div>`;
+      list.appendChild(row);
+      // Abbild aus dem Sprite-Cache; Unbekannte als Silhouette
+      const cv = row.querySelector("canvas"), g = cv.getContext("2d"), spr = Sprites.zombie(type, 2, 0);
+      const k = (150 / Math.max(spr.w, spr.h)) * (def.boss ? 0.85 : 1); // Sprite hat Rand – etwas größer zeichnen
+      g.translate(64, 64); g.rotate(-Math.PI / 2);
+      g.drawImage(spr.c, -spr.w * k / 2, -spr.h * k / 2, spr.w * k, spr.h * k);
+      if (!n) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = "source-atop"; g.fillStyle = "#3b4743"; g.fillRect(0, 0, 128, 128); }
+    }
+    $("codexNote").textContent = tr("{n} von {m} Gegnern erledigt.", { n: seen, m: Object.keys(BESTIARY).length });
+  }
   function renderCodex() {
     const list = $("codexList");
     list.innerHTML = "";
+    for (const b of document.querySelectorAll("#codexTabs button")) b.classList.toggle("active", b.dataset.tab === codexTab);
+    $("codexLead").textContent = codexTab === "evo" ? tr("Evolutionen: Zwei Skills auf Stufe verschmelzen zu einer Superfähigkeit.") : tr("Jeder Gegner hat eine Schwäche. Erledige ihn einmal, um ihn freizuschalten.");
+    if (codexTab === "bestiary") { renderBestiary(list); return; }
     for (const ev of EVOLUTIONS) {
       const found = !!save.codex[ev.id];
       const recipe = Object.entries(ev.needs).map(([id, n]) => { const sk = skillById(id); return `<span class="ing">${medal(sk.icon, RARITY_TONE[sk.rarity])}${sk.name}${n > 1 ? ` ×${n}` : ""}</span>`; }).join('<span class="arr">+</span>');
@@ -3967,11 +4457,14 @@
     const sw = (on) => `<span class="switch${on ? " on" : ""}"></span>`;
     const valTxt = (t) => `<span class="val">${t}</span>`;
     $("soundBtn2").innerHTML = row(save.sound ? "sound" : "soundOff", tr("Sound"), sw(save.sound));
+    $("musicBtn").innerHTML = row("music", tr("Musik"), sw(save.music !== false));
     $("vibBtn").innerHTML = row("vibration", tr("Vibration"), sw(save.vibration));
     $("langBtn").innerHTML = row("language", tr("Sprache"), valTxt(I18N.lang === "de" ? "Deutsch" : "English"));
     const gfxNames = init3d() ? ["2D (schnell)", "3D", "3D + Schatten"] : ["Niedrig", "Mittel", "Hoch"];
     $("gfxBtn").innerHTML = row("graphics", tr("Grafik"), valTxt(tr(gfxNames[quality])));
     $("fpsBtn").innerHTML = row("battery", tr("Akku sparen (30 FPS)"), sw(!!save.fps30));
+    $("cineBtn").innerHTML = row("cinema", tr("Kino-Effekte"), sw(save.cine !== false));
+    $("motionBtn").innerHTML = row("motion", tr("4D-Bewegung (Neigen)"), sw(save.motion !== false));
     $("privacyOptsBtn").innerHTML = row("privacy", tr("Werbe-Einwilligung ändern"), "");
     $("privacyOptsBtn").classList.toggle("hidden", !Platform.isNative);
     $("privacyLink").innerHTML = row("info", tr("Datenschutzerklärung"), "");
@@ -4017,13 +4510,43 @@
   $("dailyClaimAd").innerHTML = adLabel(tr("×2 abholen"));
   $("patrolClaimAd").innerHTML = adLabel(tr("×2 abholen"));
   $("loadoutBtn").addEventListener("click", () => { ensureAudio(); renderArmory(); show(ui.armory); });
-  $("playBtn").addEventListener("click", () => startRun("campaign"));
-  $("survivalBtn").addEventListener("click", () => startRun("survival"));
+  // Startknopf startet die gewählte Einsatzart; Karte antippen wählt, zweites Antippen startet sofort
+  $("playBtn").addEventListener("click", () => startRun(save.menuMode === "survival" ? "survival" : "campaign"));
+  const pickMode = (m) => {
+    if ((save.menuMode || "campaign") === m) { startRun(m); return; }
+    save.menuMode = m; persist(); refreshMenu();
+  };
+  $("modeCampaign").addEventListener("click", () => pickMode("campaign"));
+  $("survivalBtn").addEventListener("click", () => pickMode("survival"));
+  // Held & Waffe direkt im Menü durchblättern (nur, was man besitzt)
+  const cycle = (list, cur, dir) => list[(list.indexOf(cur) + dir + list.length) % list.length];
+  const pop = (el) => { el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); };
+  const cycleSkin = (dir) => { const l = ownedSkins(); if (l.length < 2) return; save.skin = cycle(l, save.skin, dir); persist(); refreshMenu(); pop($("heroPickBtn")); if (window.GameAudio) GameAudio.ui("swipe"); };
+  const cycleWeapon = (dir) => { const l = ownedWeapons(); if (l.length < 2) return; save.equipped = cycle(l, save.equipped, dir); persist(); refreshMenu(); pop($("loadoutBtn")); if (window.GameAudio) GameAudio.ui("swipe"); };
+  for (const b of document.querySelectorAll("#heroPicker .pk-arrow")) b.addEventListener("click", () => cycleSkin(+b.dataset.dir));
+  for (const b of document.querySelectorAll("#weaponPicker .pk-arrow")) b.addEventListener("click", () => cycleWeapon(+b.dataset.dir));
+  $("heroPickBtn").addEventListener("click", () => { ensureAudio(); shopTab = "skins"; renderShop(); show(ui.shop); });
+  // Wischen auf den Auswahlfeldern blättert ebenfalls
+  for (const [id, fn] of [["heroPicker", cycleSkin], ["weaponPicker", cycleWeapon]]) {
+    let sx = null;
+    $(id).addEventListener("pointerdown", (e) => { sx = e.clientX; });
+    $(id).addEventListener("pointerup", (e) => { if (sx !== null && Math.abs(e.clientX - sx) > 40) fn(e.clientX < sx ? 1 : -1); sx = null; });
+  }
+  // Bühne: Ziehen dreht die Kamera um den Helden
+  {
+    const st = $("menuStage");
+    let lx = null;
+    st.addEventListener("pointerdown", (e) => { lx = e.clientX; st.setPointerCapture(e.pointerId); st.classList.add("used"); });
+    st.addEventListener("pointermove", (e) => { if (lx === null) return; if (webgl && Render3D.menuOrbit) Render3D.menuOrbit((e.clientX - lx) * 0.009); lx = e.clientX; });
+    const end = () => { lx = null; if (webgl && Render3D.menuOrbit) Render3D.menuOrbit(0, true); };
+    st.addEventListener("pointerup", end); st.addEventListener("pointercancel", end);
+  }
   $("againBtn").addEventListener("click", () => leaveOver(() => startRun(lastMode)));
   $("missionsBtn").addEventListener("click", () => { ensureAudio(); renderMissions(); show(ui.missions); });
   for (const b of document.querySelectorAll("#missionTabs button")) b.addEventListener("click", () => { missionTab = b.dataset.tab; renderMissions(); });
   $("passBtn").addEventListener("click", () => { ensureAudio(); renderPass(); show(ui.pass); });
   $("codexBtn").addEventListener("click", () => { ensureAudio(); renderCodex(); show(ui.codex); });
+  for (const b of document.querySelectorAll("#codexTabs button")) b.addEventListener("click", () => { codexTab = b.dataset.tab; renderCodex(); });
   $("patrolBtn").addEventListener("click", () => { ensureAudio(); renderPatrol(); show(ui.patrol); });
   $("patrolClaim").addEventListener("click", () => { claimPatrol(1); renderPatrol(); refreshMenu(); });
   $("patrolClaimAd").addEventListener("click", async () => {
@@ -4089,9 +4612,27 @@
   $("quitBtn").addEventListener("click", () => gameOver(true));
   const soundBtn = $("soundBtn");
   const syncSound = () => { soundBtn.innerHTML = `${I(save.sound ? "sound" : "soundOff")}${tr(save.sound ? "Ton an" : "Ton aus")}`; renderSettings(); };
-  const toggleSound = () => { save.sound = !save.sound; persist(); syncSound(); };
+  const toggleSound = () => { save.sound = !save.sound; persist(); syncSound(); if (window.GameAudio) GameAudio.setMuted(!save.sound); };
   soundBtn.addEventListener("click", toggleSound);
   $("soundBtn2").addEventListener("click", toggleSound);
+  $("cineBtn").addEventListener("click", () => { save.cine = save.cine === false; persist(); applyCine(); renderSettings(); });
+  $("motionBtn").addEventListener("click", () => { save.motion = save.motion === false; persist(); renderSettings(); if (!save.motion && webgl && Render3D.setTilt) for (let i = 0; i < 40; i++) Render3D.setTilt(0, 0); });
+  // 4D: Handy neigen schwenkt die Menükamera (Ausgangslage wird laufend nachgeführt)
+  let baseBeta = null;
+  window.addEventListener("deviceorientation", (e) => {
+    if (save.motion === false || run || e.gamma == null || !webgl || !Render3D.setTilt) return;
+    if (baseBeta === null) baseBeta = e.beta;
+    baseBeta += (e.beta - baseBeta) * 0.01;
+    Render3D.setTilt(clamp(e.gamma / 30, -1, 1), clamp((e.beta - baseBeta) / 25, -1, 1));
+  });
+  $("musicBtn").addEventListener("click", () => { save.music = save.music === false; persist(); renderSettings(); ensureAudio(); if (window.GameAudio) GameAudio.setMusic(save.music); });
+  // Bedien-Klänge für alle Knöpfe (Erfassungsphase: vor den eigentlichen Klick-Handlern)
+  document.addEventListener("click", (ev) => {
+    const b = ev.target.closest && ev.target.closest("button, .tab, a.btn");
+    if (!b || !save.sound) return;
+    ensureAudio();
+    if (window.GameAudio) GameAudio.ui(b.matches("[data-back], .back") ? "back" : b.matches("#playBtn, #survivalBtn, .btn.primary, .btn.amber") ? "confirm" : "tap");
+  }, true);
   $("vibBtn").addEventListener("click", () => { save.vibration = !save.vibration; persist(); renderSettings(); if (save.vibration) Platform.vibrate(40); });
   $("privacyOptsBtn").addEventListener("click", () => Platform.ads.showPrivacyOptions());
   $("gfxBtn").addEventListener("click", () => {
@@ -4121,6 +4662,7 @@
   });
   Platform.on("adStart", () => { if (actx && actx.state === "running") actx.suspend(); });
   Platform.on("adEnd", () => { if (actx && save.sound) actx.resume(); });
+  applyCine();
 
   I18N.localizeDom();
   Platform.init();
@@ -4132,5 +4674,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

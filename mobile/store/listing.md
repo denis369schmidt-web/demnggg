@@ -13,7 +13,7 @@ Promo-Poster für Stories/TikTok/Reels (1080×1920): `promo/poster-de.png`, `pro
 Outbreak Hero: Zombie Shooter
 
 **Kurzbeschreibung (max. 80):**
-Zombie-Roguelite: 8 Skill-Evolutionen, Bosse & Überlebensmodus – auch offline!
+Zombie-Roguelite mit 22 Gegnerarten, Kino-Atmosphäre & Soundtrack – offline!
 
 **Vollständige Beschreibung:**
 
@@ -28,8 +28,11 @@ Mehrfachschuss, Querschläger, Kreissägen, Kampfdrohne, Brand-, Kryo- und Toxin
 🔫 15 WAFFEN
 Pistole, Schrotflinte, Maschinenpistole, Magnum, Armbrust, Flammenwerfer, Sturmgewehr, Scharfschützengewehr, Sägeblattwerfer, Granatwerfer, Kryo-Kanone, Tesla-Gewehr mit Kettenblitz, zielsuchender Raketenwerfer, eine Minigun, die sich warmläuft, und die Laserkanone – jede spielt sich komplett anders und lässt sich bis Stufe 10 aufrüsten. Ab Stufe 5 glänzt sie in Gold.
 
-🧟 14 ZOMBIE-ARTEN & ELITE-GEGNER
-Schlurfer in Dutzenden Outfits, Sprinter, Kriecher, Spucker, Bomber, Zombie-Hunde, Riot-Zombies, der Koloss – und neu: Springer, die dich anspringen, Brenner mit Feuerspur, Kreischer, die die Horde rasend machen, Teiler, Elektro-Zombies und Seuchenratten. Elite-Zombies mit goldener Aura halten dreimal so viel aus und lassen mehr Beute fallen.
+🧟 22 ZOMBIE-ARTEN & ELITE-GEGNER
+Schlurfer in Dutzenden Outfits, Sprinter, Kriecher, Spucker, Bomber, Zombie-Hunde, Riot-Zombies, der Koloss, Springer, Brenner, Kreischer, Teiler, Elektro-Zombies und Seuchenratten – und neu: Seuchenpriester, die die Horde heilen, Schildwächter mit Energieschilden, Wühler, die unter dir aus dem Boden brechen, unsichtbare Schemen, Brocken-Werfer, platzende Gasbläher, Brutnester und Zombie-Schützen mit Laservisier. Jeder Gegner hat eine Schwäche – das Bestiarium verrät sie. Elite-Zombies mit goldener Aura halten dreimal so viel aus und lassen mehr Beute fallen.
+
+🎬 KINO-ATMOSPHÄRE & INTERAKTIVER SOUNDTRACK
+Regen prasselt, Blitze erhellen die Straße, Leuchtstoffröhren flackern im verlassenen Krankenhaus, im Labor heulen die Alarmleuchten. Die Musik reagiert auf dich: Je größer die Horde, desto härter der Beat – mit eigener Boss-Musik und Herzschlag, wenn es knapp wird. Dazu spürbare Vibrationen bei Explosionen, Bossen und Donner.
 
 💥 ECHTE PHYSIK – JEDER TOD IST ANDERS
 Zombies fliegen durch den Raum, prallen von Wänden ab und bleiben liegen, bis du den nächsten Raum betrittst. Kopfschuss, Explosion, Feuer, Eis, Strom oder Sägeblatt – jede Waffe hat ihren eigenen spektakulären Tod.
@@ -80,7 +83,7 @@ Kannst du die Epidemie überleben?
 Outbreak Hero: Zombie Shooter
 
 **Short description (max 80):**
-Zombie roguelite: 8 skill evolutions, bosses & survival mode – play offline!
+Zombie roguelite: 22 enemy types, cinematic atmosphere & soundtrack – offline!
 
 **Full description:**
 
@@ -95,8 +98,11 @@ Multishot, ricochet, buzzsaws, combat drone, incendiary, cryo and toxin rounds, 
 🔫 15 WEAPONS
 Pistol, shotgun, SMG, magnum, crossbow, flamethrower, assault rifle, sniper rifle, saw launcher, grenade launcher, cryo cannon, a chain-lightning Tesla rifle, a homing rocket launcher, a spin-up minigun and the laser cannon – each plays completely differently and can be upgraded to level 10. From level 5 it shines in gold.
 
-🧟 14 KINDS OF ZOMBIES & ELITES
-Walkers in dozens of outfits, sprinters, crawlers, spitters, bombers, zombie dogs, riot zombies, the brute – and new: leapers that pounce, burners leaving trails of fire, screamers that send the horde into a frenzy, splitters, electro zombies and plague rats. Elite zombies with a golden aura take three times the damage and drop more loot.
+🧟 22 KINDS OF ZOMBIES & ELITES
+Walkers in dozens of outfits, sprinters, crawlers, spitters, bombers, zombie dogs, riot zombies, the brute, leapers, burners, screamers, splitters, electro zombies and plague rats – and new: plague priests that heal the horde, shield wardens with energy shields, burrowers that burst out of the ground beneath you, invisible wraiths, boulder throwers, exploding gas bloaters, brood nests and zombie gunners with laser sights. Every enemy has a weakness – the bestiary reveals it. Elite zombies with a golden aura take three times the damage and drop more loot.
+
+🎬 CINEMATIC ATMOSPHERE & INTERACTIVE SOUNDTRACK
+Rain pours down, lightning tears through the night, fluorescent lights flicker in the abandoned hospital and alarm beacons wail in the lab. The music reacts to you: the bigger the horde, the harder the beat – with dedicated boss music and a heartbeat when things get tight. Plus haptic feedback for explosions, bosses and thunder.
 
 💥 REAL PHYSICS – EVERY DEATH IS DIFFERENT
 Zombies fly across the room, bounce off walls and stay down until you enter the next room. Headshot, explosion, fire, ice, electricity or saw blade – every weapon has its own spectacular death.

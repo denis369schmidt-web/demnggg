@@ -202,11 +202,19 @@ window.Sprites = (() => {
     armored: [{ shirt: "#1f2a3d", pants: "#1a2130", skin: "#7f9474", armor: true, eye: "#ff5a3a" }],
     crawler: [{ shirt: "#4b4258", pants: "#2a2430", skin: "#8a7c9e" }],
     dog: [{ shirt: "#4f3f32", skin: "#6b5644" }],
+    healer: [{ shirt: "#2b2a24", pants: "#22201b", skin: "#8fa67a", hood: true, robe: "#3a3326", staff: true, eye: "#8cff8a" }],
+    thrower: [{ shirt: "#4a4f3a", pants: "#2f3326", skin: "#7c8c6a", brute: true, sleeveless: true, rock: true }],
+    burrower: [{ shirt: "#5a4630", pants: "#3a3024", skin: "#8a9a72", miner: true, pick: true }],
+    phantom: [{ shirt: "#26232c", pants: "#1c1a22", skin: "#c9cfd8", longHair: "#0e0c12", eye: "#e8f0ff", lean: 0.12 }],
+    warden: [{ shirt: "#2f3a48", pants: "#232b36", skin: "#7f9474", gen: true, eye: "#8fd4ff" }],
+    bloater: [{ shirt: "#6a7a3a", pants: "#4a4a2a", skin: "#9aa84a", bloat: true, sleeveless: true, eye: "#eaff00" }],
+    gunner: [{ shirt: "#4f5a38", pants: "#3e4630", skin: "#8a9c74", rifle: true, helmet: true }],
+    nest: [{ skin: "#6a3a5a" }],
     abom: [{ skin: "#8a4a6a" }],
     mother: [{ skin: "#3f5a3a" }],
   };
   // Sprite-Größe relativ zum Kollisionsradius
-  const SPAN = { crawler: 4.4, dog: 4.8, rat: 5.2, abom: 3.6, mother: 4.0 };
+  const SPAN = { crawler: 4.4, dog: 4.8, rat: 5.2, abom: 3.6, mother: 4.0, nest: 3.0, healer: 4.6, gunner: 4.4 };
   const variants = (type) => (PAL[type] || PAL.walker).length;
 
   function humanoid(g, c, r, f, P, R) {
@@ -221,6 +229,17 @@ window.Sprites = (() => {
       g.fillStyle = "#1a1a1a"; ell(g, lx + r * 0.27, ly, r * 0.16, r * 0.15); g.fill();
     }
     const tx = c + lean;
+    if (P.robe) { g.fillStyle = vol(g, tx - r * 0.25, c, r * 1.1, P.robe); ell(g, tx - r * 0.25, c, r * 0.95, r * 0.95); g.fill(); }
+    if (P.gen) {
+      // Schildgenerator auf dem Rücken mit Antenne
+      g.fillStyle = vol(g, tx - r * 0.75, c, r * 0.5, "#4a5568");
+      rr(g, tx - r * 1.12, c - r * 0.45, r * 0.6, r * 0.9, r * 0.12); g.fill();
+      const gr = g.createRadialGradient(tx - r * 0.82, c, 0, tx - r * 0.82, c, r * 0.32);
+      gr.addColorStop(0, "#e8f8ff"); gr.addColorStop(0.5, "#7fd0ff"); gr.addColorStop(1, "rgba(60,140,220,0)");
+      g.fillStyle = gr; circ(g, tx - r * 0.82, c, r * 0.32); g.fill();
+      limb(g, tx - r * 1.0, c - r * 0.35, tx - r * 1.45, c - r * 0.7, r * 0.05, "#9aa3ad");
+      g.fillStyle = "#ff4a3a"; circ(g, tx - r * 1.45, c - r * 0.7, r * 0.07); g.fill();
+    }
     // Rücken: Gastank (Bomber) / Knochenstacheln (Koloss)
     if (P.vest) {
       g.fillStyle = vol(g, tx - r * 0.7, c, r * 0.45, "#7d8288");
@@ -297,9 +316,33 @@ window.Sprites = (() => {
       g.strokeStyle = mix(P.skin, -0.35); g.lineWidth = r * 0.055;
       for (let k = -1; k <= 1; k++) limb(g, hx + hr * 0.6, hy + k * hr * 0.45, hx + hr * 1.5, hy + k * hr * 0.6, r * 0.06, mix(P.skin, -0.3));
     }
+    // Ausrüstung in den Händen (rechte Hand: s = +1)
+    const handX = tx + r * 1.3, handR = c + r * 0.42, handL = c - r * 0.42;
+    if (P.staff) {
+      limb(g, handR > 0 ? handX - r * 0.5 : handX, handR, handX + r * 0.9, handR + r * 0.05, r * 0.07, "#5a4630");
+      const gr = g.createRadialGradient(handX + r * 0.95, handR, 0, handX + r * 0.95, handR, r * 0.38);
+      gr.addColorStop(0, "#f0ffe8"); gr.addColorStop(0.45, "#8cff8a"); gr.addColorStop(1, "rgba(60,200,80,0)");
+      g.fillStyle = gr; circ(g, handX + r * 0.95, handR, r * 0.38); g.fill();
+    }
+    if (P.rifle) {
+      g.fillStyle = "#1c1e1a"; rr(g, handX - r * 0.7, c + r * 0.05, r * 1.6, r * 0.2, r * 0.04); g.fill();
+      g.fillStyle = "#2c2f28"; rr(g, handX - r * 0.2, c + r * 0.05, r * 0.3, r * 0.34, r * 0.05); g.fill();
+      g.fillStyle = "#ff3020"; circ(g, handX + r * 0.85, c + r * 0.15, r * 0.06); g.fill();
+    }
+    if (P.rock) {
+      g.fillStyle = vol(g, handX + r * 0.1, handR + r * 0.1, r * 0.5, "#7a756c");
+      g.beginPath(); g.moveTo(handX - r * 0.3, handR - r * 0.2); g.lineTo(handX + r * 0.1, handR - r * 0.45); g.lineTo(handX + r * 0.55, handR - r * 0.15); g.lineTo(handX + r * 0.5, handR + r * 0.4); g.lineTo(handX, handR + r * 0.55); g.lineTo(handX - r * 0.35, handR + r * 0.25); g.closePath(); g.fill();
+      g.strokeStyle = "#4a463f"; g.lineWidth = r * 0.04; g.beginPath(); g.moveTo(handX - r * 0.1, handR); g.lineTo(handX + r * 0.3, handR + r * 0.2); g.stroke();
+    }
+    if (P.pick) {
+      limb(g, handX - r * 0.4, handL, handX + r * 0.6, handL - r * 0.05, r * 0.07, "#6a4a2a");
+      g.strokeStyle = "#9aa3ad"; g.lineWidth = r * 0.1; g.lineCap = "round";
+      g.beginPath(); g.moveTo(handX + r * 0.55, handL - r * 0.5); g.quadraticCurveTo(handX + r * 0.75, handL, handX + r * 0.55, handL + r * 0.45); g.stroke();
+    }
     // Kopf
     const hx = tx + r * 0.2 + lean * 0.3;
     const hr = r * (P.brute ? 0.4 : 0.44);
+    if (P.longHair) { g.fillStyle = P.longHair; ell(g, hx - hr * 0.9, c, hr * 1.25, hr * 0.95); g.fill(); for (const s2 of [-1, 1]) { limb(g, hx - hr * 0.2, c + s2 * hr * 0.7, hx - hr * 1.8, c + s2 * hr * 1.0, r * 0.12, P.longHair); } }
     if (P.hood) { g.fillStyle = vol(g, hx - r * 0.06, c, hr * 1.3, P.shirt); circ(g, hx - r * 0.06, c, hr * 1.24); g.fill(); }
     g.fillStyle = vol(g, hx, c, hr, P.skin); circ(g, hx, c, hr); g.fill();
     if (P.armor) {
@@ -319,6 +362,15 @@ window.Sprites = (() => {
       }
       g.strokeStyle = "#2a0d0d"; g.lineWidth = r * 0.07;
       g.beginPath(); g.arc(hx, c, hr * 0.86, -0.42, 0.42); g.stroke();
+    }
+    if (P.miner || P.helmet) {
+      g.fillStyle = vol(g, hx - r * 0.04, c, hr * 1.12, P.miner ? "#c9a21a" : "#4a5530"); circ(g, hx - r * 0.04, c, hr * 1.08); g.fill();
+      g.fillStyle = "rgba(0,0,0,0.25)"; g.fillRect(hx - hr * 1.0, c - hr * 0.08, hr * 2, hr * 0.16);
+      if (P.miner) {
+        const lx = hx + hr * 0.85, gr = g.createRadialGradient(lx, c, 0, lx, c, hr * 0.7);
+        gr.addColorStop(0, "#ffffff"); gr.addColorStop(0.35, "#fff2a8"); gr.addColorStop(1, "rgba(255,230,120,0)");
+        g.fillStyle = gr; circ(g, lx, c, hr * 0.7); g.fill();
+      }
     }
     if (P.bloat) {
       // pulsierender Giftsack am Hals
@@ -483,6 +535,31 @@ window.Sprites = (() => {
     }
   }
 
+  function nest(g, c, r, f, P, R) {
+    const ph = (f / FRAMES) * TAU;
+    // Wurzelranken
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * TAU + R() * 0.3, l = r * (1.1 + R() * 0.35);
+      limb(g, c + Math.cos(a) * r * 0.5, c + Math.sin(a) * r * 0.5, c + Math.cos(a + 0.2) * l, c + Math.sin(a + 0.2) * l, r * 0.12, "#3a1a30");
+    }
+    // Fleischsack mit Lappen
+    for (const [lx, ly, lr] of [[0, 0, 0.82], [-0.3, -0.35, 0.5], [0.32, -0.28, 0.46], [-0.25, 0.4, 0.48], [0.3, 0.35, 0.45]]) {
+      const k = 1 + 0.06 * Math.sin(ph + lx * 4);
+      g.fillStyle = vol(g, c + lx * r, c + ly * r, lr * r * k, P.skin, 0.3, -0.45); circ(g, c + lx * r, c + ly * r, lr * r * k); g.fill();
+    }
+    // Adern & leuchtende Eier
+    g.strokeStyle = "rgba(50,10,40,0.7)"; g.lineWidth = r * 0.04;
+    for (let i = 0; i < 7; i++) { let x = c + (R() - 0.5) * r, y = c + (R() - 0.5) * r; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 3; k++) { x += (R() - 0.5) * r * 0.4; y += (R() - 0.5) * r * 0.4; g.lineTo(x, y); } g.stroke(); }
+    for (let i = 0; i < 6; i++) {
+      const ex = c + (R() - 0.5) * r * 1.1, ey = c + (R() - 0.5) * r * 1.1, er = r * (0.1 + R() * 0.07) * (1 + 0.15 * Math.sin(ph * 2 + i));
+      const gr = g.createRadialGradient(ex, ey, 0, ex, ey, er);
+      gr.addColorStop(0, "#ffe0ff"); gr.addColorStop(0.5, "#e070e0"); gr.addColorStop(1, "#5a1a50");
+      g.fillStyle = gr; circ(g, ex, ey, er); g.fill();
+    }
+    // Öffnung
+    g.fillStyle = "#1a0510"; ell(g, c, c, r * 0.22, r * 0.16 * (1 + 0.3 * Math.sin(ph))); g.fill();
+  }
+
   function zombie(type, frame, variant = 0) {
     const f = ((frame % FRAMES) + FRAMES) % FRAMES;
     const v = variant % variants(type);
@@ -492,7 +569,7 @@ window.Sprites = (() => {
     const r = Z_R[type] || 15;
     const S = r * (SPAN[type] || 3.7);
     const P = (PAL[type] || PAL.walker)[v];
-    const fn = type === "crawler" ? crawler : type === "dog" || type === "rat" ? dog : type === "abom" ? abom : type === "mother" ? mother : humanoid;
+    const fn = type === "crawler" ? crawler : type === "dog" || type === "rat" ? dog : type === "abom" ? abom : type === "mother" ? mother : type === "nest" ? nest : humanoid;
     return get(key, S, S, outlined((g) => fn(g, S / 2, r, f, P, rng(hash(type) + v * 977)), r > 30 ? 2 : 1.2));
   }
   // Radien (müssen zu ZOMBIES in game.js passen; werden dort per register gesetzt)

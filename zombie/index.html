@@ -47,18 +47,34 @@
         <button class="rail-btn" id="codexBtn"><i data-ic="codex"></i><span data-i18n>Kodex</span></button>
       </nav>
 
-      <div class="menu-fill"></div>
+      <!-- Bühne: Ziehen dreht die Kamera um den Helden -->
+      <div class="menu-fill" id="menuStage" aria-hidden="true"><span class="stage-hint" data-i18n>Ziehen zum Umsehen</span></div>
 
-      <button class="loadout" id="loadoutBtn">
-        <span class="lo-art"><img id="menuWeaponImg" alt="" /></span>
-        <span class="lo-text"><small data-i18n>Ausrüstung</small><b id="menuEquipped"></b><span id="menuSkin"></span></span>
-        <span class="lo-go" aria-hidden="true"></span>
-      </button>
-
-      <div class="play-row">
-        <button class="btn primary xl" id="playBtn"><span data-i18n>SPIELEN</span><small data-i18n>Kampagne</small></button>
-        <button class="btn amber mode" id="survivalBtn"><i data-ic="stopwatch"></i><span data-i18n>ÜBERLEBEN</span><small id="survivalBest"></small></button>
+      <!-- Held & Waffe direkt im Menü wählen -->
+      <div class="pickers">
+        <div class="picker" id="heroPicker">
+          <button class="pk-arrow l" data-dir="-1" aria-label="Vorheriger Held"></button>
+          <button class="pk-main" id="heroPickBtn"><small data-i18n>Held</small><b id="menuSkinName"></b></button>
+          <button class="pk-arrow r" data-dir="1" aria-label="Nächster Held"></button>
+        </div>
+        <div class="picker wpn" id="weaponPicker">
+          <button class="pk-arrow l" data-dir="-1" aria-label="Vorherige Waffe"></button>
+          <button class="pk-main" id="loadoutBtn"><img id="menuWeaponImg" alt="" /><span><small><span data-i18n>Waffe</span> · <span id="menuWeaponLv"></span></small><b id="menuEquipped"></b></span></button>
+          <button class="pk-arrow r" data-dir="1" aria-label="Nächste Waffe"></button>
+        </div>
       </div>
+      <p class="boost-line hidden" id="menuSkin"></p>
+
+      <!-- Einsatzart wählen, dann starten -->
+      <div class="mode-row">
+        <button class="mode-card active" id="modeCampaign" data-mode="campaign">
+          <i data-ic="door"></i><span><b data-i18n>Kampagne</b><small id="campaignInfo"></small></span>
+        </button>
+        <button class="mode-card amber" id="survivalBtn" data-mode="survival">
+          <i data-ic="stopwatch"></i><span><b data-i18n>Überleben</b><small id="survivalBest"></small></span>
+        </button>
+      </div>
+      <button class="btn primary xl cta" id="playBtn"><span data-i18n>EINSATZ STARTEN</span><small id="ctaSub"></small></button>
 
       <nav class="dock">
         <button class="dock-btn" id="shopBtn"><i data-ic="shop"></i><span>Shop</span></button>
@@ -151,7 +167,11 @@
         <div class="wallet"><i class="coin" data-ic="coin"></i><b class="coinsVal">0</b></div>
       </header>
       <div class="body">
-        <p class="lead" data-i18n>Evolutionen: Zwei Skills auf Stufe verschmelzen zu einer Superfähigkeit.</p>
+        <div class="tabs" id="codexTabs">
+          <button class="tab" data-tab="evo" data-i18n>Evolutionen</button>
+          <button class="tab" data-tab="bestiary" data-i18n>Bestiarium</button>
+        </div>
+        <p class="lead" id="codexLead" data-i18n>Evolutionen: Zwei Skills auf Stufe verschmelzen zu einer Superfähigkeit.</p>
         <div id="codexList" class="list"></div>
         <p class="note" id="codexNote"></p>
       </div>
@@ -167,10 +187,13 @@
       <div class="body">
         <div class="list settings-list">
           <button class="set-row" id="soundBtn2"></button>
+          <button class="set-row" id="musicBtn"></button>
           <button class="set-row" id="vibBtn"></button>
           <button class="set-row" id="langBtn"></button>
           <button class="set-row" id="gfxBtn"></button>
           <button class="set-row" id="fpsBtn"></button>
+          <button class="set-row" id="cineBtn"></button>
+          <button class="set-row" id="motionBtn"></button>
           <button class="set-row hidden" id="privacyOptsBtn"></button>
           <a class="set-row" id="privacyLink" target="_blank" rel="noopener"></a>
         </div>
@@ -253,6 +276,7 @@
   <script src="vendor/three.min.js"></script>
   <script src="render3d.js"></script>
   <script src="platform.js"></script>
+  <script src="audio.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

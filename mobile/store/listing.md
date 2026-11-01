@@ -13,14 +13,17 @@ Promo-Poster für Stories/TikTok/Reels (1080×1920): `promo/poster-de.png`, `pro
 Escape from Germany: Zombies
 
 **Kurzbeschreibung (max. 80):**
-Flucht durch Deutschland: Zombie-Roguelite mit Story, 7 Bossen – offline!
+Flucht durch Deutschland: Zombie-Roguelite mit Story, 8 Bossen – offline!
 
 **Vollständige Beschreibung:**
 
-Deutschland ist gefallen. Eine Zombie-Epidemie hat das Land überrannt, und dein Plan ist einfach: raus hier. Kämpf dich von Berlin über Leipzig, Nürnberg, München, Stuttgart, Frankfurt und Köln bis nach Hamburg, wo die letzte Fähre ablegt – die ARCHE.
+Deutschland ist gefallen. Eine Zombie-Epidemie hat das Land überrannt, und dein Plan ist einfach: raus hier. Kämpf dich von Heilbronn über Stuttgart, München, Nürnberg, Leipzig, Berlin, Frankfurt und Köln bis nach Hamburg, wo die letzte Fähre ablegt – die ARCHE.
 
-🗺️ ACHT STÄDTE, 80 STADTTEILE
-Jeder Raum ist ein echter Stadtteil: Mitte, Kreuzberg, Prenzlauer Berg, Schwabing, Ehrenfeld, St. Pauli … Nach zehn Bezirken und einem Boss wartet die nächste Stadt. Funksprüche und eine Fluchtkarte erzählen die Geschichte der Epidemie – und nach Hamburg geht die Flucht durch Europa weiter.
+🗺️ NEUN STÄDTE, 90 STADTTEILE
+Jeder Raum ist ein echter Stadtteil: Heilbronner Marktplatz, Neckarmeile, Wartberg, Kreuzberg, Prenzlauer Berg, Schwabing, Ehrenfeld, St. Pauli … Nach zehn Bezirken und einem Boss wartet die nächste Stadt. Funksprüche und eine Fluchtkarte erzählen die Geschichte der Epidemie – und nach Hamburg geht die Flucht durch Europa weiter.
+
+🍷 START IN HEILBRONN
+Deine Flucht beginnt im Unterland: Weindorf mit Trollinger und Zwiebelkuchen, der Kiliansturm mit dem Männle, die Kunstuhr am Rathaus, Stadtbahn und Neckarhafen. Wengerter mit Rückenspritzen lauern zwischen den Rebzeilen – und auf dem Wartberg wartet Götz von Berlichingen mit seiner eisernen Hand.
 
 🍺 DEUTSCHLAND, WIE DU ES NOCH NIE GESEHEN HAST
 Weihnachtsmarkt im Schnee, Wiesn-Gaudi, Karneval im Konfettiregen, Nebel am Hafen. Zapf das Bierfass an, schieß den Maibaum auf die Horde, zünde die Böllerkiste und stärk dich an der Currywurstbude. Und pass auf: Wiesn-Zombies werfen Maßkrüge, Jecken werfen Kamelle, der Schaffner sorgt für Verspätung, der Beamte für Papierkram – und die Gartenzwerge kommen im Rudel.
@@ -34,7 +37,7 @@ Mehrfachschuss, Querschläger, Kreissägen, Kampfdrohne, Brand-, Kryo- und Toxin
 🔫 15 WAFFEN
 Pistole, Schrotflinte, Maschinenpistole, Magnum, Armbrust, Flammenwerfer, Sturmgewehr, Scharfschützengewehr, Sägeblattwerfer, Granatwerfer, Kryo-Kanone, Tesla-Gewehr mit Kettenblitz, zielsuchender Raketenwerfer, eine Minigun, die sich warmläuft, und die Laserkanone – jede spielt sich komplett anders und lässt sich bis Stufe 10 aufrüsten. Ab Stufe 5 glänzt sie in Gold.
 
-🧟 31 ZOMBIE-ARTEN & ELITE-GEGNER
+🧟 32 ZOMBIE-ARTEN & ELITE-GEGNER
 Schlurfer in Dutzenden Outfits, Sprinter, Kriecher, Spucker, Bomber, Zombie-Hunde, Riot-Zombies, der Koloss, Springer, Brenner, Kreischer, Teiler, Elektro-Zombies und Seuchenratten – und neu: Seuchenpriester, die die Horde heilen, Schildwächter mit Energieschilden, Wühler, die unter dir aus dem Boden brechen, unsichtbare Schemen, Brocken-Werfer, platzende Gasbläher, Brutnester und Zombie-Schützen mit Laservisier. Jeder Gegner hat eine Schwäche – das Bestiarium verrät sie. Elite-Zombies mit goldener Aura halten dreimal so viel aus und lassen mehr Beute fallen.
 
 🎬 KINO-ATMOSPHÄRE & INTERAKTIVER SOUNDTRACK
@@ -68,7 +71,7 @@ Spiel so viele Einsätze, wie du willst.
 Kämpf dich in 3D durch nächtliche Straßen, Altstädte mit Fachwerk und Kopfsteinpflaster, ein verlassenes Krankenhaus und ein geheimes Labor – mit Echtzeit-Schatten, Taschenlampe, nassen Straßen, die im Licht glänzen, und gewaltigen Explosionen. Jag Giftfässer in die Luft, zerschieß Kisten für Beute und erlebe Bosskämpfe wie im Kino. Läuft auch auf älteren Handys flüssig dank automatischer Grafikanpassung.
 
 👹 EPISCHE BOSSKÄMPFE
-Jede Stadt hat ihren eigenen Endgegner: Der Zugführer rast als Lok durch die Arena, Krampus schwingt die Kette und wirft explodierende Geschenke, der Bierkönig rollt Fässer und landet den Bauchklatscher, der Narrenkönig wirbelt Kamelle-Spiralen, und am Hamburger Hafen wartet der Klabautermann mit Anker und Nebelhorn. Rote Warnflächen zeigen jede Attacke an – wer sie liest, überlebt. Unter 50 % Leben rufen die Bosse Verstärkung.
+Jede Stadt hat ihren eigenen Endgegner: Götz von Berlichingen schlägt mit der eisernen Hand zu, der Zugführer rast als Lok durch die Arena, Krampus schwingt die Kette und wirft explodierende Geschenke, der Bierkönig rollt Fässer und landet den Bauchklatscher, der Narrenkönig wirbelt Kamelle-Spiralen, und am Hamburger Hafen wartet der Klabautermann mit Anker und Nebelhorn. Rote Warnflächen zeigen jede Attacke an – wer sie liest, überlebt. Unter 50 % Leben rufen die Bosse Verstärkung.
 
 🧬 DAUERHAFTER FORTSCHRITT
 Sammle Münzen, schalte Waffen frei und verbessere Talente wie Konstitution, Schusstraining und Plünderer. Mit jedem Run wirst du stärker.
@@ -89,14 +92,17 @@ Schaffst du es raus aus Deutschland?
 Escape from Germany: Zombies
 
 **Short description (max 80):**
-Escape through Germany: zombie roguelite with story & 7 bosses – offline!
+Escape through Germany: zombie roguelite with story & 8 bosses – offline!
 
 **Full description:**
 
-Germany has fallen. A zombie epidemic has overrun the country, and your plan is simple: get out. Fight your way from Berlin through Leipzig, Nuremberg, Munich, Stuttgart, Frankfurt and Cologne to Hamburg, where the last ferry departs – the ARCHE.
+Germany has fallen. A zombie epidemic has overrun the country, and your plan is simple: get out. Fight your way from Heilbronn through Stuttgart, Munich, Nuremberg, Leipzig, Berlin, Frankfurt and Cologne to Hamburg, where the last ferry departs – the ARCHE.
 
-🗺️ EIGHT CITIES, 80 DISTRICTS
-Every room is a real district: Mitte, Kreuzberg, Prenzlauer Berg, Schwabing, Ehrenfeld, St. Pauli … After ten districts and a boss, the next city awaits. Radio messages and an escape map tell the story of the epidemic – and after Hamburg the escape continues across Europe.
+🗺️ NINE CITIES, 90 DISTRICTS
+Every room is a real district: Heilbronn's market square, Neckarmeile, Wartberg, Kreuzberg, Prenzlauer Berg, Schwabing, Ehrenfeld, St. Pauli … After ten districts and a boss, the next city awaits. Radio messages and an escape map tell the story of the epidemic – and after Hamburg the escape continues across Europe.
+
+🍷 START IN HEILBRONN
+Your escape begins in the Unterland: the wine festival with Trollinger and onion tart, Kilian's tower with its little stone soldier, the astronomical clock on the town hall, the light rail and the Neckar harbour. Winegrowers with backpack sprayers lurk between the vine rows – and on the Wartberg, Götz von Berlichingen waits with his iron hand.
 
 🍺 GERMANY LIKE YOU'VE NEVER SEEN IT
 Christmas markets in the snow, beer festivals, carnival in a rain of confetti, fog in the harbour. Tap the beer barrel, shoot the maypole onto the horde, light the firework crate and grab a currywurst. And watch out: beer fest zombies throw steins, carnival jesters throw candy, the conductor makes you late, the bureaucrat buries you in paperwork – and the garden gnomes come in packs.
@@ -110,7 +116,7 @@ Multishot, ricochet, buzzsaws, combat drone, incendiary, cryo and toxin rounds, 
 🔫 15 WEAPONS
 Pistol, shotgun, SMG, magnum, crossbow, flamethrower, assault rifle, sniper rifle, saw launcher, grenade launcher, cryo cannon, a chain-lightning Tesla rifle, a homing rocket launcher, a spin-up minigun and the laser cannon – each plays completely differently and can be upgraded to level 10. From level 5 it shines in gold.
 
-🧟 31 KINDS OF ZOMBIES & ELITES
+🧟 32 KINDS OF ZOMBIES & ELITES
 Walkers in dozens of outfits, sprinters, crawlers, spitters, bombers, zombie dogs, riot zombies, the brute, leapers, burners, screamers, splitters, electro zombies and plague rats – and new: plague priests that heal the horde, shield wardens with energy shields, burrowers that burst out of the ground beneath you, invisible wraiths, boulder throwers, exploding gas bloaters, brood nests and zombie gunners with laser sights. Every enemy has a weakness – the bestiary reveals it. Elite zombies with a golden aura take three times the damage and drop more loot.
 
 🎬 CINEMATIC ATMOSPHERE & INTERACTIVE SOUNDTRACK
@@ -144,7 +150,7 @@ Play as many runs as you like.
 Fight in 3D through night-time streets, half-timbered old towns with cobblestones, an abandoned hospital and a secret lab – with real-time shadows, a flashlight, rain-soaked streets that glisten in the light and massive explosions. Blow up toxic barrels, shoot crates for loot and experience cinematic boss fights. Runs smoothly even on older phones thanks to automatic graphics scaling.
 
 👹 EPIC BOSS FIGHTS
-Every city has its own boss: the Engine Driver charges through the arena like a locomotive, Krampus swings his chain and throws exploding presents, the Beer King rolls barrels and lands a belly slam, the Fool King spins spirals of candy, and at the port of Hamburg the Klabautermann waits with anchor and foghorn. Red warning zones telegraph every attack – read them and you survive. Below 50% health the bosses call for backup.
+Every city has its own boss: Götz von Berlichingen strikes with his iron hand, the Engine Driver charges through the arena like a locomotive, Krampus swings his chain and throws exploding presents, the Beer King rolls barrels and lands a belly slam, the Fool King spins spirals of candy, and at the port of Hamburg the Klabautermann waits with anchor and foghorn. Red warning zones telegraph every attack – read them and you survive. Below 50% health the bosses call for backup.
 
 🧬 PERMANENT PROGRESSION
 Collect coins, unlock weapons and upgrade talents like Constitution, Marksmanship and Looter. Every run makes you stronger.

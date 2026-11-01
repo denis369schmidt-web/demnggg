@@ -870,7 +870,8 @@ void main() {
       case "fass": {
         const br = Math.min(W, Hd) * 0.27;
         for (const [px, pz, y0] of [[-0.22, -0.18, 0], [0.22, -0.18, 0], [0, 0.22, 0]]) {
-          const f = add(mesh(cyl(br, br, 30, 12), slam("#8a5a2c"), px * W, y0 + br, pz * Hd)); f.rotation.z = Math.PI / 2;
+          const f = add(mesh(cyl(br, br, 30, 12), slam(o.fest === "wein" ? "#6a4428" : "#8a5a2c"), px * W, y0 + br, pz * Hd)); f.rotation.z = Math.PI / 2;
+          if (o.fest === "wein") g.add(mesh(cyl(br * 0.25, br * 0.25, 31, 8), slam("#7a1830"), px * W, y0 + br, pz * Hd).rotateZ(Math.PI / 2));
           for (const rx of [-11, 11]) { const ring = mesh(cyl(br * 1.04, br * 1.04, 2, 12), slam("#3a3a3e"), px * W + rx, y0 + br, pz * Hd); ring.rotation.z = Math.PI / 2; g.add(ring); }
         }
         break;
@@ -895,6 +896,16 @@ void main() {
         add(mesh(box(W, 14, Hd), slam("#c0281e"), 0, 7, 0));
         for (let k = 0; k < 5; k++) g.add(mesh(ico(1.8, 0), sbasic("#ffd23a"), -W / 2 + 6 + R() * (W - 12), 14.5, -Hd / 2 + 5 + R() * (Hd - 10)));
         for (let k = 0; k < 4; k++) add(mesh(cyl(1.6, 1.6, 16, 6), slam("#e8e0c8"), -W / 2 + 8 + k * (W - 16) / 3, 22, 0));
+        break;
+      }
+      case "rebstock": {
+        // Rebzeile: Holzpfähle, Drähte, Laubwand und Trauben (Trollinger)
+        const len = o.vert ? Hd : W, c = group(); if (o.vert) c.rotation.y = Math.PI / 2; g.add(c);
+        const wood = slam("#6a4a2a"), leaf = slam("#3a7a2a"), leaf2 = slam("#2a5a1e"), grape = slam("#3a1a4a");
+        for (let x = -len / 2 + 4; x <= len / 2 - 4; x += (len - 8) / 3) c.add(mesh(box(3, 34, 3), wood, x, 17, 0));
+        for (const y of [14, 26]) c.add(mesh(box(len - 6, 0.8, 0.8), slam("#8a9298"), 0, y, 0));
+        for (let i = 0; i < 9; i++) { const lx = -len / 2 + 8 + (i / 8) * (len - 16); const lf = mesh(ico(7 + (i % 3), 0), i % 2 ? leaf : leaf2, lx, 22 + (i % 3) * 3, (i % 2 - 0.5) * 4); lf.scale.set(1.2, 0.9, 0.8); lf.castShadow = true; c.add(lf); }
+        for (let i = 0; i < 7; i++) { const gx = -len / 2 + 12 + (i / 6) * (len - 24); for (let j = 0; j < 3; j++) c.add(mesh(ico(1.8, 0), grape, gx + (j - 1) * 1.6, 13 - j * 2.2, 5)); }
         break;
       }
       case "glascontainer": {
@@ -1114,13 +1125,15 @@ void main() {
     const beacons = w.theme === "lab" ? [[D.W / 2 - D.DOOR_W / 2 - 26, D.T - 8], [D.W / 2 + D.DOOR_W / 2 + 26, D.T - 8]] : [];
     for (const [bx, bz] of beacons) { deco.add(mesh(cyl(6, 7, 6, 10), slam("#2a2a2a"), bx, 64, bz)); deco.add(mesh(cyl(5, 5, 8, 10), sbasic("#ff3020"), bx, 71, bz)); }
     addProps(deco, w);
+    const clock = w.cityId === "heilbronn" && w.theme === "markt" ? addHeilbronn(deco, w, WH) : null;
 
     bakeStatic(deco);
     deco.traverse((c) => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
     g.add(deco);
+    if (clock) g.add(clock.face);
     uncached = false;
 
-    room = { group: g, floorTex, glossTex, door, lamps, lampRgb, obs, cones, beacons, baseHemi, baseMoon };
+    room = { group: g, floorTex, glossTex, door, lamps, lampRgb, obs, cones, beacons, baseHemi, baseMoon, clock };
     builtFloor = fc;
     renderer.shadowMap.needsUpdate = true;
     warmPending = true; // neue Raum-Materialien (Wände, Hindernisse) gleich mit übersetzen
@@ -1184,6 +1197,8 @@ void main() {
     scooter: [{ shirt: "#2a6a5a", pants: "#1f2126", skin: "#9caa8a", lean: 0.25, scooter: true, headband: "#e8e8e0" }],
     paketbote: [{ shirt: "#24324f", pants: "#1b2338", skin: "#8fa67a", carry: true, hat: "cap", capColor: "#e8701a" }],
     rentner: [{ shirt: "#b8a888", pants: "#5a5448", skin: "#b9c4ad", umbrella: "#2a3a6a", hair: "#d8d8d0", coat: true }],
+    wengerter: [{ shirt: "#4a6a3a", pants: "#3a3a30", skin: "#94a37c", hat: "straw", butte: true, sprayer: true, torn: true }],
+    goetz: [{ shirt: "#8a1a1a", pants: "#4a4e56", skin: "#7f9474", big: true, hat: "knight", plate: true, ironFist: true, sword: true, eye: "#ff5a3a" }],
     zugfuehrer: [{ shirt: "#1e2a4a", pants: "#1a2236", skin: "#7f9474", big: true, hat: "conductor", kelle: true, whistle: true, eye: "#ffcc33", lantern: true }],
     krampus: [{ shirt: "#3a2a1e", pants: "#2a1e14", skin: "#5a4436", brute: true, horns: true, chains: true, fur: true, eye: "#ffcc33" }],
     bierkoenig: [{ shirt: "#f2efe6", pants: "#5a3a1e", skin: "#94a37c", lederhosen: true, hat: "tracht", krug: true, belly: true, crown: true, eye: "#ffcc33" }],
@@ -1444,6 +1459,41 @@ void main() {
     if (P.bengalo && armL) {
       armL.g.add(mesh(cyl(0.06 * r, 0.06 * r, 0.5 * r, 6), slam("#b0201a"), 1.12 * r, 0.3 * r, 0));
       armL.g.add(mesh(ico(0.12 * r, 1), sbasic("#ffe0c8"), 1.12 * r, 0.58 * r, 0));
+    }
+    // ---- v2.2 Heilbronn ----
+    if (P.hat === "straw") {
+      head.add(mesh(cyl(hr * 1.75, hr * 1.75, 0.05 * r, 16), slam("#d8b860"), -0.02 * r, hr * 0.62, 0));
+      head.add(mesh(cyl(hr * 0.78, hr * 0.92, 0.36 * r, 12), slam("#e4c878"), -0.02 * r, hr * 0.9, 0));
+      head.add(mesh(cyl(hr * 0.94, hr * 0.94, 0.08 * r, 12), slam("#5a2a1a"), -0.02 * r, hr * 0.72, 0));
+    }
+    if (P.butte) {
+      B.add(mesh(cyl(0.38 * r, 0.3 * r, 0.95 * r, 10), slam("#8a6a3a"), -0.62 * r, 1.65 * r, 0));
+      for (let i = 0; i < 6; i++) B.add(mesh(ico(0.1 * r, 0), slam("#3a1a4a"), -0.62 * r + Math.cos(i) * 0.18 * r, 2.15 * r, Math.sin(i) * 0.18 * r));
+    }
+    if (P.sprayer && armR) {
+      const lance = mesh(cyl(0.035 * r, 0.035 * r, 1.4 * r, 5), slam("#7a8088"), 1.25 * r, 0.05 * r, 0); lance.rotation.z = Math.PI / 2; armR.g.add(lance);
+      armR.g.add(mesh(ico(0.08 * r, 0), slam("#c8ccd0"), 1.95 * r, 0.05 * r, 0));
+    }
+    if (P.hat === "knight") {
+      const helm = mesh(ico(hr * 1.2, 1), slam("#a8b0b8"), -0.02 * r, 0.06 * r, 0); helm.scale.set(1.05, 1.08, 1.04); head.add(helm);
+      head.add(mesh(box(0.06 * r, 0.1 * r, 0.6 * r), slam("#111316"), hr * 1.18, 0.06 * r, 0));
+      head.add(mesh(box(0.05 * r, 0.06 * r, 0.08 * r), sbasic("#ff3a2a"), hr * 1.2, 0.07 * r, 0.14 * r));
+      head.add(mesh(box(0.05 * r, 0.06 * r, 0.08 * r), sbasic("#ff3a2a"), hr * 1.2, 0.07 * r, -0.14 * r));
+      for (let i = 0; i < 4; i++) { const pl = mesh(cone(0.12 * r, 0.6 * r, 5), slam("#c81e1e"), -0.2 * r - i * 0.12 * r, hr * 1.05 - i * 0.04 * r, 0); pl.rotation.z = 1.2 + i * 0.12; head.add(pl); }
+    }
+    if (P.plate) {
+      const bp = mesh(box(0.56 * r, 0.75 * r, 1.0 * r), slam("#9aa3ad"), 0.12 * r, 1.6 * r, 0); B.add(bp);
+      for (const z of [-1, 1]) { const pd = mesh(ico(0.3 * r, 1), slam("#8a929a"), 0, 1.98 * r, z * 0.7 * r); pd.scale.set(1, 0.7, 1); B.add(pd); }
+      B.add(mesh(box(0.6 * r, 0.12 * r, 1.04 * r), slam("#4a3a2a"), 0, 1.14 * r, 0));
+    }
+    if (P.ironFist && armR) {
+      armR.g.add(mesh(box(0.55 * r, 0.5 * r, 0.5 * r), slam("#b8c0c8"), 1.2 * r, 0, 0));
+      for (let k = -1; k <= 1; k++) armR.g.add(mesh(box(0.14 * r, 0.12 * r, 0.12 * r), slam("#d8dde2"), 1.5 * r, 0.12 * r, k * 0.16 * r));
+      armR.g.add(mesh(cyl(0.2 * r, 0.24 * r, 0.5 * r, 8), slam("#8a929a"), 0.8 * r, 0, 0).rotateZ(Math.PI / 2));
+    }
+    if (P.sword && armL) {
+      armL.g.add(mesh(box(0.08 * r, 2.0 * r, 0.16 * r), slam("#d8dde2"), 1.1 * r, 1.05 * r, 0));
+      armL.g.add(mesh(box(0.1 * r, 0.1 * r, 0.7 * r), slam("#8a6a2a"), 1.1 * r, 0.05 * r, 0));
     }
     // ---- v2.1 ----
     if (P.scooter) {
@@ -1920,6 +1970,45 @@ void main() {
     for (const m of M.mats) m.emissive.setRGB(r, g, b);
   }
 
+
+
+  // v2.2 Heilbronn: Kiliansturm mit dem „Männle“ ragt über die Dächer, am Marktplatz hängt die Kunstuhr des Rathauses
+  function addHeilbronn(deco, w, WH) {
+    const sand = slam("#b89a72"), sandD = slam("#8a7254"), slate = slam("#3a3e44"), gold = sbasic("#e8c64a");
+    const tw = group(D.W / 2 + 112, WH, D.T - 30);
+    tw.scale.setScalar(0.54); // gestaucht, damit Turm und Männle unter der Anzeige im Bild bleiben
+    // Turmschaft in Stockwerken, nach oben schmaler (Renaissance-Westturm)
+    let y = 0;
+    [[56, 60], [48, 46], [40, 38], [32, 30], [24, 24]].forEach(([wd, h], i) => {
+      tw.add(mesh(box(wd, h, wd), i % 2 ? sandD : sand, 0, y + h / 2, 0));
+      tw.add(mesh(box(wd + 4, 3, wd + 4), sandD, 0, y + h, 0));
+      for (const sx of [-1, 1]) tw.add(mesh(box(1, h * 0.45, wd * 0.18), slam("#1c1e22"), sx * (wd / 2 + 0.3), y + h * 0.55, 0));
+      tw.add(mesh(box(wd * 0.18, h * 0.45, 1), slam("#1c1e22"), 0, y + h * 0.55, wd / 2 + 0.3));
+      y += h;
+    });
+    // Laterne, Spitze und das Männle (Steinfigur eines Landsknechts mit Fahne) obenauf
+    tw.add(mesh(cyl(9, 12, 16, 8), sand, 0, y + 8, 0)); y += 16;
+    tw.add(mesh(cone(10, 16, 8), slate, 0, y + 8, 0)); y += 16;
+    const man = group(0, y, 0); tw.add(man);
+    man.add(mesh(cyl(2.2, 2.6, 7, 6), sandD, 0, 3.5, 0)); man.add(mesh(ico(2, 0), sandD, 0, 8.5, 0));
+    man.add(mesh(cyl(0.4, 0.4, 12, 4), slam("#2a2a2a"), 3, 9, 0)); man.add(mesh(box(0.4, 4, 6), slam("#c81e1e"), 3, 13, 3));
+    tw.add(mesh(ico(1.4, 0), gold, 0, y + 11, 0));
+    cast(tw); deco.add(tw);
+    if (w.district !== "Marktplatz") return null;
+    // Kunstuhr: blaues Zifferblatt mit goldenem Ring, Sonne & Mond, zwei Zeiger, darüber das Rathaus-Giebelfeld
+    const cx = D.W / 2 - 112, cy = WH * 0.55, cz = D.T + 0.8;
+    const face = group(cx, cy, cz);
+    face.scale.setScalar(1.35);
+    const disc = mesh(cyl(17, 17, 1.4, 24), slam("#1d3f8a"), 0, 0, 0); disc.rotation.x = Math.PI / 2; face.add(disc);
+    const ring = mesh(torus(17, 1.6), sbasic("#e8c64a"), 0, 0, 0.8); face.add(ring);
+    for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU; face.add(mesh(box(1.4, 3.4, 0.6), gold, Math.cos(a) * 14, Math.sin(a) * 14, 1).rotateZ(a + Math.PI / 2)); }
+    face.add(mesh(ico(2.6, 1), gold, -7, 7, 1.2)); face.add(mesh(ico(2.2, 1), sbasic("#d8dde2"), 7, -7, 1.2));
+    const hour = group(0, 0, 1.6), minute = group(0, 0, 2);
+    hour.add(mesh(box(1.8, 9, 0.6), gold, 0, 4.5, 0)); minute.add(mesh(box(1.2, 13, 0.6), gold, 0, 6.5, 0));
+    face.add(hour, minute);
+    face.add(mesh(box(50, 3.4, 3), sandD, 0, -20, -0.5));
+    return { face, hour, minute }; // nicht in die statische Deko – die Zeiger drehen sich
+  }
 
   // v2.1 Menü: Polizeihubschrauber kreist über der Altstadt, Suchscheinwerfer streift über den Platz
   let heli = null;
@@ -3199,6 +3288,7 @@ void main() {
     syncObstacles();
     syncSupply(w);
     syncHeli(w, t);
+    if (room && room.clock) { room.clock.minute.rotation.z = -t * 0.6; room.clock.hour.rotation.z = -t * 0.05; }
     syncInstanced(w, t);
     syncBigFx(w, t);
     fillBatches(w, t);

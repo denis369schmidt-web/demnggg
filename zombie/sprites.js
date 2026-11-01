@@ -220,6 +220,8 @@ window.Sprites = (() => {
     scooter: [{ shirt: "#2a6a5a", pants: "#1f2126", skin: "#9caa8a", lean: 0.2, scooter: true, headband: "#e8e8e0" }],
     paketbote: [{ shirt: "#24324f", pants: "#1b2338", skin: "#8fa67a", carry: true, cap: "#e8701a" }],
     rentner: [{ shirt: "#b8a888", pants: "#5a5448", skin: "#b9c4ad", umbrella: "#2a3a6a", grey: true }],
+    wengerter: [{ shirt: "#4a6a3a", pants: "#3a3a30", skin: "#94a37c", straw: true, butte: true, sprayer: true }],
+    goetz: [{ shirt: "#8a1a1a", pants: "#4a4e56", skin: "#7f9474", big: true, knight: true, ironFist: true, sword: true, eye: "#ff5a3a" }],
     zugfuehrer: [{ shirt: "#1e2a4a", pants: "#1a2236", skin: "#7f9474", big: true, conductor: true, kelle: true, eye: "#ffcc33" }],
     krampus: [{ shirt: "#3a2a1e", pants: "#2a1e14", skin: "#5a4436", brute: true, sleeveless: true, horns: true, chains: true, eye: "#ffcc33" }],
     bierkoenig: [{ shirt: "#f2efe6", pants: "#5a3a1e", skin: "#94a37c", lederhosen: true, tracht: "#2f4a2a", krug: true, belly: true, crown: true, eye: "#ffcc33" }],
@@ -230,7 +232,7 @@ window.Sprites = (() => {
     mother: [{ skin: "#3f5a3a" }],
   };
   // Sprite-Größe relativ zum Kollisionsradius
-  const SPAN = { crawler: 4.4, dog: 4.8, rat: 5.2, abom: 3.6, mother: 4.0, nest: 3.0, healer: 4.6, gunner: 4.4, wiesn: 4.0, jeck: 4.2, schaffner: 4.2, beamter: 4.0, zwerg: 4.6, ultra: 4.2, scooter: 4.6, paketbote: 4.2, rentner: 4.4, zugfuehrer: 4.0, krampus: 4.2, bierkoenig: 3.9, narrenkoenig: 4.4, kapitaen: 4.2 };
+  const SPAN = { crawler: 4.4, dog: 4.8, rat: 5.2, abom: 3.6, mother: 4.0, nest: 3.0, healer: 4.6, gunner: 4.4, wiesn: 4.0, jeck: 4.2, schaffner: 4.2, beamter: 4.0, zwerg: 4.6, ultra: 4.2, scooter: 4.6, paketbote: 4.2, rentner: 4.4, wengerter: 4.4, goetz: 4.2, zugfuehrer: 4.0, krampus: 4.2, bierkoenig: 3.9, narrenkoenig: 4.4, kapitaen: 4.2 };
   const variants = (type) => (PAL[type] || PAL.walker).length;
 
   function humanoid(g, c, r, f, P, R) {
@@ -243,6 +245,12 @@ window.Sprites = (() => {
       limb(g, c + r * 0.85, c, c + r * 1.25, c, r * 0.08, "#9aa3ad");
       limb(g, c + r * 1.25, c - r * 0.45, c + r * 1.25, c + r * 0.45, r * 0.08, "#2a2e34");
       g.fillStyle = "#4ad0ff"; circ(g, c + r * 1.3, c, r * 0.07); g.fill();
+    }
+    if (P.butte) {
+      // Butte (Traubenkiepe) auf dem Rücken, voller blauer Trauben
+      g.fillStyle = vol(g, c - r * 0.75, c, r * 0.6, "#8a6a3a"); rr(g, c - r * 1.2, c - r * 0.5, r * 0.6, r * 1.0, r * 0.18); g.fill();
+      g.strokeStyle = "#5a4020"; g.lineWidth = r * 0.04; for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(c - r * 1.2, c - r * 0.3 + k * r * 0.3); g.lineTo(c - r * 0.6, c - r * 0.3 + k * r * 0.3); g.stroke(); }
+      g.fillStyle = "#4a2a5a"; for (let k = 0; k < 5; k++) { circ(g, c - r * 1.05 + (k % 3) * r * 0.16, c - r * 0.3 + Math.floor(k / 3) * r * 0.25, r * 0.1); g.fill(); }
     }
     if (P.cape) {
       // Umhang weht hinter dem Narrenkönig
@@ -362,6 +370,13 @@ window.Sprites = (() => {
       g.fillStyle = "#5a3a1e"; rr(g, tx + r * 0.22, c - r * 0.36, r * 0.2, r * 0.72, r * 0.05); g.fill();
       g.fillStyle = "#d8c8a0"; circ(g, tx + r * 0.32, c, r * 0.07); g.fill();
     }
+    if (P.knight) {
+      // Brustpanzer mit Nieten, roter Wappenrock darunter
+      g.fillStyle = vol(g, tx + r * 0.1, c, r * 0.7, "#9aa3ad"); ell(g, tx + r * 0.05, c, r * 0.42, r * 0.7); g.fill();
+      g.strokeStyle = "#5a6068"; g.lineWidth = r * 0.04; g.beginPath(); g.moveTo(tx + r * 0.45, c - r * 0.55); g.lineTo(tx + r * 0.45, c + r * 0.55); g.stroke();
+      g.fillStyle = "#e8ecef"; for (const y of [-0.4, 0, 0.4]) { circ(g, tx + r * 0.32, c + y * r, r * 0.04); g.fill(); }
+      for (const s2 of [-1, 1]) { g.fillStyle = vol(g, tx, c + s2 * r * 0.78, r * 0.3, "#8a929a"); circ(g, tx, c + s2 * r * 0.78, r * 0.26); g.fill(); }
+    }
     if (P.chains) {
       // Krampus: rostige Ketten über Brust und Rücken
       g.strokeStyle = "#7a6a5a"; g.lineWidth = r * 0.06;
@@ -429,6 +444,22 @@ window.Sprites = (() => {
       const fx = handX + r * 0.55, gr = g.createRadialGradient(fx, handL, 0, fx, handL, r * 0.55);
       gr.addColorStop(0, "#ffffff"); gr.addColorStop(0.3, "#ffd0b0"); gr.addColorStop(0.6, "rgba(255,60,40,0.7)"); gr.addColorStop(1, "rgba(255,40,30,0)");
       g.fillStyle = gr; circ(g, fx, handL, r * 0.55); g.fill();
+    }
+    if (P.sprayer) {
+      // Spritzlanze der Rückenspritze
+      limb(g, handX - r * 0.3, handR, handX + r * 0.85, handR - r * 0.02, r * 0.06, "#7a8088");
+      g.fillStyle = "#c8ccd0"; circ(g, handX + r * 0.9, handR, r * 0.08); g.fill();
+      limb(g, tx - r * 0.7, c + r * 0.2, handX - r * 0.3, handR, r * 0.04, "#2a2a2a");
+    }
+    if (P.ironFist) {
+      // die eiserne Hand: übergroßer Stahlhandschuh mit Nieten
+      g.fillStyle = vol(g, handX + r * 0.1, handR, r * 0.38, "#b8c0c8"); rr(g, handX - r * 0.2, handR - r * 0.28, r * 0.6, r * 0.56, r * 0.12); g.fill();
+      g.strokeStyle = "#5a6068"; g.lineWidth = r * 0.04; for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(handX + r * 0.15 + k * r * 0.1, handR - r * 0.25); g.lineTo(handX + r * 0.15 + k * r * 0.1, handR + r * 0.25); g.stroke(); }
+      g.fillStyle = "#f0f4f6"; circ(g, handX, handR - r * 0.15, r * 0.04); g.fill(); circ(g, handX, handR + r * 0.15, r * 0.04); g.fill();
+    }
+    if (P.sword) {
+      limb(g, handX - r * 0.2, handL, handX + r * 1.4, handL - r * 0.15, r * 0.09, "#d8dde2");
+      limb(g, handX - r * 0.1, handL - r * 0.25, handX - r * 0.1, handL + r * 0.25, r * 0.07, "#8a6a2a");
     }
     if (P.carry) {
       // Paket in beiden Händen
@@ -520,6 +551,22 @@ window.Sprites = (() => {
       eyes();
     }
     if (P.nose) { g.fillStyle = vol(g, hx + hr * 1.0, c, hr * 0.3, "#ff2020"); circ(g, hx + hr * 1.0, c, hr * 0.26); g.fill(); }
+    if (P.straw) {
+      // breiter Strohhut des Wengerters mit Hutband
+      g.fillStyle = vol(g, hx - hr * 0.05, c, hr * 1.6, "#d8b860"); circ(g, hx - hr * 0.05, c, hr * 1.5); g.fill();
+      g.strokeStyle = "rgba(120,90,30,0.4)"; g.lineWidth = r * 0.025; for (let k = 1; k < 4; k++) { circ(g, hx - hr * 0.05, c, hr * (0.5 + k * 0.32)); g.stroke(); }
+      g.fillStyle = vol(g, hx - hr * 0.1, c, hr * 0.85, "#e4c878"); circ(g, hx - hr * 0.1, c, hr * 0.72); g.fill();
+      g.strokeStyle = "#5a2a1a"; g.lineWidth = r * 0.06; circ(g, hx - hr * 0.1, c, hr * 0.75); g.stroke();
+      eyes();
+    }
+    if (P.knight) {
+      // Ritterhelm mit Sehschlitz und rotem Federbusch
+      g.fillStyle = vol(g, hx, c, hr * 1.2, "#a8b0b8"); circ(g, hx, c, hr * 1.1); g.fill();
+      g.fillStyle = "#1a1c20"; g.fillRect(hx + hr * 0.5, c - hr * 0.55, hr * 0.18, hr * 1.1);
+      g.fillStyle = "#ff3a2a"; g.fillRect(hx + hr * 0.53, c - hr * 0.35, hr * 0.12, hr * 0.12); g.fillRect(hx + hr * 0.53, c + hr * 0.23, hr * 0.12, hr * 0.12);
+      g.fillStyle = vol(g, hx - hr * 0.8, c, hr * 0.8, "#c81e1e");
+      g.beginPath(); g.moveTo(hx - hr * 0.2, c - hr * 0.25); g.quadraticCurveTo(hx - hr * 1.6, c - hr * 0.5 + Math.sin(ph) * hr * 0.1, hx - hr * 2.0, c); g.quadraticCurveTo(hx - hr * 1.6, c + hr * 0.5, hx - hr * 0.2, c + hr * 0.25); g.closePath(); g.fill();
+    }
     if (P.horns) {
       // Krampus-Hörner: geschwungen nach hinten, dazu Zottelfell
       for (const s2 of [-1, 1]) {
@@ -1165,7 +1212,7 @@ window.Sprites = (() => {
   // ------------------------------------------------------------------
   // Hindernisse (je Kapitel-Thema)
   // ------------------------------------------------------------------
-  const OBS_Z = { car: 0, crate: 12, barrels: 0, barricade: 14, dumpster: 16, bed: 6, cabinet: 18, medcrate: 12, tank: 0, server: 18, labcrate: 12, bude: 16, bierbank: 4, fass: 0, maibaum: 0, brunnen: 6, boeller: 10, automat: 14, glascontainer: 16, dixi: 26, telefonzelle: 30, weihnachtsbaum: 0, strandkorb: 18 };
+  const OBS_Z = { car: 0, crate: 12, barrels: 0, barricade: 14, dumpster: 16, bed: 6, cabinet: 18, medcrate: 12, tank: 0, server: 18, labcrate: 12, bude: 16, bierbank: 4, fass: 0, maibaum: 0, brunnen: 6, boeller: 10, automat: 14, rebstock: 18, glascontainer: 16, dixi: 26, telefonzelle: 30, weihnachtsbaum: 0, strandkorb: 18 };
   const CAR_COLORS = ["#7a2f2f", "#2f4f7a", "#6b6b6b", "#c9b48a", "#2f5f4a", "#d8d8d0"];
 
   function box3d(g, x, y, w, h, z, top, front, edge) {
@@ -1318,8 +1365,9 @@ window.Sprites = (() => {
             const bx = x + o.w * px, by = y + o.h * py, br = Math.min(o.w, o.h) * 0.27;
             gg.fillStyle = vol(gg, bx, by, br, "#8a5a2c"); circ(gg, bx, by, br); gg.fill();
             gg.strokeStyle = "#3a3a3e"; gg.lineWidth = 1.8; circ(gg, bx, by, br * 0.92); gg.stroke(); circ(gg, bx, by, br * 0.55); gg.stroke();
-            gg.fillStyle = "#5a3a1a"; circ(gg, bx, by, br * 0.18); gg.fill();
+            gg.fillStyle = o.fest === "wein" ? "#7a1830" : "#5a3a1a"; circ(gg, bx, by, br * 0.18); gg.fill();
           }
+          if (o.fest === "wein") { gg.fillStyle = "rgba(110,20,40,0.55)"; ell(gg, x + o.w * 0.55, y + o.h * 0.95, o.w * 0.22, 4); gg.fill(); } // Trollinger tropft
           break;
         }
         case "maibaum": {
@@ -1343,6 +1391,19 @@ window.Sprites = (() => {
           box3d(gg, x, y, o.w, o.h, z, "#c0281e", "#8a1a14", "#6a120e");
           gg.fillStyle = "#ffd23a"; for (let k = 0; k < 5; k++) { const sx = x + 5 + R() * (o.w - 10), sy = y + 4 + R() * (o.h - 8); gg.beginPath(); for (let j = 0; j < 10; j++) { const a = (j / 10) * TAU - Math.PI / 2, rr2 = j % 2 ? 1.6 : 4; gg.lineTo(sx + Math.cos(a) * rr2, sy + Math.sin(a) * rr2); } gg.fill(); }
           gg.strokeStyle = "#222"; gg.lineWidth = 1.4; for (let k = 0; k < 3; k++) { gg.beginPath(); gg.moveTo(x + 8 + k * 10, y + 4); gg.quadraticCurveTo(x + 12 + k * 10, y - 4, x + 16 + k * 10, y + 2); gg.stroke(); }
+          break;
+        }
+        case "rebstock": {
+          // Rebzeile von oben: Pfähle, Drahtrahmen, Laub und blaue Trauben (Trollinger)
+          const v = o.vert, L2 = v ? o.h : o.w;
+          gg.fillStyle = "rgba(60,40,20,0.6)"; gg.fillRect(x, y + o.h - 2, o.w, z * 0.3);
+          for (let k = 0; k < L2; k += 9) {
+            const px = v ? x + o.w / 2 : x + k + 4, py = v ? y + k + 4 : y + o.h / 2;
+            gg.fillStyle = mix("#3a7a2a", (R() - 0.5) * 0.3); circ(gg, px + (R() - 0.5) * 4, py + (R() - 0.5) * 4, 6 + R() * 3); gg.fill();
+            gg.fillStyle = mix("#2a5a1e", (R() - 0.5) * 0.2); circ(gg, px + (R() - 0.5) * 6, py + (R() - 0.5) * 6, 4 + R() * 2); gg.fill();
+            if (R() < 0.6) { gg.fillStyle = "#3a1a4a"; for (let j = 0; j < 4; j++) { circ(gg, px + (R() - 0.5) * 6, py + (R() - 0.5) * 6, 1.6); gg.fill(); } }
+          }
+          gg.fillStyle = "#6a4a2a"; for (let k = 2; k < L2; k += 30) { if (v) gg.fillRect(x + o.w / 2 - 1.5, y + k, 3, 3); else gg.fillRect(x + k, y + o.h / 2 - 1.5, 3, 3); }
           break;
         }
         case "glascontainer": {

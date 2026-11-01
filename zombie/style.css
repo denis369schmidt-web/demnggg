@@ -811,7 +811,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .rs-a, .rs-b { position: absolute; inset: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; animation: rs-swap 10s ease-in-out infinite; }
 .rs-b { animation-delay: -5s; }
 .rs-a small, .rs-b small { flex: none; white-space: nowrap; }
-.rs-a b, .rs-b b { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-a b, .rs-b b { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.45; margin-top: -3px; } /* Platz für Umlaut-Punkte (Ö, Ü) */
 .rs-b small { color: #ff6a5a; }
 .rs-b b { color: #ffd0c8; }
 @keyframes rs-swap { 0%, 44% { opacity: 1; transform: none; } 50%, 94% { opacity: 0; transform: translateY(-5px); } 100% { opacity: 1; transform: none; } }

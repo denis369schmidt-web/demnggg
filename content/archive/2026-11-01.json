@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-11-01",
+  "generatedAt": "2026-11-01T11:50:38.223Z",
+  "attempt": 0,
+  "theme": {
+    "id": "zeitkapsel",
+    "title": "Zeitkapsel",
+    "mood": "nostalgisch",
+    "description": "Briefe an das frühere und das zukünftige Ich.",
+    "keywords": [
+      "Zeit",
+      "Kapsel",
+      "Brief",
+      "Jugend",
+      "Morgen",
+      "Spuren"
+    ]
+  },
+  "challenge": {
+    "id": "freestyle-zirkel",
+    "title": "Freestyle-Zirkel",
+    "task": "Freestyle 16 Bars über „Zeitkapsel“ – nutze alle Wörter aus dem Wortpaket „Gefühl & Bewegung“ mindestens einmal.",
+    "constraint": "Wechsle einmal die Perspektive (Ich → Du oder Wir).",
+    "bars": 16,
+    "bpm": 143
+  },
+  "wordPacks": [
+    {
+      "id": "zeitkapsel-thema",
+      "title": "Thema: Zeitkapsel",
+      "words": [
+        "Kapsel",
+        "Morgen",
+        "Zeit",
+        "Jugend",
+        "Brief",
+        "Spuren"
+      ]
+    },
+    {
+      "id": "2026-11-01-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Silhouette",
+        "Spiegel",
+        "Funken",
+        "Anker",
+        "Fundament",
+        "Magnet"
+      ]
+    },
+    {
+      "id": "2026-11-01-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Geduld",
+        "Ruhe",
+        "Stolz",
+        "gleiten",
+        "klettern",
+        "starten"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Takt",
+      "b": "exakt"
+    },
+    {
+      "a": "Nebel",
+      "b": "Pegel"
+    },
+    {
+      "a": "Wind",
+      "b": "geschwind"
+    },
+    {
+      "a": "Stein",
+      "b": "allein"
+    },
+    {
+      "a": "Kern",
+      "b": "fern"
+    },
+    {
+      "a": "Herz",
+      "b": "Schmerz"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Zwischen Zeit und Spiegel find ich Raum für den Reim",
+      "syllables": 12
+    },
+    {
+      "line": "Aus Brief wird ein Plan, aus dem Plan wird ein Schritt",
+      "syllables": 11
+    },
+    {
+      "line": "Spiegel auf Repeat, bis die Hook von alleine läuft",
+      "syllables": 13
+    },
+    {
+      "line": "Spiegel in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 13
+    }
+  ],
+  "flowTip": {
+    "id": "atem-mapping",
+    "title": "Atem-Mapping",
+    "tip": "Markiere beim Schreiben, wo du atmest. Wer die Atmung plant, verliert am Ende der Bars keine Energie."
+  },
+  "quote": "Lieber acht ehrliche Bars als sechzehn geliehene.",
+  "beatPreset": {
+    "bpm": 143,
+    "pattern": "Double-Time Drill",
+    "energy": "hoch"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-11-01",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

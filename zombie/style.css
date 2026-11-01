@@ -777,3 +777,42 @@ canvas { display: block; background: #121a16; touch-action: none; }
 }
 .rs-node em::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #1d3f9a; border-radius: 2px 0 0 2px; }
 .rs-node:not(.done):not(.cur) em { opacity: 0.55; }
+
+/* =====================================================================
+   v2.1 Hauptmenü – Schleim-Tropfen am Logo, Glitch, Boss-Vorschau
+   ===================================================================== */
+.brand-top { animation: logo-flicker 9s steps(1) infinite, logo-glitch 11s steps(1) infinite; }
+@keyframes logo-glitch {
+  0%, 93%, 96%, 100% { transform: none; text-shadow: 0 0 28px rgba(168, 255, 62, 0.45), 0 3px 0 #2d5a0d, 0 6px 14px rgba(0, 0, 0, 0.8); }
+  94% { transform: translate(-3px, 1px) skewX(-7deg); text-shadow: -4px 0 #ff2a5a, 4px 0 #2bd9ff, 0 6px 14px rgba(0, 0, 0, 0.8); }
+  95% { transform: translate(3px, -1px); text-shadow: 4px 0 #ff2a5a, -4px 0 #2bd9ff, 0 6px 14px rgba(0, 0, 0, 0.8); }
+}
+.drips { position: absolute; left: 0; right: 0; top: 84%; height: 0; pointer-events: none; }
+.drips i {
+  position: absolute; top: 0; width: 5px; height: 3px; border-radius: 0 0 3px 3px; background: var(--toxic);
+  box-shadow: 0 0 8px rgba(168, 255, 62, 0.6); animation: drip 6s ease-in infinite;
+}
+.drips i::after {
+  content: ""; position: absolute; left: -1.5px; bottom: -5px; width: 8px; height: 8px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: var(--toxic); box-shadow: 0 0 8px rgba(168, 255, 62, 0.6); animation: drop 6s ease-in infinite; animation-delay: inherit;
+}
+.drips i:nth-child(1) { left: 9%; animation-delay: -0.4s; }
+.drips i:nth-child(2) { left: 25%; animation-delay: -2.6s; animation-duration: 7.2s; }
+.drips i:nth-child(3) { left: 42%; animation-delay: -4.1s; }
+.drips i:nth-child(4) { left: 57%; animation-delay: -1.3s; animation-duration: 6.8s; }
+.drips i:nth-child(5) { left: 74%; animation-delay: -3.3s; }
+.drips i:nth-child(6) { left: 89%; animation-delay: -5.2s; animation-duration: 7.6s; }
+.drips i:nth-child(2)::after, .drips i:nth-child(4)::after { animation-duration: 7s; }
+@keyframes drip { 0% { height: 3px; } 55% { height: 18px; } 62% { height: 20px; } 70%, 100% { height: 4px; } }
+@keyframes drop { 0%, 60% { transform: translateY(0); opacity: 1; } 62% { opacity: 1; } 100% { transform: translateY(70px) scaleY(1.3); opacity: 0; } }
+
+/* Kopfzeile der Fluchtroute wechselt zwischen Rekord und nächstem Boss */
+.rs-head { position: relative; display: block; height: 12px; }
+.rs-a, .rs-b { position: absolute; inset: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; animation: rs-swap 10s ease-in-out infinite; }
+.rs-b { animation-delay: -5s; }
+.rs-a small, .rs-b small { flex: none; white-space: nowrap; }
+.rs-a b, .rs-b b { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-b small { color: #ff6a5a; }
+.rs-b b { color: #ffd0c8; }
+@keyframes rs-swap { 0%, 44% { opacity: 1; transform: none; } 50%, 94% { opacity: 0; transform: translateY(-5px); } 100% { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .drips, .rs-b { display: none; } .rs-a { animation: none; } .brand-top { animation: none; } }

@@ -13,7 +13,7 @@ Promo-Poster für Stories/TikTok/Reels (1080×1920): `promo/poster-de.png`, `pro
 Escape from Germany: Zombies
 
 **Kurzbeschreibung (max. 80):**
-Flucht durch Deutschland: Zombie-Roguelite mit Story & 28 Gegnern – offline!
+Flucht durch Deutschland: Zombie-Roguelite mit Story, 7 Bossen – offline!
 
 **Vollständige Beschreibung:**
 
@@ -34,7 +34,7 @@ Mehrfachschuss, Querschläger, Kreissägen, Kampfdrohne, Brand-, Kryo- und Toxin
 🔫 15 WAFFEN
 Pistole, Schrotflinte, Maschinenpistole, Magnum, Armbrust, Flammenwerfer, Sturmgewehr, Scharfschützengewehr, Sägeblattwerfer, Granatwerfer, Kryo-Kanone, Tesla-Gewehr mit Kettenblitz, zielsuchender Raketenwerfer, eine Minigun, die sich warmläuft, und die Laserkanone – jede spielt sich komplett anders und lässt sich bis Stufe 10 aufrüsten. Ab Stufe 5 glänzt sie in Gold.
 
-🧟 28 ZOMBIE-ARTEN & ELITE-GEGNER
+🧟 31 ZOMBIE-ARTEN & ELITE-GEGNER
 Schlurfer in Dutzenden Outfits, Sprinter, Kriecher, Spucker, Bomber, Zombie-Hunde, Riot-Zombies, der Koloss, Springer, Brenner, Kreischer, Teiler, Elektro-Zombies und Seuchenratten – und neu: Seuchenpriester, die die Horde heilen, Schildwächter mit Energieschilden, Wühler, die unter dir aus dem Boden brechen, unsichtbare Schemen, Brocken-Werfer, platzende Gasbläher, Brutnester und Zombie-Schützen mit Laservisier. Jeder Gegner hat eine Schwäche – das Bestiarium verrät sie. Elite-Zombies mit goldener Aura halten dreimal so viel aus und lassen mehr Beute fallen.
 
 🎬 KINO-ATMOSPHÄRE & INTERAKTIVER SOUNDTRACK
@@ -68,7 +68,7 @@ Spiel so viele Einsätze, wie du willst.
 Kämpf dich in 3D durch nächtliche Straßen, Altstädte mit Fachwerk und Kopfsteinpflaster, ein verlassenes Krankenhaus und ein geheimes Labor – mit Echtzeit-Schatten, Taschenlampe, nassen Straßen, die im Licht glänzen, und gewaltigen Explosionen. Jag Giftfässer in die Luft, zerschieß Kisten für Beute und erlebe Bosskämpfe wie im Kino. Läuft auch auf älteren Handys flüssig dank automatischer Grafikanpassung.
 
 👹 EPISCHE BOSSKÄMPFE
-Die Abscheulichkeit stürmt auf dich zu und feuert Projektil-Ringe, die Brutmutter ruft Horden von Kriechern. Unter 50 % Leben mutieren sie und werden noch gefährlicher.
+Jede Stadt hat ihren eigenen Endgegner: Der Zugführer rast als Lok durch die Arena, Krampus schwingt die Kette und wirft explodierende Geschenke, der Bierkönig rollt Fässer und landet den Bauchklatscher, der Narrenkönig wirbelt Kamelle-Spiralen, und am Hamburger Hafen wartet der Klabautermann mit Anker und Nebelhorn. Rote Warnflächen zeigen jede Attacke an – wer sie liest, überlebt. Unter 50 % Leben rufen die Bosse Verstärkung.
 
 🧬 DAUERHAFTER FORTSCHRITT
 Sammle Münzen, schalte Waffen frei und verbessere Talente wie Konstitution, Schusstraining und Plünderer. Mit jedem Run wirst du stärker.
@@ -89,7 +89,7 @@ Schaffst du es raus aus Deutschland?
 Escape from Germany: Zombies
 
 **Short description (max 80):**
-Escape through Germany: zombie roguelite with story & 28 enemy types – offline!
+Escape through Germany: zombie roguelite with story & 7 bosses – offline!
 
 **Full description:**
 
@@ -110,7 +110,7 @@ Multishot, ricochet, buzzsaws, combat drone, incendiary, cryo and toxin rounds, 
 🔫 15 WEAPONS
 Pistol, shotgun, SMG, magnum, crossbow, flamethrower, assault rifle, sniper rifle, saw launcher, grenade launcher, cryo cannon, a chain-lightning Tesla rifle, a homing rocket launcher, a spin-up minigun and the laser cannon – each plays completely differently and can be upgraded to level 10. From level 5 it shines in gold.
 
-🧟 28 KINDS OF ZOMBIES & ELITES
+🧟 31 KINDS OF ZOMBIES & ELITES
 Walkers in dozens of outfits, sprinters, crawlers, spitters, bombers, zombie dogs, riot zombies, the brute, leapers, burners, screamers, splitters, electro zombies and plague rats – and new: plague priests that heal the horde, shield wardens with energy shields, burrowers that burst out of the ground beneath you, invisible wraiths, boulder throwers, exploding gas bloaters, brood nests and zombie gunners with laser sights. Every enemy has a weakness – the bestiary reveals it. Elite zombies with a golden aura take three times the damage and drop more loot.
 
 🎬 CINEMATIC ATMOSPHERE & INTERACTIVE SOUNDTRACK
@@ -144,7 +144,7 @@ Play as many runs as you like.
 Fight in 3D through night-time streets, half-timbered old towns with cobblestones, an abandoned hospital and a secret lab – with real-time shadows, a flashlight, rain-soaked streets that glisten in the light and massive explosions. Blow up toxic barrels, shoot crates for loot and experience cinematic boss fights. Runs smoothly even on older phones thanks to automatic graphics scaling.
 
 👹 EPIC BOSS FIGHTS
-The Abomination charges at you and fires rings of projectiles, the Brood Mother summons swarms of crawlers. Below 50% health they mutate and get even deadlier.
+Every city has its own boss: the Engine Driver charges through the arena like a locomotive, Krampus swings his chain and throws exploding presents, the Beer King rolls barrels and lands a belly slam, the Fool King spins spirals of candy, and at the port of Hamburg the Klabautermann waits with anchor and foghorn. Red warning zones telegraph every attack – read them and you survive. Below 50% health the bosses call for backup.
 
 🧬 PERMANENT PROGRESSION
 Collect coins, unlock weapons and upgrade talents like Constitution, Marksmanship and Looter. Every run makes you stronger.

@@ -17,27 +17,28 @@
   // Jedes Kapitel spielt in einer anderen Umgebung (Straße → Krankenhaus → Labor → …)
   const THEME_ORDER = ["street", "hospital", "lab"];
   const OBSTACLE_POOL = {
-    street: ["car", "car", "crate", "barrels", "barricade", "dumpster", "automat"],
+    street: ["car", "car", "crate", "barrels", "barricade", "dumpster", "automat", "glascontainer", "telefonzelle"],
     hospital: ["bed", "bed", "cabinet", "medcrate", "medcrate", "barrels"],
     lab: ["tank", "tank", "server", "labcrate", "barrels"],
     // Altstadt: Marktbuden, Bierbänke, Bierfässer, Brunnen, Böllerkisten und (höchstens einer) Maibaum
-    markt: ["bude", "bude", "bierbank", "fass", "brunnen", "boeller", "maibaum", "crate"],
+    markt: ["bude", "bude", "bierbank", "fass", "brunnen", "boeller", "maibaum", "crate", "telefonzelle", "glascontainer"],
   };
   // Feste verschieben die Mischung: mehr Bierbänke & Fässer auf der Wiesn, mehr Buden am Weihnachtsmarkt …
-  const FEST_OBS = { wiesn: ["bierbank", "bierbank", "fass", "fass", "maibaum"], weihnachten: ["bude", "bude", "bude"], karneval: ["boeller", "boeller", "bude"], imbiss: ["bude"], bahn: ["automat"], hafen: ["crate", "fass"], apfelwein: ["bierbank", "fass"], werk: ["maibaum", "boeller"] };
+  const FEST_OBS = { wiesn: ["bierbank", "bierbank", "fass", "fass", "maibaum", "dixi"], weihnachten: ["bude", "bude", "bude", "weihnachtsbaum", "weihnachtsbaum"], karneval: ["boeller", "boeller", "bude", "dixi"], imbiss: ["bude", "glascontainer"], bahn: ["automat"], hafen: ["crate", "fass", "strandkorb", "strandkorb"], apfelwein: ["bierbank", "fass"], werk: ["maibaum", "boeller"] };
   const OBSTACLE_SIZE = { // [wMin, wMax, hMin, hMax]
     car: [96, 118, 48, 52], crate: [46, 68, 40, 60], medcrate: [46, 62, 40, 54], labcrate: [48, 66, 42, 58],
     barrels: [52, 52, 52, 52], barricade: [90, 130, 26, 30], dumpster: [70, 86, 42, 46],
     bed: [88, 96, 46, 50], cabinet: [44, 60, 32, 36], tank: [56, 60, 56, 60], server: [40, 48, 70, 88],
     bude: [72, 92, 46, 54], bierbank: [84, 104, 34, 38], fass: [48, 50, 48, 50], maibaum: [26, 26, 26, 26], brunnen: [66, 66, 66, 66], boeller: [40, 46, 30, 34], automat: [30, 34, 24, 28],
+    glascontainer: [66, 74, 40, 44], dixi: [40, 40, 40, 40], telefonzelle: [34, 34, 34, 34], weihnachtsbaum: [46, 46, 46, 46], strandkorb: [50, 54, 38, 40],
   };
-  const ROTATABLE = { car: true, bed: true, bierbank: true };
-  const GLOWING = { barrels: "150,255,60", tank: "120,255,80", bude: "255,196,120" };
+  const ROTATABLE = { car: true, bed: true, bierbank: true, glascontainer: true };
+  const GLOWING = { barrels: "150,255,60", tank: "120,255,80", bude: "255,196,120", telefonzelle: "255,236,170", weihnachtsbaum: "255,200,120" };
   // Walker-Outfits je Welt (Index in die Paletten von sprites.js/render3d.js):
   // 0–2 Zivil, 3 Polizist, 4 Bauarbeiter, 5 Anzug, 6 Patient, 7 Ärztin, 8 Pfleger, 9 Forscher, 10 Soldat, 11 Schutzanzug
   const WALKER_LOOKS = { street: [0, 1, 2, 3, 4, 5, 0, 3], hospital: [6, 6, 7, 8, 0, 2], lab: [9, 9, 10, 11, 1, 10], markt: [0, 1, 2, 5, 0, 1, 3, 2] };
   // Zerstörbar: Giftfässer explodieren (Kettenreaktion!), Kisten zersplittern und lassen Beute fallen
-  const DESTRUCT = { barrels: 70, crate: 45, medcrate: 45, labcrate: 60, bude: 90, bierbank: 50, fass: 40, maibaum: 110, boeller: 30, automat: 40 };
+  const DESTRUCT = { barrels: 70, crate: 45, medcrate: 45, labcrate: 60, bude: 90, bierbank: 50, fass: 40, maibaum: 110, boeller: 30, automat: 40, glascontainer: 60, dixi: 45, weihnachtsbaum: 120, strandkorb: 60 };
   const TAU = Math.PI * 2;
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -245,8 +246,18 @@
     beamter: { name: "Beamter", r: 15, hp: 105, speed: 40, dmg: 10, xp: 4, coins: [2, 4], cost: 3, blood: RED },
     zwerg: { name: "Gartenzwerg", r: 8, hp: 16, speed: 150, dmg: 6, xp: 1, coins: [0, 1], cost: 0.5, pack: 4, blood: RED },
     ultra: { name: "Ultra", r: 15, hp: 85, speed: 86, dmg: 13, xp: 4, coins: [1, 3], cost: 2.5, blood: RED },
-    abom: { name: "ABSCHEULICHKEIT", r: 48, hp: 2200, speed: 60, dmg: 30, xp: 40, coins: [40, 60], boss: true, blood: PURPLE },
-    mother: { name: "BRUTMUTTER", r: 52, hp: 2700, speed: 34, dmg: 28, xp: 50, coins: [50, 80], boss: true, blood: GREEN },
+    // v2.1: Alltagshelden der Apokalypse
+    scooter: { name: "E-Scooter-Fahrer", r: 14, hp: 60, speed: 72, dmg: 16, xp: 3, coins: [1, 2], cost: 2, blood: RED },
+    paketbote: { name: "Paketbote", r: 15, hp: 90, speed: 56, dmg: 12, xp: 4, coins: [1, 3], cost: 3, blood: RED },
+    rentner: { name: "Rentner", r: 15, hp: 120, speed: 34, dmg: 14, xp: 4, coins: [1, 3], cost: 2.5, blood: RED },
+    // v2.1: Stadt-Bosse – jede Stadt hat ihren eigenen Endgegner in Bezirk 10
+    zugfuehrer: { name: "DER ZUGFÜHRER", epithet: "Nächster Halt: Endstation", r: 44, hp: 2500, speed: 52, dmg: 28, xp: 45, coins: [45, 65], boss: true, blood: RED },
+    krampus: { name: "KRAMPUS", epithet: "Der Schrecken vom Christkindlesmarkt", r: 44, hp: 2700, speed: 60, dmg: 26, xp: 50, coins: [50, 70], boss: true, blood: RED },
+    bierkoenig: { name: "DER BIERKÖNIG", epithet: "Herrscher der Theresienwiese", r: 50, hp: 3100, speed: 40, dmg: 30, xp: 55, coins: [55, 80], boss: true, blood: RED },
+    narrenkoenig: { name: "DER NARRENKÖNIG", epithet: "Prinz des ewigen Karnevals", r: 42, hp: 2800, speed: 70, dmg: 24, xp: 55, coins: [55, 80], boss: true, blood: RED },
+    kapitaen: { name: "DER KLABAUTERMANN", epithet: "Der Letzte zwischen dir und der ARCHE", r: 52, hp: 3600, speed: 46, dmg: 30, xp: 70, coins: [70, 100], boss: true, blood: GREEN },
+    abom: { name: "ABSCHEULICHKEIT", epithet: "Patient Null aus Berlin-Buch", r: 48, hp: 2200, speed: 60, dmg: 30, xp: 40, coins: [40, 60], boss: true, blood: PURPLE },
+    mother: { name: "BRUTMUTTER", epithet: "Die Königin der Brut", r: 52, hp: 2700, speed: 34, dmg: 28, xp: 50, coins: [50, 80], boss: true, blood: GREEN },
   };
   for (const [type, def] of Object.entries(ZOMBIES)) Sprites.registerRadius(type, def.r);
 
@@ -539,7 +550,7 @@
   // Räume
   // ============================================================
   function resetRoomState() {
-    enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; pools = []; hazards = []; zaps = []; lobs = []; beams = []; fireworks = []; volleyQueue.length = 0;
+    enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; pools = []; hazards = []; zaps = []; lobs = []; beams = []; fireworks = []; parcels = []; volleyQueue.length = 0;
     roomFade = 1;
     run.doorK = 0;
     supplyCrate = null;
@@ -557,7 +568,7 @@
     resetRoomState();
     player.x = W / 2; player.y = B - 70;
 
-    const isBoss = BOSS_ROOMS[run.room];
+    const isBoss = BOSS_ROOMS[run.room] ? (run.mode === "campaign" && curCity().boss) || BOSS_ROOMS[run.room] : null;
     const isSupply = SUPPLY_ROOMS.includes(run.room);
     obstacles = isSupply ? [] : genObstacles(isBoss ? randi(0, 2) : randi(2, 5));
     floorCanvas = makeFloor();
@@ -570,7 +581,7 @@
       showBanner(dName.toUpperCase(), `${city.name} · ${tr("Versorgung – öffne die Kiste")}`);
     } else if (isBoss) {
       spawnEnemy(isBoss, W / 2, T + 180);
-      showBanner(tr("BOSS: {name}", { name: ZOMBIES[isBoss].name }), `${city.name} · ${dName}`);
+      showBanner(ZOMBIES[isBoss].name, `${tr(ZOMBIES[isBoss].epithet || "")} · ${city.name}`, 2.6);
       if (window.GameAudio) GameAudio.stinger("boss");
       fx4d("boss", 1100);
     } else {
@@ -589,40 +600,40 @@
   // ============================================================
   const SR = "street", HO = "hospital", LB = "lab", MK = "markt";
   const CITIES = [
-    { id: "berlin", name: "Berlin", day: 1, lat: 52.52, lon: 13.4, fest: "imbiss", weather: "rain", foes: ["beamter", "ultra", "zwerg"],
+    { id: "berlin", boss: "abom", name: "Berlin", day: 1, lat: 52.52, lon: 13.4, fest: "imbiss", weather: "rain", foes: ["beamter", "ultra", "zwerg"],
       goal: "Raus aus der Sperrzone", radio: "Funkspruch der Marine: »Letzte Evakuierung – Schiff ARCHE, Hamburger Hafen.« Die Autobahn nach Norden ist eine Todeszone. Dein Plan: raus aus der Sperrzone und über den Süden nach Hamburg.",
       d: [["Mitte", SR], ["Kreuzberg", SR], ["Neukölln", SR], ["Charité", HO], ["U-Bahnhof Alexanderplatz", SR], ["Friedrichshain", SR], ["Prenzlauer Berg", MK], ["Tempelhofer Feld", SR], ["Spandauer Altstadt", MK], ["Forschungscampus Buch", LB]] },
-    { id: "leipzig", name: "Leipzig", day: 3, lat: 51.34, lon: 12.37, fest: "bahn", weather: "rain", foes: ["schaffner", "ultra", "zwerg"],
+    { id: "leipzig", boss: "zugfuehrer", name: "Leipzig", day: 3, lat: 51.34, lon: 12.37, fest: "bahn", weather: "rain", foes: ["schaffner", "ultra", "zwerg"],
       goal: "Eine Lok nach Süden", radio: "Am Hauptbahnhof soll noch eine Diesellok stehen. Mit Glück bringt sie dich nach Süden, wo die Bundeswehr noch Stellungen hält.",
       d: [["Hauptbahnhof", SR], ["Zentrum", MK], ["Connewitz", SR], ["Universitätsklinikum", HO], ["Auerbachs Keller", MK], ["Plagwitz", LB], ["Südvorstadt", SR], ["Gohlis", MK], ["Messegelände", LB], ["Völkerschlachtdenkmal", SR]] },
-    { id: "nuernberg", name: "Nürnberg", day: 6, lat: 49.45, lon: 11.08, fest: "weihnachten", weather: "snow", foes: ["zwerg", "beamter", "schaffner"],
+    { id: "nuernberg", boss: "krampus", name: "Nürnberg", day: 6, lat: 49.45, lon: 11.08, fest: "weihnachten", weather: "snow", foes: ["zwerg", "beamter", "schaffner"],
       goal: "Das Bundeswehr-Depot", radio: "Der Christkindlesmarkt leuchtet noch – und ist voller Untoter. Im Depot der Bundeswehr liegen Waffen und ein Funkgerät. Hol dir, was du tragen kannst.",
       d: [["Hauptbahnhof", SR], ["Altstadt", MK], ["Christkindlesmarkt", MK], ["Klinikum Nord", HO], ["Lebkuchen-Bäckerei", MK], ["Gostenhof", SR], ["Burgviertel", MK], ["St. Johannis", SR], ["Bundeswehr-Depot", LB], ["Kaiserburg", MK]] },
-    { id: "muenchen", name: "München", day: 9, lat: 48.14, lon: 11.58, fest: "wiesn", weather: "clear", foes: ["wiesn", "wiesn", "ultra"],
+    { id: "muenchen", boss: "bierkoenig", name: "München", day: 9, lat: 48.14, lon: 11.58, fest: "wiesn", weather: "clear", foes: ["wiesn", "wiesn", "ultra"],
       goal: "Der letzte Sender", radio: "Die Seuche erreichte die Wiesn am ersten Festtag. Auf dem Olympiaturm steht der letzte Sender – nur von dort erreichst du die Marine.",
       d: [["Hauptbahnhof", SR], ["Theresienwiese", MK], ["Schwabing", SR], ["Klinikum rechts der Isar", HO], ["Hofbräuhaus", MK], ["Maxvorstadt", SR], ["Viktualienmarkt", MK], ["Englischer Garten", SR], ["Olympiapark", SR], ["Olympiaturm", LB]] },
-    { id: "stuttgart", name: "Stuttgart", day: 12, lat: 48.78, lon: 9.18, fest: "werk", weather: "rain", foes: ["wiesn", "beamter", "zwerg"],
+    { id: "stuttgart", boss: "mother", name: "Stuttgart", day: 12, lat: 48.78, lon: 9.18, fest: "werk", weather: "rain", foes: ["wiesn", "beamter", "zwerg"],
       goal: "Ein Panzerwagen aus dem Werk", radio: "Die Marine hat geantwortet: Die ARCHE wartet zehn Tage. Im Autowerk steht ein gepanzerter Transporter – damit kommst du durch die Horden auf der A8.",
       d: [["Schlossplatz", MK], ["Cannstatter Wasen", MK], ["Feuerbach", SR], ["Katharinenhospital", HO], ["Weinkeller", MK], ["Zuffenhausen – Werk", LB], ["Vaihingen", SR], ["Fernsehturm", SR], ["Untertürkheim – Werk", LB], ["Neckarhafen", SR]] },
-    { id: "frankfurt", name: "Frankfurt", day: 15, lat: 50.11, lon: 8.68, fest: "apfelwein", weather: "rain", foes: ["beamter", "beamter", "ultra"],
+    { id: "frankfurt", boss: "abom", name: "Frankfurt", day: 15, lat: 50.11, lon: 8.68, fest: "apfelwein", weather: "rain", foes: ["beamter", "beamter", "ultra"],
       goal: "Treibstoff am Flughafen", radio: "Neue Meldung über Funk: Paris ist gefallen. Wien schweigt. Die Seuche ist nicht nur in Deutschland – sie ist überall in Europa. Am Flughafen lagert Treibstoff für die letzte Etappe.",
       d: [["Bankenviertel", SR], ["Römerberg", MK], ["Sachsenhausen", MK], ["Uniklinik", HO], ["Apfelweinkneipe", MK], ["Bahnhofsviertel", SR], ["Messe", LB], ["Bornheim", MK], ["Funkzentrale", LB], ["Flughafen", LB]] },
-    { id: "koeln", name: "Köln", day: 18, lat: 50.94, lon: 6.96, fest: "karneval", weather: "confetti", foes: ["jeck", "jeck", "ultra"],
+    { id: "koeln", boss: "narrenkoenig", name: "Köln", day: 18, lat: 50.94, lon: 6.96, fest: "karneval", weather: "confetti", foes: ["jeck", "jeck", "ultra"],
       goal: "Ein Rheinschiff nach Norden", radio: "Der Karneval wurde nie abgesagt – die Jecken feiern weiter, auf ihre Art. Am Rheinauhafen liegt ein Schiff, das dich den Rhein hinauf nach Norden bringt.",
       d: [["Hauptbahnhof", SR], ["Domplatte", MK], ["Altstadt", MK], ["Uniklinik", HO], ["Brauhaus", MK], ["Ehrenfeld", SR], ["Belgisches Viertel", MK], ["Deutz", SR], ["Chemiepark", LB], ["Rheinauhafen", SR]] },
-    { id: "hamburg", name: "Hamburg", day: 22, lat: 53.55, lon: 9.99, fest: "hafen", weather: "fog", foes: ["ultra", "schaffner", "jeck"],
+    { id: "hamburg", boss: "kapitaen", name: "Hamburg", day: 22, lat: 53.55, lon: 9.99, fest: "hafen", weather: "fog", foes: ["ultra", "schaffner", "jeck"],
       goal: "Die ARCHE erreichen", radio: "Die ARCHE liegt am Containerterminal und legt bei Flut ab. Letzte Chance. Hinter dir liegt ganz Deutschland.",
       d: [["Hauptbahnhof", SR], ["St. Pauli", SR], ["Reeperbahn", SR], ["UKE Eppendorf", HO], ["Fischbrötchen-Bude", MK], ["Speicherstadt", MK], ["Fischmarkt", MK], ["Elbtunnel", LB], ["Landungsbrücken", SR], ["Containerterminal", SR]] },
   ];
   // Nach der Flucht: Europa ist ebenfalls gefallen – die Route geht endlos weiter
   const EUROPE = [
-    { id: "amsterdam", name: "Amsterdam", lat: 52.37, lon: 4.9, fest: "hafen", weather: "rain", foes: ["ultra", "zwerg"], goal: "Weiter nach Süden", radio: "Die ARCHE musste in Amsterdam anlegen – der Treibstoff reicht nicht. Auch hier: die Seuche.",
+    { id: "amsterdam", boss: "kapitaen", name: "Amsterdam", lat: 52.37, lon: 4.9, fest: "hafen", weather: "rain", foes: ["ultra", "zwerg"], goal: "Weiter nach Süden", radio: "Die ARCHE musste in Amsterdam anlegen – der Treibstoff reicht nicht. Auch hier: die Seuche.",
       d: [["Centraal Station", SR], ["Grachtengordel", MK], ["Jordaan", MK], ["AMC Klinikum", HO], ["Hausboot", MK], ["De Pijp", SR], ["Vondelpark", SR], ["Haven", SR], ["Westergasfabriek", LB], ["Schiphol", LB]] },
-    { id: "paris", name: "Paris", lat: 48.86, lon: 2.35, fest: "markt", weather: "rain", foes: ["ultra", "jeck"], goal: "Das Institut Pasteur", radio: "Gerüchte über einen Impfstoff im Institut Pasteur. Wenn es ihn gibt, ist er in Paris.",
+    { id: "paris", boss: "narrenkoenig", name: "Paris", lat: 48.86, lon: 2.35, fest: "markt", weather: "rain", foes: ["ultra", "jeck"], goal: "Das Institut Pasteur", radio: "Gerüchte über einen Impfstoff im Institut Pasteur. Wenn es ihn gibt, ist er in Paris.",
       d: [["Gare du Nord", SR], ["Montmartre", MK], ["Le Marais", MK], ["Pitié-Salpêtrière", HO], ["Katakomben", SR], ["Quartier Latin", MK], ["Belleville", SR], ["La Défense", SR], ["Institut Pasteur", LB], ["Eiffelturm", SR]] },
-    { id: "wien", name: "Wien", lat: 48.21, lon: 16.37, fest: "weihnachten", weather: "snow", foes: ["beamter", "zwerg"], goal: "Der Bunker unter der Hofburg", radio: "Unter der Hofburg soll ein Bunker mit Überlebenden sein. Ein Lichtblick – vielleicht.",
+    { id: "wien", boss: "krampus", name: "Wien", lat: 48.21, lon: 16.37, fest: "weihnachten", weather: "snow", foes: ["beamter", "zwerg"], goal: "Der Bunker unter der Hofburg", radio: "Unter der Hofburg soll ein Bunker mit Überlebenden sein. Ein Lichtblick – vielleicht.",
       d: [["Westbahnhof", SR], ["Innere Stadt", MK], ["Naschmarkt", MK], ["AKH", HO], ["Kaffeehaus", MK], ["Leopoldstadt", SR], ["Prater", SR], ["Favoriten", SR], ["Donaustadt", LB], ["Hofburg", MK]] },
-    { id: "prag", name: "Prag", lat: 50.08, lon: 14.44, fest: "markt", weather: "fog", foes: ["schaffner", "ultra"], goal: "Zurück nach Norden", radio: "Der Impfstoff war eine Lüge. Aber im Norden halten sich Gerüchte über eine sichere Insel. Die Flucht geht weiter.",
+    { id: "prag", boss: "bierkoenig", name: "Prag", lat: 50.08, lon: 14.44, fest: "markt", weather: "fog", foes: ["schaffner", "ultra"], goal: "Zurück nach Norden", radio: "Der Impfstoff war eine Lüge. Aber im Norden halten sich Gerüchte über eine sichere Insel. Die Flucht geht weiter.",
       d: [["Hauptbahnhof", SR], ["Altstadt", MK], ["Karlsbrücke", MK], ["Klinikum Motol", HO], ["Bierkeller", MK], ["Žižkov", SR], ["Kleinseite", MK], ["Holešovice", LB], ["Vinohrady", SR], ["Hradschin", MK]] },
   ];
   // Kfz-Kennzeichen der Fluchtroute (Menü-Leiste)
@@ -640,7 +651,10 @@
   // Überlebensmodus: 5 Minuten in einer Arena, die Wellen werden immer dichter und härter
   // ============================================================
   const SURVIVAL_TIME = 300;
-  const SURVIVAL_BOSSES = [[150, "abom"], [260, "mother"]];
+  // Überleben: zwei Bosse, täglich wechselnd aus allen Stadt-Bossen
+  const SURV_BOSS_POOL = ["abom", "krampus", "bierkoenig", "narrenkoenig", "zugfuehrer", "kapitaen", "mother"];
+  const SURV_DAY = Math.floor(Date.now() / 864e5);
+  const SURVIVAL_BOSSES = [[150, SURV_BOSS_POOL[SURV_DAY % 7]], [260, SURV_BOSS_POOL[(SURV_DAY + 3) % 7]]];
   const SURVIVAL_POOL = [
     [0, ["walker", "walker", "crawler", "runner"]],
     [25, ["dog", "spitter", "rat"]],
@@ -654,6 +668,8 @@
     [50, ["zwerg", "ultra"]],
     [90, ["beamter", "jeck"]],
     [130, ["wiesn", "schaffner"]],
+    [35, ["scooter"]],
+    [70, ["paketbote", "rentner"]],
   ];
   function setupSurvival() {
     run.room = 1;
@@ -692,7 +708,7 @@
       run[`boss_${type}`] = true;
       const pos = survivalSpot();
       spawnEnemy(type, pos.x, pos.y);
-      showBanner(tr("BOSS: {name}", { name: ZOMBIES[type].name }), tr("Noch {s}", { s: fmtTime(SURVIVAL_TIME - run.survT) }));
+      showBanner(ZOMBIES[type].name, `${tr(ZOMBIES[type].epithet || "")} · ${tr("Noch {s}", { s: fmtTime(SURVIVAL_TIME - run.survT) })}`);
       if (window.GameAudio) GameAudio.stinger("boss");
       fx4d("boss", 1100);
     }
@@ -706,7 +722,8 @@
     let tries = 0;
     while (obs.length < n && tries++ < 200) {
       const kind = pick(pool);
-      if ((kind === "maibaum" || kind === "brunnen") && obs.some((q) => q.kind === kind)) continue;
+      if ((kind === "maibaum" || kind === "brunnen" || kind === "telefonzelle") && obs.some((q) => q.kind === kind)) continue;
+      if (kind === "weihnachtsbaum" && obs.filter((q) => q.kind === kind).length >= 2) continue;
       const [w0, w1, h0, h1] = OBSTACLE_SIZE[kind];
       let w = Math.round(rand(w0, w1)), h = Math.round(rand(h0, h1));
       const vert = ROTATABLE[kind] && Math.random() < 0.4;
@@ -724,7 +741,7 @@
 
   function makeFloor() {
     const city = run && run.mode === "campaign" && run.room > 0 ? curCity() : null;
-    const c = Sprites.floor(theme(), { W, H, L, T, R, B }, randi(1, 1e9), { snow: !!city && city.weather === "snow", confetti: !!city && city.weather === "confetti", leaves: !!city && city.fest === "wiesn" });
+    const c = Sprites.floor(theme(), { W, H, L, T, R, B }, randi(1, 1e9), { snow: !!city && city.weather === "snow", confetti: !!city && city.weather === "confetti", leaves: !!city && city.fest === "wiesn", tram: !!city && city.id !== "hamburg" && Math.random() < 0.55 });
     floorCtx = c.getContext("2d");
     const res = c.width / W;
     floorCtx.setTransform(res, 0, 0, res, 0, 0);
@@ -820,6 +837,9 @@
     if (room >= 9 || ch > 1) pool.push("phantom", ...(th === "hospital" ? ["phantom"] : []));
     if (room >= 10 || ch > 1) pool.push("nest");
     if (room >= 11 || ch > 1) pool.push("warden", ...(th === "lab" ? ["warden"] : []));
+    if (room >= 3 || ch > 1) pool.push("scooter", ...(th === "street" ? ["scooter"] : []));
+    if (room >= 6 || ch > 1) pool.push("paketbote");
+    if (room >= 8 || ch > 1) pool.push("rentner", ...(th === "markt" ? ["rentner"] : []));
     // Stadttypische Gegner (ab Bezirk 2 der Stadt, doppelt gewichtet): Wiesn-Zombies in München, Jecken in Köln …
     if (run.mode === "campaign" && (districtIdx() >= 1 || cityIdx() > 0)) for (const f of curCity().foes || []) if (ZOMBIES[f]) pool.push(f, f);
     const maxCount = 14 + ch * 2;
@@ -853,7 +873,7 @@
     const e = {
       type, def, x: clamp(x, L + def.r, R - def.r), y: clamp(y, T + def.r, B - def.r), r: def.r,
       hp: def.hp * hpMul, maxHp: def.hp * hpMul, dmg: def.dmg * dmgMul, speed: def.speed * rand(0.9, 1.1),
-      spawnT: def.boss ? 1.2 : rand(0.4, 0.8), hitT: 0, dead: false,
+      spawnT: def.boss ? 1.8 : rand(0.4, 0.8), hitT: 0, dead: false,
       burnT: 0, burnDps: 0, poisonDps: 0, slowT: 0,
       aiT: rand(1, 2.5), mode: "walk", cd: rand(1, 2.2), dirX: 0, dirY: 0,
       blocked: 0, side: Math.random() < 0.5 ? -1 : 1, bladeCd: 0, wob: rand(0, 6), phase2: false, kvx: 0, kvy: 0, lastHit: null,
@@ -1370,7 +1390,36 @@
     for (const b of eBullets) {
       const px = b.x, py = b.y;
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-      if (b.kind) b.spin += dt * (b.kind === "ball" ? Math.hypot(b.vx, b.vy) / 9 : b.kind === "paper" ? 5 : 9);
+      if (b.kind) b.spin += dt * (b.kind === "ball" || b.kind === "barrel" ? Math.hypot(b.vx, b.vy) / (b.r * 0.9) : b.kind === "paper" ? 5 : b.kind === "anchor" ? 14 : 9);
+      if (b.kind === "anchor") {
+        // Anker: fliegt hinaus und kehrt zum Klabautermann zurück – durch Hindernisse, trifft auf beiden Wegen
+        b.t = (b.t || 0) + dt; b.hitCd = Math.max(0, (b.hitCd || 0) - dt);
+        const o = b.owner;
+        if (!o || o.dead) { b.dead = true; acidSplash(b); continue; }
+        if (!b.back && (b.t > 0.75 || b.x < L || b.x > R || b.y < T || b.y > B)) { b.back = true; sfx("zap"); }
+        if (b.back) {
+          const dx2 = o.x - b.x, dy2 = o.y - b.y, dd = Math.hypot(dx2, dy2) || 1;
+          b.vx = (dx2 / dd) * 680; b.vy = (dy2 / dd) * 680;
+          if (dd < o.r) { b.dead = true; continue; }
+        }
+        b.x = clamp(b.x, L, R); b.y = clamp(b.y, T, B);
+        if (Math.random() < 0.3) fxSparks(b.x, b.y, rand(0, TAU), Math.PI, 1, "200,210,220", 120);
+        if (b.hitCd <= 0 && (player.x - b.x) ** 2 + (player.y - b.y) ** 2 < (player.r + b.r) ** 2) { b.hitCd = 0.5; hurtPlayer(b.dmg); player.kvx = (player.kvx || 0) + b.vx * 0.5; player.kvy = (player.kvy || 0) + b.vy * 0.5; }
+        continue;
+      }
+      if (b.kind === "barrel") {
+        // Bierfass rollt, zerplatzt an Wand/Hindernis/Held zu einer Bierlache
+        const out = b.x < L + b.r || b.x > R - b.r || b.y < T + b.r || b.y > B - b.r;
+        const hitP = (player.x - b.x) ** 2 + (player.y - b.y) ** 2 < (player.r + b.r) ** 2;
+        if (out || b.life <= 0 || hitP || obstacles.some((o) => pointInRect(b.x, b.y, o))) {
+          b.dead = true; b.x = clamp(b.x, L + 10, R - 10); b.y = clamp(b.y, T + 10, B - 10);
+          addHazard(b.x, b.y, 50, 4, 0, "bier"); fxDebris(b.x, b.y, 0, Math.PI, 10, "#6a4426");
+          for (let i = 0; i < 6; i++) fxGas(b.x + rand(-24, 24), b.y + rand(-24, 24), 1.2, "250,236,190", 1);
+          sfx("glass"); shake = Math.max(shake, 3);
+          if (hitP || dist2(player, b) < 60 * 60) hurtPlayer(b.dmg);
+        }
+        continue;
+      }
       if (b.kind === "ball") {
         // Fußball: prallt von Wänden und Hindernissen ab, wird mit jedem Abpraller langsamer
         let hit = false;
@@ -1412,6 +1461,17 @@
         if (Math.random() < 0.25) fxGas(h.x + rand(-h.r, h.r) * 0.6, h.y + rand(-h.r, h.r) * 0.6, h.r / 50, "250,236,190", 1);
         if (h.kind === "foam") { for (const e of enemies) if (!e.dead && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 < (h.r + e.r * 0.5) ** 2) e.slowT = Math.max(e.slowT, 0.4); }
         else if ((player.x - h.x) ** 2 + (player.y - h.y) ** 2 < (h.r + player.r * 0.5) ** 2) player.slowT = Math.max(player.slowT || 0, 0.35);
+        continue;
+      }
+      if (h.kind === "shards" || h.kind === "stink") {
+        // nur für Zombies: Scherben schneiden, Gestank vergiftet
+        if (h.kind === "shards") { if (Math.random() < 0.3) fxSparks(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, rand(0, TAU), Math.PI, 1, "200,255,235", 60); }
+        else if (Math.random() < 0.35) fxGas(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, h.r / 45, "120,130,50", 1.6);
+        for (const e of enemies) {
+          if (e.dead || e.spawnT > 0 || (e.x - h.x) ** 2 + (e.y - h.y) ** 2 > (h.r + e.r * 0.5) ** 2) continue;
+          if (h.kind === "shards") { damageEnemy(e, h.dmg * dt, { silent: true }); e.slowT = Math.max(e.slowT, 0.2); if (Math.random() < 0.05) fxBlood(e.x, e.y, rand(0, TAU), 2, e.def.blood, 80); }
+          else e.poisonDps = Math.max(e.poisonDps, h.dmg);
+        }
         continue;
       }
       if (h.kind === "gas") { if (Math.random() < 0.3) fxGas(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, h.r / 40, "150,200,60"); }
@@ -1456,13 +1516,34 @@
       fxSmoke(ex, ey, 6, 1.2, 1); shake = Math.max(shake, 12); hitStop = Math.max(hitStop, 0.08);
       addText(cx, cy - 26, tr("MAIBAUM FÄLLT!"), "#7fd0ff", 22, true);
       sfx("boom"); fx4d("boom");
+    } else if (o.kind === "glascontainer") {
+      // Altglas: Scherbenteppich – Zombies, die durchlaufen, schneiden sich
+      for (let i = 0; i < 4; i++) addHazard(cx + rand(-40, 40), cy + rand(-30, 30), 34, 7, player.power * 1.6, "shards");
+      for (const col of ["#3a8a4a", "#e8f0f0", "#8a5a2a"]) fxDebris(cx, cy, 0, Math.PI, 14, col);
+      fxSparks(cx, cy, 0, Math.PI, 18, "220,255,240", 300);
+      addText(cx, cy - 20, tr("SCHERBEN!"), "#bff0ff", 18, true);
+      sfx("glass"); shake = Math.max(shake, 5);
+    } else if (o.kind === "dixi") {
+      // Toilettenhäuschen: Gestank vergiftet alle Zombies in der Nähe
+      addHazard(cx, cy, 80, 6, player.power * 0.5, "stink");
+      for (let i = 0; i < 16; i++) fxGas(cx + rand(-50, 50), cy + rand(-50, 50), 1.6, "120,130,50", 2);
+      fxDebris(cx, cy, 0, Math.PI, 16, "#2a5aa8"); fxDebris(cx, cy, 0, Math.PI, 6, "#e8e8e0");
+      addText(cx, cy - 24, tr("IGITT!"), "#b8d040", 20, true);
+      sfx("splat"); shake = Math.max(shake, 5);
+    } else if (o.kind === "weihnachtsbaum") {
+      // Tannenbaum: Kugeln zerspringen, darunter liegen Geschenke (Münzen)
+      for (let i = 0; i < 7; i++) orbs.push(makeOrb(cx, cy, "coin", 1));
+      for (const rgb of ["255,60,60", "255,210,60", "90,200,255"]) fxSparks(cx, cy, 0, Math.PI, 10, rgb, 320);
+      fxDebris(cx, cy, 0, Math.PI, 18, "#1e5a2a"); fxDebris(cx, cy, 0, Math.PI, 6, "#5a3a1e");
+      addText(cx, cy - 26, tr("O TANNENBAUM!"), "#7fff9a", 20, true);
+      sfx("glass"); shake = Math.max(shake, 5);
     } else if (o.kind === "boeller") {
       // Böllerkiste: Silvester-Feuerwerk – Raketen schlagen rundherum ein
       for (let i = 0; i < 7; i++) fireworks.push({ x: cx + rand(-120, 120), y: cy + rand(-120, 120), t: 0.15 + i * 0.12, rgb: pick(["255,80,80", "255,210,60", "90,200,255", "140,255,120", "255,120,230"]) });
       fxSparks(cx, cy, -Math.PI / 2, 1.2, 20, "255,220,120", 420); sfx("boom");
       addText(cx, cy - 20, tr("FROHES NEUES!"), "#ffd23a", 20, true);
     } else {
-      const col = o.kind === "crate" ? "#7a5a34" : o.kind === "medcrate" ? "#dfe2dc" : "#56606a";
+      const col = o.kind === "crate" || o.kind === "strandkorb" ? "#7a5a34" : o.kind === "medcrate" ? "#dfe2dc" : "#56606a";
       fxDebris(cx, cy, 0, Math.PI, 22, col);
       fxDebris(cx, cy, 0, Math.PI, 8, "#4e3820");
       fxSmoke(cx, cy, 4, 0.9, 0.9);
@@ -1481,6 +1562,7 @@
 
   // Böller-Raketen: kurz zeitversetzt kleine bunte Explosionen
   let fireworks = [];
+  let parcels = []; // gelandete Paketbomben (piepen, dann Explosion)
   function updateFireworks(dt) {
     for (const f of fireworks) {
       if ((f.t -= dt) > 0) continue;
@@ -1530,6 +1612,7 @@
   function acidSplash(b) {
     if (b.kind) {
       if (b.kind === "paper") { fxDebris(b.x, b.y, rand(0, TAU), Math.PI, 4, "#ece6d4"); sfx("paper"); }
+      else if (b.kind === "harpoon" || b.kind === "anchor") fxSparks(b.x, b.y, rand(0, TAU), Math.PI, 4, "220,225,235", 200);
       else if (b.kind === "candy") fxSparks(b.x, b.y, 0, Math.PI, 4, b.rgb, 120);
       else { fxDebris(b.x, b.y, 0, Math.PI, 5, "#8a8070"); fxSmoke(b.x, b.y, 1, 0.6, 0.6); }
       return;
@@ -1566,6 +1649,14 @@
       if (dmg <= 0) { e.hitT = 0.06; return; }
     }
     const b = o.bullet;
+    // Rentner: der aufgespannte Schirm blockt Schüsse von vorn (Flanke, Explosion und Feuer gehen durch)
+    if (b && e.type === "rentner" && b.kind !== "flame" && !o.aoe && !exec) {
+      const ba = Math.atan2(-b.vy, -b.vx);
+      if (Math.abs(angDiff(e.face, ba)) < 1.05) {
+        dmg *= 0.12; fxSparks(e.x + Math.cos(e.face) * e.r, e.y + Math.sin(e.face) * e.r, ba, 0.9, 3, "220,220,240", 200);
+        if (!(e.cd > 0)) { e.cd = 2.5; addText(e.x, e.y - 30, tr("RUHE!"), "#c9d4ff", 14); }
+      }
+    }
     if (b) {
       e.hitAng = Math.atan2(b.vy, b.vx);
       if (b.burn && !e.def.fireproof) { e.burnT = 2.5; e.burnDps = Math.max(e.burnDps, p.power * 0.35 * b.burn * (p.evo.inferno ? 2 : 1)); }
@@ -1686,7 +1777,8 @@
     save.bestiary[e.type] = (save.bestiary[e.type] || 0) + 1;
     if (e.type === "bomber") explode(e.x, e.y, 70, e.dmg, false);
     else if (player.deathBlast > 0) explode(e.x, e.y, 45 + 15 * player.deathBlast, player.power * 1.2 * player.deathBlast, true);
-    if (e.type === "abom" || e.type === "mother") {
+    if (def.boss) for (const q of enemies) if (q.summoner === e && !q.dead) { q.hp = 0; fxRing(q.x, q.y, q.r * 2, "255,220,160", 0.3); }
+    if (def.boss) {
       for (let i = 0; i < 4 + run.chapter; i++) orbs.push(makeOrb(e.x, e.y, "coin", 3));
     }
   }
@@ -1711,7 +1803,9 @@
     // steht der Werfer direkt an einem Hindernis, startet das Projektil aus der Körpermitte (sonst prallt der Ball im Hindernis hin und her)
     let x = e.x + Math.cos(angle) * e.r, y = e.y + Math.sin(angle) * e.r;
     if (obstacles.some((o) => pointInRect(x, y, o))) { x = e.x; y = e.y; }
-    eBullets.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, r, dmg, kind, rgb, life: kind === "ball" ? 5 : 4, dead: false, spin: rand(0, TAU), bounces: kind === "ball" ? 3 : 0 });
+    const b = { x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, r, dmg, kind, rgb, life: kind === "ball" ? 5 : 4, dead: false, spin: rand(0, TAU), bounces: kind === "ball" ? 3 : 0 };
+    eBullets.push(b);
+    return b;
   }
   const KAMELLE = ["255,80,80", "255,210,60", "90,200,255", "140,255,120", "255,120,220"];
 
@@ -1766,11 +1860,32 @@
       }
     }
   }
+  function updateParcels(dt) {
+    for (const q of parcels) {
+      q.t -= dt;
+      if (q.t <= 0) { q.dead = true; explode(q.x, q.y, q.r, q.dmg, false); fxDebris(q.x, q.y, 0, Math.PI, 10, "#a07a4a"); }
+    }
+    if (parcels.length) parcels = parcels.filter((q) => !q.dead);
+  }
   function updateLobs(dt) {
     for (const q of lobs) {
       q.t += dt; q.spin += dt * 8;
       const k = Math.min(1, q.t / q.T);
       q.x = q.x0 + (q.x1 - q.x0) * k; q.y = q.y0 + (q.y1 - q.y0) * k; q.z = 40 * (1 - k) + Math.sin(k * Math.PI) * 150;
+      if (k >= 1 && q.kind === "gift") {
+        // Krampus-Geschenk: explodiert beim Aufschlag in bunten Funken
+        q.dead = true;
+        explode(q.x, q.y, q.r, q.dmg, false);
+        fxSparks(q.x, q.y, 0, Math.PI, 14, pick(["255,60,60", "255,210,60", "120,255,140"]), 320);
+        continue;
+      }
+      if (k >= 1 && q.kind === "parcel") {
+        // Paket landet und piept 1,4 s – dann knallt es
+        q.dead = true;
+        parcels.push({ x: q.x, y: q.y, t: 1.4, max: 1.4, r: q.r, dmg: q.dmg, spin: q.spin });
+        fxDebris(q.x, q.y, 0, Math.PI, 5, "#a07a4a"); sfx("stamp");
+        continue;
+      }
       if (k >= 1 && q.kind === "krug") {
         // Maßkrug zerschellt: Scherben, Bierlache bremst den Helden
         q.dead = true;
@@ -1793,6 +1908,209 @@
       }
     }
     if (lobs.length) lobs = lobs.filter((q) => !q.dead);
+  }
+
+
+  // ============================================================
+  // v2.1 Stadt-Bosse: jede Attacke = Ankündigung (e.tele, Warnfläche) → Ausführung → Erholung
+  // ============================================================
+  const BOSS_KIT = {
+    zugfuehrer: ["rush", "coal", "whistle"],
+    krampus: ["whip", "gifts", "leap"],
+    bierkoenig: ["barrels", "slam", "steins"],
+    narrenkoenig: ["spiral", "confetti", "leap"],
+    kapitaen: ["anchor", "harpoons", "horn"],
+  };
+  const BOSS_RAGE = {
+    zugfuehrer: ["VOLLDAMPF!", "Der Zugführer ruft die Schaffner", "schaffner", 2],
+    krampus: ["DIE RUTE SAUST!", "Krampus ruft seine Zwerge", "zwerg", 4],
+    bierkoenig: ["PROSIT!", "Der Bierkönig ruft zur Runde", "wiesn", 2],
+    narrenkoenig: ["ALAAF!", "Der Narrenkönig ruft die Garde", "jeck", 3],
+    kapitaen: ["STURMFLUT!", "Der Klabautermann ruft die Mannschaft", "ultra", 2],
+  };
+  const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
+  function summon(e, type, n) {
+    const alive = enemies.filter((q) => !q.dead && q.summoner === e).length;
+    for (let i = 0; i < Math.min(n, 8 - alive); i++) {
+      const a = rand(0, TAU), q = spawnEnemy(type, e.x + Math.cos(a) * (e.r + 30), e.y + Math.sin(a) * (e.r + 30));
+      q.spawnT = q.spawnMax = 0.5; q.summoner = e;
+    }
+  }
+  function bossStart(e, p) {
+    const kit = BOSS_KIT[e.type];
+    e.atkI = ((e.atkI ?? randi(0, kit.length - 1)) + 1) % kit.length;
+    const atk = (e.atk = kit[e.atkI]), aim = Math.atan2(p.y - e.y, p.x - e.x), ph2 = e.phase2;
+    e.mode = "tele"; e.pose = ""; e.track = 0;
+    switch (atk) {
+      case "rush": e.tele = { k: "lane", ang: aim, len: 900, w: e.r * 2.1, max: ph2 && e.rush2 ? 0.55 : 0.95 }; e.track = 0.55; sfx("whistle"); break;
+      case "whistle": case "horn": e.tele = { k: "circle", x: e.x, y: e.y, r: atk === "horn" ? 250 : 270, max: 0.9, follow: true, rgb: "255,226,110" }; e.pose = "whistle"; break;
+      case "whip": e.tele = { k: "cone", ang: aim, r: 230, arc: 2.1, max: 0.7 }; e.track = 0.35; break;
+      case "slam": e.tele = { k: "circle", x: e.x, y: e.y, r: 165, max: 0.95, follow: true }; e.pose = "lift"; break;
+      case "confetti": e.tele = { k: "cone", ang: aim, r: 320, arc: 0.95, max: 0.7, rgb: "255,120,220" }; e.track = 0.4; break;
+      case "anchor": e.tele = { k: "lane", ang: aim, len: 560, w: 30, max: 0.75 }; e.track = 0.45; e.pose = "lift"; break;
+      case "leap": {
+        const tx = clamp(p.x + rand(-40, 40), L + e.r, R - e.r), ty = clamp(p.y + rand(-40, 40), T + e.r, B - e.r);
+        e.tele = { k: "circle", x: tx, y: ty, r: atk === "leap" && e.type === "krampus" ? 115 : 95, max: 0.8 }; e.pose = "crouch"; break;
+      }
+      case "spiral": e.tele = { k: "circle", x: e.x, y: e.y, r: 70, max: 0.4, follow: true, rgb: "255,120,220" }; break;
+      default: e.tele = null; e.pose = "lift"; e.teleT = 0.45; // Würfe: der Zielkreis der Lobs ist die Warnung
+    }
+    e.aiT = e.tele ? e.tele.max : e.teleT;
+    if (e.tele) e.tele.t = e.aiT;
+  }
+  function bossFire(e, p) {
+    const ph2 = e.phase2, aim = e.tele && e.tele.ang != null ? e.tele.ang : Math.atan2(p.y - e.y, p.x - e.x);
+    const toP = Math.atan2(p.y - e.y, p.x - e.x), dP = Math.sqrt(dist2(e, p));
+    const done = (t) => { e.mode = "walk"; e.tele = null; e.pose = ""; e.aiT = t * (ph2 ? 0.7 : 1); };
+    const lobAt = (kind, x, y, r, T2) => lobs.push({ kind, x0: e.x, y0: e.y, x1: clamp(x, L + 20, R - 20), y1: clamp(y, T + 20, B - 20), t: 0, T: T2, r, dmg: e.dmg, x: e.x, y: e.y, z: 60, spin: rand(0, TAU) });
+    switch (e.atk) {
+      case "rush":
+        e.mode = "charge"; e.rush = true; e.dirX = Math.cos(aim); e.dirY = Math.sin(aim); e.aiT = 2.2; e.tele = null;
+        sfx("throw"); shake = Math.max(shake, 4); return;
+      case "coal": {
+        const n = ph2 ? 5 : 3;
+        for (let i = 0; i < n; i++) lobAt("coal", p.x + (i ? rand(-90, 90) : 0), p.y + (i ? rand(-90, 90) : 0), 42, 0.95 + i * 0.08);
+        sfx("throw"); return done(rand(1.4, 2));
+      }
+      case "whistle": case "horn": {
+        const R0 = e.tele.r;
+        fxRing(e.x, e.y, R0, e.atk === "horn" ? "200,220,230" : "255,236,140", 0.55); fxFlash(e.x, e.y, 140, "255,236,160", 0.15);
+        if (e.atk === "horn") { for (let i = 0; i < 14; i++) fxGas(e.x + rand(-R0, R0) * 0.6, e.y + rand(-R0, R0) * 0.6, 2, "170,180,190", 1.6); shake = Math.max(shake, 8); }
+        if (dP < R0 + p.r) {
+          hurtPlayer(e.dmg * 0.6);
+          if (e.atk === "horn") { p.kvx = (p.kvx || 0) + Math.cos(toP) * 620; p.kvy = (p.kvy || 0) + Math.sin(toP) * 620; debuff("slowT", 1.6, "AUSGEBREMST"); }
+          else debuff("jamT", 3.6, "VERSPÄTUNG");
+        }
+        sfx("whistle"); if (e.atk === "horn") sfx("boom");
+        return done(rand(1.6, 2.2));
+      }
+      case "whip": {
+        // Kettenpeitsche: Funkenbogen über die ganze Warnfläche
+        for (let i = 0; i <= 10; i++) { const a = aim - e.tele.arc / 2 + (e.tele.arc * i) / 10, rr = e.tele.r * rand(0.6, 1); fxSparks(e.x + Math.cos(a) * rr, e.y + Math.sin(a) * rr, a, 0.5, 2, "255,200,140", 220); }
+        if (dP < e.tele.r + p.r && Math.abs(angDiff(aim, toP)) < e.tele.arc / 2 + 0.15) { hurtPlayer(e.dmg * 1.2); p.kvx = (p.kvx || 0) + Math.cos(toP) * 420; p.kvy = (p.kvy || 0) + Math.sin(toP) * 420; }
+        shake = Math.max(shake, 5); sfx("zap");
+        return done(rand(1.1, 1.6));
+      }
+      case "gifts": {
+        const n = ph2 ? 5 : 3;
+        for (let i = 0; i < n; i++) lobAt("gift", p.x + (i ? rand(-110, 110) : 0), p.y + (i ? rand(-110, 110) : 0), 58, 1 + i * 0.1);
+        sfx("throw"); return done(rand(1.4, 2));
+      }
+      case "leap":
+        e.mode = "leap2"; e.jx0 = e.x; e.jy0 = e.y; e.jx1 = e.tele.x; e.jy1 = e.tele.y; e.jt = 0; e.jT = 0.55; e.pose = "";
+        sfx("throw"); return;
+      case "barrels": {
+        const n = ph2 ? 5 : 3;
+        for (let i = 0; i < n; i++) enemyShot(e, toP + (i - (n - 1) / 2) * 0.28, 230, e.dmg, "barrel", 16, "150,100,50");
+        sfx("throw"); return done(rand(1.5, 2.1));
+      }
+      case "slam": {
+        const R0 = e.tele.r;
+        fxRing(e.x, e.y, R0, "255,220,140", 0.6); fxRing(e.x, e.y, R0 * 0.6, "250,236,190", 0.45);
+        for (let i = 0; i < 10; i++) { const a = (i / 10) * TAU; fxGas(e.x + Math.cos(a) * R0 * 0.7, e.y + Math.sin(a) * R0 * 0.7, 1.4, "250,236,190", 1.2); }
+        fxDebris(e.x, e.y, 0, Math.PI, 18, "#5a4a3a"); shake = Math.max(shake, 12); sfx("boom"); fx4d("boom");
+        if (dP < R0 + p.r) { hurtPlayer(e.dmg * 1.3); p.kvx = (p.kvx || 0) + Math.cos(toP) * 560; p.kvy = (p.kvy || 0) + Math.sin(toP) * 560; }
+        addHazard(e.x, e.y, R0 * 0.55, 3.5, 0, "bier");
+        return done(rand(1.5, 2));
+      }
+      case "steins": {
+        const n = ph2 ? 6 : 4;
+        for (let i = 0; i < n; i++) lobAt("krug", p.x + (i ? rand(-120, 120) : 0), p.y + (i ? rand(-120, 120) : 0), 40, 0.8 + i * 0.12);
+        sfx("throw"); return done(rand(1.3, 1.9));
+      }
+      case "spiral":
+        e.mode = "spin"; e.spinT = ph2 ? 2.6 : 2; e.spinA = toP; e.spinCd = 0; e.tele = null; sfx("troete"); return;
+      case "confetti": {
+        for (let i = 0; i < 16; i++) enemyShot(e, aim + rand(-e.tele.arc / 2, e.tele.arc / 2), rand(230, 400), e.dmg * 0.5, "candy", 6, pick(KAMELLE));
+        for (let i = 0; i < 20; i++) fxSparks(e.x + Math.cos(aim) * e.r, e.y + Math.sin(aim) * e.r, aim, 0.7, 1, pick(KAMELLE), rand(200, 420));
+        shake = Math.max(shake, 5); sfx("boom");
+        return done(rand(1.2, 1.7));
+      }
+      case "anchor": {
+        enemyShot(e, aim, 640, e.dmg * 1.1, "anchor", 16, "180,190,200").owner = e;
+        if (ph2) for (const s2 of [-1, 1]) enemyShot(e, aim + s2 * 0.45, 600, e.dmg, "anchor", 14, "180,190,200").owner = e;
+        sfx("throw"); return done(rand(1.6, 2.2));
+      }
+      case "harpoons": {
+        const n = ph2 ? 7 : 5;
+        for (let i = 0; i < n; i++) enemyShot(e, toP + (i - (n - 1) / 2) * 0.17, 520, e.dmg * 0.7, "harpoon", 5, "220,225,235");
+        sfx("eshot"); return done(rand(1.2, 1.7));
+      }
+    }
+    done(1.5);
+  }
+  function bossImpact(e) {
+    // Zugführer prallt gegen Wand/Hindernis: Erdstoß, kurz benommen
+    e.rush = false;
+    fxRing(e.x, e.y, 120, "255,200,140", 0.5); fxDebris(e.x, e.y, 0, Math.PI, 22, "#5a4a3a"); fxSmoke(e.x, e.y, 6, 1.8, 1.2);
+    shake = Math.max(shake, 12); sfx("boom"); fx4d("boom");
+    if (dist2(e, player) < 130 * 130) hurtPlayer(e.dmg * 0.8);
+    if (e.phase2 && !e.rush2) { e.rush2 = true; e.atkI = BOSS_KIT[e.type].indexOf("rush") - 1; e.mode = "walk"; e.aiT = 0.25; }
+    else { e.rush2 = false; e.mode = "walk"; e.aiT = rand(1.4, 2); }
+  }
+  function bossAI(e, dt, p, dx, dy, d, slow) {
+    let mx = dx / d, my = dy / d, sp = e.speed * slow * (e.phase2 ? 1.2 : 1);
+    if (!e.phase2 && e.hp < e.maxHp * 0.5) {
+      e.phase2 = true;
+      const [title, sub, minion, n] = BOSS_RAGE[e.type];
+      showBanner(tr(title), tr(sub), 1.4); summon(e, minion, n);
+      fxRing(e.x, e.y, 160, "255,80,60", 0.5); shake = Math.max(shake, 8); sfx("rage");
+    }
+    e.aiT -= dt;
+    switch (e.mode) {
+      case "tele": {
+        // Zielen folgt dem Helden bis kurz vor dem Angriff, dann ist die Richtung fest (Zeit zum Ausweichen)
+        if (e.tele) {
+          if (e.tele.follow) { e.tele.x = e.x; e.tele.y = e.y; }
+          if (e.tele.ang != null && e.aiT > e.tele.max - e.track) e.tele.ang = Math.atan2(p.y - e.y, p.x - e.x);
+          e.tele.t = e.aiT;
+        }
+        if (e.aiT <= 0) bossFire(e, p);
+        return [0, 0, 0];
+      }
+      case "charge": {
+        // Lok-Ansturm: schnurgerade bis zur Wand, Dampf hinterher
+        if (Math.random() < 0.6) fxGas(e.x - e.dirX * e.r, e.y - e.dirY * e.r, 1.3, "220,225,230", 0.9);
+        if (Math.random() < 0.4) fxDebris(e.x - e.dirX * e.r, e.y - e.dirY * e.r, Math.atan2(-e.dirY, -e.dirX), 0.6, 1, "#5a4a3a");
+        if (dist2(e, p) < (e.r + p.r + 4) ** 2 && !(p.invuln > 0)) { hurtPlayer(e.dmg * 1.4); p.kvx = (p.kvx || 0) + e.dirX * 700 - e.dirY * 300; p.kvy = (p.kvy || 0) + e.dirY * 700 + e.dirX * 300; }
+        const atWall = e.x <= L + e.r + 1 || e.x >= R - e.r - 1 || e.y <= T + e.r + 1 || e.y >= B - e.r - 1;
+        if (atWall || e.aiT <= 0) { bossImpact(e); return [0, 0, 0]; }
+        return [e.dirX, e.dirY, 700 * slow];
+      }
+      case "leap2": {
+        // Sprung auf den Warnkreis, Landung mit Erdstoß
+        e.jt += dt; const k = Math.min(1, e.jt / e.jT);
+        e.x = e.jx0 + (e.jx1 - e.jx0) * k; e.y = e.jy0 + (e.jy1 - e.jy0) * k; e.jumpZ = Math.sin(k * Math.PI) * 140;
+        if (e.type === "narrenkoenig" && Math.random() < 0.7) fxSparks(e.x, e.y, rand(0, TAU), Math.PI, 1, pick(KAMELLE), 120);
+        if (k >= 1) {
+          e.jumpZ = 0; const R0 = e.tele ? e.tele.r : 100;
+          fxRing(e.x, e.y, R0, "255,200,140", 0.55); fxDebris(e.x, e.y, 0, Math.PI, 16, "#5a4a3a"); stamp(Sprites.crack(), e.x, e.y, rand(0, TAU), 2, 0.8);
+          shake = Math.max(shake, 10); sfx("erupt");
+          if (dist2(e, p) < (R0 + p.r) ** 2) { hurtPlayer(e.dmg * 1.2); const a = Math.atan2(p.y - e.y, p.x - e.x); p.kvx = (p.kvx || 0) + Math.cos(a) * 480; p.kvy = (p.kvy || 0) + Math.sin(a) * 480; }
+          if (e.type === "krampus" && e.phase2) summon(e, "zwerg", 3);
+          if (e.type === "narrenkoenig") for (let i = 0; i < 10; i++) enemyShot(e, (i / 10) * TAU, 210, e.dmg * 0.45, "candy", 5, pick(KAMELLE));
+          e.mode = "walk"; e.tele = null; e.aiT = rand(1.2, 1.8) * (e.phase2 ? 0.7 : 1);
+        }
+        return [0, 0, 0];
+      }
+      case "spin": {
+        // Kamelle-Spirale: dreht sich und streut Bonbons im Kreis
+        e.spinT -= dt; e.spinCd -= dt; e.spinA += dt * 4.2; e.face = e.spinA;
+        if (e.spinCd <= 0) {
+          e.spinCd = 0.075;
+          const arms = e.phase2 ? 3 : 2;
+          for (let i = 0; i < arms; i++) enemyShot(e, e.spinA + (i / arms) * TAU, 210, e.dmg * 0.45, "candy", 5, pick(KAMELLE));
+        }
+        if (e.spinT <= 0) { e.mode = "walk"; e.aiT = rand(1.3, 1.8) * (e.phase2 ? 0.7 : 1); }
+        return [mx * 0.3, my * 0.3, sp * 0.4];
+      }
+      default: {
+        // gehen: auf mittlere Distanz bleiben, dann nächste Attacke
+        if (e.aiT <= 0) { bossStart(e, p); return [0, 0, 0]; }
+        if (d < 120) sp *= 0.6;
+        return [mx, my, sp];
+      }
+    }
   }
 
   function updateEnemies(dt) {
@@ -2079,6 +2397,46 @@
           }
           break;
         }
+        case "zugfuehrer": case "krampus": case "bierkoenig": case "narrenkoenig": case "kapitaen": {
+          [mx, my, sp] = bossAI(e, dt, p, dx, dy, d, slow);
+          break;
+        }
+        case "scooter": {
+          // E-Scooter: kreist, kündigt eine Linie an und rast sie entlang
+          e.cd -= dt;
+          if (e.mode === "tele") {
+            sp = 0; e.aiT -= dt; if (e.aiT > 0.25) e.tele.ang = Math.atan2(dy, dx); e.tele.t = e.aiT;
+            if (e.aiT <= 0) { e.mode = "charge"; e.dirX = Math.cos(e.tele.ang); e.dirY = Math.sin(e.tele.ang); e.aiT = 0.75; e.tele = null; sfx("zap"); }
+          } else if (e.mode === "charge") {
+            mx = e.dirX; my = e.dirY; sp = 560 * slow; e.aiT -= dt;
+            if (Math.random() < 0.5) fxSparks(e.x - e.dirX * e.r, e.y - e.dirY * e.r, Math.atan2(-e.dirY, -e.dirX), 0.3, 1, "140,220,255", 160);
+            if (e.aiT <= 0) { e.mode = "walk"; e.cd = rand(2.2, 3.2); }
+          } else {
+            if (d < 230) { const t2 = mx; mx = -my * e.side; my = t2 * e.side; } else sp *= 1.3;
+            if (e.cd <= 0 && d < 430) { e.mode = "tele"; e.tele = { k: "lane", ang: Math.atan2(dy, dx), len: 440, w: e.r * 2, max: 0.6, t: 0.6 }; e.aiT = 0.6; }
+          }
+          break;
+        }
+        case "paketbote": {
+          // Paketbote: wirft Pakete, die am Boden kurz piepen und dann explodieren
+          if (d < 210) { mx = -mx; my = -my; } else if (d < 340) { const t2 = mx; mx = -my * e.side; my = t2 * e.side; sp *= 0.5; }
+          e.cd -= dt;
+          if (e.mode === "lift") {
+            sp = 0; e.aiT -= dt;
+            if (e.aiT <= 0) {
+              e.mode = "walk"; e.cd = rand(2.8, 3.6);
+              const tx = clamp(p.x + (p.vx || 0) * 0.5 + rand(-30, 30), L + 20, R - 20), ty = clamp(p.y + (p.vy || 0) * 0.5 + rand(-30, 30), T + 20, B - 20);
+              lobs.push({ kind: "parcel", x0: e.x, y0: e.y, x1: tx, y1: ty, t: 0, T: 0.85, r: 66, dmg: e.dmg * 1.5, x: e.x, y: e.y, z: 40, spin: rand(0, TAU) });
+              sfx("throw");
+            }
+          } else if (d > 140 && d < 460 && e.cd <= 0) { e.mode = "lift"; e.aiT = 0.45; }
+          break;
+        }
+        case "rentner": {
+          // Rentner: langsam, hält den Schirm nach vorn – Schüsse von vorn prallen ab, von der Seite flankieren!
+          if (e.cd > 0) e.cd -= dt;
+          break;
+        }
         case "dog": {
           // Sprung-Angriff aus kurzer Distanz
           e.cd -= dt;
@@ -2143,7 +2501,7 @@
       e.x += mx * sp * dt;
       e.y += my * sp * dt;
       // Blickrichtung weich nachführen, Laufanimation an Tempo koppeln
-      const lookAt = e.mode === "aim" || e.mode === "burst" ? e.aimAng : e.type === "spitter" || e.mode === "wind" || e.mode === "lift" || e.mode === "heal" || ((e.type === "gunner" || e.type === "warden" || e.type === "healer") && d < 380) ? Math.atan2(dy, dx) : Math.atan2(my, mx);
+      const lookAt = e.mode === "tele" && e.tele && e.tele.ang != null ? e.tele.ang : e.mode === "aim" || e.mode === "burst" ? e.aimAng : e.type === "spitter" || e.mode === "wind" || e.mode === "lift" || e.mode === "heal" || ((e.type === "gunner" || e.type === "warden" || e.type === "healer") && d < 380) ? Math.atan2(dy, dx) : Math.atan2(my, mx);
       let dFace = lookAt - e.face;
       while (dFace > Math.PI) dFace -= TAU;
       while (dFace < -Math.PI) dFace += TAU;
@@ -2151,7 +2509,7 @@
       e.anim += dt * (sp / (e.def.boss ? 30 : 55)) * 7;
       if (collideWorld(e)) {
         if (e.blocked <= 0) { e.blocked = 0.5; if (Math.random() < 0.3) e.side *= -1; }
-        if (e.mode === "charge") { e.mode = "walk"; e.aiT = rand(1.5, 2.5); shake = Math.max(shake, 4); }
+        if (e.mode === "charge") { if (e.rush) bossImpact(e); else { e.mode = "walk"; e.aiT = rand(1.5, 2.5); shake = Math.max(shake, 4); } }
       }
 
       // Kontaktschaden (nicht mitten im Sprung)
@@ -2582,7 +2940,7 @@
     track("gibs", 1);
   }
   // Abgeschossener Arm: fliegt von der Schulter weg, der Stumpf spritzt, der Zombie schlägt schwächer zu
-  const HUMANOID = new Set(["walker", "runner", "spitter", "bomber", "brute", "leaper", "burner", "screamer", "splitter", "electro", "healer", "thrower", "burrower", "phantom", "warden", "bloater", "gunner", "wiesn", "jeck", "schaffner", "beamter", "zwerg", "ultra"]);
+  const HUMANOID = new Set(["walker", "runner", "spitter", "bomber", "brute", "leaper", "burner", "screamer", "splitter", "electro", "healer", "thrower", "burrower", "phantom", "warden", "bloater", "gunner", "wiesn", "jeck", "schaffner", "beamter", "zwerg", "ultra", "scooter", "paketbote", "rentner", "zugfuehrer", "krampus", "bierkoenig", "narrenkoenig", "kapitaen"]);
   function severArm(e) {
     const free = [-1, 1].filter((s) => !(e.armOff && e.armOff[s]));
     if (!free.length) return;
@@ -2774,6 +3132,7 @@
     }
     updateHazards(dt);
     updateLobs(dt);
+    updateParcels(dt);
     updateFireworks(dt);
     updateBullets(dt);
     updateOrbs(dt);
@@ -2888,7 +3247,7 @@
     get state() { return state; }, get run() { return run; }, get player() { return player; },
     get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; },
     get orbs() { return orbs; }, get particles() { return particles; }, get corpses() { return corpses; }, get pieces() { return pieces; },
-    get zaps() { return zaps; }, get ambient() { return ambient; }, get roomLights() { return roomLights; }, get lobs() { return lobs; }, get beams() { return beams; },
+    get zaps() { return zaps; }, get ambient() { return ambient; }, get roomLights() { return roomLights; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; },
     get weather() { return curWeather(); }, get fest() { return curFest(); },
     get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },
     get theme() { return theme(); }, get isBossRoom() { return !!(run && BOSS_ROOMS[run.room]); }, get intro() { return roomFade; },
@@ -3057,6 +3416,7 @@
     drawActors();
     drawProjectilesBase();
     drawLobs();
+    drawParcels();
     drawParticlesBase();
     // 2) Licht & Dunkelheit
     drawLighting();
@@ -3563,6 +3923,29 @@
     for (const b of eBullets) {
       if (b.kind) {
         ctx.save(); ctx.translate(b.x, b.y);
+        if (b.kind === "barrel") {
+          // rollendes Bierfass (von oben: Rechteck mit Reifen, die durchlaufen)
+          ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
+          ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(-b.r + 3, -b.r * 0.9 + 4, b.r * 2, b.r * 1.8);
+          ctx.fillStyle = "#7a4e2a"; ctx.fillRect(-b.r, -b.r * 0.9, b.r * 2, b.r * 1.8);
+          ctx.fillStyle = "#5a3818"; for (let i = 0; i < 4; i++) { const y = ((b.spin * 4 + i * 0.25) % 1) * b.r * 1.8 - b.r * 0.9; ctx.fillRect(-b.r, y, b.r * 2, 2); }
+          ctx.fillStyle = "#9aa3ad"; ctx.fillRect(-b.r, -b.r * 0.9, 3, b.r * 1.8); ctx.fillRect(b.r - 3, -b.r * 0.9, 3, b.r * 1.8);
+          ctx.restore(); continue;
+        }
+        if (b.kind === "anchor") {
+          ctx.restore(); ctx.save();
+          const o = b.owner; if (o) { ctx.strokeStyle = "#5a6068"; ctx.lineWidth = 3; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.setLineDash([]); }
+          ctx.translate(b.x, b.y); ctx.rotate(b.spin);
+          ctx.strokeStyle = "#c4ccd4"; ctx.lineWidth = 4; ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(0, -b.r); ctx.lineTo(0, b.r * 0.8); ctx.moveTo(-b.r * 0.55, -b.r * 0.55); ctx.lineTo(b.r * 0.55, -b.r * 0.55); ctx.stroke();
+          ctx.beginPath(); ctx.arc(0, b.r * 0.1, b.r * 0.75, 0.35, Math.PI - 0.35); ctx.stroke();
+          ctx.restore(); continue;
+        }
+        if (b.kind === "harpoon") {
+          ctx.rotate(Math.atan2(b.vy, b.vx)); ctx.strokeStyle = "#8a6a4a"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(4, 0); ctx.stroke();
+          ctx.fillStyle = "#dfe6ee"; ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(2, -4); ctx.lineTo(2, 4); ctx.closePath(); ctx.fill();
+          ctx.restore(); continue;
+        }
         if (b.kind === "ball") {
           // Fußball mit Schatten und rollenden Flecken
           ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.ellipse(2, 5, 7, 3.5, 0, 0, TAU); ctx.fill();
@@ -3599,16 +3982,43 @@
   function drawLobTargets() {
     for (const q of lobs) {
       const k = Math.min(1, q.t / q.T), c = q.kind === "krug" ? "255,190,60" : "255,60,40";
+      if (q.kind === "parcel") continue; // Pakete warnen erst am Boden
       ctx.fillStyle = `rgba(${c},${0.1 + 0.18 * k})`; ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r, 0, TAU); ctx.fill();
       ctx.strokeStyle = `rgba(${c},${0.5 + 0.4 * Math.sin(run.time * 24)})`; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r, 0, TAU); ctx.stroke();
       ctx.fillStyle = `rgba(${c},0.35)`; ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r * k, 0, TAU); ctx.fill();
     }
   }
+  function drawParcels() {
+    for (const q of parcels) {
+      const k = 1 - q.t / q.max, blink = Math.sin(run.time * (10 + 30 * k)) > 0;
+      ctx.fillStyle = `rgba(255,60,40,${0.08 + 0.22 * k})`; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(255,80,60,${blink ? 0.9 : 0.4})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.stroke();
+      ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.spin);
+      ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(-8, -6, 18, 16);
+      ctx.fillStyle = "#a07a4a"; ctx.fillRect(-10, -9, 20, 17); ctx.fillStyle = "#d8c49a"; ctx.fillRect(-2, -9, 4, 17);
+      ctx.fillStyle = blink ? "#ff3020" : "#5a1010"; ctx.beginPath(); ctx.arc(6, -5, 2.4, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+  }
   function drawLobs() {
     for (const q of lobs) {
       drawShadow(q.x, q.y, 10 * (1 - q.z / 300));
       ctx.save(); ctx.translate(q.x, q.y - q.z); ctx.rotate(q.spin);
+      if (q.kind === "gift" || q.kind === "parcel") {
+        // Geschenk (rot, goldene Schleife) bzw. Paket (Karton, Klebeband)
+        const gift = q.kind === "gift";
+        ctx.fillStyle = gift ? "#c8202a" : "#a07a4a"; ctx.fillRect(-9, -9, 18, 18);
+        ctx.fillStyle = gift ? "#f2c21a" : "#d8c49a"; ctx.fillRect(-2, -9, 4, 18); if (gift) ctx.fillRect(-9, -2, 18, 4);
+        ctx.restore();
+        continue;
+      }
+      if (q.kind === "coal") {
+        ctx.fillStyle = "#1c1c1e"; ctx.beginPath(); ctx.moveTo(-10, -5); ctx.lineTo(-2, -10); ctx.lineTo(9, -6); ctx.lineTo(10, 4); ctx.lineTo(2, 10); ctx.lineTo(-8, 7); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "rgba(255,120,40,0.8)"; ctx.fillRect(-3, -2, 5, 3);
+        ctx.restore();
+        continue;
+      }
       if (q.kind === "krug") {
         // Maßkrug: Glas mit Bier, Schaumkrone, Henkel
         ctx.strokeStyle = "#d8e6ea"; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.arc(8, 0, 5, -1.3, 1.3); ctx.stroke();
@@ -3638,8 +4048,31 @@
     }
     ctx.restore();
   }
+  // Warnflächen der Bosse und E-Scooter (e.tele): Linie, Kegel, Kreis – füllen sich bis zum Angriff
+  function drawTele(e) {
+    const q = e.tele, k = 1 - Math.max(0, q.t) / q.max, rgb = q.rgb || "255,50,40";
+    ctx.save();
+    if (q.k === "lane") {
+      ctx.translate(e.x, e.y); ctx.rotate(q.ang);
+      ctx.fillStyle = `rgba(${rgb},${0.1 + 0.12 * k})`; ctx.fillRect(0, -q.w / 2, q.len, q.w);
+      ctx.fillStyle = `rgba(${rgb},${0.22 + 0.25 * k})`; ctx.fillRect(0, -q.w / 2, q.len * k, q.w);
+      ctx.strokeStyle = `rgba(${rgb},0.8)`; ctx.lineWidth = 2; ctx.strokeRect(0, -q.w / 2, q.len, q.w);
+    } else if (q.k === "cone") {
+      ctx.translate(e.x, e.y);
+      const path = (r) => { ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, r, q.ang - q.arc / 2, q.ang + q.arc / 2); ctx.closePath(); };
+      ctx.fillStyle = `rgba(${rgb},${0.1 + 0.12 * k})`; path(q.r); ctx.fill();
+      ctx.fillStyle = `rgba(${rgb},${0.2 + 0.25 * k})`; path(q.r * k); ctx.fill();
+      ctx.strokeStyle = `rgba(${rgb},0.8)`; ctx.lineWidth = 2; path(q.r); ctx.stroke();
+    } else {
+      ctx.fillStyle = `rgba(${rgb},${0.08 + 0.12 * k})`; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.fill();
+      ctx.fillStyle = `rgba(${rgb},${0.2 + 0.2 * k})`; ctx.beginPath(); ctx.arc(q.x, q.y, q.r * k, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(${rgb},${0.55 + 0.35 * Math.sin(run.time * 26)})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+  }
   function drawTelegraphs() {
     for (const e of enemies) {
+      if (e.tele && e.mode === "tele" && !e.dead) drawTele(e);
       if (e.mode === "crouch") {
         ctx.strokeStyle = `rgba(255,80,60,${0.35 + 0.3 * Math.sin(run.time * 30)})`; ctx.lineWidth = 3; ctx.setLineDash([8, 6]);
         ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + e.dirX * 190, e.y + e.dirY * 190); ctx.stroke(); ctx.setLineDash([]);
@@ -4258,6 +4691,9 @@
     [...box.children].forEach((el, i) => { el.classList.toggle("done", i < best || best >= n); el.classList.toggle("cur", i === Math.min(best, n - 1) && best < n); });
     $("rsFill").style.width = `${Math.max(0, Math.min(1, best / (n - 1))) * 100}%`;
     $("rsLabel").textContent = tr(best < 0 ? "Fluchtroute" : "Rekord");
+    // nächster Boss: der Endgegner der Stadt, in der die Flucht zuletzt gescheitert ist
+    const nb = cityAt(Math.max(0, best)), bossT = nb.boss || "abom";
+    $("rsBoss").textContent = ZOMBIES[bossT].name;
     $("menuBest").textContent = best < 0 ? tr("Ziel: Hamburg") : best >= n ? `${tr("Europa")} · ${cityAt(best).name}` : `${cityAt(best).name} · ${tr("Bezirk {n}/10", { n: districtIdx(save.best) + 1 })}`;
   }
   // Eilmeldungen: Lauftext mit Schlagzeilen aus dem gefallenen Deutschland (läuft nur, solange das Menü sichtbar ist)
@@ -4271,6 +4707,10 @@
     "Kleingartenverein meldet: Gartenzwerge außer Kontrolle",
     "Spieltag abgesagt – Ultras weiter im Stadion",
     "Bürgeramt geöffnet – aktuelle Wartenummer 9312",
+    "Nürnberg: Krampus auf dem Christkindlesmarkt gesichtet",
+    "Hamburg: Klabautermann blockiert die Elbe",
+    "Polizei-Hubschrauber sucht Überlebende in der Altstadt",
+    "Paketdienste stellen Zustellung ein – Pakete piepen verdächtig",
   ];
   function startTicker() {
     const el = $("tickerText"), track = el.parentElement;
@@ -4527,10 +4967,18 @@
     beamter: "Wirft Formulare aus sicherer Distanz. Ein Treffer bremst dich aus.",
     zwerg: "Gartenzwerge im Rudel: klein, schnell, zerbrechlich.",
     ultra: "Kickt Fußbälle, die von Wänden abprallen, und zündet Bengalos.",
+    scooter: "Kündigt eine rote Linie an und rast sie entlang – rechtzeitig zur Seite!",
+    paketbote: "Wirft Pakete, die am Boden piepen und explodieren. Raus aus dem roten Kreis!",
+    rentner: "Der Schirm blockt Schüsse von vorn. Flankieren, Explosionen oder Feuer nutzen!",
+    zugfuehrer: "Boss (Leipzig): Lok-Ansturm entlang der roten Linie, Kohlewürfe, Pfiff mit Verspätung.",
+    krampus: "Boss (Nürnberg): Kettenpeitsche im Kegel, explodierende Geschenke, Sprung mit Erdstoß.",
+    bierkoenig: "Boss (München): rollende Bierfässer, Bauchklatscher im Kreis, Maßkrug-Salven.",
+    narrenkoenig: "Boss (Köln): Kamelle-Spirale, Konfettikanone und Sprünge mitten in die Menge.",
+    kapitaen: "Boss (Hamburg): Anker, der zurückkehrt, Harpunen-Fächer und das Nebelhorn.",
     abom: "Boss: Sturmangriffe und Stachelringe. Ab halber Energie rasend.",
     mother: "Boss: Säurefächer und Kriecher-Brut. Ab halber Energie gefährlicher.",
   };
-  const NEW_FOES = new Set(["wiesn", "jeck", "schaffner", "beamter", "zwerg", "ultra"]);
+  const NEW_FOES = new Set(["scooter", "paketbote", "rentner", "zugfuehrer", "krampus", "bierkoenig", "narrenkoenig", "kapitaen"]);
   let codexTab = "evo";
   function renderBestiary(list) {
     let seen = 0;
@@ -5194,5 +5642,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

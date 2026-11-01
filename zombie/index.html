@@ -33,12 +33,15 @@
       </header>
 
       <div class="brand">
-        <div class="brand-top">ESCAPE</div>
+        <div class="brand-top">ESCAPE<span class="drips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
         <div class="brand-bottom"><span>FROM GERMANY</span></div>
       </div>
       <!-- Fluchtroute als Fortschritt: Städte mit Kfz-Kennzeichen, Rekord leuchtet -->
       <button class="route-strip" id="routeStrip" aria-label="Fluchtplan">
-        <span class="rs-head"><small id="rsLabel">Fluchtroute</small><b id="menuBest">–</b></span>
+        <span class="rs-head">
+          <span class="rs-a"><small id="rsLabel">Fluchtroute</small><b id="menuBest">–</b></span>
+          <span class="rs-b"><small data-i18n>Nächster Boss</small><b id="rsBoss">–</b></span>
+        </span>
         <span class="rs-track"><span class="rs-line"><i id="rsFill"></i></span><span class="rs-nodes" id="rsNodes"></span></span>
       </button>
 

@@ -220,6 +220,31 @@ window.GameAudio = (() => {
     const cut = S.paused ? 700 : (m === "play" || m === "boss") && S.hp < 0.3 ? 1400 : m === "over" ? 900 : 16000;
     musicTone.frequency.setTargetAtTime(cut, now, 0.25);
     ambBus.gain.setTargetAtTime(m === "off" ? 0 : S.paused ? 0.25 : 0.6, now, 0.5);
+    rotorOn(m === "menu");
+  }
+
+  // v2.1: Hubschrauber über dem Menü – gefiltertes Rauschen, rhythmisch moduliert (Rotorblätter),
+  // dazu ein langsames An- und Abschwellen, wenn er seine Kreise zieht
+  let rotor = null;
+  function rotorOn(on) {
+    const now = ctx.currentTime;
+    if (on && !rotor) {
+      const src = ctx.createBufferSource(); src.buffer = noise(); src.loop = true;
+      const lp = filter("lowpass", 240, 0.9), am = ctx.createGain(), out = ctx.createGain();
+      am.gain.value = 0.55; out.gain.value = 0.0001;
+      const lfo = ctx.createOscillator(); lfo.type = "triangle"; lfo.frequency.value = 12.5;
+      const depth = ctx.createGain(); depth.gain.value = 0.45; lfo.connect(depth).connect(am.gain);
+      const swell = ctx.createOscillator(); swell.frequency.value = 0.16 / (2 * Math.PI) * 2;
+      const sDepth = ctx.createGain(); sDepth.gain.value = 0.08; swell.connect(sDepth).connect(out.gain);
+      src.connect(lp).connect(am).connect(out).connect(ambBus);
+      src.start(now, Math.random()); lfo.start(now); swell.start(now);
+      out.gain.setTargetAtTime(0.16, now, 1.5);
+      rotor = { src, lfo, swell, sDepth, out };
+    } else if (!on && rotor) {
+      const r = rotor; rotor = null;
+      r.sDepth.disconnect(); r.out.gain.cancelScheduledValues(now); r.out.gain.setTargetAtTime(0.0001, now, 0.4);
+      setTimeout(() => { for (const n of [r.src, r.lfo, r.swell]) { try { n.stop(); } catch { /* schon gestoppt */ } } }, 2500);
+    }
   }
 
   // ------------------------------------------------------------------
@@ -328,6 +353,6 @@ window.GameAudio = (() => {
     init, update, setTheme, stinger, thunder, ui, setMuted, setMusic,
     get ready() { return ready; },
     sfxOut: () => (ready ? sfxBus : ctx && ctx.destination),
-    get debug() { return { S: { ...S }, cut: musicTone ? Math.round(musicTone.frequency.value) : 0, layers: Object.fromEntries(LAYERS.map((k) => [k, layer[k] ? +layer[k].gain.value.toFixed(3) : 0])), bar, step }; },
+    get debug() { return { rotor: !!rotor, S: { ...S }, cut: musicTone ? Math.round(musicTone.frequency.value) : 0, layers: Object.fromEntries(LAYERS.map((k) => [k, layer[k] ? +layer[k].gain.value.toFixed(3) : 0])), bar, step }; },
   };
 })();

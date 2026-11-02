@@ -350,6 +350,14 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .stats > b.gold { color: #ffe2a3; }
 .stats > b .amt b { font-size: 1em; }
 .stats .rec { color: var(--gold); font: 800 11px/1 var(--f-ui); letter-spacing: 0.12em; margin-left: 6px; vertical-align: 3px; }
+.dialog.report { animation: report-in 0.34s cubic-bezier(0.2, 1.2, 0.3, 1) both; }
+@keyframes report-in { from { transform: translateY(18px); opacity: 0; } }
+.report .kicker { color: var(--toxic); }
+.dialog.report .stats > span, .dialog.report .stats > b {
+  animation: stat-in 0.32s cubic-bezier(0.2, 1.15, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 0.055s);
+}
+@keyframes stat-in { from { opacity: 0; transform: translateX(10px); } }
 .stats.panel { background: linear-gradient(180deg, #1c2624, #151d1b); }
 
 /* Wiederbeleben: Countdown-Ring */

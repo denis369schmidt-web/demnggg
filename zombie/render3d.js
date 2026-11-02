@@ -418,6 +418,22 @@ window.Render3D = (() => {
     lab: { sky: 0x7fae90, ground: 0x1c2420, hemi: 2.2, moon: 0x9fffc8, moonI: 1.7, fog: 0x08100c, wall: "lab" },
     markt: { sky: 0xa89a88, ground: 0x2a2018, hemi: 2.5, moon: 0xffd9b4, moonI: 1.9, fog: 0x120e0b, wall: "markt" },
   };
+  // Stadt-Look: München muss in zwei Sekunden anders wirken als Hamburg
+  const CITY_GRADE = {
+    heilbronn: { fog: 0x1c140c, sky: 0xc4a878, moon: 0xffd09a, hemiMul: 1.04, exposure: 1.08, fogNear: 1350, fogFar: 2450 },
+    stuttgart: { fog: 0x0c1014, sky: 0x8aa0b8, moon: 0xc0d4ff, hemiMul: 0.94, exposure: 1.05, fogNear: 1450, fogFar: 2550 },
+    muenchen: { fog: 0x181208, sky: 0xd4b888, moon: 0xffe0a8, hemiMul: 1.1, exposure: 1.18, fogNear: 1500, fogFar: 2700 },
+    nuernberg: { fog: 0x0e141c, sky: 0xa8c0d8, moon: 0xe8f0ff, hemiMul: 0.9, exposure: 1.02, fogNear: 1200, fogFar: 2300 },
+    leipzig: { fog: 0x121018, sky: 0x908898, moon: 0xd0c8d8, hemiMul: 0.92, exposure: 1.0, fogNear: 1400, fogFar: 2500 },
+    berlin: { fog: 0x0a1018, sky: 0x6a88b0, moon: 0x88a8ff, hemiMul: 0.86, exposure: 0.98, fogNear: 1300, fogFar: 2400 },
+    frankfurt: { fog: 0x0c1218, sky: 0x88b0c4, moon: 0xa8e0ff, hemiMul: 1.0, exposure: 1.12, fogNear: 1500, fogFar: 2700 },
+    koeln: { fog: 0x1a1014, sky: 0xc898b0, moon: 0xffc0d8, hemiMul: 1.06, exposure: 1.14, fogNear: 1450, fogFar: 2600 },
+    hamburg: { fog: 0x0c1414, sky: 0x88a8a0, moon: 0xc8e0d8, hemiMul: 0.84, exposure: 0.96, fogNear: 900, fogFar: 2100 },
+    amsterdam: { fog: 0x0c1418, sky: 0x88a0b0, moon: 0xb0d0e0, hemiMul: 0.9, exposure: 1.0, fogNear: 1200, fogFar: 2300 },
+    paris: { fog: 0x141018, sky: 0xb090a8, moon: 0xffd0e0, hemiMul: 1.02, exposure: 1.1, fogNear: 1400, fogFar: 2500 },
+    wien: { fog: 0x10141c, sky: 0xb8c8d8, moon: 0xe8f0ff, hemiMul: 0.92, exposure: 1.04, fogNear: 1250, fogFar: 2350 },
+    prag: { fog: 0x12100c, sky: 0xb8a078, moon: 0xffd8a0, hemiMul: 1.0, exposure: 1.08, fogNear: 1400, fogFar: 2500 },
+  };
   const ROOF = { street: "#221d1a", hospital: "#2b322e", lab: "#1b2125", markt: "#6e2a1c" };
   const EDGE = { street: "#6b5a50", hospital: "#c9d4ce", lab: "#56626a", markt: "#8a7a62" };
   const PROP = { street: "#3a3532", hospital: "#5b6661", lab: "#38434a" };
@@ -1006,6 +1022,20 @@ void main() {
     setupAtmo(w.theme, w.weather, w.fest);
     scene.fog.color.setHex(th.fog);
     renderer.setClearColor(th.fog, 1);
+    const grade = CITY_GRADE[w.cityId];
+    if (grade) {
+      hemi.color.lerp(new T3.Color(grade.sky), 0.55);
+      moon.color.lerp(new T3.Color(grade.moon), 0.5);
+      scene.fog.color.lerp(new T3.Color(grade.fog), 0.72);
+      renderer.setClearColor(scene.fog.color, 1);
+      hemi.intensity *= grade.hemiMul || 1;
+      if (grade.fogNear) scene.fog.near = grade.fogNear;
+      if (grade.fogFar) scene.fog.far = grade.fogFar;
+      renderer.toneMappingExposure = grade.exposure || 1.15;
+    } else {
+      scene.fog.near = 1500; scene.fog.far = 2700;
+      renderer.toneMappingExposure = 1.15;
+    }
 
     const g = new T3.Group();
     const aw = D.R - D.L, ah = D.B - D.T;
@@ -1125,7 +1155,8 @@ void main() {
     const beacons = w.theme === "lab" ? [[D.W / 2 - D.DOOR_W / 2 - 26, D.T - 8], [D.W / 2 + D.DOOR_W / 2 + 26, D.T - 8]] : [];
     for (const [bx, bz] of beacons) { deco.add(mesh(cyl(6, 7, 6, 10), slam("#2a2a2a"), bx, 64, bz)); deco.add(mesh(cyl(5, 5, 8, 10), sbasic("#ff3020"), bx, 71, bz)); }
     addProps(deco, w);
-    const clock = w.cityId === "heilbronn" && w.theme === "markt" ? addHeilbronn(deco, w, WH) : null;
+    const clock = w.cityId === "heilbronn" ? addHeilbronn(deco, w, WH) : null;
+    addCityMark(deco, w, WH);
 
     bakeStatic(deco);
     deco.traverse((c) => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
@@ -2008,6 +2039,74 @@ void main() {
     face.add(hour, minute);
     face.add(mesh(box(50, 3.4, 3), sandD, 0, -20, -0.5));
     return { face, hour, minute }; // nicht in die statische Deko – die Zeiger drehen sich
+  }
+
+  // Skyline hinter der Nordmauer: jede Stadt hat eine Silhouette, die in zwei Sekunden sitzt
+  function addCityMark(deco, w, WH) {
+    const id = w.cityId;
+    if (!id || id === "heilbronn") return;
+    const g = group(D.W / 2 - 118, WH, D.T - 34);
+    g.scale.setScalar(0.58);
+    const stone = slam("#9a8a74"), brick = slam("#6a3a32"), pale = slam("#c4c0b6");
+    const dark = slam("#2c3238"), metal = slam("#5a646c"), gold = sbasic("#e8c64a");
+    const add = (...ms) => { for (const m of ms) g.add(m); };
+    switch (id) {
+      case "stuttgart":
+        add(mesh(cyl(12, 16, 28, 8), pale, 0, 14, 0), mesh(cyl(5, 9, 80, 8), metal, 0, 68, 0),
+          mesh(cyl(14, 14, 8, 10), slam("#c45a28"), 0, 92, 0), mesh(cyl(2.2, 3.5, 48, 6), metal, 0, 140, 0));
+        break;
+      case "muenchen":
+        for (const sx of [-24, 24]) add(mesh(box(20, 52, 20), stone, sx, 26, 0), mesh(cyl(7, 9, 14, 8), stone, sx, 59, 0),
+          mesh(ico(10, 0), slam("#3a4854"), sx, 74, 0), mesh(cone(2.4, 12, 6), dark, sx, 86, 0));
+        add(mesh(box(40, 30, 24), stone, 0, 15, 0));
+        break;
+      case "nuernberg":
+        add(mesh(box(48, 36, 36), stone, 0, 18, 0), mesh(box(28, 44, 28), stone, 0, 58, 0),
+          mesh(cyl(10, 12, 22, 8), stone, 0, 91, 0), mesh(cone(14, 28, 8), dark, 0, 116, 0));
+        break;
+      case "leipzig":
+        add(mesh(box(56, 40, 40), stone, 0, 20, 0), mesh(box(36, 28, 36), stone, 0, 54, 0),
+          mesh(cyl(8, 10, 40, 8), stone, 0, 88, 0), mesh(box(22, 18, 22), stone, 0, 116, 0));
+        break;
+      case "berlin":
+        add(mesh(cyl(6, 8, 70, 8), metal, 0, 35, 0), mesh(ico(22, 1), slam("#c8d0d8"), 0, 86, 0),
+          mesh(cyl(3, 4, 50, 6), metal, 0, 130, 0), mesh(cone(6, 10, 6), gold, 0, 158, 0));
+        break;
+      case "frankfurt":
+        add(mesh(box(22, 90, 22), metal, -28, 45, 0), mesh(box(18, 120, 18), slam("#4a5460"), 0, 60, 0),
+          mesh(cone(12, 22, 4), pale, 0, 131, 0), mesh(box(16, 70, 16), metal, 26, 35, 0));
+        break;
+      case "koeln":
+        for (const sx of [-18, 18]) add(mesh(box(16, 70, 16), stone, sx, 35, 0), mesh(box(10, 50, 10), stone, sx, 95, 0),
+          mesh(cone(7, 28, 4), dark, sx, 134, 0));
+        add(mesh(box(44, 28, 22), stone, 0, 14, 0));
+        break;
+      case "hamburg":
+        add(mesh(box(70, 22, 28), brick, 0, 11, 0), mesh(box(54, 18, 22), pale, 0, 30, 0),
+          mesh(box(40, 10, 16), slam("#d8e0e4"), 0, 44, 0), mesh(cyl(6, 8, 48, 8), brick, -38, 46, 0),
+          mesh(cone(8, 16, 6), slam("#6a4a32"), -38, 78, 0));
+        break;
+      case "amsterdam":
+        for (const [sx, h] of [[-20, 42], [0, 54], [22, 38]]) add(mesh(box(16, h, 16), brick, sx, h / 2, 0), mesh(cone(10, 14, 3), dark, sx, h + 7, 0));
+        break;
+      case "paris":
+        add(mesh(box(8, 90, 8), metal, 0, 45, 0));
+        for (const y of [20, 50, 78]) add(mesh(box(y < 50 ? 48 : 22, 4, 4), metal, 0, y, 0));
+        add(mesh(cone(6, 28, 4), metal, 0, 104, 0));
+        break;
+      case "wien":
+        add(mesh(box(36, 50, 28), stone, 0, 25, 0), mesh(box(16, 40, 16), stone, 0, 70, 0),
+          mesh(cone(12, 36, 4), dark, 0, 108, 0), mesh(box(40, 6, 8), slam("#4a8a4a"), 0, 42, 0));
+        break;
+      case "prag":
+        for (const sx of [-16, 16]) add(mesh(box(14, 56, 14), stone, sx, 28, 0), mesh(cone(8, 32, 4), dark, sx, 72, 0));
+        add(mesh(box(36, 24, 20), stone, 0, 12, 0));
+        break;
+      default:
+        return;
+    }
+    cast(g);
+    deco.add(g);
   }
 
   // v2.1 Menü: Polizeihubschrauber kreist über der Altstadt, Suchscheinwerfer streift über den Platz

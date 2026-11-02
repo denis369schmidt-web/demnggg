@@ -527,6 +527,7 @@
     run = {
       mode, chapter: 1, room: 0, kills: 0, coins: 0, greed: 1 + 0.1 * save.talents.greed, time: 0, pendingPicks: 0, cleared: false,
       adRevived: false, adWatched: false, earned: 0, combo: 0, comboT: 0, bestCombo: 0, rage: 0,
+      firstBlood: false, headshots: 0, locked: false,
     };
     // Überlebensmodus: Welt wechselt täglich
     if (mode === "survival") Object.assign(run, { survT: 0, spawnCd: 1.2, theme: THEME_ORDER[Math.floor(Date.now() / 864e5) % THEME_ORDER.length] });
@@ -544,7 +545,7 @@
     if (b.revive > 0) { b.revive--; player.revives++; used.push(boostName("revive")); }
     if (b.skill > 0) { b.skill--; run.pendingPicks++; used.push(boostName("skill")); }
     if (used.length) persist();
-    if (webgl) Render3D.clear();
+    try { if (webgl) Render3D.clear(); } catch (e) { console.warn("[Outbreak] 3D-Clear", e); }
     nextRoom();
     roomFade = 0; // beim Start übernimmt der Kameraflug aus dem Menü die Überblendung
     if (used.length) setTimeout(() => toast(`${tr("Boosts aktiv")}: ${used.join(" · ")}`, "gift"), 300);
@@ -586,7 +587,6 @@
       showBanner(dName.toUpperCase(), `${city.name} · ${tr("Versorgung – öffne die Kiste")}`);
     } else if (isBoss) {
       spawnEnemy(isBoss, W / 2, T + 180);
-      showBanner(ZOMBIES[isBoss].name, `${tr(ZOMBIES[isBoss].epithet || "")} · ${city.name}`, 2.6);
       if (window.GameAudio) GameAudio.stinger("boss");
       fx4d("boss", 1100);
     } else {
@@ -595,6 +595,7 @@
     }
     // Funkspruch beim Stadtwechsel; beim Einsatzstart nur bis der Prolog einmal gesehen wurde (kein Extra-Tippen bei jeder Runde)
     if (districtIdx() === 0 && (run.time > 0.5 || !save.storySeen)) openCityCard();
+    if (run.room === 1 && run.time < 0.05) { cineT = Math.max(cineT, 0.9); punchFov = Math.max(punchFov, 3.6); }
   }
 
 
@@ -718,7 +719,6 @@
       run[`boss_${type}`] = true;
       const pos = survivalSpot();
       spawnEnemy(type, pos.x, pos.y);
-      showBanner(ZOMBIES[type].name, `${tr(ZOMBIES[type].epithet || "")} · ${tr("Noch {s}", { s: fmtTime(SURVIVAL_TIME - run.survT) })}`);
       if (window.GameAudio) GameAudio.stinger("boss");
       fx4d("boss", 1100);
     }
@@ -1059,6 +1059,11 @@
       p.barrel += dt * (6 + 40 * p.spin);
     }
     p.plant = !p.moving && target ? Math.min(1, (p.plant || 0) + dt * 4.2) : Math.max(0, (p.plant || 0) - dt * 6);
+    if (run && !run.locked && p.plant > 0.55 && target) {
+      run.locked = true;
+      addText(p.x, p.y - 52, tr("ZIEL ERFASST"), "#a8ff3e", 16, true);
+      if (window.GameAudio) GameAudio.ui("confirm");
+    }
     if (!p.moving && target) {
       p.aim = Math.atan2(target.y - p.y, target.x - p.x);
       if (p.fireCd <= 0) {
@@ -1783,9 +1788,19 @@
     track("kills");
     if (e.elite) track("elites");
     if (def.boss) { track("bosses"); addPassXp(60); }
-    if (e.death === "headshot") track("headshots");
+    if (e.death === "headshot") { track("headshots"); run.headshots = (run.headshots || 0) + 1; }
     else if (e.death === "blast" || e.death === "burst") track("blasts");
     sfx(def.boss ? "boom" : "kill");
+    if (!run.firstBlood && !def.boss) {
+      run.firstBlood = true;
+      run.firstBloodAt = run.time;
+      slowMo = Math.max(slowMo, 0.55);
+      punchFov = Math.max(punchFov, 3.2);
+      shake = Math.max(shake, 7);
+      callout = { title: tr("ERSTER TREFFER"), n: 1, bonus: 0, life: 1.55, max: 1.55, plain: true };
+      sfx("combo");
+      fx4d("level");
+    }
     // Inferno / Seuche: brennende bzw. vergiftete Zombies stecken beim Tod ihre Nachbarn an
     if (player.evo.inferno && e.burnT > 0) spreadToNeighbors(e, 95, (q) => { if (!q.def.fireproof) { q.burnT = 2.5; q.burnDps = Math.max(q.burnDps, e.burnDps); } }, "255,140,40");
     if (player.evo.plague && e.poisonDps > 0) spreadToNeighbors(e, 90, (q) => { q.poisonDps = Math.max(q.poisonDps, e.poisonDps * 0.8); }, "150,255,60");
@@ -2629,6 +2644,10 @@
     track("rooms");
     sfx("door");
     if (window.GameAudio) GameAudio.stinger(BOSS_ROOMS[run.room] ? "victory" : "clear");
+    slowMo = Math.max(slowMo, 0.32);
+    punchFov = Math.max(punchFov, 2.2);
+    shake = Math.max(shake, 5);
+    showBanner(tr("BEZIRK SICHER"), tr("TÜR OFFEN ↑"), 1.7);
     addText(W / 2, T + 40, tr("TÜR OFFEN ↑"), "#8cff4a", 22);
     if (BOSS_ROOMS[run.room]) {
       healPlayer(player.maxHp * 0.2);
@@ -3296,14 +3315,24 @@
     title.textContent = won ? tr("ÜBERLEBT!") : quit ? tr("EINSATZ BEENDET") : tr("GEFALLEN");
     title.classList.toggle("win", won);
     const reached = surv ? `${fmtTime(Math.min(run.survT, SURVIVAL_TIME))} / ${fmtTime(SURVIVAL_TIME)}` : placeLabel(run.chapter, run.room);
-    const line = (icon, label, value, cls = "") => `<span>${I(icon)}${label}</span><b class="${cls}">${value}</b>`;
+    let si = 0;
+    const line = (icon, label, value, cls = "") => {
+      const i = si++;
+      return `<span style="--i:${i}">${I(icon)}${label}</span><b class="${cls}" style="--i:${i}">${value}</b>`;
+    };
+    const city = !surv && run.room > 0 ? curCity() : null;
+    const left = city ? 9 - districtIdx() : 0;
+    const tease = city && !won && left >= 1 ? (left > 1 ? tr("Noch {n} Bezirke bis {boss}", { n: left, boss: ZOMBIES[city.boss].name }) : tr("Boss wartet: {boss}", { boss: ZOMBIES[city.boss].name })) : "";
     $("overStats").innerHTML =
       line(surv ? "stopwatch" : "map", surv ? tr("Überlebt") : tr("Erreicht"), `${reached}${record ? `<em class="rec">${tr("REKORD")}</em>` : ""}`) +
       line("skull", tr("Abschüsse"), num(run.kills)) +
+      line("headshot", tr("Kopfschüsse"), num(run.headshots || 0)) +
+      (run.firstBloodAt != null ? line("exec", tr("Erster Treffer"), fmtTime(run.firstBloodAt)) : "") +
       line("combo", tr("Beste Kombo"), `x${run.bestCombo}`) +
       line("upgrade", tr("Level"), player.level) +
       line("hourglass", tr("Zeit"), fmtTime(run.time)) +
-      line("coin", tr("Münzen"), coinAmt(coins, "+"), "gold");
+      line("coin", tr("Münzen"), coinAmt(coins, "+"), "gold") +
+      (tease ? line("bossSkull", tr("Nächstes Ziel"), tease) : "");
     const dbl = $("doubleBtn");
     dbl.classList.toggle("hidden", !(Platform.ads.available && coins > 0));
     dbl.disabled = false;
@@ -3585,6 +3614,7 @@
     if (roomFade > 0) { ctx.globalAlpha = Math.min(1, roomFade * 1.4); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
     if (state === "play" && joy.active) drawJoystick();
     if (banner) drawBanner();
+    drawBossCard();
     if (!save.tutorialDone && run.room === 1 && (state === "play" || state === "pick")) drawTutorial();
   }
 
@@ -4433,6 +4463,10 @@
     g.textAlign = "right"; g.fillStyle = "#ffe2a3"; g.fillText(coins, cxr - 12, 46);
     drawIcon(g, "skull", cxr - 50, 72, 15, "#76857b");
     g.fillStyle = "#b3bfb6"; g.font = FONT_NUM(20); g.fillText(num(run.kills), cxr - 12, 79);
+    if (run.headshots) {
+      drawIcon(g, "headshot", cxr - 118, 72, 15, "#ff6a5a");
+      g.fillStyle = "#ffd0c8"; g.fillText(num(run.headshots), cxr - 80, 79);
+    }
     g.textAlign = "left";
   }
 
@@ -4452,7 +4486,7 @@
   function drawHud() {
     const p = player, t = run.time, survival = run.mode === "survival";
     const left = survival ? Math.max(0, SURVIVAL_TIME - run.survT) : 0;
-    const key = [I18N.lang, run.mode, p.level, Math.round((p.xp / p.xpNeed) * 120), run.chapter, run.room, run.coins, run.kills,
+    const key = [I18N.lang, run.mode, p.level, Math.round((p.xp / p.xpNeed) * 120), run.chapter, run.room, run.coins, run.kills, run.headshots || 0,
       survival ? `${Math.ceil(left)}|${left < 30 ? Math.floor(t * 12) : 0}|${Math.floor(run.survT / SURV_STEP)}` : ""].join("|");
     ctx.drawImage(cachedLayer(hudCache, key, 100, paintHud), 0, 0, W, 100);
     // aktuelles Segment pulsiert
@@ -4510,12 +4544,14 @@
       ctx.translate(W / 2, y0 + 34); ctx.scale(sc, sc);
       ctx.textAlign = "center";
       ctx.font = FONT_NUM(42, 700); ctx.lineWidth = 6; ctx.strokeStyle = "rgba(0,0,0,0.85)";
-      ctx.strokeText(callout.title, 0, 0); ctx.fillStyle = comboColor(callout.n); ctx.fillText(callout.title, 0, 0);
-      const sub = `x${callout.n}   +${callout.bonus}`;
-      ctx.font = FONT_UI(15); ctx.lineWidth = 4;
-      const sw = ctx.measureText(sub).width;
-      ctx.strokeText(sub, 0, 24); ctx.fillStyle = "#ffe2a3"; ctx.fillText(sub, 0, 24);
-      drawIcon(ctx, "coin", sw / 2 + 12, 19, 16, "#ffb733");
+      ctx.strokeText(callout.title, 0, 0); ctx.fillStyle = callout.plain ? "#a8ff3e" : comboColor(callout.n); ctx.fillText(callout.title, 0, 0);
+      if (!callout.plain) {
+        const sub = `x${callout.n}   +${callout.bonus}`;
+        ctx.font = FONT_UI(15); ctx.lineWidth = 4;
+        const sw = ctx.measureText(sub).width;
+        ctx.strokeText(sub, 0, 24); ctx.fillStyle = "#ffe2a3"; ctx.fillText(sub, 0, 24);
+        drawIcon(ctx, "coin", sw / 2 + 12, 19, 16, "#ffb733");
+      }
     }
     ctx.restore();
   }
@@ -4567,6 +4603,43 @@
     ctx.drawImage(cachedLayer(bannerCache.title, banner.title, BANNER_H, (g) => paintBannerText(g, banner.title, FONT_NUM(50, 700), "#e9ffd2", "2px", 58, "rgba(168,255,62,0.75)")), slide, y, W, BANNER_H);
     ctx.drawImage(cachedLayer(bannerCache.sub, sub, BANNER_H, (g) => paintBannerText(g, sub, FONT_UI(15), "#ffb733", "3px", 84)), -slide, y, W, BANNER_H);
     ctx.globalAlpha = 1;
+  }
+  function drawBossCard() {
+    const boss = enemies.find((e) => e.def.boss && e.spawnT > 0);
+    if (!boss) return;
+    const k = 1 - boss.spawnT / Math.max(0.01, boss.spawnMax);
+    const a = Math.min(1, k * 2.4) * (boss.spawnT < 0.28 ? boss.spawnT / 0.28 : 1);
+    if (a < 0.04) return;
+    const city = run.mode === "campaign" && run.room > 0 ? curCity() : null;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = "rgba(6,9,8,0.55)";
+    ctx.fillRect(0, H * 0.38, W, 168);
+    ctx.fillStyle = "#1a1408";
+    ctx.fillRect(0, H * 0.38, W, 5);
+    ctx.fillRect(0, H * 0.38 + 163, W, 5);
+    ctx.fillStyle = "#ffb733";
+    ctx.beginPath();
+    for (let x = -20; x < W + 20; x += 14) {
+      ctx.moveTo(x, H * 0.38); ctx.lineTo(x + 7, H * 0.38); ctx.lineTo(x + 2, H * 0.38 + 5); ctx.lineTo(x - 5, H * 0.38 + 5);
+    }
+    ctx.fill();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ff6a5a";
+    ctx.font = FONT_UI(13);
+    ctx.fillText((city ? city.name.toUpperCase() : tr("ÜBERLEBEN")) + "  ·  " + tr("ENDGEGNER"), W / 2, H * 0.38 + 36);
+    ctx.fillStyle = "#fff3c4";
+    ctx.font = FONT_UI(15, 600);
+    ctx.fillText(tr(boss.def.epithet || "").toUpperCase(), W / 2, H * 0.38 + 62);
+    ctx.fillStyle = "#ff4338";
+    let fs = 52;
+    ctx.font = FONT_NUM(fs, 700);
+    while (ctx.measureText(boss.def.name).width > W - 36 && fs > 26) ctx.font = FONT_NUM(--fs, 700);
+    ctx.strokeStyle = "rgba(0,0,0,0.75)";
+    ctx.lineWidth = 6;
+    ctx.strokeText(boss.def.name, W / 2, H * 0.38 + 122);
+    ctx.fillText(boss.def.name, W / 2, H * 0.38 + 122);
+    ctx.restore();
   }
 
   // ============================================================
@@ -5611,15 +5684,15 @@
   function toMenu() {
     state = "menu";
     run = null;
-    if (webgl) Render3D.stopPreview();
-    if (webgl) Render3D.clear();
+    try { if (webgl) Render3D.stopPreview(); } catch { /* Menü-Vorschau */ }
+    try { if (webgl) Render3D.clear(); } catch (e) { console.warn("[Outbreak] 3D-Clear", e); }
     refreshMenu();
     const st = dailyState();
     $("dailyBadge").classList.toggle("hidden", st.claimedToday);
     const cta = $("storeCta");
     cta.classList.toggle("hidden", Platform.isNative || !Platform.cfg.playStoreUrl);
     if (Platform.cfg.playStoreUrl) cta.href = Platform.cfg.playStoreUrl;
-    const shot = /(?:\?|&)shot=(menu|play)\b/.exec(location.search)?.[1];
+    const shot = /(?:\?|&)shot=(menu|play|over|boss)\b/.exec(location.search)?.[1];
     if (!shot && !dailyShown && !st.claimedToday) { dailyShown = true; openDaily(); return; }
     show(ui.menu);
   }
@@ -5792,9 +5865,19 @@
   Platform.init();
   toMenu();
   console.log("[Outbreak] Spiel gestartet", Platform.cfg.version);
-  if (location.hostname === "localhost" && /(?:\?|&)shot=play\b/.test(location.search)) {
-    save.storySeen = true; save.tutorialDone = true; persist();
-    startRun("campaign");
+  if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+    const shot = /(?:\?|&)shot=(play|over|boss)\b/.exec(location.search)?.[1];
+    if (shot) {
+      save.storySeen = true; save.tutorialDone = true; persist();
+      startRun("campaign");
+      if (shot === "over") {
+        run.headshots = 11; run.kills = 48; run.bestCombo = 12; run.firstBloodAt = 3.8;
+        gameOver(false);
+      } else if (shot === "boss") {
+        run.room = 9;
+        nextRoom();
+      }
+    }
   }
 
   if (!Platform.isNative && "serviceWorker" in navigator && location.protocol.startsWith("http")) {
@@ -5802,5 +5885,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

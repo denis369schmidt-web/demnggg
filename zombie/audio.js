@@ -266,6 +266,10 @@ window.GameAudio = (() => {
     } else if (th === "hospital") {
       drone("sawtooth", 50, 160, 0.05); drone("square", 120, 300, 0.006); // Netzbrummen, Leuchtstoffröhren
       loopNoise("bandpass", 600, 0.6, 0.02); // Lüftung
+    } else if (th === "markt") {
+      loopNoise("lowpass", 260, 0.85, 0.045); // Kneipenwärme
+      drone("triangle", 98, 420, 0.018);
+      loopNoise("bandpass", 1400, 0.5, 0.02); // Stimmen-Gemurmel
     } else {
       drone("sawtooth", 41, 140, 0.06); drone("triangle", 82.5, 400, 0.02); // Maschinen
       loopNoise("highpass", 5000, 0.7, 0.012); // Dampfzischen

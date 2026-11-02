@@ -1,0 +1,37 @@
+{
+  "name": "outbreak-hero-mobile",
+  "version": "2.2.0",
+  "private": true,
+  "description": "Android-Build (Capacitor) für Escape from Germany",
+  "type": "module",
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs",
+    "build:three": "node scripts/build-three.mjs",
+    "sync": "npm run build:web && cap sync android",
+    "apk:debug": "npm run sync && cd android && ./gradlew assembleDebug",
+    "aab:release": "npm run sync && cd android && ./gradlew bundleRelease",
+    "assets": "npx @capacitor/assets@3 generate --android --iconBackgroundColor '#0d1210' --iconBackgroundColorDark '#0d1210' --splashBackgroundColor '#0d1210' --splashBackgroundColorDark '#0d1210'",
+    "build:ui": "node scripts/build-ui.mjs"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "^8.1.0",
+    "@capacitor-community/in-app-review": "^8.0.0",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
+    "cordova-plugin-purchase": "^13.18.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/barlow-condensed": "^5.3.0",
+    "@fontsource/saira-stencil-one": "^5.3.0",
+    "@fontsource/teko": "^5.3.0",
+    "@iconify-json/game-icons": "^1.2.4",
+    "esbuild": "^0.28.2",
+    "three": "^0.186.1"
+  }
+}

@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f0e" />
+  <meta name="description" content="Escape from Germany – Zombie-Roguelite: Deutschland ist gefallen. Kämpf dich Stadt für Stadt bis nach Hamburg durch und entkomme." />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Escape from Germany</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="vendor/fonts/fonts.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="stage">
+    <div id="view">
+      <canvas id="game3d"></canvas>
+      <canvas id="game"></canvas>
+    </div>
+
+    <button id="pauseBtn" class="hud-btn hidden" aria-label="Pause"><i data-ic="pause"></i></button>
+
+    <!-- ============ Hauptmenü ============ -->
+    <section id="menu" class="overlay menu">
+      <header class="menu-top">
+        <div class="wallet"><i class="coin" data-ic="coin"></i><b id="menuCoins">0</b></div>
+        <!-- Eilmeldungs-Ticker: Nachrichten aus dem gefallenen Deutschland -->
+        <div class="ticker" aria-hidden="true"><b data-i18n>EILMELDUNG</b><div class="tk-track"><span id="tickerText"></span></div></div>
+        <button class="round" id="settingsBtn" aria-label="Einstellungen"><i data-ic="gear"></i></button>
+      </header>
+
+      <div class="brand">
+        <div class="brand-top">ESCAPE<span class="drips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+        <div class="brand-bottom"><span>FROM GERMANY</span></div>
+      </div>
+      <!-- Fluchtroute als Fortschritt: Städte mit Kfz-Kennzeichen, Rekord leuchtet -->
+      <button class="route-strip" id="routeStrip" aria-label="Fluchtplan">
+        <span class="rs-head">
+          <span class="rs-a"><small id="rsLabel">Fluchtroute</small><b id="menuBest">–</b></span>
+          <span class="rs-b"><small data-i18n>Nächster Boss</small><b id="rsBoss">–</b></span>
+        </span>
+        <span class="rs-track"><span class="rs-line"><i id="rsFill"></i></span><span class="rs-nodes" id="rsNodes"></span></span>
+      </button>
+
+      <nav class="rail rail-l">
+        <button class="rail-btn" id="dailyBtn"><i data-ic="daily"></i><span data-i18n>Täglich</span><b class="badge hidden" id="dailyBadge">!</b></button>
+        <button class="rail-btn" id="missionsBtn"><i data-ic="missions"></i><span data-i18n>Missionen</span><b class="badge hidden" id="missionsBadge">!</b></button>
+        <button class="rail-btn pass" id="passBtn"><i data-ic="pass"></i><span data-i18n>Saisonpass</span><b class="badge hidden" id="passBadge">!</b></button>
+      </nav>
+      <nav class="rail rail-r">
+        <button class="rail-btn" id="patrolBtn"><i data-ic="patrol"></i><span data-i18n>Patrouille</span><small id="patrolMini"></small><b class="badge hidden" id="patrolBadge">!</b></button>
+        <button class="rail-btn" id="codexBtn"><i data-ic="codex"></i><span data-i18n>Kodex</span></button>
+        <button class="rail-btn route" id="routeBtn"><i data-ic="map"></i><span data-i18n>Fluchtplan</span></button>
+      </nav>
+
+      <!-- Bühne: Ziehen dreht die Kamera um den Helden -->
+      <div class="menu-fill" id="menuStage" aria-hidden="true"><span class="stage-hint" data-i18n>Ziehen zum Umsehen</span></div>
+
+      <!-- Held & Waffe direkt im Menü wählen -->
+      <div class="pickers">
+        <div class="picker" id="heroPicker">
+          <button class="pk-arrow l" data-dir="-1" aria-label="Vorheriger Held"></button>
+          <button class="pk-main" id="heroPickBtn"><small data-i18n>Held</small><b id="menuSkinName"></b></button>
+          <button class="pk-arrow r" data-dir="1" aria-label="Nächster Held"></button>
+        </div>
+        <div class="picker wpn" id="weaponPicker">
+          <button class="pk-arrow l" data-dir="-1" aria-label="Vorherige Waffe"></button>
+          <button class="pk-main" id="loadoutBtn"><img id="menuWeaponImg" alt="" /><span><small><span data-i18n>Waffe</span> · <span id="menuWeaponLv"></span></small><b id="menuEquipped"></b></span></button>
+          <button class="pk-arrow r" data-dir="1" aria-label="Nächste Waffe"></button>
+        </div>
+      </div>
+      <p class="boost-line hidden" id="menuSkin"></p>
+
+      <!-- Einsatzart wählen, dann starten -->
+      <div class="mode-row">
+        <button class="mode-card active" id="modeCampaign" data-mode="campaign">
+          <i data-ic="door"></i><span><b data-i18n>Kampagne</b><small id="campaignInfo"></small></span>
+        </button>
+        <button class="mode-card amber" id="survivalBtn" data-mode="survival">
+          <i data-ic="stopwatch"></i><span><b data-i18n>Überleben</b><small id="survivalBest"></small></span>
+        </button>
+      </div>
+      <button class="btn primary xl cta" id="playBtn"><span data-i18n>EINSATZ STARTEN</span><small id="ctaSub"></small></button>
+
+      <nav class="dock">
+        <button class="dock-btn" id="shopBtn"><i data-ic="shop"></i><span>Shop</span></button>
+        <button class="dock-btn" id="armoryBtn"><i data-ic="weapons"></i><span data-i18n>Waffen</span></button>
+        <button class="dock-btn" id="talentBtn"><i data-ic="talents"></i><span data-i18n>Talente</span></button>
+      </nav>
+      <a class="btn ghost store-cta hidden" id="storeCta" target="_blank" rel="noopener" data-i18n>Jetzt im Play Store holen</a>
+    </section>
+
+    <!-- ============ Waffenkammer ============ -->
+    <section id="armory" class="overlay screen hidden">
+      <header class="bar">
+        <button class="back" data-back aria-label="Zurück"></button>
+        <div class="title"><small data-i18n>ARSENAL</small><h2 data-i18n>Waffenkammer</h2></div>
+        <div class="wallet"><i class="coin" data-ic="coin"></i><b class="coinsVal">0</b></div>
+      </header>
+      <div class="body"><div id="weaponList" class="list"></div></div>
+    </section>
+
+    <!-- ============ Talente ============ -->
+    <section id="talents" class="overlay screen hidden">
+      <header class="bar">
+        <button class="back" data-back aria-label="Zurück"></button>
+        <div class="title"><small data-i18n>AUSBILDUNG</small><h2 data-i18n>Talente</h2></div>
+        <div class="wallet"><i class="coin" data-ic="coin"></i><b class="coinsVal">0</b></div>
+      </header>
+      <div class="body">
+        <p class="lead" data-i18n>Dauerhafte Verbesserungen für jeden Einsatz.</p>
+        <div id="talentList" class="list"></div>
+      </div>
+    </section>
+
+    <!-- ============ Shop ============ -->
+    <section id="shop" class="overlay screen hidden">
+      <header class="bar">
+        <button class="back" data-back aria-label="Zurück"></button>
+        <div class="title"><small data-i18n>NACHSCHUB</small><h2>Shop</h2></div>
+        <div class="wallet"><i class="coin" data-ic="coin"></i><b class="coinsVal">0</b></div>
+      </header>
+      <div class="body">
+        <div class="tabs" id="shopTabs">
+          <button class="tab" data-tab="offers" data-i18n>Angebote</button>
+          <button class="tab" data-tab="skins" data-i18n>Skins</button>
+          <button class="tab" data-tab="boosts" data-i18n>Boosts</button>
+        </div>
+        <canvas id="skinPreview" class="hidden"></canvas>
+        <div id="shopList" class="list"></div>
+        <p class="note" id="shopNote"></p>
+        <button class="btn ghost sm" id="restoreBtn" data-i18n>Käufe wiederherstellen</button>
+      </div>
+    </section>
+
+    <!-- ============ Missionen, Erfolge & Statistik ============ -->
+    <section id="missions" class="overlay screen hidden">
+      <header class="bar">
+        <button class="back" data-back aria-label="Zurück"></button>
+        <div class="title"><small data-i18n>AUFTRÄGE</small><h2 data-i18n>Missionen</h2></div>
+        <div class="wallet"><i class="coin" data-ic="coin"></i><b class="coinsVal">0</b></div>
+      </header>
+      <div class="body">
+        <div class="tabs" id="missionTabs">
+          <button class="tab" data-tab="daily" data-i18n>Täglich</button>
+          <button class="tab" data-tab="weekly" data-i18n>Woche</button>
+          <button class="tab" data-tab="ach" data-i18n>Erfolge</button>
+        </div>
+        <div id="missionList" class="list"></div>
+        <p class="note" id="missionNote"></p>
+      </div>
+    </section>
+
+    <!-- ============ Saisonpass ============ -->
+    <section id="pass" class="overlay screen hidden">
+      <header class="bar">
+        <button class="back" data-back aria-label="Zurück"></button>
+        <div class="title"><small id="passKicker">SAISON</small><h2 data-i18n>Saisonpass</h2></div>
+        <div class="wallet"><i class="coin" data-ic="coin"></i><b class="coinsVal">0</b></div>
+      </header>
+      <div class="body">
+        <div id="passHead" class="pass-head"></div>
+        <div id="passBuy" class="list"></div>
+        <div id="passList" class="pass-list"></div>
+      </div>
+    </section>
+
+    <!-- ============ Kodex der Evolutionen ============ -->
+    <!-- ============ Fluchtplan: Karte, Funksprüche, Prolog & Ende ============ -->
+    <section id="route" class="overlay screen story hidden">
+      <header class="bar">
+        <button class="back" data-back id="routeBack" aria-label="Zurück"></button>
+        <div class="title"><small id="routeKicker" data-i18n>FUNKPROTOKOLL</small><h2 data-i18n>Fluchtplan</h2></div>
+        <div class="route-day" id="routeDay"></div>
+      </header>
+      <div class="body story-body">
+        <div class="route-map"><canvas id="routeMap"></canvas><span class="route-legend" id="routeLegend"></span></div>
+        <div class="story-card" id="storyCard">
+          <small id="storyWhere"></small>
+          <h3 id="storyTitle"></h3>
+          <p id="storyText"></p>
+          <p class="story-reward hidden" id="storyReward"></p>
+        </div>
+        <div class="story-dots" id="storyDots"></div>
+        <button class="btn primary xl" id="storyGo"><span id="storyGoTxt"></span></button>
+      </div>
+    </section>
+
+    <section id="codex" class="overlay screen hidden">
+      <header class="bar">
+        <button class="back" data-back aria-label="Zurück"></button>
+        <div class="title"><small data-i18n>FORSCHUNG</small><h2 data-i18n>Kodex</h2></div>
+        <div class="wallet"><i class="coin" data-ic="coin"></i><b class="coinsVal">0</b></div>
+      </header>
+      <div class="body">
+        <div class="tabs" id="codexTabs">
+          <button class="tab" data-tab="evo" data-i18n>Evolutionen</button>
+          <button class="tab" data-tab="bestiary" data-i18n>Bestiarium</button>
+        </div>
+        <p class="lead" id="codexLead" data-i18n>Evolutionen: Zwei Skills auf Stufe verschmelzen zu einer Superfähigkeit.</p>
+        <div id="codexList" class="list"></div>
+        <p class="note" id="codexNote"></p>
+      </div>
+    </section>
+
+    <!-- ============ Einstellungen ============ -->
+    <section id="settings" class="overlay screen hidden">
+      <header class="bar">
+        <button class="back" data-back aria-label="Zurück"></button>
+        <div class="title"><small data-i18n>SYSTEM</small><h2 data-i18n>Einstellungen</h2></div>
+        <div></div>
+      </header>
+      <div class="body">
+        <div class="list settings-list">
+          <button class="set-row" id="soundBtn2"></button>
+          <button class="set-row" id="musicBtn"></button>
+          <button class="set-row" id="vibBtn"></button>
+          <button class="set-row" id="langBtn"></button>
+          <button class="set-row" id="gfxBtn"></button>
+          <button class="set-row" id="fpsBtn"></button>
+          <button class="set-row" id="cineBtn"></button>
+          <button class="set-row" id="motionBtn"></button>
+          <button class="set-row hidden" id="privacyOptsBtn"></button>
+          <a class="set-row" id="privacyLink" target="_blank" rel="noopener"></a>
+        </div>
+        <p class="credits" id="versionLine"></p>
+      </div>
+    </section>
+
+    <!-- ============ Tägliche Belohnung ============ -->
+    <section id="daily" class="overlay modal hidden">
+      <div class="dialog">
+        <button class="x" data-back aria-label="Schließen"></button>
+        <div class="dlg-head"><span class="dlg-ic"><i data-ic="daily"></i></span><h2 data-i18n>Tägliche Belohnung</h2><p class="sub" data-i18n>Komm jeden Tag wieder – Tag 7 gibt den Jackpot.</p></div>
+        <div id="dailyGrid" class="daily-grid"></div>
+        <button class="btn primary" id="dailyClaim">Abholen</button>
+        <button class="btn ad" id="dailyClaimAd"></button>
+      </div>
+    </section>
+
+    <!-- ============ Patrouille ============ -->
+    <section id="patrol" class="overlay modal hidden">
+      <div class="dialog">
+        <button class="x" data-back aria-label="Schließen"></button>
+        <div class="dlg-head"><span class="dlg-ic radar"><i data-ic="patrol"></i></span><h2 data-i18n>Patrouille</h2><p class="sub" data-i18n>Dein Trupp sichert die Stadt, auch wenn du nicht spielst.</p></div>
+        <div id="patrolInfo" class="patrol"></div>
+        <button class="btn primary" id="patrolClaim">Abholen</button>
+        <button class="btn ad" id="patrolClaimAd"></button>
+        <button class="btn ad ghosted" id="patrolQuick"></button>
+      </div>
+    </section>
+
+    <!-- ============ Skill-Wahl ============ -->
+    <section id="skillPick" class="overlay pick hidden">
+      <div class="pick-head"><h2 id="skillTitle">AUFSTIEG!</h2><p class="sub" id="skillSub"></p></div>
+      <div id="skillCards" class="cards"></div>
+      <button class="btn ad hidden" id="rerollBtn"></button>
+    </section>
+
+    <!-- ============ Wiederbeleben ============ -->
+    <section id="revive" class="overlay modal danger hidden">
+      <div class="dialog">
+        <div class="dlg-head"><h2 class="stamp" data-i18n>WEITERKÄMPFEN?</h2></div>
+        <div class="countdown"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="trk" cx="50" cy="50" r="44" /><circle class="val" cx="50" cy="50" r="44" /></svg><b id="reviveCount">5</b></div>
+        <button class="btn ad" id="reviveAdBtn"></button>
+        <button class="btn ghost" id="reviveNoBtn" data-i18n>Aufgeben</button>
+      </div>
+    </section>
+
+    <!-- ============ Pause ============ -->
+    <section id="pause" class="overlay modal hidden">
+      <div class="dialog">
+        <div class="dlg-head"><h2 data-i18n>Pause</h2><p class="sub" data-i18n>Deine Fähigkeiten in diesem Einsatz</p></div>
+        <div id="pauseSkills" class="skill-grid"></div>
+        <button class="btn primary" id="resumeBtn" data-i18n>Weiter</button>
+        <div class="dlg-row">
+          <button class="btn ghost sm" id="soundBtn"></button>
+          <button class="btn danger sm" id="quitBtn" data-i18n>Einsatz beenden</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Einsatzbericht (Game Over) ============ -->
+    <section id="over" class="overlay modal hidden">
+      <div class="dialog report">
+        <div class="dlg-head"><small class="kicker" data-i18n>EINSATZBERICHT</small><h2 id="overTitle" class="stamp">GEFALLEN</h2></div>
+        <div id="overStats" class="stats"></div>
+        <button class="btn ad hidden" id="doubleBtn"></button>
+        <div class="dlg-row">
+          <button class="btn ghost" id="menuBtn" data-i18n>Menü</button>
+          <button class="btn primary" id="againBtn" data-i18n>Nochmal</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="toast" class="toast hidden"></div>
+  </div>
+  <script src="config.js"></script>
+  <script src="i18n.js"></script>
+  <script src="vendor/icons.js"></script>
+  <script src="sprites.js"></script>
+  <script src="vendor/three.min.js"></script>
+  <script src="render3d.js"></script>
+  <script src="platform.js"></script>
+  <script src="audio.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

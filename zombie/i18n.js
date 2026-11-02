@@ -232,6 +232,8 @@ window.I18N = (() => {
     "PFAND +25 ct": "DEPOSIT +25 ct",
     "VERSPÄTUNG": "DELAYED",
     "AUSGEBREMST": "SLOWED",
+    "KOPFSCHUSS": "HEADSHOT",
+    "ÜBERKILL": "OVERKILL",
     "Brezel": "Pretzel",
     "Glühwein": "Mulled wine",
     "Grüne Soße": "Green sauce",

@@ -491,6 +491,8 @@
   let cineT = 0; // Kinobalken-Zeit nach Boss-Tod
   let cine = 0; // sichtbare Kinobalken (0–1)
   let shake = 0;
+  let punchX = 0, punchY = 0, punchFov = 0; // gerichteter Kamerastoß + FOV-Kick
+  let ghosts = []; // Nachbilder beim Ausweichen
   let banner = null;
   let callout = null; // Kombo-Ansage unter dem HUD
   const volleyQueue = [];
@@ -512,7 +514,7 @@
       pierce: 0, ricochet: 0, wall: 0, burn: 0, freeze: 0, poison: 0,
       lifesteal: 0, orbit: 0, drones: 0, dodge: 0, headshot: 0, revives: 0, deathBlast: 0,
       skills: {}, aim: -Math.PI / 2, fireCd: 0.3, invuln: 0, moving: false,
-      orbitAng: 0, droneCd: 0, muzzle: 0, walkT: 0,
+      orbitAng: 0, droneCd: 0, muzzle: 0, walkT: 0, plant: 0, footStep: -1, ghostCd: 0,
       tier: weaponTier(wlvl), kick: 0, spin: 0, barrel: 0, hurtT: 0, skin: save.skin,
       evo: {}, orbitR: 64, volleys: 0,
     };
@@ -529,7 +531,7 @@
     // Überlebensmodus: Welt wechselt täglich
     if (mode === "survival") Object.assign(run, { survT: 0, spawnCd: 1.2, theme: THEME_ORDER[Math.floor(Date.now() / 864e5) % THEME_ORDER.length] });
     track("runs");
-    screenBlood = []; callout = null;
+    screenBlood = []; callout = null; ghosts = []; punchX = punchY = punchFov = 0;
     player = newPlayer();
     // Goldener Held: +10 % Münzen
     if (save.skin === "gold") run.greed *= 1.1;
@@ -1021,6 +1023,15 @@
       p.y += v.y * sp * dt;
       p.aim = Math.atan2(v.y, v.x);
       p.walkT += dt * 10;
+      const step = Math.floor(p.walkT / 1.55);
+      if (step !== p.footStep) {
+        p.footStep = step;
+        if (window.GameAudio && GameAudio.foot) GameAudio.foot();
+      }
+      if ((p.ghostCd -= dt) <= 0) {
+        p.ghostCd = 0.065;
+        ghosts.push({ x: p.x, y: p.y, life: 0.2, max: 0.2 });
+      }
     }
     // Rückstoß (Fußball des Ultras)
     if (p.kvx || p.kvy) { p.x += p.kvx * dt; p.y += p.kvy * dt; const f = Math.exp(-10 * dt); p.kvx *= f; p.kvy *= f; if (Math.abs(p.kvx) + Math.abs(p.kvy) < 4) p.kvx = p.kvy = 0; }
@@ -1047,6 +1058,7 @@
       p.spin = !p.moving && target ? Math.min(1, p.spin + dt / 1.1) : Math.max(0, p.spin - dt * 1.5);
       p.barrel += dt * (6 + 40 * p.spin);
     }
+    p.plant = !p.moving && target ? Math.min(1, (p.plant || 0) + dt * 4.2) : Math.max(0, (p.plant || 0) - dt * 6);
     if (!p.moving && target) {
       p.aim = Math.atan2(target.y - p.y, target.x - p.x);
       if (p.fireCd <= 0) {
@@ -1055,7 +1067,7 @@
         p.fireCd = 1 / (p.weapon.rate * p.rateMul * spinMul * (run.rage > 0 ? 1.4 : 1) * (p.jamT > 0 ? 0.5 : 1)); // „Verspätung“ halbiert die Feuerrate
       }
     } else if (p.fireCd < 0) {
-      p.fireCd = 0.12; // kurze Anlaufzeit nach dem Stehenbleiben
+      p.fireCd = 0.07; // kurze Anlaufzeit nach dem Stehenbleiben
     }
 
     // Salven-Warteschlange (Mehrfachschuss)
@@ -1157,6 +1169,9 @@
     p.muzzle = w.kind === "flame" ? 0.05 : 0.07;
     p.kick = w.kick;
     if (w.shake) shake = Math.max(shake, w.shake);
+    punchX -= Math.cos(aim) * w.kick * 0.55;
+    punchY -= Math.sin(aim) * w.kick * 0.55;
+    if (w.shake) punchFov = Math.max(punchFov, Math.min(4.8, w.shake * 0.6));
     const mz = muzzlePoint(p);
 
     if (w.kind === "tesla") {
@@ -1172,7 +1187,7 @@
       const gx = p.x + Math.cos(d.a) * spawnD, gy = p.y + Math.sin(d.a) * spawnD;
       for (let k = 0; k < w.pellets; k++) {
         const s = w.pellets > 1 ? (k / (w.pellets - 1) - 0.5) * w.spread : 0;
-        const a = d.a + s + rand(-w.jitter, w.jitter);
+        const a = d.a + s + rand(-w.jitter, w.jitter) * (1 - 0.7 * (p.plant || 0));
         bullets.push(makeBullet(gx + px, gy + py, a, {
           dmg: w.dmg * p.dmgMul, speed: w.speed * (w.kind === "flame" ? rand(0.85, 1.15) : 1), r: w.r, color: w.color,
           life: w.range / w.speed, pierce: w.pierce + p.pierce, wall: p.wall + (w.bounces || 0), rico: p.ricochet,
@@ -1188,7 +1203,10 @@
       fxCasing(p.x + c * 8 - sn * 6, p.y + sn * 8 + c * 6, aim + Math.PI / 2 + rand(-0.4, 0.4), w.casing === 2);
     }
     if (w.kind === "grenade" || w.kind === "rocket") fxSmoke(mz.x, mz.y, 2, 0.6, 0.6);
-    if (w.kind !== "flame" || Math.random() < 0.25) sfx("shoot");
+    if (w.kind !== "flame" || Math.random() < 0.25) {
+      if (window.GameAudio && GameAudio.gun) GameAudio.gun(p.weaponId);
+      else sfx("shoot");
+    }
     if (w.flash === "big") fx4d("kick"); // schwere Waffen: spürbarer Rückstoß
   }
 
@@ -1260,6 +1278,7 @@
     p.hp -= dmg;
     p.invuln = 0.8;
     shake = Math.max(shake, 8);
+    punchFov = Math.max(punchFov, 2.4);
     addText(p.x + rand(-10, 10), p.y - 58, `-${Math.round(dmg)}`, "#ff5a5a", 18);
     fxBlood(p.x, p.y, rand(0, TAU), 8, RED, 160);
     if (dmg >= p.maxHp * 0.08) splashScreen(dmg >= p.maxHp * 0.2 ? 4 : 2);
@@ -1691,10 +1710,18 @@
     e.lastHit = {
       kind: o.shatter ? "cryo" : o.aoe ? "blast" : o.saw || (b && b.kind === "disc") ? "slice" : b ? (b.kind === "tesla" ? "shock" : b.kind === "flame" || b.kind === "laser" ? "burn" : b.cryo ? "cryo" : "shot") : "other",
       crit, big: !!(b && b.big), force: b ? 140 + (b.knock || 0) * 14 : o.aoe ? 420 : 160, ang: e.hitAng,
+      overkill: dmg >= e.hp * 1.85, exec,
     };
     e.hp -= dmg;
-    e.hitT = 0.1;
+    e.hitT = exec ? 0.16 : crit ? 0.14 : 0.1;
     if (!o.silent && (!b || b.kind !== "flame")) {
+      const ang = e.hitAng || 0;
+      const mag = exec ? 3.4 : crit ? 1.9 : (b && b.big) ? 1.1 : 0.45;
+      punchX += Math.cos(ang) * mag;
+      punchY += Math.sin(ang) * mag;
+      const hs = exec ? 0.08 : crit ? 0.05 : (b && (b.big || (b.knock || 0) >= 12)) ? 0.032 : 0;
+      if (hs) hitStop = Math.max(hitStop, hs);
+      if (window.GameAudio && GameAudio.meat) GameAudio.meat(!!(crit || (b && b.big)));
       if (e.def.armor) fxSparks(e.x, e.y, e.hitAng + Math.PI, 0.8, 4, "200,230,255", 260);
       else {
         fxBlood(e.x, e.y, e.hitAng, crit ? 6 : 3, e.def.blood, crit ? 220 : 150);
@@ -1710,9 +1737,10 @@
     }
     if (!o.silent && (!b || b.kind !== "flame" || Math.random() < 0.2)) {
       addText(e.x + rand(-8, 8), e.y - e.r - 4, Math.max(1, Math.round(dmg)) + (crit ? "!" : ""), crit ? "#ffb84a" : "#ffffff", crit ? 24 : 15, crit);
+      if (exec) addText(e.x, e.y - e.r - 22, tr("KOPFSCHUSS"), "#ff4a3a", 17, true);
       sfx("hit");
     }
-    if (e.hp <= 0) { if (crit) hitStop = Math.max(hitStop, 0.03); killEnemy(e); }
+    if (e.hp <= 0) { if (crit) hitStop = Math.max(hitStop, exec ? 0.09 : 0.045); killEnemy(e); }
   }
 
   // Kombo: Abschüsse in schneller Folge verketten. Stufen bringen Ansage und Münzbonus,
@@ -1761,13 +1789,18 @@
     // Inferno / Seuche: brennende bzw. vergiftete Zombies stecken beim Tod ihre Nachbarn an
     if (player.evo.inferno && e.burnT > 0) spreadToNeighbors(e, 95, (q) => { if (!q.def.fireproof) { q.burnT = 2.5; q.burnDps = Math.max(q.burnDps, e.burnDps); } }, "255,140,40");
     if (player.evo.plague && e.poisonDps > 0) spreadToNeighbors(e, 90, (q) => { q.poisonDps = Math.max(q.poisonDps, e.poisonDps * 0.8); }, "150,255,60");
+    if (e.lastHit && e.lastHit.overkill && !def.boss) addText(e.x, e.y - e.r - 36, tr("ÜBERKILL"), "#ffd45c", 20, true);
     if (def.boss) {
       shake = 18;
       slowMo = 0.9;
+      punchFov = Math.max(punchFov, 5);
       fxFlash(e.x, e.y, 320, "255,240,200", 0.5);
       fxRing(e.x, e.y, 160, "255,220,160", 0.6);
       particles.push({ t: "boom", x: e.x, y: e.y, r: 110, life: 1.1, max: 1.1 });
       cineT = 2.2;
+    } else if (e.elite) {
+      hitStop = Math.max(hitStop, 0.06);
+      punchFov = Math.max(punchFov, 2.2);
     }
 
     const xpVal = def.xp * (1 + run.room * 0.04) * (1 + (run.chapter - 1) * 0.5);
@@ -2860,7 +2893,7 @@
   }
 
   function addText(x, y, txt, color, size, crit = false) {
-    texts.push({ x, y, txt: String(txt), color, size, life: 0.8, max: 0.8, crit });
+    texts.push({ x, y, txt: String(txt), color, size, life: crit ? 1.05 : 0.8, max: crit ? 1.05 : 0.8, crit });
   }
   function showBanner(title, sub, dur = 2) {
     banner = { title, sub, life: dur, max: dur };
@@ -3155,6 +3188,11 @@
     updateAmbient(dt);
     if (banner) { banner.life -= dt; if (banner.life <= 0) banner = null; }
     shake = Math.max(0, shake - dt * 30);
+    punchX *= Math.max(0, 1 - 14 * dt); punchY *= Math.max(0, 1 - 14 * dt);
+    if (Math.abs(punchX) + Math.abs(punchY) < 0.12) punchX = punchY = 0;
+    punchFov = Math.max(0, punchFov - dt * 22);
+    for (const g of ghosts) g.life -= dt;
+    if (ghosts.length) ghosts = ghosts.filter((g) => g.life > 0);
     roomFade = Math.max(0, roomFade - frameDt * 2.2);
     cineT = Math.max(0, cineT - frameDt);
   }
@@ -3305,6 +3343,8 @@
     get cityId() { return run && run.mode === "campaign" && run.room > 0 ? curCity().id : ""; }, get district() { return run && run.mode === "campaign" && run.room > 0 ? curDistrict()[0] : ""; },
     get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },
     get theme() { return theme(); }, get isBossRoom() { return !!(run && BOSS_ROOMS[run.room]); }, get intro() { return roomFade; },
+    get camPunch() { return { x: punchX, y: punchY, fov: punchFov }; },
+    get plant() { return player ? player.plant || 0 : 0; },
     consumeFloorDirty() { const d = floorDirty; floorDirty = false; return d; },
     muzzlePoint: () => muzzlePoint(player),
     dronePos,
@@ -3341,7 +3381,7 @@
         ambient: Array.from({ length: 28 }, () => ({ x: rand(L, R), y: rand(T, B), size: rand(1, 2.4), ph: rand(0, TAU) })),
         roomLights: obs.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3 })),
         obstacles: obs, supplyCrate: null, floorCanvas: Sprites.floor("markt", { W, H, L, T, R, B }, 4242, { snow: weather === "snow", confetti: weather === "confetti", leaves: fest === "wiesn" }),
-        theme: "markt", weather, fest, isBossRoom: false, consumeFloorDirty: () => false,
+        theme: "markt", weather, fest, isBossRoom: false, camPunch: { x: 0, y: 0, fov: 0 }, consumeFloorDirty: () => false,
         muzzlePoint: () => muzzlePoint(p), dronePos: () => ({ x: p.x, y: p.y }), menuCam: true, t: 0,
       };
     }
@@ -3457,7 +3497,7 @@
     ctx.fillRect(0, 0, W, H);
 
     ctx.save();
-    if (shake > 0) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+    if (shake > 0 || punchX || punchY) ctx.translate(punchX + rand(-shake, shake), punchY + rand(-shake, shake));
     // 1) Welt
     if (floorCanvas) ctx.drawImage(floorCanvas, 0, 0, W, H);
     drawDoor();
@@ -3489,7 +3529,48 @@
     drawOverlay();
   }
 
+  function drawGhosts() {
+    if (!ghosts.length) return;
+    ctx.save();
+    for (const g of ghosts) {
+      const q = scr(g.x, g.y, 0);
+      ctx.globalAlpha = (g.life / g.max) * 0.38;
+      ctx.strokeStyle = "#a8ff3e";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(q.x, q.y, 13, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function drawLockOn() {
+    const p = player;
+    if (state !== "play" || !p || p.moving || !(p.plant > 0.1)) return;
+    const target = nearestEnemy(p);
+    if (!target) return;
+    const k = p.plant;
+    const a = scr(p.x, p.y, 28), b = scr(target.x, target.y, target.r * 2.2);
+    ctx.save();
+    ctx.globalAlpha = 0.2 + 0.65 * k;
+    ctx.strokeStyle = `rgba(168,255,62,${0.3 + 0.55 * k})`;
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([5, 7]);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.setLineDash([]);
+    const r = Math.max(12, (mode3d ? 16 : target.r * 1.15) * (1.2 - 0.2 * k));
+    ctx.strokeStyle = "#c8ff6a";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, TAU); ctx.stroke();
+    const s = r * 0.62;
+    ctx.beginPath();
+    ctx.moveTo(b.x - r, b.y - s); ctx.lineTo(b.x - r, b.y - r); ctx.lineTo(b.x - s, b.y - r);
+    ctx.moveTo(b.x + r, b.y - s); ctx.lineTo(b.x + r, b.y - r); ctx.lineTo(b.x + s, b.y - r);
+    ctx.moveTo(b.x - r, b.y + s); ctx.lineTo(b.x - r, b.y + r); ctx.lineTo(b.x - s, b.y + r);
+    ctx.moveTo(b.x + r, b.y + s); ctx.lineTo(b.x + r, b.y + r); ctx.lineTo(b.x + s, b.y + r);
+    ctx.stroke();
+    ctx.restore();
+  }
   function drawOverlay() {
+    drawGhosts();
+    drawLockOn();
     drawScreenFx();
     drawHud();
     drawCombo();
@@ -3520,18 +3601,31 @@
   function drawTutorial() {
     const t = performance.now() / 1000;
     const moving = player.moving;
-    ctx.globalAlpha = 0.75 + Math.sin(t * 4) * 0.25;
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    roundRect(W / 2 - 200, (T + B) / 2 + 40, 400, 64, 14);
+    const plant = player.plant || 0;
+    const y = (T + B) / 2 + 36;
+    ctx.save();
+    ctx.globalAlpha = 0.88;
+    ctx.fillStyle = "rgba(6,9,8,0.78)";
+    roundRect(W / 2 - 210, y, 420, 78, 6);
     ctx.fill();
+    ctx.strokeStyle = moving ? "rgba(255,183,51,0.55)" : "rgba(168,255,62,0.7)";
+    ctx.lineWidth = 2;
+    roundRect(W / 2 - 210, y, 420, 78, 6);
+    ctx.stroke();
     ctx.textAlign = "center";
-    ctx.fillStyle = "#8cff4a";
-    ctx.font = FONT_UI(20);
-    ctx.fillText(moving ? tr("Loslassen = automatisch schießen!") : tr("Finger ziehen = laufen & ausweichen"), W / 2, (T + B) / 2 + 69);
+    ctx.fillStyle = moving ? "#ffb733" : "#a8ff3e";
+    ctx.font = FONT_UI(21);
+    ctx.fillText(moving ? tr("Loslassen = automatisch schießen!") : tr("Finger ziehen = laufen & ausweichen"), W / 2, y + 32);
     ctx.fillStyle = "#e8efe9";
     ctx.font = FONT_UI(15, 600);
-    ctx.fillText(moving ? tr("Du schießt nur, wenn du stehst.") : tr("Stehenbleiben = auf den nächsten Zombie feuern"), W / 2, (T + B) / 2 + 91);
-    ctx.globalAlpha = 1;
+    ctx.fillText(moving ? tr("Du schießt nur, wenn du stehst.") : tr("Stehenbleiben = auf den nächsten Zombie feuern"), W / 2, y + 54);
+    if (!moving) {
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(W / 2 - 90, y + 64, 180, 5);
+      ctx.fillStyle = "#a8ff3e";
+      ctx.fillRect(W / 2 - 90, y + 64, 180 * plant, 5);
+    }
+    ctx.restore();
     if (!moving) {
       const cx = L + 90, cy = B - 90;
       ctx.fillStyle = "rgba(255,255,255,0.15)";
@@ -4218,6 +4312,7 @@
       ctx.drawImage(hurtVignette, 0, 0, hurtVignette.width * LS, hurtVignette.height * LS);
       ctx.globalAlpha = 1;
     }
+    if (view) view.classList.toggle("critical", state === "play" && low > 0);
   }
 
   // Canvas-Schriften: dieselben wie in der Oberfläche
@@ -5524,7 +5619,8 @@
     const cta = $("storeCta");
     cta.classList.toggle("hidden", Platform.isNative || !Platform.cfg.playStoreUrl);
     if (Platform.cfg.playStoreUrl) cta.href = Platform.cfg.playStoreUrl;
-    if (!dailyShown && !st.claimedToday) { dailyShown = true; openDaily(); return; }
+    const shot = /(?:\?|&)shot=(menu|play)\b/.exec(location.search)?.[1];
+    if (!shot && !dailyShown && !st.claimedToday) { dailyShown = true; openDaily(); return; }
     show(ui.menu);
   }
 
@@ -5696,6 +5792,10 @@
   Platform.init();
   toMenu();
   console.log("[Outbreak] Spiel gestartet", Platform.cfg.version);
+  if (location.hostname === "localhost" && /(?:\?|&)shot=play\b/.test(location.search)) {
+    save.storySeen = true; save.tutorialDone = true; persist();
+    startRun("campaign");
+  }
 
   if (!Platform.isNative && "serviceWorker" in navigator && location.protocol.startsWith("http")) {
     navigator.serviceWorker.register("sw.js").catch(() => { /* offline-Modus optional */ });

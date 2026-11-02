@@ -346,11 +346,93 @@ window.GameAudio = (() => {
     else osc("square", 1250, t, 0.04, e).frequency.exponentialRampToValueAtTime(900, t + 0.035);
   }
 
+  // ------------------------------------------------------------------
+  // Waffen-Identität: jede Waffe hat eigenen Körper, Knall und Schweif
+  // ------------------------------------------------------------------
+  let lastGunT = 0, lastFootT = 0, lastMeatT = 0;
+  function gun(kind) {
+    if (!ready || muted) return;
+    const t = ctx.currentTime + 0.001;
+    const gap = { smg: 0.038, minigun: 0.032, flame: 0.07, rifle: 0.042, laser: 0.048, pistol: 0.05 }[kind] || 0.055;
+    if (t - lastGunT < gap) return;
+    lastGunT = t;
+    const out = sfxBus;
+    const body = (f0, f1, dur, vol, type = "sine") => {
+      const g = env(t, 0.001, vol, dur); g.connect(out);
+      const o = ctx.createOscillator(); o.type = type;
+      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(22, f1), t + dur);
+      o.connect(g); o.start(t); o.stop(t + dur + 0.03);
+    };
+    const crack = (hi, lo, dur, vol) => {
+      const hp = filter("highpass", 1600, 0.55); hp.connect(out);
+      const g = env(t, 0.0007, vol, dur); g.connect(hp); noiseSrc(t, dur + 0.02, g);
+      const bp = filter("bandpass", hi, 1.2); bp.frequency.setValueAtTime(hi, t); bp.frequency.exponentialRampToValueAtTime(Math.max(80, lo), t + dur); bp.connect(out);
+      const g2 = env(t, 0.0007, vol * 0.65, dur * 0.75); g2.connect(bp); noiseSrc(t, dur, g2);
+    };
+    const tail = (cut, dur, vol) => {
+      const lp = filter("lowpass", cut, 0.6); lp.frequency.setValueAtTime(cut, t); lp.frequency.exponentialRampToValueAtTime(80, t + dur); lp.connect(out);
+      const g = env(t, 0.004, vol, dur); g.connect(lp); noiseSrc(t, dur + 0.05, g);
+    };
+    switch (kind) {
+      case "shotgun": body(170, 38, 0.24, 0.62); crack(2200, 280, 0.18, 0.32); tail(900, 0.28, 0.16); break;
+      case "magnum": body(110, 32, 0.28, 0.7); crack(2800, 220, 0.14, 0.28); tail(700, 0.32, 0.18); break;
+      case "sniper": body(90, 28, 0.32, 0.72); crack(5200, 400, 0.2, 0.3); tail(500, 0.45, 0.2); break;
+      case "smg": body(280, 90, 0.055, 0.2); crack(5000, 1400, 0.045, 0.16); break;
+      case "rifle": body(200, 55, 0.1, 0.32); crack(3600, 700, 0.08, 0.2); break;
+      case "minigun": body(240, 80, 0.045, 0.18); crack(3800, 1100, 0.04, 0.14); break;
+      case "pistol": body(240, 70, 0.09, 0.3); crack(4400, 900, 0.07, 0.2); break;
+      case "flame": {
+        const bp = filter("bandpass", 700, 0.7); bp.connect(out);
+        const g = env(t, 0.01, 0.16, 0.22); g.connect(bp); noiseSrc(t, 0.24, g);
+        body(90, 50, 0.18, 0.08, "sawtooth");
+        break;
+      }
+      case "tesla": body(80, 40, 0.08, 0.12, "square"); crack(8000, 1800, 0.1, 0.18); break;
+      case "grenade": body(150, 45, 0.16, 0.4); crack(900, 200, 0.1, 0.14); break;
+      case "rocket": body(70, 28, 0.22, 0.5, "sawtooth"); tail(600, 0.35, 0.18); break;
+      case "laser": {
+        const g = env(t, 0.002, 0.16, 0.12); g.connect(out);
+        osc("sawtooth", 1680, t, 0.14, g); osc("sine", 3360, t, 0.1, g);
+        crack(7000, 2500, 0.06, 0.1);
+        break;
+      }
+      case "cryo": {
+        const hp = filter("highpass", 2400, 0.8); hp.connect(out);
+        const g = env(t, 0.004, 0.14, 0.16); g.connect(hp); noiseSrc(t, 0.18, g);
+        body(420, 180, 0.12, 0.1, "triangle");
+        break;
+      }
+      case "disc": body(180, 70, 0.1, 0.22, "square"); crack(3200, 800, 0.08, 0.12); break;
+      case "crossbow": body(140, 60, 0.12, 0.22, "triangle"); crack(1800, 600, 0.06, 0.1); break;
+      default: body(220, 70, 0.09, 0.28); crack(4000, 800, 0.07, 0.18);
+    }
+  }
+  function foot() {
+    if (!ready || muted) return;
+    const t = ctx.currentTime;
+    if (t - lastFootT < 0.16) return;
+    lastFootT = t;
+    const lp = filter("lowpass", 420, 0.8); lp.connect(sfxBus);
+    const g = env(t, 0.002, 0.07, 0.09); g.connect(lp);
+    noiseSrc(t, 0.1, g);
+    osc("sine", rnd(70, 95), t, 0.08, g);
+  }
+  function meat(heavy) {
+    if (!ready || muted) return;
+    const t = ctx.currentTime;
+    if (t - lastMeatT < (heavy ? 0.05 : 0.04)) return;
+    lastMeatT = t;
+    const lp = filter("lowpass", heavy ? 380 : 700, 0.7); lp.connect(sfxBus);
+    const g = env(t, 0.001, heavy ? 0.22 : 0.12, heavy ? 0.16 : 0.08); g.connect(lp);
+    noiseSrc(t, heavy ? 0.18 : 0.09, g);
+    osc("sine", heavy ? 70 : 140, t, heavy ? 0.14 : 0.07, g);
+  }
+
   function setMuted(m) { muted = m; if (ready) master.gain.setTargetAtTime(m ? 0 : 0.95, ctx.currentTime, 0.05); }
   function setMusic(on) { musicOn = on; if (ready) musicBus.gain.setTargetAtTime(on ? 0.5 : 0, ctx.currentTime, 0.2); }
 
   return {
-    init, update, setTheme, stinger, thunder, ui, setMuted, setMusic,
+    init, update, setTheme, stinger, thunder, ui, gun, foot, meat, setMuted, setMusic,
     get ready() { return ready; },
     sfxOut: () => (ready ? sfxBus : ctx && ctx.destination),
     get debug() { return { rotor: !!rotor, S: { ...S }, cut: musicTone ? Math.round(musicTone.frequency.value) : 0, layers: Object.fromEntries(LAYERS.map((k) => [k, layer[k] ? +layer[k].gain.value.toFixed(3) : 0])), bar, step }; },

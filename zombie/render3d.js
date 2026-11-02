@@ -3267,7 +3267,9 @@ void main() {
     if (w.floorCanvas !== builtFloor) buildRoom(w);
     // Neue Blutspuren erst gesammelt hochladen (Textur-Upload ist auf Handys teuer)
     if (w.consumeFloorDirty && t - lastFloorUpload > (quality >= 2 ? 0.3 : 0.6) && w.consumeFloorDirty()) { room.floorTex.needsUpdate = true; if (room.glossTex) room.glossTex.needsUpdate = true; lastFloorUpload = t; }
-    const sx = shake ? (Math.random() - 0.5) * shake * 1.6 : 0, sz = shake ? (Math.random() - 0.5) * shake * 1.6 : 0;
+    const punch = w.camPunch || { x: 0, y: 0, fov: 0 };
+    const sx = (shake ? (Math.random() - 0.5) * shake * 1.6 : 0) + punch.x * 0.95;
+    const sz = (shake ? (Math.random() - 0.5) * shake * 1.6 : 0) + punch.y * 0.95;
     const k = Math.min(1, dt * 3);
     CAM.fx += ((w.player.x - D.W / 2) * 0.025 - CAM.fx) * k;
     CAM.fz += ((w.player.y - (D.T + D.B) / 2) * 0.06 - CAM.fz) * k;
@@ -3280,7 +3282,11 @@ void main() {
     const intro = w.intro || 0;
     frameDt = dt;
     if (w.menuCam) placeMenuCamera(t, w);
-    else placeCamera(CAM.dist * (1 - 0.3 * CAM.boss + 0.22 * intro * intro), sx + CAM.fx + bx * 0.6 * CAM.boss, sz + CAM.fz + bz * 0.6 * CAM.boss - 60 * intro * intro);
+    else {
+      const wantFov = CAM.fov + (punch.fov || 0);
+      if (Math.abs(camera.fov - wantFov) > 0.04) { camera.fov = wantFov; camera.updateProjectionMatrix(); }
+      placeCamera(CAM.dist * (1 - 0.3 * CAM.boss + 0.22 * intro * intro), sx + CAM.fx + bx * 0.6 * CAM.boss, sz + CAM.fz + bz * 0.6 * CAM.boss - 60 * intro * intro);
+    }
     updateAtmo(dt, t);
     syncEnemies(w, t, dt);
     syncPlayer(w, t);

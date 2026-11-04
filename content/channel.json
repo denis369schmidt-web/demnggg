@@ -1,121 +1,121 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-11-02",
-  "generatedAt": "2026-11-02T13:30:57.679Z",
-  "attempt": 0,
+  "edition": "2026-11-04",
+  "generatedAt": "2026-11-04T13:00:02.143Z",
+  "attempt": 1,
   "theme": {
-    "id": "gewitterfront",
-    "title": "Gewitterfront",
-    "mood": "energisch",
-    "description": "Druck ablassen – jede Silbe ein Donnerschlag.",
+    "id": "tiefsee",
+    "title": "Tiefsee",
+    "mood": "dunkel",
+    "description": "Abtauchen in die tiefsten Gedanken, Druck aushalten.",
     "keywords": [
-      "Gewitter",
-      "Blitz",
+      "Tiefe",
+      "Ozean",
       "Druck",
-      "Sturm",
-      "Energie",
-      "Beben"
+      "Strömung",
+      "Leuchten",
+      "Grund"
     ]
   },
   "challenge": {
-    "id": "hook-labor",
-    "title": "Hook-Labor",
-    "task": "Entwirf eine 4-Bar-Hook zum Thema „Gewitterfront“ und wiederhole sie nach jeweils 12 Bars Strophe.",
-    "constraint": "Eine Zeile darf maximal zehn Silben haben – finde sie beim Proben.",
-    "bars": 12,
-    "bpm": 94
+    "id": "cypher-staffel",
+    "title": "Cypher-Staffel",
+    "task": "Nimm 8 Bars zu „Tiefsee“ auf, höre sie an und antworte dir selbst mit 8 Kontra-Bars.",
+    "constraint": "Die Hook-Zeile muss eine Frage sein.",
+    "bars": 8,
+    "bpm": 93
   },
   "wordPacks": [
     {
-      "id": "gewitterfront-thema",
-      "title": "Thema: Gewitterfront",
+      "id": "tiefsee-thema",
+      "title": "Thema: Tiefsee",
       "words": [
+        "Tiefe",
         "Druck",
-        "Gewitter",
-        "Sturm",
-        "Beben",
-        "Energie",
-        "Blitz"
+        "Strömung",
+        "Ozean",
+        "Grund",
+        "Leuchten"
       ]
     },
     {
-      "id": "2026-11-02-bilder",
+      "id": "2026-11-04-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Leuchtturm",
-        "Fundament",
-        "Satellit",
-        "Neonlicht",
-        "Asphalt",
-        "Magnet"
+        "Echo",
+        "Spiegel",
+        "Silhouette",
+        "Antenne",
+        "Schatten",
+        "Fundament"
       ]
     },
     {
-      "id": "2026-11-02-energie",
+      "id": "2026-11-04-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Hunger",
-        "Respekt",
+        "Frieden",
+        "Geduld",
         "Feuer",
-        "schweben",
         "gleiten",
-        "kreisen"
+        "landen",
+        "driften"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Herz",
-      "b": "Schmerz"
-    },
-    {
       "a": "Leben",
       "b": "geben"
+    },
+    {
+      "a": "Nacht",
+      "b": "gemacht"
+    },
+    {
+      "a": "Stein",
+      "b": "allein"
     },
     {
       "a": "Klang",
       "b": "Drang"
     },
     {
-      "a": "Hallen",
-      "b": "knallen"
+      "a": "Zeilen",
+      "b": "eilen"
     },
     {
-      "a": "Kern",
-      "b": "fern"
-    },
-    {
-      "a": "Druck",
-      "b": "Ruck"
+      "a": "Kette",
+      "b": "Wette"
     }
   ],
   "starterBars": [
     {
-      "line": "Aus Blitz wird ein Plan, aus dem Plan wird ein Schritt",
-      "syllables": 11
+      "line": "Strömung bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 12
     },
     {
-      "line": "Blitz als Kompass und die Snare gibt den Takt",
-      "syllables": 11
-    },
-    {
-      "line": "Silhouette auf Repeat, bis die Hook von alleine läuft",
+      "line": "Skyline in den Zeilen, jede Silbe nimmt mich mit",
       "syllables": 14
     },
     {
-      "line": "Ich stapel Silben auf Blitz, bis der Pegel sich häuft",
-      "syllables": 13
+      "line": "Ich stapel Silben auf Ozean, bis der Pegel sich häuft",
+      "syllables": 14
+    },
+    {
+      "line": "Mit Skyline in der Stimme klingt selbst Stille wie ein Ruf",
+      "syllables": 15
     }
   ],
   "flowTip": {
-    "id": "doppelreim-leiter",
-    "title": "Doppelreim-Leiter",
-    "tip": "Übe Reimketten: ein Wort, dann zwei Silben, dann drei. Mehrsilbige Reime heben jeden Flow an."
+    "id": "vokal-farben",
+    "title": "Vokalfarben mischen",
+    "tip": "Dunkle Vokale (o, u) klingen schwer, helle (i, e) schnell. Wähle Reimwörter passend zur Stimmung."
   },
-  "quote": "Der Unterschied zwischen Probe und Performance ist nur das Publikum.",
+  "quote": "Deine Stimme ist das einzige Instrument, das du immer dabei hast.",
   "beatPreset": {
-    "bpm": 94,
-    "pattern": "West Coast Bounce",
+    "bpm": 93,
+    "pattern": "Boom Bap",
     "energy": "mittel"
   },
   "editorial": {
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-11-02",
+    "latestEdition": "2026-11-04",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

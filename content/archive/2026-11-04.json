@@ -1,121 +1,121 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-03",
-  "generatedAt": "2026-10-03T10:25:13.366Z",
-  "attempt": 0,
+  "edition": "2026-11-04",
+  "generatedAt": "2026-11-04T13:00:02.143Z",
+  "attempt": 1,
   "theme": {
-    "id": "gewitterfront",
-    "title": "Gewitterfront",
-    "mood": "energisch",
-    "description": "Druck ablassen – jede Silbe ein Donnerschlag.",
+    "id": "tiefsee",
+    "title": "Tiefsee",
+    "mood": "dunkel",
+    "description": "Abtauchen in die tiefsten Gedanken, Druck aushalten.",
     "keywords": [
-      "Gewitter",
-      "Blitz",
+      "Tiefe",
+      "Ozean",
       "Druck",
-      "Sturm",
-      "Energie",
-      "Beben"
+      "Strömung",
+      "Leuchten",
+      "Grund"
     ]
   },
   "challenge": {
-    "id": "punchline-schmiede",
-    "title": "Punchline-Schmiede",
-    "task": "Baue in 8 Bars mindestens vier Punchlines zum Thema „Gewitterfront“ – jede zweite Zeile muss sitzen.",
+    "id": "cypher-staffel",
+    "title": "Cypher-Staffel",
+    "task": "Nimm 8 Bars zu „Tiefsee“ auf, höre sie an und antworte dir selbst mit 8 Kontra-Bars.",
     "constraint": "Die Hook-Zeile muss eine Frage sein.",
     "bars": 8,
-    "bpm": 102
+    "bpm": 93
   },
   "wordPacks": [
     {
-      "id": "gewitterfront-thema",
-      "title": "Thema: Gewitterfront",
+      "id": "tiefsee-thema",
+      "title": "Thema: Tiefsee",
       "words": [
-        "Beben",
-        "Energie",
-        "Blitz",
-        "Sturm",
+        "Tiefe",
         "Druck",
-        "Gewitter"
+        "Strömung",
+        "Ozean",
+        "Grund",
+        "Leuchten"
       ]
     },
     {
-      "id": "2026-10-03-bilder",
+      "id": "2026-11-04-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Tinte",
-        "Tresor",
-        "Asphalt",
-        "Anker",
-        "Neonlicht",
-        "Leuchtturm"
+        "Echo",
+        "Spiegel",
+        "Silhouette",
+        "Antenne",
+        "Schatten",
+        "Fundament"
       ]
     },
     {
-      "id": "2026-10-03-energie",
+      "id": "2026-11-04-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Glut",
-        "Mut",
-        "Stolz",
-        "steigen",
-        "pushen",
-        "klettern"
+        "Frieden",
+        "Geduld",
+        "Feuer",
+        "gleiten",
+        "landen",
+        "driften"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Meer",
-      "b": "schwer"
-    },
-    {
-      "a": "Kern",
-      "b": "fern"
-    },
-    {
-      "a": "Wort",
-      "b": "Ort"
-    },
-    {
       "a": "Leben",
       "b": "geben"
+    },
+    {
+      "a": "Nacht",
+      "b": "gemacht"
+    },
+    {
+      "a": "Stein",
+      "b": "allein"
     },
     {
       "a": "Klang",
       "b": "Drang"
     },
     {
-      "a": "Beben",
-      "b": "schweben"
+      "a": "Zeilen",
+      "b": "eilen"
+    },
+    {
+      "a": "Kette",
+      "b": "Wette"
     }
   ],
   "starterBars": [
     {
-      "line": "Zwischen Druck und Tresor find ich Raum für den Reim",
+      "line": "Strömung bleibt der Anker, wenn der Offbeat mich ruft",
       "syllables": 12
     },
     {
-      "line": "Tresor in den Zeilen, jede Silbe nimmt mich mit",
-      "syllables": 13
+      "line": "Skyline in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 14
     },
     {
-      "line": "Ich zähl die Beats wie Druck, alles landet exakt",
-      "syllables": 12
+      "line": "Ich stapel Silben auf Ozean, bis der Pegel sich häuft",
+      "syllables": 14
     },
     {
-      "line": "Ich stapel Silben auf Blitz, bis der Pegel sich häuft",
-      "syllables": 13
+      "line": "Mit Skyline in der Stimme klingt selbst Stille wie ein Ruf",
+      "syllables": 15
     }
   ],
   "flowTip": {
-    "id": "doppelreim-leiter",
-    "title": "Doppelreim-Leiter",
-    "tip": "Übe Reimketten: ein Wort, dann zwei Silben, dann drei. Mehrsilbige Reime heben jeden Flow an."
+    "id": "vokal-farben",
+    "title": "Vokalfarben mischen",
+    "tip": "Dunkle Vokale (o, u) klingen schwer, helle (i, e) schnell. Wähle Reimwörter passend zur Stimmung."
   },
-  "quote": "Große Hooks entstehen oft aus kleinen Selbstgesprächen.",
+  "quote": "Deine Stimme ist das einzige Instrument, das du immer dabei hast.",
   "beatPreset": {
-    "bpm": 102,
-    "pattern": "West Coast Bounce",
+    "bpm": 93,
+    "pattern": "Boom Bap",
     "energy": "mittel"
   },
   "editorial": {
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-03",
+    "latestEdition": "2026-11-04",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

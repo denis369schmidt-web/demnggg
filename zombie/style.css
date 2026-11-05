@@ -843,3 +843,6 @@ canvas { display: block; background: #121a16; touch-action: none; }
 @media (prefers-reduced-motion: reduce) {
   .btn.primary.xl.cta, #view.critical::after, .stamp, .pick-head h2 { animation: none; }
 }
+
+/* v2.4 Controller: sichtbarer Fokus für Steuerkreuz-Navigation */
+.pad-focus { outline: 3px solid var(--toxic) !important; outline-offset: 3px; box-shadow: 0 0 18px rgba(168, 255, 62, 0.45) !important; }

@@ -1228,6 +1228,12 @@ void main() {
     scooter: [{ shirt: "#2a6a5a", pants: "#1f2126", skin: "#9caa8a", lean: 0.25, scooter: true, headband: "#e8e8e0" }],
     paketbote: [{ shirt: "#24324f", pants: "#1b2338", skin: "#8fa67a", carry: true, hat: "cap", capColor: "#e8701a" }],
     rentner: [{ shirt: "#b8a888", pants: "#5a5448", skin: "#b9c4ad", umbrella: "#2a3a6a", hair: "#d8d8d0", coat: true }],
+    // v2.4 Überlebende
+    civilian: [
+      { shirt: "#3a6ea5", pants: "#2a2c34", skin: "#e2b48e", eye: "#2a1a10", hat: "cap", capColor: "#c8402a" },
+      { shirt: "#c8a23a", pants: "#3a3430", skin: "#c99572", eye: "#2a1a10", longHair: "#5a3a22", scarf: "#a83a4a" },
+      { shirt: "#e8e4dc", pants: "#4a5a6a", skin: "#f0c8a4", eye: "#2a1a10", glasses: true, hair: "#d8d8d0" },
+    ],
     wengerter: [{ shirt: "#4a6a3a", pants: "#3a3a30", skin: "#94a37c", hat: "straw", butte: true, sprayer: true, torn: true }],
     goetz: [{ shirt: "#8a1a1a", pants: "#4a4e56", skin: "#7f9474", big: true, hat: "knight", plate: true, ironFist: true, sword: true, eye: "#ff5a3a" }],
     zugfuehrer: [{ shirt: "#1e2a4a", pants: "#1a2236", skin: "#7f9474", big: true, hat: "conductor", kelle: true, whistle: true, eye: "#ffcc33", lantern: true }],
@@ -1988,6 +1994,7 @@ void main() {
     if (M.extra.eggs) M.extra.eggs.forEach((egg, i) => egg.scale.setScalar(1 + 0.12 * Math.sin(t * 4 + i)));
   }
 
+  const AFF_RGB = { gold: [1, 0.75, 0], armored: [0.65, 0.8, 1], swift: [0.3, 0.9, 1], volatile: [1, 0.4, 0.1], regen: [0.4, 1, 0.45], shielded: [0.5, 0.7, 1] };
   function tint(M, e, t) {
     let r = 0, g = 0, b = 0;
     if (e.hitT > 0) { const k = Math.min(1, e.hitT / 0.1) * 0.9; r = g = b = k; }
@@ -1997,7 +2004,7 @@ void main() {
     else if (e.burnT > 0 || e.type === "burner") { const k = 0.3 + 0.2 * Math.sin(t * 20 + e.wob); r = k; g = k * 0.4; }
     else if (e.shield > 0) { const k = 0.22 + 0.1 * Math.sin(t * 9 + e.wob); r = k * 0.35; g = k * 0.7; b = k; }
     else if (e.type === "phantom") { const k = 0.3 + 0.12 * Math.sin(t * 7 + e.wob); r = k * 0.6; g = k * 0.5; b = k; }
-    else if (e.elite) { const k = 0.18 + 0.1 * Math.sin(t * 5); r = k; g = k * 0.75; }
+    else if (e.elite) { const k = 0.18 + 0.1 * Math.sin(t * 5), c = AFF_RGB[e.aff && e.aff[0]] || AFF_RGB.gold; r = k * c[0]; g = k * c[1]; b = k * c[2]; }
     for (const m of M.mats) m.emissive.setRGB(r, g, b);
   }
 
@@ -2619,6 +2626,27 @@ void main() {
       }
       poseCorpse(c, d, t);
     }
+  }
+  // v2.4 Überlebende: normale Figuren aus dem Modell-Pool; kauern, bis der Held sie erreicht, dann rennen sie zur Tür
+  const survModels = new Map();
+  const survPose = { anim: 0, mode: "walk", pose: null, r: 13, wob: 0, hitT: 0 };
+  function syncSurvivors(w, t) {
+    const list = w.survivors || [];
+    const seen = new Set();
+    for (const s of list) {
+      if (s.state !== "wait" && s.state !== "run") continue;
+      let M = survModels.get(s);
+      if (!M) { M = acquireModel("civilian", 13, s.variant); survModels.set(s, M); }
+      seen.add(s);
+      M.root.position.set(s.x + (s.state === "wait" ? Math.sin(t * 22 + s.anim) * 0.8 : 0), 0, s.y);
+      M.root.rotation.set(0, -s.face, 0);
+      M.root.scale.setScalar(CHAR_SCALE * 0.95);
+      survPose.anim = s.anim; survPose.pose = s.state === "wait" ? "crouch" : null;
+      animate(M, survPose, t, false);
+      const k = s.hurtT > 0 ? 0.6 : s.t > 0 ? 0.25 * Math.min(1, s.t / 0.6) : 0;
+      for (const m of M.mats) m.emissive.setRGB(s.hurtT > 0 ? k : 0, s.hurtT > 0 ? 0.02 : k, s.hurtT > 0 ? 0.02 : k * 0.3);
+    }
+    for (const [s, M] of survModels) if (!seen.has(s)) { releaseModel(M); survModels.delete(s); }
   }
   const ICE = new T3.Color(0.55, 0.82, 1.0), CHAR = new T3.Color(0.09, 0.07, 0.06);
   function poseCorpse(c, d, t) {
@@ -3388,6 +3416,7 @@ void main() {
     }
     updateAtmo(dt, t);
     syncEnemies(w, t, dt);
+    syncSurvivors(w, t);
     syncPlayer(w, t);
     syncDoor(w);
     syncObstacles();
@@ -3420,6 +3449,8 @@ void main() {
     models.clear();
     for (const [, d] of dying) releaseModel(d.M);
     dying.clear();
+    for (const [, M] of survModels) releaseModel(M);
+    survModels.clear();
     resetCorpseBatch();
     if (playerModel) { scene.remove(playerModel.root); disposeTree(playerModel.root); playerModel = null; }
     sawMeshes.forEach((s) => { s.visible = false; });

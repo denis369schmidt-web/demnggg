@@ -263,6 +263,7 @@
     mother: { name: "BRUTMUTTER", epithet: "Die Königin der Brut", r: 52, hp: 2700, speed: 34, dmg: 28, xp: 50, coins: [50, 80], boss: true, blood: GREEN },
   };
   for (const [type, def] of Object.entries(ZOMBIES)) Sprites.registerRadius(type, def.r);
+  Sprites.registerRadius("civilian", 13); // v2.4: Überlebende
 
   I18N.localizeData({ weapons: WEAPONS, talents: TALENTS, skills: SKILLS, zombies: ZOMBIES, evolutions: EVOLUTIONS });
 
@@ -560,6 +561,7 @@
     roomFade = 1;
     run.doorK = 0;
     supplyCrate = null;
+    run.obj = null; fuses = [];
     player.vx = player.vy = 0;
     player.invuln = 1;
     run.cleared = false;
@@ -576,6 +578,7 @@
 
     const isBoss = BOSS_ROOMS[run.room] ? (run.mode === "campaign" && curCity().boss) || BOSS_ROOMS[run.room] : null;
     const isSupply = SUPPLY_ROOMS.includes(run.room);
+    const objKind = isBoss || isSupply ? null : objectiveFor();
     obstacles = isSupply ? [] : genObstacles(isBoss ? randi(0, 2) : randi(2, 5));
     floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
@@ -590,8 +593,9 @@
       if (window.GameAudio) GameAudio.stinger("boss");
       fx4d("boss", 1100);
     } else {
-      spawnWave();
-      if (!banner) showBanner(dName.toUpperCase(), `${city.name} · ${tr("Bezirk {n}/10", { n: districtIdx() + 1 })}`, 1.4);
+      spawnWave(objKind === "hold" ? 0.45 : objKind === "bounty" ? 0.75 : 1);
+      if (objKind) setupObjective(objKind);
+      else if (!banner) showBanner(dName.toUpperCase(), `${city.name} · ${tr("Bezirk {n}/10", { n: districtIdx() + 1 })}`, 1.4);
     }
     // Funkspruch beim Stadtwechsel; beim Einsatzstart nur bis der Prolog einmal gesehen wurde (kein Extra-Tippen bei jeder Runde)
     if (districtIdx() === 0 && (run.time > 0.5 || !save.storySeen)) openCityCard();
@@ -823,9 +827,27 @@
     }
   }
 
-  function spawnWave() {
+  function spawnWave(scale = 1) {
     const ch = run.chapter, room = run.room;
-    let budget = 4 + room * 1.1 + (ch - 1) * 4;
+    let budget = (4 + room * 1.1 + (ch - 1) * 4) * scale;
+    const pool = wavePool();
+    const maxCount = 14 + ch * 2;
+    let count = 0;
+    while (budget > 0.5 && count < maxCount) {
+      const type = pick(pool);
+      const def = ZOMBIES[type];
+      if (type === "nest" && enemies.some((q) => q.type === "nest")) continue; // höchstens ein Nest pro Raum
+      const n = def.pack || 1;
+      if (def.cost * n > budget + 0.5) { if (budget < 1) break; continue; }
+      budget -= def.cost * n;
+      const pos = freeSpot(T + 60, (T + B) / 2 + 60);
+      for (let i = 0; i < n; i++) spawnEnemy(type, pos.x + rand(-20, 20), pos.y + rand(-20, 20));
+      count += n;
+    }
+  }
+  // Gegner-Pool des aktuellen Bezirks (Wellen und Nachschub bei Einsatzzielen)
+  function wavePool() {
+    const ch = run.chapter, room = run.room;
     const pool = ["walker", "walker", "crawler"];
     if (room >= 2 || ch > 1) pool.push("runner");
     if (room >= 3 || ch > 1) pool.push("spitter");
@@ -853,19 +875,7 @@
     if (room >= 8 || ch > 1) pool.push("rentner", ...(th === "markt" ? ["rentner"] : []));
     // Stadttypische Gegner (ab Bezirk 2 der Stadt, doppelt gewichtet): Wiesn-Zombies in München, Jecken in Köln …
     if (run.mode === "campaign" && (districtIdx() >= 1 || cityIdx() > 0)) for (const f of curCity().foes || []) if (ZOMBIES[f]) pool.push(f, f);
-    const maxCount = 14 + ch * 2;
-    let count = 0;
-    while (budget > 0.5 && count < maxCount) {
-      const type = pick(pool);
-      const def = ZOMBIES[type];
-      if (type === "nest" && enemies.some((q) => q.type === "nest")) continue; // höchstens ein Nest pro Raum
-      const n = def.pack || 1;
-      if (def.cost * n > budget + 0.5) { if (budget < 1) break; continue; }
-      budget -= def.cost * n;
-      const pos = freeSpot(T + 60, (T + B) / 2 + 60);
-      for (let i = 0; i < n; i++) spawnEnemy(type, pos.x + rand(-20, 20), pos.y + rand(-20, 20));
-      count += n;
-    }
+    return pool;
   }
 
   function freeSpot(yMin, yMax) {
@@ -893,7 +903,7 @@
     };
     // Elite: goldene Aura, dreifaches Leben, mehr Beute (ab Raum 4, häufiger in späteren Kapiteln)
     if (!def.boss && !def.pack && (room >= 4 || ch > 1) && Math.random() < 0.04 + 0.03 * (ch - 1)) {
-      e.elite = true; e.hp *= 3; e.maxHp *= 3; e.dmg *= 1.3; e.scale *= 1.22;
+      makeElite(e, 1);
     }
     e.spawnMax = e.spawnT;
     e.face = Math.atan2(player.y - e.y, player.x - e.x);
@@ -971,6 +981,76 @@
     if (e.key === "Escape" || e.key === "p") togglePause();
   });
   window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
+  window.addEventListener("blur", () => keys.clear()); // Fenster verlassen: keine „klemmenden“ Tasten
+  window.addEventListener("pointerdown", (e) => { if (e.pointerType === "touch") touchSeen = true; }, { capture: true });
+  let touchSeen = "ontouchstart" in window && navigator.maxTouchPoints > 0;
+
+  // v2.4 Controller (Gamepad API): Stick/Steuerkreuz laufen bzw. wählen, A bestätigt, B zurück, Start pausiert
+  const pad = { x: 0, y: 0, on: false, prev: [], navT: 0, focus: null };
+  function topOverlay() {
+    const list = document.querySelectorAll(".overlay:not(.hidden)");
+    for (let i = list.length - 1; i >= 0; i--) if (list[i].getClientRects().length) return list[i];
+    return null;
+  }
+  function padTargets(ov) {
+    return [...ov.querySelectorAll("button, a[href], .set-row")].filter((b) => !b.disabled && !b.classList.contains("hidden") && b.getClientRects().length && getComputedStyle(b).visibility !== "hidden");
+  }
+  function padFocus(el) {
+    if (pad.focus) pad.focus.classList.remove("pad-focus");
+    pad.focus = el;
+    if (el) { el.classList.add("pad-focus"); el.scrollIntoView({ block: "nearest" }); }
+  }
+  function padNav(dir) {
+    const ov = topOverlay();
+    if (!ov) return;
+    const list = padTargets(ov);
+    if (!list.length) return;
+    let i = list.indexOf(pad.focus);
+    if (i < 0) i = Math.max(0, list.findIndex((b) => b.classList.contains("primary")));
+    else i = (i + dir + list.length) % list.length;
+    padFocus(list[i]);
+    if (window.GameAudio) GameAudio.ui("tick");
+  }
+  function padConfirm() {
+    const ov = topOverlay();
+    if (!ov) return;
+    const list = padTargets(ov);
+    const el = list.includes(pad.focus) ? pad.focus : list.find((b) => b.classList.contains("primary")) || list[0];
+    padFocus(null);
+    if (el) { ensureAudio(); el.click(); }
+  }
+  function padBack() {
+    if (state === "play" || state === "pause") { togglePause(); return; }
+    const ov = topOverlay(), back = ov && ov.querySelector("[data-back]");
+    padFocus(null);
+    if (back && back.getClientRects().length) back.click();
+    else if (state === "over") leaveOver(toMenu);
+    else if (state === "story") storyNext();
+  }
+  function pollPad(dt) {
+    let gp = null;
+    try { for (const g of navigator.getGamepads ? navigator.getGamepads() : []) if (g && g.connected) { gp = g; break; } } catch { /* Sandbox ohne Gamepad-Zugriff */ }
+    pad.x = pad.y = 0;
+    if (!gp) { if (pad.on) { pad.on = false; padFocus(null); } return; }
+    if (!pad.on) { pad.on = true; toast(tr("Controller verbunden"), "weapons"); }
+    const b = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
+    let x = gp.axes[0] || 0, y = gp.axes[1] || 0;
+    if (b(14)) x = -1; else if (b(15)) x = 1;
+    if (b(12)) y = -1; else if (b(13)) y = 1;
+    if (Math.hypot(x, y) > 0.28) { pad.x = x; pad.y = y; }
+    const edge = (i) => b(i) && !pad.prev[i];
+    if (state === "play") {
+      if (edge(9) || edge(1)) togglePause();
+    } else {
+      pad.navT -= dt;
+      const ax = Math.abs(pad.x) > Math.abs(pad.y) ? pad.x : pad.y;
+      if (Math.abs(ax) > 0.6) { if (pad.navT <= 0) { padNav(ax > 0 ? 1 : -1); pad.navT = 0.22; } } else pad.navT = 0;
+      if (edge(0)) padConfirm();
+      else if (edge(1)) padBack();
+      else if (edge(9) && state === "pause") togglePause();
+    }
+    pad.prev = gp.buttons.map((q) => q.pressed);
+  }
 
   function inputVector() {
     let x = 0, y = 0;
@@ -978,6 +1058,7 @@
     if (keys.has("d") || keys.has("arrowright")) x += 1;
     if (keys.has("w") || keys.has("arrowup")) y -= 1;
     if (keys.has("s") || keys.has("arrowdown")) y += 1;
+    if (!x && !y && pad.on) { x = pad.x; y = pad.y; }
     if (joy.active) {
       const dx = joy.x - joy.ox, dy = joy.y - joy.oy;
       const len = Math.hypot(dx, dy);
@@ -1681,7 +1762,9 @@
       if (p.evo.frost && e.slowT > 0 && !e.def.boss && e.hp - dmg < e.maxHp * 0.3) { dmg = e.hp; crit = true; exec = true; o.shatter = true; }
     }
     // Panzerung (Riot-Zombie) schluckt einen Teil des Schadens – Exekution ignoriert sie
-    if (e.def.armor && !o.silent && !exec) dmg *= 1 - e.def.armor;
+    const armor = Math.max(e.def.armor || 0, e.aff && e.aff.includes("armored") ? 0.4 : 0);
+    if (armor && !o.silent && !exec) dmg *= 1 - armor;
+    if (e.aff) e.calmT = 0;
     // Energieschild des Schildwächters fängt Schaden ab, bis er bricht
     if (e.shield > 0) {
       const a = Math.min(e.shield, dmg);
@@ -1829,6 +1912,7 @@
     if (def.split) for (let i = 0; i < def.split; i++) { const q = spawnEnemy("crawler", e.x + rand(-14, 14), e.y + rand(-14, 14)); q.spawnT = 0.12; q.kvx = rand(-260, 260); q.kvy = rand(-260, 260); }
     if (e.type === "burner") { for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU; addHazard(e.x + Math.cos(a) * 26, e.y + Math.sin(a) * 26, 16, 2.6, e.dmg * 0.6); } fxFlash(e.x, e.y, 120, "255,140,40", 0.2); }
     if (e.elite) { for (let i = 0; i < nc * 2 + 3; i++) orbs.push(makeOrb(e.x, e.y, "coin", 1)); fxRing(e.x, e.y, 60, "255,210,90", 0.4); }
+    if (e.aff && e.aff.includes("volatile")) { fuses.push({ x: e.x, y: e.y, r: 78, t: 0.8, max: 0.8, dmg: e.dmg * 1.3 }); addText(e.x, e.y - 34, tr("ZÜNDET!"), "#ff7a3a", 16); }
     if (e.type === "bloater") {
       // platzt zu einer Giftwolke – nicht in der Nähe erledigen!
       addHazard(e.x, e.y, 72, 5.5, e.dmg * 0.5, "gas");
@@ -2209,6 +2293,7 @@
       if (e.spawnT > 0) { e.spawnT -= dt; continue; }
       if (e.shieldT > 0 && (e.shieldT -= dt) <= 0) e.shield = 0;
       if (e.glitchT > 0) e.glitchT -= dt;
+      if (e.aff) updateAffixes(e, dt);
 
       // Statuseffekte
       if (e.burnT > 0) { e.burnT -= dt; e.hp -= e.burnDps * dt; if (Math.random() < 0.35) fxFire(e.x + rand(-e.r, e.r) * 0.6, e.y + rand(-e.r, e.r) * 0.6, 0.6 + e.r / 40, 0.4); }
@@ -2234,6 +2319,11 @@
       const dx = p.x - e.x, dy = p.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
       let mx = dx / d, my = dy / d;
+      // v2.4: Witterung – solange der Held weit weg ist, gehen Jäger auf die Überlebenden los
+      if (e.prey) {
+        if (e.prey.state !== "wait") e.prey = null;
+        else if (d > 150) { const qx = e.prey.x - e.x, qy = e.prey.y - e.y, qd = Math.hypot(qx, qy) || 1; if (qd > e.r + 12) { mx = qx / qd; my = qy / qd; } else { mx = 0; my = 0; } }
+      }
       let sp = e.speed * slow * stagger;
       if (e.rageT > 0) { e.rageT -= dt; sp *= 1.55; }
 
@@ -2636,7 +2726,7 @@
     }
 
     enemies = enemies.filter((e) => !e.dead);
-    if (run.mode !== "survival" && !run.cleared && !supplyCrate && enemies.length === 0) roomCleared();
+    if (run.mode !== "survival" && !run.cleared && !supplyCrate && enemies.length === 0 && !objectiveBlocksClear()) roomCleared();
   }
 
   function roomCleared() {
@@ -2657,6 +2747,226 @@
     }
     if (!save.tutorialDone) { save.tutorialDone = true; persist(); }
   }
+
+  // ============================================================
+  // v2.4 Einsatzziele: Abwechslung statt immer nur „alle erledigen“
+  // ============================================================
+  // Bezirk 3, 7 und 9 jeder Stadt bekommen ein Ziel; welches, rotiert von Stadt zu Stadt
+  const OBJ_SLOTS = [2, 6, 8];
+  const OBJ_ORDER = ["rescue", "hold", "bounty"];
+  const OBJ_INFO = {
+    hold: { icon: "hazard", title: "STELLUNG HALTEN", sub: "Bleib in der Zone, bis der Luftschlag kommt" },
+    rescue: { icon: "dove", title: "ÜBERLEBENDE RETTEN", sub: "Lauf zu den Überlebenden, bevor die Zombies sie erwischen" },
+    bounty: { icon: "bossSkull", title: "KOPFGELD", sub: "" },
+  };
+  const BOUNTY_NAMES = ["Der Schlächter", "Die Bestie", "Der Unkaputtbare", "Der Nachtwächter", "Die Hyäne", "Der Metzger"];
+  const SURVIVOR_LINES = ["Danke!", "Endlich!", "Ich dachte, das war's!", "Nix wie weg!", "Du bist ein Engel!"];
+  // Diese Gegner wittern Überlebende und laufen zu ihnen, solange der Held weit weg ist
+  const NO_SURVIVORS = [];
+  const MELEE_PREY = new Set(["walker", "runner", "crawler", "dog", "rat", "wengerter", "wiesn", "zwerg"]);
+  function objectiveFor() {
+    if (!run || run.mode !== "campaign") return null;
+    const slot = OBJ_SLOTS.indexOf(districtIdx());
+    return slot < 0 ? null : OBJ_ORDER[(slot + cityIdx()) % OBJ_ORDER.length];
+  }
+  function setupObjective(kind) {
+    const ci = cityIdx();
+    const o = { kind, done: false, t: 0, doneT: 0 };
+    if (kind === "hold") {
+      const x = W / 2 + rand(-50, 50), y = T + (B - T) * 0.42;
+      Object.assign(o, { x, y, r: 78, prog: 0, need: 13 + Math.min(7, ci), spawnCd: 2, inside: false, strikes: [] });
+      clearObstacles([{ x, y, r: o.r + 12 }]);
+    } else if (kind === "rescue") {
+      const n = ci === 0 ? 2 : 3;
+      o.list = [];
+      for (let i = 0; i < n; i++) {
+        const sx = clamp(L + (R - L) * ((i + 0.5) / n) + rand(-30, 30), L + 34, R - 34), sy = T + 90 + rand(0, (B - T) * 0.32);
+        o.list.push({ isSurvivor: true, x: sx, y: sy, r: 13, hp: 100, max: 100, t: 0, state: "wait", face: Math.PI / 2, anim: rand(0, 8), variant: randi(0, 3), hurtT: 0 });
+      }
+      o.total = n; o.saved = 0; o.lost = 0;
+      clearObstacles(o.list.map((q) => ({ x: q.x, y: q.y, r: 36 })));
+      enemies.filter((e) => MELEE_PREY.has(e.type)).forEach((e, i) => { if (i % 2 === 0) e.prey = o.list[(i / 2) % n]; });
+    } else if (kind === "bounty") {
+      const pool = ci === 0 ? ["walker", "runner", "brute"] : ["brute", "runner", "walker", ...(curCity().foes || [])];
+      const type = pick(pool.filter((t) => ZOMBIES[t] && !ZOMBIES[t].pack));
+      const pos = freeSpot(T + 160, T + 270); // unterhalb der Ziel-Anzeige, damit das Namensschild frei steht
+      const e = spawnEnemy(type, pos.x, pos.y);
+      if (!e.elite) makeElite(e, 2);
+      else while (e.aff.length < 2) { const k = pick(Object.keys(AFFIXES)); if (!e.aff.includes(k)) e.aff.push(k); }
+      applyAffixes(e);
+      e.hp *= 2.2; e.maxHp *= 2.2; e.scale *= 1.06; e.bounty = true;
+      o.target = e;
+      o.name = tr("{n} von {c}", { n: tr(pick(BOUNTY_NAMES)), c: curCity().name });
+      o.reward = 40 + 25 * ci;
+    }
+    run.obj = o;
+    const info = OBJ_INFO[kind];
+    showBanner(tr(info.title), kind === "bounty" ? o.name : tr(info.sub), 2.4);
+    if (window.GameAudio) GameAudio.ui("confirm");
+  }
+  // Platz für Zone bzw. Überlebende schaffen; Lichtquellen der entfernten Hindernisse gehen mit
+  function clearObstacles(circles) {
+    const keep = obstacles.filter((q) => !circles.some((c) => circleRectOverlap(c, q)));
+    if (keep.length === obstacles.length) return;
+    obstacles = keep; // der Boden kennt keine Hindernisse; die 3D-Welt baut den Raum erst beim nächsten Bild
+    roomLights = obstacles.filter((q) => GLOWING[q.kind]).map((q) => ({ x: q.x + q.w / 2, y: q.y + q.h / 2, rgb: GLOWING[q.kind], r: Math.max(q.w, q.h) * 1.3, src: q }));
+  }
+  // Solange Stellung oder Rettung laufen, bleibt die Tür zu – auch wenn gerade kein Zombie da ist
+  function objectiveBlocksClear() {
+    const o = run.obj;
+    if (!o) return false;
+    if (o.kind === "hold") return !o.done || o.strikes.length > 0;
+    if (o.kind === "rescue") return !o.done;
+    return false;
+  }
+  function rewardObjective(amount) {
+    run.objDone = (run.objDone || 0) + 1;
+    track("objectives");
+    const n = Math.max(3, Math.min(12, Math.round(amount / 5))), val = Math.max(1, Math.round(amount / n));
+    for (let i = 0; i < n; i++) orbs.push(makeOrb(player.x + rand(-26, 26), player.y - 30 + rand(-20, 20), "coin", val));
+    addText(player.x, player.y - 64, `+${Math.round(n * val * run.greed)}`, "#ffd45c", 22, true);
+    sfx("combo"); // der „Bezirk sicher“-Jingle folgt ohnehin, sobald die Tür aufgeht
+    fx4d("level");
+  }
+  function updateObjective(dt) {
+    const o = run.obj;
+    if (!o) return;
+    o.t += dt;
+    if (o.done) o.doneT += dt;
+    if (o.kind === "hold") updateHold(o, dt);
+    else if (o.kind === "rescue") updateRescue(o, dt);
+    else if (o.kind === "bounty" && !o.done && o.target.dead) {
+      o.done = true;
+      showBanner(tr("KOPFGELD KASSIERT"), o.name, 2);
+      rewardObjective(o.reward);
+    }
+  }
+  function updateHold(o, dt) {
+    const p = player;
+    if (!o.done) {
+      o.inside = Math.hypot(p.x - o.x, p.y - o.y) < o.r;
+      o.prog = o.inside ? Math.min(o.need, o.prog + dt) : Math.max(0, o.prog - dt * 0.35);
+      // Nachschub aus allen Richtungen, solange die Stellung gehalten wird
+      if ((o.spawnCd -= dt) <= 0) {
+        o.spawnCd = Math.max(1.1, 2.3 - cityIdx() * 0.12) * rand(0.85, 1.15);
+        if (enemies.filter((e) => !e.dead).length < 9 + run.chapter * 2) {
+          const pool = wavePool().filter((t) => t !== "nest");
+          for (let k = randi(1, 2); k > 0; k--) {
+            const type = pick(pool), def = ZOMBIES[type];
+            const side = randi(0, 2), pos = side === 0 ? freeSpot(T + 40, T + 110) : { x: side === 1 ? L + 36 : R - 36, y: rand(T + 60, (T + B) / 2) };
+            for (let i = 0; i < (def.pack || 1); i++) spawnEnemy(type, pos.x + rand(-16, 16), pos.y + rand(-16, 16));
+          }
+        }
+      }
+      if (o.prog >= o.need) {
+        // Luftschlag: jede verbliebene Kreatur bekommt ihren Einschlag, gestaffelt wie ein Bombenteppich
+        o.done = true;
+        let k = 0;
+        for (const e of enemies) if (!e.dead && !e.def.boss) o.strikes.push({ e, t: 0.35 + (k++) * 0.11 });
+        showBanner(tr("LUFTSCHLAG!"), tr("Stellung gehalten"), 2);
+        shake = Math.max(shake, 6);
+        sfx("whistle");
+        rewardObjective(30 + 18 * cityIdx());
+      }
+    }
+    for (const s of o.strikes) {
+      if ((s.t -= dt) > 0) continue;
+      s.dead = true;
+      const e = s.e;
+      if (e.dead) continue;
+      if (o.strikes.indexOf(s) < 9) explode(e.x, e.y, 54, e.hp + e.maxHp + 999, true);
+      else damageEnemy(e, e.hp + e.maxHp + 999, { aoe: true });
+    }
+    if (o.strikes.length) o.strikes = o.strikes.filter((s) => !s.dead);
+  }
+  function updateRescue(o, dt) {
+    const p = player;
+    for (const s of o.list) {
+      s.anim += dt * (s.state === "run" ? 14 : 2);
+      s.hurtT = Math.max(0, s.hurtT - dt);
+      if (s.state === "wait") {
+        let threat = 0;
+        for (const e of enemies) {
+          if (e.dead || e.spawnT > 0 || e.under) continue;
+          if ((e.x - s.x) ** 2 + (e.y - s.y) ** 2 < (e.r + s.r + 10) ** 2) threat += e.dmg;
+        }
+        if (threat > 0) {
+          s.hp -= threat * 1.15 * dt; s.hurtT = 0.15;
+          if (Math.random() < dt * 8) fxBlood(s.x, s.y, rand(0, TAU), 2, RED, 110);
+        }
+        const pd = Math.hypot(p.x - s.x, p.y - s.y);
+        if (pd < p.r + s.r + 24) s.t += dt; else s.t = Math.max(0, s.t - dt * 0.6);
+        s.face = Math.atan2(p.y - s.y, p.x - s.x);
+        if (s.t >= 0.6) {
+          s.state = "run"; o.saved++;
+          healPlayer(p.maxHp * 0.06);
+          addText(s.x, s.y - 30, tr(pick(SURVIVOR_LINES)), "#a8ff3e", 15);
+          fxRing(s.x, s.y, 46, "168,255,62", 0.35);
+          sfx("coin");
+          track("rescued");
+          for (const e of enemies) if (e.prey === s) e.prey = null;
+        } else if (s.hp <= 0) {
+          s.state = "dead"; o.lost++;
+          fxBlood(s.x, s.y, rand(0, TAU), 14, RED, 220);
+          splatter(s.x, s.y, rand(0, TAU), 0.8, RED);
+          addText(s.x, s.y - 30, tr("INFIZIERT!"), "#ff5a4a", 16);
+          const z = spawnEnemy("walker", s.x, s.y); z.spawnT = 0.5; z.spawnMax = 0.5;
+          for (const e of enemies) if (e.prey === s) e.prey = null;
+        }
+      } else if (s.state === "run") {
+        // zur Tür und raus – Hindernisse überklettern sie
+        const tx = W / 2, ty = T - 14, dx = tx - s.x, dy = ty - s.y, d = Math.hypot(dx, dy) || 1;
+        s.x += (dx / d) * 190 * dt; s.y += (dy / d) * 190 * dt; s.face = Math.atan2(dy, dx);
+        if (d < 12) s.state = "gone";
+      }
+    }
+    if (!o.done && o.list.every((s) => s.state !== "wait")) {
+      o.done = true;
+      if (o.saved > 0) rewardObjective((16 + 9 * cityIdx()) * o.saved);
+      showBanner(o.saved === o.total ? tr("ALLE GERETTET!") : tr("{n}/{m} GERETTET", { n: o.saved, m: o.total }), o.lost ? tr("{n} verloren", { n: o.lost }) : tr("Die Überlebenden sind auf dem Weg zum Treffpunkt"), 1.8);
+    }
+  }
+  // Explosiv-Elite: kurze Zündschnur am Todesort, dann Detonation
+  let fuses = [];
+  function updateFuses(dt) {
+    for (const f of fuses) if ((f.t -= dt) <= 0) { f.dead = true; explode(f.x, f.y, f.r, f.dmg, false); }
+    if (fuses.length) fuses = fuses.filter((f) => !f.dead);
+  }
+
+  // ============================================================
+  // v2.4 Elite-Eigenschaften: jede Elite hat einen Charakterzug, Kopfgeld-Ziele zwei
+  // ============================================================
+  const AFFIXES = {
+    armored: { name: "Gepanzert", rgb: "170,200,235" },
+    swift: { name: "Flink", rgb: "110,230,255" },
+    volatile: { name: "Explosiv", rgb: "255,120,50" },
+    regen: { name: "Zäh", rgb: "120,255,130" },
+    shielded: { name: "Schildträger", rgb: "140,190,255" },
+  };
+  function makeElite(e, nAff = 1) {
+    e.elite = true; e.hp *= 3; e.maxHp *= 3; e.dmg *= 1.3; e.scale *= 1.22;
+    e.aff = [];
+    const keys = Object.keys(AFFIXES).filter((k) => !(k === "swift" && e.def.anchored));
+    while (e.aff.length < nAff) { const k = pick(keys); if (!e.aff.includes(k)) e.aff.push(k); }
+    applyAffixes(e);
+  }
+  function applyAffixes(e) {
+    if (e.aff.includes("swift") && !e.affSwift) { e.affSwift = true; e.speed *= 1.45; }
+    if (e.aff.includes("shielded")) { e.shield = e.maxHp * 0.4; e.shieldT = 1e9; e.affShieldCd = 0; }
+    e.calmT = 0;
+  }
+  function updateAffixes(e, dt) {
+    e.calmT = (e.calmT || 0) + dt;
+    if (e.aff.includes("regen") && e.calmT > 1.6 && e.hp < e.maxHp) {
+      e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.07 * dt);
+      if (Math.random() < dt * 6) fxSparks(e.x, e.y, -Math.PI / 2, 0.6, 1, "120,255,130", 90);
+    }
+    if (e.aff.includes("shielded") && !(e.shield > 0) && (e.affShieldCd = (e.affShieldCd || 0) + dt) > 6) {
+      e.affShieldCd = 0; e.shield = e.maxHp * 0.4; e.shieldT = 1e9;
+      fxRing(e.x, e.y, e.r * 2.4, "140,190,255", 0.35);
+    }
+  }
+  const affixLabel = (e) => e.aff.map((k) => tr(AFFIXES[k].name)).join(" · ");
 
   // ============================================================
   // Orbs (XP & Münzen)
@@ -3240,6 +3550,8 @@
       e.dripT = rand(0.12, 0.35) * (0.4 + e.hp / e.maxHp);
       stampDot(e.x + rand(-5, 5), e.y + rand(-5, 5), rand(0.9, 2) * (e.def.boss ? 2 : 1), e.def.blood);
     }
+    updateObjective(dt);
+    updateFuses(dt);
     updateHazards(dt);
     updateLobs(dt);
     updateParcels(dt);
@@ -3330,6 +3642,7 @@
       (run.firstBloodAt != null ? line("exec", tr("Erster Treffer"), fmtTime(run.firstBloodAt)) : "") +
       line("combo", tr("Beste Kombo"), `x${run.bestCombo}`) +
       line("upgrade", tr("Level"), player.level) +
+      (run.objDone ? line("missions", tr("Einsatzziele"), num(run.objDone)) : "") +
       line("hourglass", tr("Zeit"), fmtTime(run.time)) +
       line("coin", tr("Münzen"), coinAmt(coins, "+"), "gold") +
       (tease ? line("bossSkull", tr("Nächstes Ziel"), tease) : "");
@@ -3373,6 +3686,7 @@
     get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },
     get theme() { return theme(); }, get isBossRoom() { return !!(run && BOSS_ROOMS[run.room]); }, get intro() { return roomFade; },
     get camPunch() { return { x: punchX, y: punchY, fov: punchFov }; },
+    get survivors() { return run && run.obj && run.obj.list ? run.obj.list : NO_SURVIVORS; },
     get plant() { return player ? player.plant || 0 : 0; },
     consumeFloorDirty() { const d = floorDirty; floorDirty = false; return d; },
     muzzlePoint: () => muzzlePoint(player),
@@ -3410,7 +3724,7 @@
         ambient: Array.from({ length: 28 }, () => ({ x: rand(L, R), y: rand(T, B), size: rand(1, 2.4), ph: rand(0, TAU) })),
         roomLights: obs.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3 })),
         obstacles: obs, supplyCrate: null, floorCanvas: Sprites.floor("markt", { W, H, L, T, R, B }, 4242, { snow: weather === "snow", confetti: weather === "confetti", leaves: fest === "wiesn" }),
-        theme: "markt", weather, fest, isBossRoom: false, camPunch: { x: 0, y: 0, fov: 0 }, consumeFloorDirty: () => false,
+        theme: "markt", weather, fest, isBossRoom: false, camPunch: { x: 0, y: 0, fov: 0 }, survivors: NO_SURVIVORS, consumeFloorDirty: () => false,
         muzzlePoint: () => muzzlePoint(p), dronePos: () => ({ x: p.x, y: p.y }), menuCam: true, t: 0,
       };
     }
@@ -3535,6 +3849,7 @@
     drawOrbs();
     if (supplyCrate) drawSupply();
     drawCorpses();
+    if (run.obj && run.obj.kind === "hold" && !run.obj.done) drawZone(run.obj, { cx: run.obj.x, cy: run.obj.y, rx: run.obj.r, ry: run.obj.r });
     drawLobTargets();
     drawActors();
     drawProjectilesBase();
@@ -3602,6 +3917,7 @@
     drawLockOn();
     drawScreenFx();
     drawHud();
+    drawObjectiveHud();
     drawCombo();
     // Kinobalken bei Boss-Auftritt und Boss-Tod
     const bossIntro = enemies.some((e) => e.def.boss && e.spawnT > 0);
@@ -3622,6 +3938,104 @@
     if (a <= 0 || r <= 0) return;
     ctx.globalAlpha = Math.min(1, a);
     ctx.drawImage(Sprites.glow(rgb).c, x - r, y - r, r * 2, r * 2);
+  }
+  // ============================================================
+  // v2.4 Einsatzziele & Elite-Eigenschaften zeichnen (2D und als Overlay über der 3D-Welt)
+  // ============================================================
+  // Kreis am Boden: in 2D unverzerrt, in 3D über vier projizierte Punkte angenähert
+  function groundEllipse(x, y, r) {
+    const c = scr(x, y, 0), cx = c.x, cy = c.y;
+    if (!mode3d) return { cx, cy, rx: r, ry: r };
+    const ax = scr(x + r, y, 0).x, by = scr(x, y + r, 0).y;
+    return { cx, cy, rx: Math.max(4, Math.abs(ax - cx)), ry: Math.max(3, Math.abs(by - cy)) };
+  }
+  function drawZone(o, g) {
+    const t = run.time, k = o.prog / o.need, col = o.inside ? "168,255,62" : "255,183,51";
+    ctx.save();
+    ctx.fillStyle = `rgba(${col},${0.1 + 0.05 * Math.sin(t * 4)})`;
+    ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, TAU); ctx.fill();
+    ctx.setLineDash([10, 8]); ctx.lineDashOffset = -t * 30;
+    ctx.strokeStyle = `rgba(${col},0.8)`; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = 5; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx + 7, g.ry + 7 * (g.ry / g.rx), 0, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0.001, k)); ctx.stroke();
+    drawIcon(ctx, "hazard", g.cx, g.cy, 24, `rgba(${col},0.95)`);
+    ctx.restore();
+  }
+  function drawSurvivor(s) {
+    if (s.state !== "wait" && s.state !== "run") return;
+    drawShadow(s.x, s.y, s.r);
+    const f = Math.floor(s.anim) % Sprites.FRAMES, jit = s.state === "wait" ? Math.sin(run.time * 22 + s.anim) * 0.7 : 0;
+    Sprites.draw(ctx, Sprites.zombie("civilian", f, s.variant), s.x + jit, s.y, s.face, 0.95);
+  }
+  function drawObjectiveMarks() {
+    const o = run.obj, t = run.time;
+    if (o && o.kind === "hold" && !o.done && mode3d) drawZone(o, groundEllipse(o.x, o.y, o.r));
+    if (o && o.kind === "rescue") {
+      for (const s of o.list) {
+        if (s.state !== "wait") continue;
+        const q = scr(s.x, s.y, mode3d ? 44 : 0), x = q.x, y = (mode3d ? q.y - 6 : s.y - 30) + Math.sin(t * 5 + s.anim) * 2;
+        const hurt = s.hurtT > 0;
+        ctx.fillStyle = "rgba(6,9,8,0.7)"; ctx.beginPath(); ctx.arc(x, y - 12, 12, 0, TAU); ctx.fill();
+        drawIcon(ctx, "dove", x, y - 12, 15, hurt ? "#ff6a5a" : "#a8ff3e");
+        if (s.t > 0) { ctx.strokeStyle = "#a8ff3e"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y - 12, 13.5, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, s.t / 0.6)); ctx.stroke(); }
+        const k = Math.max(0, s.hp / s.max);
+        ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(x - 15, y + 3, 30, 4);
+        ctx.fillStyle = k > 0.4 ? "#a8ff3e" : "#ff5a4a"; ctx.fillRect(x - 14, y + 4, 28 * k, 2);
+      }
+    }
+    for (const f of fuses) {
+      const g = groundEllipse(f.x, f.y, f.r), k = 1 - f.t / f.max;
+      ctx.save();
+      ctx.fillStyle = `rgba(255,80,30,${0.1 + 0.18 * k})`;
+      ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx * k, g.ry * k, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(255,110,50,${0.55 + 0.45 * Math.sin(t * 34)})`; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  // Name über Elite und Kopfgeld-Ziel: Eigenschaften lesen, bevor man in sie hineinläuft
+  function drawEnemyTag(e, x, y) {
+    ctx.save();
+    ctx.textAlign = "center"; ctx.lineJoin = "round";
+    if (e.bounty) {
+      const name = run.obj && run.obj.target === e ? run.obj.name : tr("KOPFGELD");
+      ctx.font = FONT_UI(13);
+      const w = ctx.measureText(name).width;
+      drawIcon(ctx, "bossSkull", x - w / 2 - 9, y - 21, 13, "#ff5a4a");
+      ctx.lineWidth = 3.5; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.strokeText(name, x + 4, y - 16);
+      ctx.fillStyle = "#ffd0c8"; ctx.fillText(name, x + 4, y - 16);
+    }
+    const lab = affixLabel(e);
+    ctx.font = FONT_UI(11, 700);
+    ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.strokeText(lab, x, y - 4);
+    ctx.fillStyle = `rgb(${AFFIXES[e.aff[0]].rgb})`; ctx.fillText(lab, x, y - 4);
+    ctx.restore();
+  }
+  function drawObjectiveHud() {
+    const o = run.obj;
+    if (!o || (o.done && o.doneT > 2.5)) return;
+    const info = OBJ_INFO[o.kind], w = 226, h = 48, x = W - 12 - w, y = 108;
+    let k = 0, line = "";
+    if (o.kind === "hold") { k = o.prog / o.need; line = o.done ? tr("Luftschlag!") : o.inside ? tr("Halten … noch {s} s", { s: Math.ceil(o.need - o.prog) }) : tr("Zurück in die Zone!"); }
+    else if (o.kind === "rescue") { k = o.saved / o.total; line = tr("Gerettet {n}/{m}", { n: o.saved, m: o.total }) + (o.lost ? `  ·  ${tr("{n} verloren", { n: o.lost })}` : ""); }
+    else { k = o.done ? 1 : 1 - Math.max(0, o.target.hp) / o.target.maxHp; line = o.done ? tr("Kopfgeld kassiert") : o.name; }
+    const warn = o.kind === "hold" && !o.done && !o.inside;
+    ctx.save();
+    ctx.globalAlpha = o.done ? Math.max(0, 1 - (o.doneT - 1.8) / 0.7) : 1;
+    ctx.fillStyle = "rgba(6,9,8,0.8)"; roundRect(x, y, w, h, 6); ctx.fill();
+    ctx.strokeStyle = o.done ? "rgba(168,255,62,0.85)" : warn ? `rgba(255,90,60,${0.55 + 0.4 * Math.sin(run.time * 10)})` : "rgba(255,183,51,0.6)";
+    ctx.lineWidth = 1.5; roundRect(x, y, w, h, 6); ctx.stroke();
+    drawIcon(ctx, o.done ? "check" : info.icon, x + 22, y + 24, 22, o.done ? "#a8ff3e" : "#ffb733");
+    ctx.textAlign = "left";
+    ctx.fillStyle = o.done ? "#a8ff3e" : "#ffb733"; ctx.font = FONT_UI(12); ctx.fillText(tr(info.title), x + 42, y + 17);
+    let fs = 14;
+    ctx.font = FONT_UI(fs, 600);
+    while (ctx.measureText(line).width > w - 52 && fs > 10) ctx.font = FONT_UI(--fs, 600);
+    ctx.fillStyle = warn ? "#ff9a7a" : "#e8efe9"; ctx.fillText(line, x + 42, y + 33);
+    ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(x + 42, y + 39, w - 54, 4);
+    ctx.fillStyle = o.done ? "#a8ff3e" : "#ffb733"; ctx.fillRect(x + 42, y + 39, (w - 54) * Math.min(1, k), 4);
+    ctx.restore();
   }
   function drawShadow(x, y, r) {
     const s = Sprites.shadow();
@@ -3645,7 +4059,9 @@
     ctx.textAlign = "center";
     ctx.fillStyle = moving ? "#ffb733" : "#a8ff3e";
     ctx.font = FONT_UI(21);
-    ctx.fillText(moving ? tr("Loslassen = automatisch schießen!") : tr("Finger ziehen = laufen & ausweichen"), W / 2, y + 32);
+    const how = pad.on ? "pad" : touchSeen ? "touch" : "keys";
+    const lineA = { touch: ["Loslassen = automatisch schießen!", "Finger ziehen = laufen & ausweichen"], keys: ["Taste loslassen = automatisch schießen!", "WASD / Pfeiltasten = laufen & ausweichen"], pad: ["Stick loslassen = automatisch schießen!", "Linker Stick = laufen & ausweichen"] }[how];
+    ctx.fillText(tr(moving ? lineA[0] : lineA[1]), W / 2, y + 32);
     ctx.fillStyle = "#e8efe9";
     ctx.font = FONT_UI(15, 600);
     ctx.fillText(moving ? tr("Du schießt nur, wenn du stehst.") : tr("Stehenbleiben = auf den nächsten Zombie feuern"), W / 2, y + 54);
@@ -3814,9 +4230,10 @@
   function drawActors() {
     actorList.length = 0;
     for (const e of enemies) actorList.push(e);
+    if (run.obj && run.obj.list) for (const s of run.obj.list) actorList.push(s);
     actorList.push(player);
     actorList.sort((a, b) => a.y - b.y);
-    for (const a of actorList) { if (a === player) drawPlayer(); else drawEnemy(a); }
+    for (const a of actorList) { if (a === player) drawPlayer(); else if (a.isSurvivor) drawSurvivor(a); else drawEnemy(a); }
   }
 
   function drawEnemy(e) {
@@ -3840,7 +4257,7 @@
     drawShadow(e.x, e.y, e.r * e.scale);
     let x = e.x, y = e.y - e.jumpZ;
     if (e.mode === "wind" || e.mode === "zap") { x += rand(-1.5, 1.5); y += rand(-1.5, 1.5); }
-    if (e.elite) glowAt("255,200,80", e.x, e.y, e.r * 2.2, 0.35 + 0.15 * Math.sin(run.time * 5));
+    if (e.elite) glowAt(e.aff ? AFFIXES[e.aff[0]].rgb : "255,200,80", e.x, e.y, e.r * 2.2, 0.35 + 0.15 * Math.sin(run.time * 5));
     const sc = e.scale * (e.type === "nest" ? 1 + Math.sin(run.time * 4 + e.wob) * 0.05 : 1 + Math.sin(e.anim * 0.8) * 0.015);
     if (e.type === "phantom") ctx.globalAlpha = e.glitchT > 0 ? (Math.random() < 0.5 ? 0.15 : 0.9) : 0.6 + 0.18 * Math.sin(run.time * 9 + e.wob);
     Sprites.draw(ctx, Sprites.zombie(e.type, f, e.variant), x, y, e.face, sc);
@@ -4282,13 +4699,18 @@
   }
 
   function drawBars() {
+    drawObjectiveMarks();
     for (const e of enemies) {
-      if (e.def.boss || e.spawnT > 0 || e.hp >= e.maxHp) continue;
+      const tag = e.elite && e.aff;
+      if (e.def.boss || e.spawnT > 0 || (e.hp >= e.maxHp && !tag)) continue;
       const w = Math.max(20, e.r * 2);
       const q = scr(e.x, e.y, mode3d ? Render3D.heightOf(e) + 6 : 0);
       const x = q.x, y = mode3d ? q.y - 6 : e.y - e.r * e.scale - 13;
-      ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 5);
-      ctx.fillStyle = e.def.armor ? "#7fb4ff" : "#e5383b"; ctx.fillRect(x - w / 2, y, w * Math.max(0, e.hp / e.maxHp), 3);
+      if (e.hp < e.maxHp) {
+        ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 5);
+        ctx.fillStyle = e.def.armor || (tag && e.aff.includes("armored")) ? "#7fb4ff" : "#e5383b"; ctx.fillRect(x - w / 2, y, w * Math.max(0, e.hp / e.maxHp), 3);
+      }
+      if (tag) drawEnemyTag(e, x, y);
     }
     const p = player, bw = 56, k = Math.max(0, p.hp / p.maxHp);
     const q = scr(p.x, p.y, 54), px = q.x, y = mode3d ? q.y - 8 : p.y - 40;
@@ -4708,6 +5130,7 @@
     const real = Math.max(0, Math.min(0.05, (now - last) / 1000));
     last = now;
     frameDt = real;
+    pollPad(real);
     // Zeitlupe nach Boss-Sieg
     const dt = slowMo > 0 ? real * 0.3 : real;
     if (slowMo > 0) slowMo -= real;
@@ -4745,6 +5168,8 @@
     survival: { icon: "stopwatch", text: "Überlebe {n} Sekunden im Überlebensmodus", d: [90, 150], w: 300, max: true },
     combo: { icon: "combo", text: "Erreiche eine Kombo von {n}", d: [15, 25], w: 50, max: true },
     gibs: { icon: "blood", text: "Zerschieße {n} Leichen", d: [10, 20], w: 120 },
+    rescued: { icon: "dove", text: "Rette {n} Überlebende", d: [3, 5], w: 25 },
+    objectives: { icon: "missions", text: "Erfülle {n} Einsatzziele", one: "Erfülle ein Einsatzziel", d: [1, 2], w: 10 },
   };
   const MISSION_REWARD = { daily: { coins: 100, xp: 120 }, bonus: { coins: 250, xp: 200 }, weekly: { coins: 500, xp: 400 } };
   const missionText = (m) => { const M = MISSIONS[m.id]; return tr(m.goal === 1 && M.one ? M.one : M.text, { n: m.goal.toLocaleString(I18N.lang) }); };
@@ -4815,6 +5240,8 @@
     { id: "devil", icon: "devil", name: tr("Teufelsbündler"), text: "Schließe {n} Teufelspakte", one: "Schließe einen Teufelspakt", tiers: [1, 5, 20], val: () => save.stats.devil },
     { id: "headshots", icon: "headshot", name: tr("Scharfschütze"), text: "Erziele {n} Kopfschüsse", tiers: [100, 1000, 10000], val: () => save.stats.headshots },
     { id: "combo", icon: "combo", name: tr("Kombo-König"), text: "Erreiche eine Kombo von {n}", tiers: [25, 60, 120], val: () => save.stats.combo || 0 },
+    { id: "rescued", icon: "dove", name: tr("Retter in der Not"), text: "Rette {n} Überlebende", tiers: [5, 50, 250], val: () => save.stats.rescued || 0 },
+    { id: "objectives", icon: "missions", name: tr("Einsatzleiter"), text: "Erfülle {n} Einsatzziele", one: "Erfülle ein Einsatzziel", tiers: [3, 30, 150], val: () => save.stats.objectives || 0 },
   ];
   const ACH_REWARD = [250, 1000, 4000];
   const TIER = ["bronze", "silver", "gold"];
@@ -4936,6 +5363,9 @@
     "Heilbronn: Weindorf abgesagt – die Viertele bleiben stehen",
     "Käthchenstadt im Ausnahmezustand – die Kunstuhr ist stehen geblieben",
     "Experimenta: Experiment außer Kontrolle?",
+    "Überlebende im Wartberg-Tunnel – Hilfe unterwegs?",
+    "Bundeswehr kündigt Luftschläge an: Zonen bitte halten",
+    "Kopfgeld ausgesetzt: „Der Schlächter“ zuletzt am Hauptbahnhof gesehen",
   ];
   function startTicker() {
     const el = $("tickerText"), track = el.parentElement;
@@ -5885,5 +6315,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

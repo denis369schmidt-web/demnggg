@@ -220,6 +220,12 @@ window.Sprites = (() => {
     scooter: [{ shirt: "#2a6a5a", pants: "#1f2126", skin: "#9caa8a", lean: 0.2, scooter: true, headband: "#e8e8e0" }],
     paketbote: [{ shirt: "#24324f", pants: "#1b2338", skin: "#8fa67a", carry: true, cap: "#e8701a" }],
     rentner: [{ shirt: "#b8a888", pants: "#5a5448", skin: "#b9c4ad", umbrella: "#2a3a6a", grey: true }],
+    // v2.4 Überlebende (keine Zombies: gesunde Haut, dunkle Augen)
+    civilian: [
+      { shirt: "#3a6ea5", pants: "#2a2c34", skin: "#e2b48e", eye: "#2a1a10", cap: "#c8402a" },
+      { shirt: "#c8a23a", pants: "#3a3430", skin: "#c99572", eye: "#2a1a10", longHair: "#5a3a22", scarf: ["#a83a4a", "#e8e0d0"] },
+      { shirt: "#e8e4dc", pants: "#4a5a6a", skin: "#f0c8a4", eye: "#2a1a10", glasses: true, grey: true },
+    ],
     wengerter: [{ shirt: "#4a6a3a", pants: "#3a3a30", skin: "#94a37c", straw: true, butte: true, sprayer: true }],
     goetz: [{ shirt: "#8a1a1a", pants: "#4a4e56", skin: "#7f9474", big: true, knight: true, ironFist: true, sword: true, eye: "#ff5a3a" }],
     zugfuehrer: [{ shirt: "#1e2a4a", pants: "#1a2236", skin: "#7f9474", big: true, conductor: true, kelle: true, eye: "#ffcc33" }],

@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-11-05T13:12:29.589Z",
+    "edition": "2026-11-05",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 99,
+    "durationMs": 31,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Nachtschicht“, Boom Bap @ 93 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Storytelling-Run“ (12 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 99."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-11-05 veröffentlicht (Hash 54c5e691)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-11-04T13:00:02.143Z",
     "edition": "2026-11-04",
     "attempt": 1,
@@ -1846,41 +1881,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-09-15 veröffentlicht (Hash 51cc876)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-09-14T10:39:32.754Z",
-    "edition": "2026-09-14",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 27,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Tiefsee“, Uptempo Battle @ 114 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Freestyle-Zirkel“ (16 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-09-14 veröffentlicht (Hash 92846d86)."
       }
     ]
   }

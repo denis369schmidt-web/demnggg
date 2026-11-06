@@ -335,7 +335,7 @@ window.I18N = (() => {
     "TAGESBESTWERT": "DAILY BEST",
     "Bestenliste": "Leaderboard",
     "BESTENLISTE": "LEADERBOARD",
-    "Deine besten Einsätze": "Your best runs",
+    "Deine Top 10": "Your top 10",
     "Bestwert teilen": "Share best score",
     "Besiege einen Stadt-Boss auf Bedrohung {n}, um Stufe {m} freizuschalten": "Defeat a city boss on Threat {n} to unlock level {m}",
     "Ergebnis teilen": "Share result",

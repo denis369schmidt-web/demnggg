@@ -884,3 +884,10 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .rank-list li small { display: block; margin-top: 3px; font: 600 11px/1.2 var(--f-ui); color: var(--text-3); }
 .rank-list li em { font: 600 12px/1.2 var(--f-ui); font-style: normal; color: var(--text-2); text-align: right; max-width: 120px; }
 .rank-list .empty { padding: 14px 6px; }
+/* v2.5: Bericht mit Punkten, Bedrohung und Tagesbefehl wird länger – auf kleinen Displays kompakt und scrollbar, Knöpfe bleiben erreichbar */
+.dialog.report { max-height: calc(100% - 16px); overflow-y: auto; overscroll-behavior: contain; }
+@media (max-height: 720px) {
+  .dialog.report { padding-top: 16px; gap: 8px; }
+  .dialog.report .stats > span, .dialog.report .stats > b { padding-top: 5px; padding-bottom: 5px; }
+  .dialog.report .btn.share { min-height: 40px; }
+}

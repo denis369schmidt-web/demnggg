@@ -2105,7 +2105,7 @@ void main() {
       else if (e.mode === "whistle" || e.pose === "whistle") { for (const A of M.arms) A.g.rotation.z = A.s > 0 ? 1.9 + Math.sin(t * 30) * 0.1 : 0.3; if (M.extra.head) M.extra.head.rotation.z = 0.25; }
       if (e.mode !== "scream" && e.mode !== "whistle" && e.pose !== "whistle" && M.extra.head) M.extra.head.rotation.z = 0;
       if (M.extra.head) {
-        M.extra.head.rotation.x = Math.sin(t * 1.6 + (e.wob || 0) * 3) * (gait === 3 ? 0.34 : 0.1) + Math.sin(hd) * fl * 1.4;
+        M.extra.head.rotation.x = Math.sin(t * 1.6 + (e.wob || 0) * 3) * (gait === 3 ? 0.34 : 0.1) + Math.sin(hd) * fl * 1.4 + (e.stunT > 0 ? Math.sin(t * 7 + (e.wob || 0)) * 0.4 : 0); // v2.9 benommen
         if (e.mode !== "scream") M.extra.head.rotation.z -= Math.cos(hd) * fl * 1.6;
       }
       if (e.mode !== "scream" && e.mode !== "spin") for (const A of M.arms) if (!A.crawl) A.g.rotation.y = A.s * 0.18;
@@ -2126,6 +2126,7 @@ void main() {
     else if (e.phase2 || e.rageT > 0) { const k = 0.35 + 0.25 * Math.sin(t * 10); r = k; g = 0.02; b = 0.06; }
     else if (e.mode === "zap") { const k = Math.random() < 0.5 ? 0.7 : 0.2; r = k * 0.4; g = k * 0.9; b = k; }
     else if (e.slowT > 0) { r = 0.15; g = 0.4; b = 0.7; }
+    else if (e.stunT > 0) { const k = 0.28 + 0.18 * Math.sin(t * 18); r = k; g = k * 0.9; b = k * 0.45; } // v2.9 betäubt
     else if (e.burnT > 0 || e.type === "burner") { const k = 0.3 + 0.2 * Math.sin(t * 20 + e.wob); r = k; g = k * 0.4; }
     else if (e.shield > 0) { const k = 0.22 + 0.1 * Math.sin(t * 9 + e.wob); r = k * 0.35; g = k * 0.7; b = k; }
     else if (e.type === "phantom") { const k = 0.3 + 0.12 * Math.sin(t * 7 + e.wob); r = k * 0.6; g = k * 0.5; b = k; }
@@ -2957,6 +2958,9 @@ void main() {
     const boxAt = (x, y, z, sx, sy, sz, rot, rgb) => { if (bx >= 60) return; inst(boxIM, bx, x, y, z, rot, 0, sx, sy, sz); const [r0, g0, b0] = rgb; boxIM.setColorAt(bx++, tmpColor.setRGB(r0, g0, b0)); };
     for (const q of w.lobs || []) if (q.kind === "gift" || q.kind === "parcel") boxAt(q.x, q.z + 8, q.y, 16, 14, 16, q.spin, q.kind === "gift" ? [0.75, 0.06, 0.08] : [0.48, 0.32, 0.17]);
     for (const q of w.parcels || []) boxAt(q.x, 7, q.y, 18, 13, 16, q.spin, [0.48, 0.32, 0.17]);
+    // v2.9 Wurfwaffen des Helden im Flug und Böller am Boden
+    for (const q of w.throws || []) { const st = w.throwStyle && w.throwStyle(q.kind); boxAt(q.x, q.z + 6, q.y, 7, 10, 7, q.spin, st ? st.c3 : [0.3, 0.4, 0.2]); }
+    for (const q of w.decoys || []) boxAt(q.x, 6, q.y, 5, 12, 5, 0, [0.8, 0.1, 0.1]);
     for (const b of w.eBullets) {
       const s = b.r * 1.1;
       if (b.kind === "barrel") { if (br < 30) inst(barrelIM, br++, b.x, b.r, b.y, -Math.atan2(b.vy, b.vx) + Math.PI / 2, b.spin, b.r, b.r, b.r); continue; }
@@ -3176,6 +3180,24 @@ void main() {
       else if (q.kind === "coal") { bill(normB, q.x, q.z + 6, q.y, 13, CELL.gib, "30,30,32", 1, q.spin); bill(addB, q.x, q.z + 6, q.y, 16, CELL.glow, "255,110,40", 0.6); }
       else if (q.kind !== "gift" && q.kind !== "parcel") bill(normB, q.x, q.z + 6, q.y, 14, CELL.gib, "122,117,108", 1, q.spin);
       flat(floorB, q.x, 0.9, q.y, 0, 10, 10, CELL.blob, "0,0,0", 0.35);
+    }
+    // v2.9 Wurfwaffen: Zielkreis in der Farbe der Waffe, Glühen am Wurfkörper; Böller knistern; Luftschlag-Markierungen
+    for (const q of w.throws || []) {
+      const st = w.throwStyle && w.throwStyle(q.kind), c = st ? st.rgb : "168,255,62", k = Math.min(1, q.t / q.T);
+      flat(floorB, q.x1, 1.3, q.y1, 0, q.r, q.r, CELL.ring, c, 0.45 + 0.3 * Math.sin(t * 20));
+      flat(floorB, q.x1, 1.2, q.y1, 0, q.r * k, q.r * k, CELL.glow, c, 0.25);
+      bill(addB, q.x, q.z + 8, q.y, q.kind === "molotov" ? 16 : 9, CELL.glow, q.kind === "molotov" ? "255,150,50" : c, 0.6);
+      flat(floorB, q.x, 0.9, q.y, 0, 8, 8, CELL.blob, "0,0,0", 0.35);
+    }
+    for (const q of w.decoys || []) {
+      const blink = Math.sin(t * 26) > 0, k = Math.max(0, q.t / q.max), rr = 60 + 40 * (1 - k);
+      flat(floorB, q.x, 1.3, q.y, 0, rr, rr, CELL.ring, "255,120,60", 0.3 + 0.25 * Math.sin(t * 6));
+      bill(addB, q.x, 14, q.y, blink ? 12 : 7, CELL.glow, "255,220,120", 0.9);
+    }
+    for (const s2 of w.strikes || []) {
+      const k = 1 - Math.max(0, s2.t / s2.max);
+      flat(floorB, s2.x, 1.3, s2.y, 0, s2.r, s2.r, CELL.ring, "255,90,40", 0.55 + 0.35 * Math.sin(t * 26));
+      flat(floorB, s2.x, 1.2, s2.y, 0, s2.r * k, s2.r * k, CELL.glow, "255,90,40", 0.35);
     }
     // Paketbomben am Boden: Warnkreis + blinkendes Licht
     for (const q of w.parcels || []) {
@@ -3494,6 +3516,7 @@ void main() {
       else if (q.t === "lvl") lightCands.push([w.player.x, 60, w.player.y, "255,225,130", 3 * (q.life / q.max), 260, 10]);
     }
     for (const z of w.zaps) lightCands.push([z.x2, 30, z.y2, "127,231,255", 2.2 * (z.life / z.max), 200, 8]);
+    for (const q of w.decoys || []) lightCands.push([q.x, 20, q.y, "255,180,80", 1.2 + Math.random() * 1.2, 150, 6]); // v2.9 Böller knistert
     for (const e of w.enemies) {
       if (e.burnT > 0 || e.type === "burner") lightCands.push([e.x, 26, e.y, "255,140,40", 1.4, 150, 4]);
       if (e.mode === "zap") lightCands.push([e.x, 40, e.y, "127,231,255", 2.2, 200, 7]);

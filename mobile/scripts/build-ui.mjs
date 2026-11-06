@@ -60,6 +60,10 @@ const ICONS = {
   // Skins
   soldier: "brodie-helmet", police: "riot-shield", firefighter: "fire-axe", hazmat: "gas-mask", ninja: "ninja-head",
   cyber: "cyborg-face", plagueDoc: "plague-doctor-profile", crown: "crown", hunter: "radioactive",
+  // v2.9 Wurfwaffen und Spezialfähigkeiten
+  grenade: "grenade", molotov: "molotov", flashbang: "flash-grenade", iceBomb: "ice-bomb", firecracker: "dynamite",
+  airstrike: "bombing-run", chainZap: "chain-lightning", fireRing: "fire-ring", toxCloud: "poison-gas", ninjaStar: "ninja-star",
+  missileSwarm: "missile-swarm", healMist: "healing", goldRain: "crown-coin", railShot: "laser-precision",
 };
 const set = require("@iconify-json/game-icons/icons.json");
 const paths = {};

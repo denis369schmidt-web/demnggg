@@ -93,6 +93,9 @@
     gearBag: [], // erbeutete, noch nicht angelegte Teile
     cityMax: 0, // v2.8 höchste freigeschaltete Startstadt (Index in CITIES)
     startCity: 0, // gewählte Startstadt
+    throwOwned: { frag: true }, // v2.9 freigeschaltete Wurfwaffen
+    throwSel: "frag", // Start-Wurfwaffe im Gürtel
+    throwHint: false, // Hinweis auf Q/E einmal gezeigt
   });
   function loadSave() {
     const d = defaultSave();
@@ -526,6 +529,7 @@
   let hazards = []; // brennende Pfützen am Boden
   let zaps = [];
   let lobs = []; // geworfene Brocken (Bogenflug mit Zielkreis)
+  let throws = [], decoys = [], strikes = []; // v2.9 Wurfwaffen des Helden, Böller-Köder am Boden, Luftschlag-Einschläge
   let beams = []; // Lichtstrahlen: Heilung, Laser-Visier, Schild-Verbindung
   let ambient = [];
   let roomLights = [];
@@ -593,6 +597,10 @@
     applyGear(player);
     if (run.order && run.order.apply) run.order.apply(player);
     if (run.startCity > 0) run.pendingPicks += Math.min(6, run.startCity);
+    // v2.9 Wurfgürtel (3× Start-Wurfwaffe) und Spezial-Energie
+    const tsel = save.throwOwned && save.throwOwned[save.throwSel] && THROWABLES[save.throwSel] ? save.throwSel : "frag";
+    run.belt = { [tsel]: 3 }; run.beltSel = tsel; run.throwCd = 0; run.ult = 0; run.ultFx = null; run.blink = null;
+    if (!save.throwHint) { save.throwHint = true; persist(); setTimeout(() => toast(tr("Neu: Wurfwaffen (Q) und Spezialfähigkeit (E)"), "grenade"), 2600); }
     // Goldener Held: +10 % Münzen
     if (save.skin === "gold") run.greed *= 1.1;
     // Gekaufte Boosts für diesen Run verbrauchen
@@ -622,6 +630,7 @@
     run.doorK = 0;
     supplyCrate = null;
     run.obj = null; run.event = null; fuses = [];
+    throws = []; decoys = []; strikes = []; run.blink = null;
     player.vx = player.vy = 0;
     player.invuln = 1;
     run.cleared = false;
@@ -1038,6 +1047,10 @@
     // Knopf unten rechts oder Doppeltipp = Ausweichrolle
     const db = dashBtn();
     if ((p.x - db.x) ** 2 + (p.y - db.y) ** 2 < (db.r + 8) ** 2) { requestDash(); return; }
+    const hitB = (b, extra = 6) => (p.x - b.x) ** 2 + (p.y - b.y) ** 2 < (b.r + extra) ** 2;
+    if (beltKinds().length > 1 && hitB(swapBtn(), 4)) { cycleThrow(); return; }
+    if (hitB(throwBtn())) { requestThrow(); return; }
+    if (hitB(ultBtn())) { requestUlt(); return; }
     const now = performance.now();
     if (now - lastTap.t < 280 && (p.x - lastTap.x) ** 2 + (p.y - lastTap.y) ** 2 < 50 * 50) requestDash();
     lastTap = { t: now, x: p.x, y: p.y };
@@ -1057,9 +1070,18 @@
   const DASH_T = 0.18, DASH_CD = 2.4;
   const requestDash = () => { if (state === "play") dashWanted = true; };
   const dashBtn = () => ({ x: R - 46, y: B - 58, r: 34 });
+  // v2.9 Wurfwaffe (über der Rolle), Art wechseln (kleiner Chip), Spezialfähigkeit (links neben der Rolle)
+  let throwWanted = false, ultWanted = false;
+  const requestThrow = () => { if (state === "play") throwWanted = true; };
+  const requestUlt = () => { if (state === "play") ultWanted = true; };
+  const throwBtn = () => ({ x: R - 46, y: B - 146, r: 30 });
+  const swapBtn = () => ({ x: R - 88, y: B - 180, r: 16 });
+  const ultBtn = () => ({ x: R - 130, y: B - 58, r: 32 });
   let lastTap = { t: 0, x: 0, y: 0 };
   window.addEventListener("keydown", (e) => {
     if ((e.key === " " || e.key === "Shift") && !e.repeat) { requestDash(); if (state === "play") e.preventDefault(); }
+    const kk = e.key.toLowerCase();
+    if (!e.repeat && state === "play") { if (kk === "q") requestThrow(); else if (kk === "r") cycleThrow(); else if (kk === "e") requestUlt(); }
     keys.add(e.key.toLowerCase());
     if (e.key === "Escape" || e.key === "p") togglePause();
   });
@@ -1125,6 +1147,9 @@
     if (state === "play") {
       if (edge(9) || edge(1)) togglePause();
       else if (edge(0) || edge(2)) requestDash();
+      if (edge(5) || edge(7)) requestThrow();
+      if (edge(4)) cycleThrow();
+      if (edge(3)) requestUlt();
     } else {
       pad.navT -= dt;
       const ax = Math.abs(pad.x) > Math.abs(pad.y) ? pad.x : pad.y;
@@ -1702,6 +1727,15 @@
         else if ((player.x - h.x) ** 2 + (player.y - h.y) ** 2 < (h.r + player.r * 0.5) ** 2) player.slowT = Math.max(player.slowT || 0, 0.35);
         continue;
       }
+      if (h.kind === "napalm") {
+        // v2.9 Molotow/Feuerwalze: brennt nur Zombies, der Held läuft gefahrlos hindurch
+        if (Math.random() < 0.45) fxFire(h.x + rand(-h.r, h.r) * 0.65, h.y + rand(-h.r, h.r) * 0.65, 0.8, 0.45);
+        for (const e of enemies) {
+          if (e.dead || e.spawnT > 0 || e.def.fireproof || (e.x - h.x) ** 2 + (e.y - h.y) ** 2 > (h.r + e.r * 0.5) ** 2) continue;
+          e.burnT = Math.max(e.burnT, 1.4); e.burnDps = Math.max(e.burnDps || 0, h.dmg);
+        }
+        continue;
+      }
       if (h.kind === "shards" || h.kind === "stink") {
         // nur für Zombies: Scherben schneiden, Gestank vergiftet
         if (h.kind === "shards") { if (Math.random() < 0.3) fxSparks(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, rand(0, TAU), Math.PI, 1, "200,255,235", 60); }
@@ -1883,6 +1917,7 @@
       if (p.evo.vamp && p.hp < p.maxHp * 0.35) dmg *= 1.5;
       if (p.bigGame && (e.elite || e.def.boss)) dmg *= p.bigGame; // Seuchenjäger
       if (p.perfectT > run.time) dmg *= 1.25; // nach perfektem Ausweichen
+      if (e.frostT > 0) dmg *= 1.3; // v2.9 eingefroren: spröde
       // Schwachstelle: Treffer in den Rücken eines Bosses
       if (e.def.boss && o.bullet && !o.aoe && Math.abs(angDiff(e.face, Math.atan2(-o.bullet.vy, -o.bullet.vx))) > 2.0) {
         dmg *= 1.5;
@@ -2001,6 +2036,12 @@
     spawnCorpse(e);
     track("kills");
     if (e.elite) track("elites");
+    // v2.9 Spezial-Energie und Wurfwaffen-Nachschub (Elites oft, Bosse immer)
+    if (run.belt) {
+      run.ult = Math.min(100, (run.ult || 0) + (def.boss ? 100 : e.elite ? 12 : 3.5));
+      if (def.boss) addThrow(null, 2, e.x, e.y);
+      else if (e.elite && Math.random() < 0.45) addThrow(null, 1, e.x, e.y);
+    }
     if (def.boss) { track("bosses"); addPassXp(60); run.bossKills = (run.bossKills || 0) + 1; }
     else if (runOrder().volatile && Math.random() < runOrder().volatile && !(e.aff && e.aff.includes("volatile"))) fuses.push({ x: e.x, y: e.y, r: 64, t: 0.7, max: 0.7, dmg: e.dmg });
     if (e.death === "headshot") { track("headshots"); run.headshots = (run.headshots || 0) + 1; }
@@ -2461,6 +2502,14 @@
         if (kv > 110) stagger = 0.25;
       }
 
+      // v2.9 betäubt (Blendgranate, Taser, EMP) oder eingefroren: steht still und greift nicht an
+      if (e.frostT > 0) e.frostT -= dt;
+      if (e.stunT > 0) {
+        e.stunT -= dt;
+        if (Math.random() < 0.07) fxSparks(e.x + rand(-e.r, e.r) * 0.5, e.y - e.r * 0.6, -Math.PI / 2, 1.2, 1, e.frostT > 0 ? "170,230,255" : "255,236,140", 70);
+        collideWorld(e);
+        continue;
+      }
       const dx = p.x - e.x, dy = p.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
       let mx = dx / d, my = dy / d;
@@ -2827,6 +2876,11 @@
         }
       }
 
+      // v2.9 Böller-Köder: Gehende Zombies laufen auf den knisternden Böller zu
+      if (decoys.length && !e.def.boss && e.mode === "walk") {
+        const q = nearestDecoy(e);
+        if (q) { const qx = q.x - e.x, qy = q.y - e.y, qd = Math.hypot(qx, qy) || 1; if (qd > e.r + 8) { mx = qx / qd; my = qy / qd; } else { mx = 0; my = 0; } }
+      }
       // Hindernis-Umgehung: nach Kollision kurz seitlich ausweichen
       if (e.blocked > 0 && e.mode !== "charge") {
         e.blocked -= dt;
@@ -2877,6 +2931,7 @@
   function roomCleared() {
     run.cleared = true;
     track("rooms");
+    if (run.belt) addThrow(save.throwOwned[save.throwSel] ? save.throwSel : "frag", 1, player.x, player.y - 46); // Nachschub je Bezirk
     sfx("door");
     if (window.GameAudio) GameAudio.stinger(BOSS_ROOMS[run.room] ? "victory" : "clear");
     slowMo = Math.max(slowMo, 0.32);
@@ -3140,6 +3195,281 @@
     shake = Math.max(shake, 6); sfx("rage"); fx4d("boss", 400);
     track("events");
   }
+  // ============================================================
+  // v2.9 Wurfwaffen und Spezialfähigkeiten
+  // ============================================================
+  const BELT_MAX = 5, THROW_CD = 0.55;
+  // Wirkung wächst mit derselben Formel wie das Gegner-Leben (Raum, Kapitel, Bedrohung, Tagesbefehl) –
+  // so bleiben Würfe und Spezialfähigkeiten in jeder Stadt und im Überlebensmodus spürbar
+  function powerUnit() {
+    const ord = runOrder();
+    const k = (1 + Math.max(0, run.room - 1) * 0.07) * Math.pow(1.6, Math.max(0, run.chapter - 1)) * threatHp(run.threat || 0) * (ord.foeHp || 1);
+    return 60 * k * Math.sqrt(player.dmgMul || 1);
+  }
+  const beltKinds = () => (run && run.belt ? Object.keys(THROWABLES).filter((k) => run.belt[k] > 0) : []);
+  function cycleThrow() {
+    const ks = beltKinds();
+    if (ks.length < 2) return;
+    run.beltSel = ks[(ks.indexOf(run.beltSel) + 1) % ks.length];
+    if (window.GameAudio) GameAudio.ui("tick");
+    addText(player.x, player.y - 50, tr(THROWABLES[run.beltSel].name), "#ffd45c", 13);
+  }
+  function addThrow(kind, n, x, y) {
+    if (!run || !run.belt) return;
+    const k = kind || pick(Object.keys(THROWABLES));
+    const have = run.belt[k] || 0, add = Math.min(n, BELT_MAX - have);
+    if (add <= 0) return;
+    run.belt[k] = have + add;
+    if (!(run.belt[run.beltSel] > 0)) run.beltSel = k;
+    addText(x, y, `+${add} ${tr(THROWABLES[k].name)}`, "#ffd45c", 13);
+  }
+  // Ziel: dichteste Gruppe in Wurfweite, sonst ein Stück in Blickrichtung
+  function throwTarget() {
+    const p = player;
+    let best = null, bs = 0;
+    for (const e of enemies) {
+      if (e.dead || e.spawnT > 0 || e.under) continue;
+      const d = Math.hypot(e.x - p.x, e.y - p.y);
+      if (d < 70 || d > 400) continue;
+      let sc = 1;
+      for (const q of enemies) if (q !== e && !q.dead && (q.x - e.x) ** 2 + (q.y - e.y) ** 2 < 95 * 95) sc++;
+      sc += e.elite ? 1.5 : 0;
+      sc -= d / 600;
+      if (sc > bs) { bs = sc; best = e; }
+    }
+    if (best) return { x: best.x, y: best.y };
+    return { x: p.x + Math.cos(p.aim) * 220, y: p.y + Math.sin(p.aim) * 220 };
+  }
+  function doThrow() {
+    const kind = run.beltSel;
+    if (!(run.belt[kind] > 0) || run.throwCd > 0) return false;
+    const p = player, tg = throwTarget(), def = THROWABLES[kind];
+    const x1 = clamp(tg.x, L + 24, R - 24), y1 = clamp(tg.y, T + 24, B - 24), dist = Math.hypot(x1 - p.x, y1 - p.y);
+    throws.push({ kind, x0: p.x, y0: p.y, x1, y1, x: p.x, y: p.y, z: 30, t: 0, T: 0.42 + dist / 1100, r: def.r, spin: rand(0, TAU) });
+    run.belt[kind]--;
+    run.throwCd = THROW_CD;
+    p.aim = Math.atan2(y1 - p.y, x1 - p.x);
+    if (!(run.belt[kind] > 0)) { const ks = beltKinds(); if (ks.length) run.beltSel = ks[0]; }
+    if (window.GameAudio) GameAudio.ui("swipe");
+    fx4d("kick"); track("throws");
+    return true;
+  }
+  const nearestDecoy = (e) => { let b = null, bd = 460 * 460; for (const q of decoys) { const d = (q.x - e.x) ** 2 + (q.y - e.y) ** 2; if (d < bd) { bd = d; b = q; } } return b; };
+  function landThrow(q) {
+    const def = THROWABLES[q.kind], U = powerUnit(), x = q.x, y = q.y;
+    const inR = (e, r) => !e.dead && e.spawnT <= 0 && !e.under && (e.x - x) ** 2 + (e.y - y) ** 2 < (r + e.r) ** 2;
+    if (q.kind === "frag") explode(x, y, def.r, U * 1.9, true);
+    else if (q.kind === "molotov") {
+      sfx("glass"); fxDebris(x, y, 0, Math.PI, 10, "#3a6a3a");
+      for (let i = 0; i < 10; i++) fxFire(x + rand(-def.r, def.r) * 0.6, y + rand(-def.r, def.r) * 0.6, 1.6, rand(0.4, 0.7));
+      fxFlash(x, y, def.r * 1.4, "255,150,60", 0.25);
+      addHazard(x, y, def.r, 5, U * 0.42, "napalm");
+      stamp(Sprites.scorch(), x, y, rand(0, TAU), def.r / 40, 0.8);
+    } else if (q.kind === "flash") {
+      fxFlash(x, y, def.r * 2.2, "255,255,255", 0.4); fxRing(x, y, def.r, "235,240,255", 0.45); fxSparks(x, y, 0, Math.PI, 18, "255,255,230", 360);
+      shake = Math.max(shake, 5); sfx("boom");
+      for (const e of enemies) if (inR(e, def.r)) { e.stunT = Math.max(e.stunT || 0, e.def.boss ? 0.7 : 2.6); damageEnemy(e, U * 0.25, { aoe: true, silent: true }); }
+    } else if (q.kind === "frost") {
+      fxFlash(x, y, def.r * 1.6, "150,220,255", 0.3); fxRing(x, y, def.r, "170,230,255", 0.5);
+      for (let i = 0; i < 14; i++) fxIce(x + rand(-def.r, def.r) * 0.7, y + rand(-def.r, def.r) * 0.7);
+      sfx("glass");
+      for (const e of enemies) if (inR(e, def.r)) { e.slowT = Math.max(e.slowT, 4.5); if (!e.def.boss) { e.stunT = Math.max(e.stunT || 0, 2.2); e.frostT = 2.6; } damageEnemy(e, U * 0.5, { aoe: true, silent: true }); }
+    } else if (q.kind === "decoy") {
+      decoys.push({ x, y, t: 3, max: 3, r: def.r, dmg: U * 1.1, bang: 0 });
+      fxSparks(x, y, -Math.PI / 2, 1, 6, "255,210,90", 160);
+    }
+  }
+  function updateThrowables(dt) {
+    if (!run.belt) return;
+    const p = player;
+    run.throwCd = Math.max(0, run.throwCd - dt);
+    run.ult = Math.min(100, run.ult + dt * 0.6); // lädt auch langsam von selbst
+    if (throwWanted) { throwWanted = false; doThrow(); }
+    if (ultWanted) { ultWanted = false; if (run.ult >= 100) activateUlt(); else if (window.GameAudio) GameAudio.ui("tick"); }
+    for (const q of throws) {
+      q.t += dt; q.spin += dt * 9;
+      const k = Math.min(1, q.t / q.T);
+      q.x = q.x0 + (q.x1 - q.x0) * k; q.y = q.y0 + (q.y1 - q.y0) * k; q.z = 30 * (1 - k) + Math.sin(k * Math.PI) * 120;
+      if (q.kind === "molotov" && Math.random() < 0.5) fxFire(q.x, q.y - q.z * 0.2, 0.5, 0.25);
+      if (k >= 1) { q.dead = true; landThrow(q); }
+    }
+    if (throws.length) throws = throws.filter((q) => !q.dead);
+    // Böller-Köder: knistert 3 s und lockt Zombies, dann vier Knalle
+    for (const q of decoys) {
+      q.t -= dt;
+      if (Math.random() < 0.5) fxSparks(q.x, q.y - 6, -Math.PI / 2, 1.4, 1, pick(["255,210,90", "255,90,60", "255,255,200"]), 140);
+      if (q.t <= 0 && (q.bang -= dt) <= 0) {
+        q.n = (q.n || 0) + 1; q.bang = 0.16;
+        explode(q.x + rand(-24, 24), q.y + rand(-24, 24), q.r, q.dmg, true);
+        if (q.n >= 4) q.dead = true;
+      }
+    }
+    if (decoys.length) decoys = decoys.filter((q) => !q.dead);
+    // Luftschlag: Einschläge nacheinander
+    for (const s2 of strikes) if ((s2.t -= dt) <= 0) { s2.dead = true; explode(s2.x, s2.y, s2.r, s2.dmg, true); }
+    if (strikes.length) strikes = strikes.filter((s2) => !s2.dead);
+    // Schattenklingen: Sprung von Ziel zu Ziel
+    const bl = run.blink;
+    if (bl && (bl.t -= dt) <= 0) {
+      const e = bl.list[bl.i++];
+      if (e && !e.dead) {
+        ghosts.push({ x: p.x, y: p.y, life: 0.35, max: 0.35 });
+        const a = Math.atan2(e.y - p.y, e.x - p.x);
+        p.x = clamp(e.x + Math.cos(a) * (e.r + p.r + 6), L + p.r, R - p.r); p.y = clamp(e.y + Math.sin(a) * (e.r + p.r + 6), T + p.r, B - p.r);
+        collideWorld(p);
+        p.aim = a + Math.PI; p.invuln = Math.max(p.invuln, 0.3);
+        fxSparks(e.x, e.y, a, 1.2, 8, "200,230,255", 300);
+        damageEnemy(e, bl.dmg, { silent: false });
+      }
+      bl.t = 0.085;
+      if (bl.i >= bl.list.length) run.blink = null;
+    }
+    // zeitlich begrenzte Spezial-Wirkungen zurücknehmen
+    if (run.ultFx && (run.ultFx.t -= dt) <= 0) endUltFx();
+  }
+  function endUltFx() {
+    const f = run.ultFx, p = player;
+    if (!f) return;
+    if (f.drones) p.drones = Math.max(0, p.drones - f.drones);
+    if (f.lifesteal) p.lifesteal -= f.lifesteal;
+    if (f.greed) run.greed /= f.greed;
+    run.ultFx = null;
+  }
+  function activateUlt() {
+    const p = player, sp = heroSpecial(save.skin), U = powerUnit();
+    run.ult = 0;
+    endUltFx(); // eine noch laufende Wirkung zuerst sauber beenden (sonst blieben z. B. Drohnen für immer)
+    track("specials");
+    slowMo = Math.max(slowMo, 0.35); punchFov = Math.max(punchFov, 3); shake = Math.max(shake, 7);
+    fx4d("level"); sfx("combo");
+    callout = { title: tr(sp.name).toUpperCase(), n: 1, bonus: 0, life: 1.3, max: 1.3, plain: true };
+    const near = (r, max = 99) => enemies.filter((e) => !e.dead && e.spawnT <= 0 && !e.under && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < r * r).sort((a, b) => dist2(a, p) - dist2(b, p)).slice(0, max);
+    const id = HERO_SPECIALS[save.skin] ? save.skin : "soldier";
+    if (id === "soldier") {
+      for (let i = 0; i < 7; i++) {
+        const d = 70 + i * 68, x = clamp(p.x + Math.cos(p.aim) * d, L + 30, R - 30), y = clamp(p.y + Math.sin(p.aim) * d, T + 30, B - 30);
+        strikes.push({ x: x + rand(-18, 18), y: y + rand(-18, 18), r: 78, t: 0.45 + i * 0.13, max: 0.45 + i * 0.13, dmg: U * 1.7 });
+      }
+    } else if (id === "police") {
+      let from = p;
+      for (const e of near(430, 10)) {
+        zaps.push({ x1: from.x, y1: from.y, x2: e.x, y2: e.y, life: 0.4, max: 0.4 });
+        e.stunT = Math.max(e.stunT || 0, e.def.boss ? 0.6 : 2.4);
+        damageEnemy(e, U * 1.5, { silent: true });
+        from = e;
+      }
+      sfx("zap");
+    } else if (id === "firefighter") {
+      fxRing(p.x, p.y, 240, "255,150,50", 0.6); fxFlash(p.x, p.y, 300, "255,140,40", 0.3);
+      for (let i = 0; i < 18; i++) { const a = (i / 18) * TAU; fxFire(p.x + Math.cos(a) * 150, p.y + Math.sin(a) * 150, 2, 0.6); }
+      for (const e of near(250)) {
+        const a = Math.atan2(e.y - p.y, e.x - p.x);
+        if (!e.def.boss) { e.kvx += Math.cos(a) * 380; e.kvy += Math.sin(a) * 380; }
+        e.burnT = Math.max(e.burnT, 5); e.burnDps = Math.max(e.burnDps || 0, U * 0.5);
+        damageEnemy(e, U * 0.8, { aoe: true });
+      }
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU; addHazard(clamp(p.x + Math.cos(a) * 170, L + 20, R - 20), clamp(p.y + Math.sin(a) * 170, T + 20, B - 20), 40, 4, U * 0.3, "napalm"); }
+    } else if (id === "hazmat") {
+      addHazard(p.x, p.y, 160, 8, U * 0.4, "stink");
+      for (let i = 0; i < 16; i++) fxGas(p.x + rand(-140, 140), p.y + rand(-140, 140), 2.4, "150,220,60", 2);
+      p.slowT = 0; p.jamT = 0; healPlayer(p.maxHp * 0.15);
+    } else if (id === "ninja") {
+      const list = near(520, 6);
+      if (list.length) run.blink = { list, i: 0, t: 0.05, dmg: U * 2.6 };
+      p.invuln = Math.max(p.invuln, 0.3 + list.length * 0.09);
+    } else if (id === "cyber") {
+      fxRing(p.x, p.y, 260, "127,231,255", 0.5); fxFlash(p.x, p.y, 280, "127,231,255", 0.25);
+      for (const e of near(270)) { e.stunT = Math.max(e.stunT || 0, e.def.boss ? 0.5 : 1.8); zaps.push({ x1: p.x, y1: p.y, x2: e.x, y2: e.y, life: 0.3, max: 0.3 }); damageEnemy(e, U * 0.6, { silent: true }); }
+      p.drones += 3; run.ultFx = { t: 10, drones: 3 };
+      sfx("zap");
+    } else if (id === "plague") {
+      healPlayer(p.maxHp * 0.4);
+      for (let i = 0; i < 12; i++) fxGas(p.x + rand(-120, 120), p.y + rand(-120, 120), 2, "120,255,140", 1.6);
+      for (const e of near(210)) e.poisonDps = Math.max(e.poisonDps || 0, U * 0.45);
+      p.lifesteal += 0.05; run.ultFx = { t: 6, lifesteal: 0.05 };
+    } else if (id === "gold") {
+      fxRing(p.x, p.y, 220, "255,212,92", 0.5); fxFlash(p.x, p.y, 260, "255,220,120", 0.3); fxSparks(p.x, p.y, 0, Math.PI, 30, "255,212,92", 380);
+      for (const e of near(230)) { const a = Math.atan2(e.y - p.y, e.x - p.x); if (!e.def.boss) { e.kvx += Math.cos(a) * 320; e.kvy += Math.sin(a) * 320; } damageEnemy(e, U * 1.8, { aoe: true }); }
+      run.greed *= 2; run.ultFx = { t: 10, greed: 2 };
+      sfx("coin");
+    } else {
+      // Präzisionsschuss: Strahl quer über das Feld, trifft alles auf der Linie
+      const cx = Math.cos(p.aim), cy = Math.sin(p.aim), len = 1100;
+      beams.push({ x1: p.x, y1: p.y, x2: p.x + cx * len, y2: p.y + cy * len, life: 0.5, max: 0.5, w: 22, rgb: "255,232,140" });
+      for (const e of enemies) {
+        if (e.dead || e.spawnT > 0 || e.under) continue;
+        const ex = e.x - p.x, ey = e.y - p.y, along = ex * cx + ey * cy;
+        if (along < 0 || along > len) continue;
+        if (Math.abs(ex * -cy + ey * cx) < e.r + 14) { e.hitAng = p.aim; damageEnemy(e, U * 5, {}); fxSparks(e.x, e.y, p.aim, 0.6, 6, "255,232,140", 320); }
+      }
+      punchX -= cx * 4; punchY -= cy * 4;
+    }
+  }
+  function drawThrows() {
+    for (const q of throws) {
+      const def = THROWABLES[q.kind], k = Math.min(1, q.t / q.T);
+      ctx.strokeStyle = `rgba(${def.rgb},${0.45 + 0.3 * Math.sin(run.time * 20)})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r, 0, TAU); ctx.stroke();
+      ctx.fillStyle = `rgba(${def.rgb},0.14)`; ctx.beginPath(); ctx.arc(q.x1, q.y1, q.r * k, 0, TAU); ctx.fill();
+      drawShadow(q.x, q.y, 7);
+      ctx.save(); ctx.translate(q.x, q.y - q.z); ctx.rotate(q.spin);
+      ctx.fillStyle = def.col; ctx.beginPath(); ctx.ellipse(0, 0, 6, 8, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.fillRect(-2, -6, 2, 6);
+      if (q.kind === "molotov") { ctx.fillStyle = "#ffb733"; ctx.beginPath(); ctx.arc(0, -10, 3.5, 0, TAU); ctx.fill(); }
+      ctx.restore();
+    }
+    for (const q of decoys) {
+      const blink = Math.sin(run.time * 26) > 0, k = Math.max(0, q.t / q.max);
+      ctx.strokeStyle = `rgba(255,120,60,${0.25 + 0.25 * Math.sin(run.time * 6)})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(q.x, q.y, 60 + 40 * (1 - k), 0, TAU); ctx.stroke();
+      ctx.fillStyle = "#c8202a"; ctx.fillRect(q.x - 3, q.y - 10, 6, 14);
+      ctx.fillStyle = blink ? "#fff2a0" : "#ff8a3a"; ctx.beginPath(); ctx.arc(q.x, q.y - 12, 2.6, 0, TAU); ctx.fill();
+    }
+    for (const s2 of strikes) {
+      const k = 1 - Math.max(0, s2.t / s2.max);
+      ctx.strokeStyle = `rgba(255,90,40,${0.5 + 0.4 * Math.sin(run.time * 26)})`; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(s2.x, s2.y, s2.r, 0, TAU); ctx.stroke();
+      ctx.fillStyle = "rgba(255,90,40,0.18)"; ctx.beginPath(); ctx.arc(s2.x, s2.y, s2.r * k, 0, TAU); ctx.fill();
+    }
+  }
+  function drawActionButtons() {
+    if (!run || !run.belt) return;
+    const sel = run.beltSel, n = run.belt[sel] || 0, def = THROWABLES[sel];
+    // Wurfwaffe
+    const tb = throwBtn(), ready = n > 0 && run.throwCd <= 0;
+    ctx.save();
+    ctx.globalAlpha = ready ? 0.92 : 0.5;
+    ctx.fillStyle = "rgba(6,9,8,0.6)"; ctx.beginPath(); ctx.arc(tb.x, tb.y, tb.r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = n > 0 ? `rgb(${def.rgb})` : "#5a625c"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(tb.x, tb.y, tb.r - 2, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - run.throwCd / THROW_CD)); ctx.stroke();
+    drawIcon(ctx, def.icon, tb.x, tb.y - 2, 24, n > 0 ? "#e8efe9" : "#6a746c");
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = n > 0 ? "#ffd45c" : "#7a847c"; ctx.beginPath(); ctx.arc(tb.x + tb.r * 0.72, tb.y - tb.r * 0.72, 10, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#0b1408"; ctx.font = FONT_UI(12, 800); ctx.textAlign = "center"; ctx.fillText(String(n), tb.x + tb.r * 0.72, tb.y - tb.r * 0.72 + 4.5);
+    ctx.font = FONT_UI(9); ctx.fillStyle = "#b3bfb6"; ctx.fillText(pad.on ? "RB" : touchSeen ? "" : "Q", tb.x, tb.y + 20);
+    // Art wechseln
+    const ks = beltKinds();
+    if (ks.length > 1) {
+      const sb = swapBtn(), nx = THROWABLES[ks[(ks.indexOf(sel) + 1) % ks.length]];
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = "rgba(6,9,8,0.7)"; ctx.beginPath(); ctx.arc(sb.x, sb.y, sb.r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "rgba(255,212,92,0.7)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(sb.x, sb.y, sb.r - 1, 0, TAU); ctx.stroke();
+      drawIcon(ctx, nx.icon, sb.x, sb.y, 16, "#d8e0da");
+      if (!touchSeen) { ctx.font = FONT_UI(8); ctx.fillStyle = "#b3bfb6"; ctx.fillText(pad.on ? "LB" : "R", sb.x - sb.r - 6, sb.y + 3); }
+    }
+    // Spezialfähigkeit
+    const ub = ultBtn(), full = run.ult >= 100, sp = heroSpecial(save.skin);
+    ctx.globalAlpha = full ? 1 : 0.6;
+    if (full) { ctx.fillStyle = `rgba(168,255,62,${0.18 + 0.14 * Math.sin(run.time * 6)})`; ctx.beginPath(); ctx.arc(ub.x, ub.y, ub.r + 8, 0, TAU); ctx.fill(); }
+    ctx.fillStyle = "rgba(6,9,8,0.6)"; ctx.beginPath(); ctx.arc(ub.x, ub.y, ub.r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = full ? "#a8ff3e" : "#4aa8ff"; ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.arc(ub.x, ub.y, ub.r - 2, -Math.PI / 2, -Math.PI / 2 + TAU * run.ult / 100); ctx.stroke();
+    drawIcon(ctx, sp.icon, ub.x, ub.y - 3, 25, full ? "#ffffff" : "#8a958c");
+    ctx.font = FONT_UI(9); ctx.fillStyle = full ? "#a8ff3e" : "#b3bfb6";
+    ctx.fillText(full ? (pad.on ? "Y" : touchSeen ? tr("SPEZIAL") : "E") : `${Math.floor(run.ult)} %`, ub.x, ub.y + 21);
+    ctx.restore();
+  }
+
   // Explosiv-Elite: kurze Zündschnur am Todesort, dann Detonation
   let fuses = [];
   function updateFuses(dt) {
@@ -3367,6 +3697,7 @@
       ...(mod ? [{ icon: "weapons", name: tr("Waffen-Mod"), desc: `${tr(mod.name)}: ${tr(mod.desc)}`, rarity: "epic", onPick: () => { giveMod(mod); afterSupply(); } }] : []),
       { icon: "firstAid", name: tr("Erste Hilfe"), desc: tr("Heilt 50% deiner max. HP"), rarity: "common", onPick: () => { healPlayer(player.maxHp * 0.5); afterSupply(); } },
       { icon: "ammo", name: tr("Waffenkiste"), desc: tr("Wähle einen zusätzlichen Skill"), rarity: "epic", onPick: () => { run.pendingPicks++; afterSupply(); } },
+      { icon: "grenade", name: tr("Sprengstoffkiste"), desc: tr("+2 {a} und 2 zufällige Wurfwaffen", { a: tr(THROWABLES[run.beltSel || "frag"].name) }), rarity: "rare", onPick: () => { addThrow(run.beltSel || "frag", 2, player.x, player.y - 40); addThrow(null, 1, player.x, player.y - 64); addThrow(null, 1, player.x, player.y - 88); afterSupply(); } },
     ], null, tr("Versorgungskiste geöffnet"));
   }
   function afterSupply() {
@@ -3799,6 +4130,7 @@
     updateFuses(dt);
     updateHazards(dt);
     updateLobs(dt);
+    updateThrowables(dt);
     updateParcels(dt);
     updateFireworks(dt);
     updateBullets(dt);
@@ -4094,6 +4426,7 @@
     get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; },
     get orbs() { return orbs; }, get particles() { return particles; }, get corpses() { return corpses; }, get pieces() { return pieces; },
     get zaps() { return zaps; }, get ambient() { return ambient; }, get roomLights() { return roomLights; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; },
+    get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwStyle: (k) => THROWABLES[k],
     get weather() { return curWeather(); }, get fest() { return curFest(); },
     get cityId() { return run && run.mode === "campaign" && run.room > 0 ? curCity().id : ""; }, get district() { return run && run.mode === "campaign" && run.room > 0 ? curDistrict()[0] : ""; },
     get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },
@@ -4267,6 +4600,7 @@
     drawActors();
     drawProjectilesBase();
     drawLobs();
+    drawThrows();
     drawParcels();
     drawParticlesBase();
     // 2) Licht & Dunkelheit
@@ -4331,7 +4665,7 @@
     drawScreenFx();
     drawHud();
     drawObjectiveHud();
-    if (state === "play" || state === "pick") drawDashButton();
+    if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); }
     drawCombo();
     // Kinobalken bei Boss-Auftritt und Boss-Tod
     const bossIntro = enemies.some((e) => e.def.boss && e.spawnT > 0);
@@ -5823,7 +6157,8 @@
     const hl = heroLevel(sk.id);
     $("menuHeroPerk").textContent = hl > 1 ? `${tr(perk.name)} · ${tr("St. {n}", { n: hl })}` : tr(perk.name);
     const bs = BOOSTS.filter((q) => save.boosts[q.id] > 0).map((q) => `${q.name} ×${save.boosts[q.id]}`).join(" · ");
-    $("menuSkin").innerHTML = `<b>${tr(perk.name)}:</b> ${tr(perk.desc)}${bs ? `  ·  ${tr("Boosts")}: ${bs}` : ""}`;
+    const hsp = heroSpecial(sk.id);
+    $("menuSkin").innerHTML = `<b>${tr(perk.name)}:</b> ${tr(perk.desc)}  ·  <b>${tr("Spezial")}:</b> ${tr(hsp.name)}${bs ? `  ·  ${tr("Boosts")}: ${bs}` : ""}`;
     $("menuSkin").classList.remove("hidden");
     for (const b of document.querySelectorAll("#heroPicker .pk-arrow")) b.disabled = ownedSkins().length < 2;
     for (const b of document.querySelectorAll("#weaponPicker .pk-arrow")) b.disabled = ownedWeapons().length < 2;
@@ -6292,6 +6627,27 @@
     hunter: { name: "Kopfgeldjäger", desc: "+20 % Schaden gegen Elites und Bosse · doppeltes Kopfgeld", apply: (p) => { p.bigGame = 1.2; } },
   };
   const heroPerk = (id) => HERO_PERKS[id] || HERO_PERKS.soldier;
+  // v2.9 Spezialfähigkeit je Held: lädt über Abschüsse (Elites viel, Bosse sofort voll), Taste E / Knopf / Gamepad Y
+  const HERO_SPECIALS = {
+    soldier: { name: "Luftschlag", icon: "airstrike", desc: "Sieben Bomben entlang deiner Blickrichtung" },
+    police: { name: "Taser-Salve", icon: "chainZap", desc: "Blitze springen auf bis zu zehn Zombies und betäuben sie" },
+    firefighter: { name: "Feuerwalze", icon: "fireRing", desc: "Flammenring um dich, schleudert Zombies weg und setzt sie in Brand" },
+    hazmat: { name: "Giftnebel", icon: "toxCloud", desc: "Giftwolke um dich, hebt Schwächungen auf, heilt 15 %" },
+    ninja: { name: "Schattenklingen", icon: "ninjaStar", desc: "Springt blitzschnell durch die sechs nächsten Zombies" },
+    cyber: { name: "Drohnenschwarm", icon: "missileSwarm", desc: "EMP betäubt alles in der Nähe, dazu drei Drohnen für 10 s" },
+    plague: { name: "Heilnebel", icon: "healMist", desc: "Heilt 40 %, vergiftet Zombies, 6 s Lebensraub" },
+    gold: { name: "Goldregen", icon: "goldRain", desc: "Goldene Druckwelle und 10 s doppelte Münzen" },
+    hunter: { name: "Präzisionsschuss", icon: "railShot", desc: "Strahl quer über das Feld mit gewaltigem Schaden" },
+  };
+  const heroSpecial = (id) => HERO_SPECIALS[id] || HERO_SPECIALS.soldier;
+  // v2.9 Wurfwaffen: im Shop freischalten, eine davon startet im Gürtel; Nachschub von Elites, Bossen, je Bezirk und aus der Versorgungskiste
+  const THROWABLES = {
+    frag: { name: "Splittergranate", icon: "grenade", desc: "Explodiert beim Aufprall – hoher Flächenschaden", price: 0, r: 92, rgb: "255,190,90", col: "#3f5a2a", c3: [0.25, 0.36, 0.17] },
+    molotov: { name: "Molotow-Cocktail", icon: "molotov", desc: "Flammenteppich, der Zombies 5 s lang verbrennt", price: 1200, r: 82, rgb: "255,140,40", col: "#2f6a3a", c3: [0.2, 0.45, 0.25] },
+    flash: { name: "Blendgranate", icon: "flashbang", desc: "Betäubt alle Zombies im Umkreis für 2,5 s", price: 1600, r: 135, rgb: "235,240,255", col: "#8a949b", c3: [0.6, 0.64, 0.68] },
+    frost: { name: "Frostgranate", icon: "iceBomb", desc: "Friert Zombies ein – Gefrorene nehmen 30 % mehr Schaden", price: 2200, r: 112, rgb: "130,220,255", col: "#3a8ac8", c3: [0.3, 0.62, 0.9] },
+    decoy: { name: "Silvesterböller", icon: "firecracker", desc: "Lockt Zombies 3 s lang an, dann knallt es viermal", price: 2800, r: 66, rgb: "255,90,60", col: "#c8202a", c3: [0.8, 0.1, 0.1] },
+  };
   // v2.6 Heldenstufen: jeder Einsatz bringt dem gewählten Helden Erfahrung (Punkte / 50); je Stufe +2 % Leben und +1 % Schaden
   const HERO_LV_MAX = 10;
   const heroLevel = (id) => Math.min(HERO_LV_MAX, 1 + Math.floor(Math.sqrt(((save.heroXp || {})[id] || 0) / 60)));
@@ -6403,6 +6759,7 @@
     else if (webgl) Render3D.stopPreview();
     if (shopTab === "skins") renderSkinList(list);
     else if (shopTab === "boosts") renderBoostList(list);
+    else if (shopTab === "throw") renderThrowList(list);
     else renderOffers(list);
     const iapReady = Platform.iap.available;
     $("shopNote").textContent = Platform.isNative
@@ -6447,6 +6804,21 @@
     list.appendChild(iapRow(medal(gold.icon, "gold", "big"), gold.name, gold.desc, `<span class="tag gold">${tr("PREMIUM")}</span>`, gold.iap, save.skins.gold));
     for (const it of SHOP_ITEMS) list.appendChild(iapRow(medal(it.icon, "amber", "big"), it.name, it.desc, it.tag ? `<span class="tag amber">${it.tag}</span>` : "", it.id, it.owned && it.owned()));
   }
+  function renderThrowList(list) {
+    for (const [id, q] of Object.entries(THROWABLES)) {
+      const owned = !!save.throwOwned[id], active = save.throwSel === id;
+      const ic = medal(q.icon, owned ? "toxic" : "steel");
+      const row = owned
+        ? shopRow(ic, tr(q.name), `${tr(q.desc)}${active ? ` · ${tr("Startet im Gürtel")}` : ""}`, active ? `<span class="tag">${tr("Aktiv")}</span>` : "", active ? I("check") : tr("Ausrüsten"), !active, () => { save.throwSel = id; persist(); sfx("coin"); renderShop(); }, active ? "" : "primary")
+        : shopRow(ic, tr(q.name), tr(q.desc), "", coinAmt(q.price), save.coins >= q.price, () => {
+          if (save.coins < q.price) return;
+          save.coins -= q.price; save.throwOwned[id] = true; save.throwSel = id;
+          persist(); sfx("level"); toast(`${tr(q.name)}!`, q.icon); renderShop();
+        }, "amber");
+      if (active) row.classList.add("active");
+      list.appendChild(row);
+    }
+  }
   function renderSkinList(list) {
     for (const q of SKINS) {
       const owned = !!save.skins[q.id], active = save.skin === q.id;
@@ -6454,8 +6826,8 @@
       let row;
       if (q.iap && !owned) row = iapRow(ic, q.name, q.desc, `<span class="tag gold">${tr("PREMIUM")}</span>`, q.iap, false);
       else if (q.pass && !owned) row = shopRow(ic, q.name, q.desc, `<span class="tag amber">${tr("SAISONPASS")}</span>`, `${I("pass")}${tr("Zum Pass")}`, true, () => { renderPass(); show(ui.pass); });
-      else if (owned) row = shopRow(ic, q.name, `${tr(heroPerk(q.id).name)}: ${tr(heroPerk(q.id).desc)}${active ? ` · ${tr("Ausgerüstet")}` : ""}`, active ? `<span class="tag">${tr("Aktiv")}</span>` : "", active ? I("check") : tr("Ausrüsten"), !active, () => { save.skin = q.id; previewSkin = q.id; persist(); sfx("coin"); renderShop(); }, active ? "" : "primary");
-      else row = shopRow(ic, q.name, `${tr(heroPerk(q.id).name)}: ${tr(heroPerk(q.id).desc)}`, "", coinAmt(q.price), save.coins >= q.price, () => {
+      else if (owned) row = shopRow(ic, q.name, `${tr(heroPerk(q.id).name)}: ${tr(heroPerk(q.id).desc)} · ${tr("Spezial")}: ${tr(heroSpecial(q.id).name)}${active ? ` · ${tr("Ausgerüstet")}` : ""}`, active ? `<span class="tag">${tr("Aktiv")}</span>` : "", active ? I("check") : tr("Ausrüsten"), !active, () => { save.skin = q.id; previewSkin = q.id; persist(); sfx("coin"); renderShop(); }, active ? "" : "primary");
+      else row = shopRow(ic, q.name, `${tr(heroPerk(q.id).name)}: ${tr(heroPerk(q.id).desc)} · ${tr("Spezial")}: ${tr(heroSpecial(q.id).name)}`, "", coinAmt(q.price), save.coins >= q.price, () => {
         if (save.coins < q.price) return;
         save.coins -= q.price; save.skins[q.id] = true; save.skin = q.id; previewSkin = q.id;
         persist(); sfx("level"); toast(`${q.name}!`, q.icon); renderShop();
@@ -6800,5 +7172,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

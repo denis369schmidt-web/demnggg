@@ -1,6 +1,6 @@
 {
   "name": "outbreak-hero-mobile",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "private": true,
   "description": "Android-Build (Capacitor) für Escape from Germany",
   "type": "module",

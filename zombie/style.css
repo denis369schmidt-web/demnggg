@@ -225,7 +225,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .btn.mode small { font-size: 10px; letter-spacing: 0.06em; }
 
 /* Dock */
-.dock { width: 100%; max-width: 380px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+.dock { width: 100%; max-width: 380px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 10px; }
 .dock-btn {
   display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 9px; border: 0; cursor: pointer; color: var(--text);
   background: linear-gradient(180deg, rgba(42, 54, 50, 0.95), rgba(22, 29, 27, 0.95)); clip-path: var(--chamfer); --cut: 8px;
@@ -891,3 +891,27 @@ canvas { display: block; background: #121a16; touch-action: none; }
   .dialog.report .stats > span, .dialog.report .stats > b { padding-top: 5px; padding-bottom: 5px; }
   .dialog.report .btn.share { min-height: 40px; }
 }
+
+/* =====================================================================
+   v2.6 Ausrüstung, Dienstgrad, fünf Dock-Knöpfe
+   ===================================================================== */
+.dock { gap: 6px; }
+.dock-btn { position: relative; min-width: 0; }
+.dock-btn span { font-size: 11px; letter-spacing: 0.04em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dock-btn .badge { position: absolute; top: 4px; right: 8px; }
+.gear-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.gear-slot { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; text-align: center; min-width: 0; --cut: 8px; clip-path: var(--chamfer); background: linear-gradient(180deg, #1c2624, #121917); box-shadow: inset 0 0 0 1px var(--line); }
+.gear-slot.r1 { box-shadow: inset 0 0 0 1.5px #2b88c2; }
+.gear-slot.r2 { box-shadow: inset 0 0 0 1.5px #7d4fd0; }
+.gear-slot.r3 { box-shadow: inset 0 0 0 1.5px #e7b53a, 0 0 14px rgba(231, 181, 58, 0.3); }
+.gear-slot small { font: 700 10px/1 var(--f-ui); letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); }
+.gear-slot b { font: 800 13px/1.1 var(--f-ui); color: var(--text); overflow-wrap: anywhere; }
+.gear-slot em { font: 600 12px/1 var(--f-ui); font-style: normal; color: var(--toxic); }
+.gear-hint { margin: 10px 2px 8px; font: 600 12px/1.3 var(--f-ui); color: var(--text-3); text-align: center; }
+#gearBag .item .acts { display: flex; flex-direction: column; gap: 6px; }
+.rank-title { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 10px; padding: 10px 12px; --cut: 8px; clip-path: var(--chamfer); background: linear-gradient(180deg, rgba(42, 62, 34, 0.9), rgba(15, 24, 13, 0.92)); box-shadow: inset 0 0 0 1px rgba(168, 255, 62, 0.45); }
+.rank-title > .ic { font-size: 26px; color: var(--toxic); grid-row: span 2; }
+.rank-title small { display: block; font: 700 10px/1 var(--f-ui); letter-spacing: 0.14em; text-transform: uppercase; color: var(--toxic); }
+.rank-title b { display: block; margin-top: 3px; font: 800 18px/1 var(--f-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text); }
+.rank-title em { grid-column: 2 / -1; font: 600 11px/1.2 var(--f-ui); font-style: normal; color: var(--text-2); }
+.rank-title strong { grid-row: 1; grid-column: 3; font: 800 12px/1 var(--f-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber); }

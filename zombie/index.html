@@ -95,6 +95,7 @@
         <button class="dock-btn" id="shopBtn"><i data-ic="shop"></i><span>Shop</span></button>
         <button class="dock-btn" id="armoryBtn"><i data-ic="weapons"></i><span data-i18n>Waffen</span></button>
         <button class="dock-btn" id="talentBtn"><i data-ic="talents"></i><span data-i18n>Talente</span></button>
+        <button class="dock-btn" id="gearBtn"><i data-ic="heartArmor"></i><span data-i18n>Ausrüstung</span><b class="badge hidden" id="gearBadge">!</b></button>
         <button class="dock-btn" id="ranksBtn"><i data-ic="trophy"></i><span data-i18n>Bestenliste</span></button>
       </nav>
       <a class="btn ghost store-cta hidden" id="storeCta" target="_blank" rel="noopener" data-i18n>Jetzt im Play Store holen</a>
@@ -230,6 +231,7 @@
           <button class="set-row" id="fpsBtn"></button>
           <button class="set-row" id="cineBtn"></button>
           <button class="set-row" id="motionBtn"></button>
+          <button class="set-row" id="shakeBtn"></button>
           <button class="set-row hidden" id="privacyOptsBtn"></button>
           <a class="set-row" id="privacyLink" target="_blank" rel="noopener"></a>
         </div>
@@ -304,11 +306,22 @@
       </div>
     </section>
 
+    <!-- ============ v2.6 Ausrüstung ============ -->
+    <section id="gear" class="overlay screen hidden">
+      <header class="bar">
+        <button class="back" data-back aria-label="Zurück"></button>
+        <div class="title"><small data-i18n>BEUTE</small><h2 data-i18n>Ausrüstung</h2></div>
+        <div class="wallet"><i class="coin" data-ic="coin"></i><b class="coinsVal">0</b></div>
+      </header>
+      <div class="body"><div class="gear-slots" id="gearSlots"></div><p class="gear-hint" id="gearHint"></p><div id="gearBag" class="list"></div></div>
+    </section>
+
     <!-- ============ v2.5 Bestenliste ============ -->
     <section id="ranks" class="overlay modal hidden">
       <div class="dialog ranks">
         <button class="x" data-back aria-label="Schließen"></button>
         <div class="dlg-head"><small class="kicker" data-i18n>BESTENLISTE</small><h2 data-i18n>Deine Top 10</h2></div>
+        <div class="rank-title" id="rankTitle"></div>
         <div class="order-box" id="dailyOrder"></div>
         <ol class="rank-list" id="rankList"></ol>
         <button class="btn primary" id="rankShare"><span data-i18n>Bestwert teilen</span></button>

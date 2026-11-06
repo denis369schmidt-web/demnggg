@@ -1,120 +1,120 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-11-05",
-  "generatedAt": "2026-11-05T13:12:29.589Z",
+  "edition": "2026-11-06",
+  "generatedAt": "2026-11-06T12:57:40.133Z",
   "attempt": 0,
   "theme": {
-    "id": "nachtschicht",
-    "title": "Nachtschicht",
-    "mood": "fokussiert",
-    "description": "Wenn die Stadt schläft, läuft dein Mic heiß.",
+    "id": "spiegelbild",
+    "title": "Spiegelbild",
+    "mood": "ehrlich",
+    "description": "Selbstreflexion ohne Filter – die härteste Battle-Runde.",
     "keywords": [
-      "Nacht",
-      "Neonlicht",
-      "Schatten",
-      "Stille",
-      "Mond",
-      "Session"
+      "Spiegel",
+      "Wahrheit",
+      "Zweifel",
+      "Stolz",
+      "Wandel",
+      "Kern"
     ]
   },
   "challenge": {
-    "id": "storytelling-run",
-    "title": "Storytelling-Run",
-    "task": "Erzähle in 12 Bars eine Mini-Geschichte über „Nachtschicht“ mit Anfang, Wendepunkt und Schlusszeile.",
-    "constraint": "Jede vierte Zeile beginnt mit demselben Wort.",
+    "id": "leiser-lauter",
+    "title": "Leiser & Lauter",
+    "task": "Performe 12 Bars über „Spiegelbild“ und steigere die Dynamik von Flüstern bis volle Energie.",
+    "constraint": "Mindestens zwei Zeilen enthalten einen Doppelreim.",
     "bars": 12,
-    "bpm": 93
+    "bpm": 92
   },
   "wordPacks": [
     {
-      "id": "nachtschicht-thema",
-      "title": "Thema: Nachtschicht",
+      "id": "spiegelbild-thema",
+      "title": "Thema: Spiegelbild",
       "words": [
-        "Neonlicht",
-        "Stille",
-        "Session",
-        "Mond",
-        "Schatten",
-        "Nacht"
+        "Kern",
+        "Zweifel",
+        "Wandel",
+        "Spiegel",
+        "Wahrheit",
+        "Stolz"
       ]
     },
     {
-      "id": "2026-11-05-bilder",
+      "id": "2026-11-06-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Leuchtturm",
-        "Neonlicht",
-        "Echo",
-        "Silhouette",
-        "Asphalt",
-        "Funken"
+        "Spiegel",
+        "Tinte",
+        "Fundament",
+        "Tresor",
+        "Anker",
+        "Magnet"
       ]
     },
     {
-      "id": "2026-11-05-energie",
+      "id": "2026-11-06-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Mut",
-        "Zweifel",
-        "Geduld",
-        "pushen",
-        "gleiten",
-        "tauchen"
+        "Feuer",
+        "Hunger",
+        "Balance",
+        "grinden",
+        "kreisen",
+        "landen"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Blick",
-      "b": "Genick"
+      "a": "Fluss",
+      "b": "Schluss"
     },
     {
-      "a": "Feuer",
-      "b": "teuer"
+      "a": "Hand",
+      "b": "Verstand"
     },
     {
-      "a": "Nebel",
-      "b": "Pegel"
-    },
-    {
-      "a": "Licht",
-      "b": "Sicht"
+      "a": "Boden",
+      "b": "Methoden"
     },
     {
       "a": "Leben",
       "b": "geben"
     },
     {
-      "a": "Takt",
-      "b": "exakt"
+      "a": "Nebel",
+      "b": "Pegel"
+    },
+    {
+      "a": "Blick",
+      "b": "Genick"
     }
   ],
   "starterBars": [
     {
-      "line": "Der Tag war Session, doch die Nacht macht ihn zu meinem",
-      "syllables": 13
+      "line": "Mit Satellit in der Stimme klingt selbst Stille wie ein Ruf",
+      "syllables": 15
     },
     {
-      "line": "Zwischen Neonlicht und Tresor find ich Raum für den Reim",
-      "syllables": 13
+      "line": "Spiegel im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 11
     },
     {
-      "line": "Neonlicht in der Hand und der Zweifel wird kleiner",
+      "line": "Spiegel als Kompass und die Snare gibt den Takt",
       "syllables": 12
     },
     {
-      "line": "Session im Blick, ich bleib ruhig auf der Eins",
-      "syllables": 11
+      "line": "Zwischen Stolz und Satellit find ich Raum für den Reim",
+      "syllables": 13
     }
   ],
   "flowTip": {
-    "id": "doppelreim-leiter",
-    "title": "Doppelreim-Leiter",
-    "tip": "Übe Reimketten: ein Wort, dann zwei Silben, dann drei. Mehrsilbige Reime heben jeden Flow an."
+    "id": "aufnahme-check",
+    "title": "Der 24-Stunden-Check",
+    "tip": "Höre jede Aufnahme erst am nächsten Tag erneut. Frische Ohren erkennen Timing-Fehler sofort."
   },
-  "quote": "Wer den Takt fühlt, muss ihn nicht mehr zählen.",
+  "quote": "Große Hooks entstehen oft aus kleinen Selbstgesprächen.",
   "beatPreset": {
-    "bpm": 93,
+    "bpm": 92,
     "pattern": "Boom Bap",
     "energy": "mittel"
   },
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-11-05",
+    "latestEdition": "2026-11-06",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

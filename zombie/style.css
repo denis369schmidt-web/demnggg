@@ -1264,3 +1264,29 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .gear-slot.r3 { box-shadow: inset 0 -4px 0 #c29a3c, 0 2px 0 rgba(0, 0, 0, 0.3); }
 .gear-slot em { color: #4f6a18; }
 .picker.wpn small #menuWeaponLv, .picker .pk-main small span { color: #8a2f0a !important; }
+
+/* ---------------------------------------------------------------- v3.0 Mini-Spiele: Bühne im Klemmbrett */
+.mini-dlg { gap: 8px; }
+.mini-dlg .dlg-ic .ic { width: 22px; height: 22px; }
+.mini-stage {
+  position: relative; width: 100%; max-width: 320px; margin: 0 auto; aspect-ratio: 320 / 340; border-radius: 3px; overflow: hidden;
+  box-shadow: 0 0 0 3px #3a2c1c, 0 0 0 4px rgba(255, 255, 255, 0.15), 0 6px 14px rgba(0, 0, 0, 0.5);
+  transform: rotate(-0.4deg);
+}
+.mini-stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.mini-result { display: grid; gap: 8px; }
+.mini-tier { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 2px dashed rgba(60, 50, 30, 0.35); border-radius: 3px; transform: rotate(-0.8deg); }
+.mini-tier b { display: block; font-family: var(--f-stencil); font-weight: 400; font-size: 22px; letter-spacing: 0.06em; color: var(--ink); }
+.mini-tier small { font-family: "Special Elite", var(--f-ui); color: var(--ink-3); }
+.mini-tier.gold b { color: #9a6a06; }
+.mini-tier.red b { color: #a63526; }
+.mini-loot { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.mini-loot li {
+  display: flex; align-items: center; gap: 8px; padding: 5px 8px; color: var(--ink); font-weight: 700;
+  background: repeating-linear-gradient(180deg, transparent 0 19px, rgba(60, 90, 140, 0.18) 19px 20px);
+  border-left: 3px solid #b8452a;
+}
+.mini-loot li .ic { width: 18px; height: 18px; color: #6e5236; flex: none; }
+.mini-dlg.done .sub { display: none; }
+.mini-dlg.done .mini-stage { max-width: 180px; }
+.mini-dlg.done .mini-loot li { padding: 3px 8px; font-size: 14px; }

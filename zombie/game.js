@@ -298,7 +298,7 @@
     menu: $("menu"), armory: $("armory"), talents: $("talents"), skillPick: $("skillPick"),
     pause: $("pause"), over: $("over"), pauseBtn: $("pauseBtn"),
     shop: $("shop"), daily: $("daily"), settings: $("settings"), revive: $("revive"),
-    missions: $("missions"), pass: $("pass"), patrol: $("patrol"), codex: $("codex"), route: $("route"), ranks: $("ranks"), gear: $("gear"),
+    missions: $("missions"), pass: $("pass"), patrol: $("patrol"), codex: $("codex"), route: $("route"), ranks: $("ranks"), gear: $("gear"), mini: $("mini"),
   };
   const overlays = Object.values(ui).filter((o) => o !== ui.pauseBtn);
   // UI-Bausteine: Icons aus dem Sprite, Münzbeträge, Sechseck-Medaillons, Fortschritts-Pips
@@ -533,6 +533,9 @@
   // Hindernisse dürfen den Gang nicht zustellen
   const clearGates = (obs) => obs.filter((o) => !gates.some((g) => o.y < g.y + g.h / 2 + 55 && o.y + o.h > g.y - g.h / 2 - 55 && (g.side < 0 ? o.x < L + 120 : o.x + o.w > R - 120)));
   let supplyCrate = null;
+  // v3.0 Mini-Spiel-Station im Versorgungsbezirk (Schießbude, Hau den Lukas, Funkcode – je Stadt im Wechsel)
+  let miniSpot = null, miniLive = false;
+  const MINI_ORDER = ["lukas", "schiess", "funk"];
   let floorCanvas = null;
   let floorCtx = null;
   let glossCtx = null; // Glanzkarte des Bodens: frisches Blut glänzt in 3D nass im Licht
@@ -645,7 +648,7 @@
     enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; pools = []; hazards = []; zaps = []; lobs = []; beams = []; fireworks = []; parcels = []; volleyQueue.length = 0;
     roomFade = 1;
     run.doorK = 0;
-    supplyCrate = null;
+    supplyCrate = null; miniSpot = null;
     run.obj = null; run.event = null; fuses = []; hordeQ = [];
     throws = []; decoys = []; strikes = []; run.blink = null; killCam = null; lastKill = null; wetSpots = [];
     player.vx = player.vy = 0;
@@ -675,9 +678,11 @@
     const city = curCity(), [dName] = curDistrict();
     if (isSupply) {
       supplyCrate = { x: W / 2, y: (T + B) / 2, r: 26, bob: 0 };
+      if (run.mode === "campaign" && window.MiniGames) miniSpot = { kind: MINI_ORDER[cityIdx() % MINI_ORDER.length], x: L + 96, y: (T + B) / 2 + 40, r: 30, bob: 0, done: false, armed: true };
       showBanner(dName.toUpperCase(), `${city.name} · ${tr("Versorgung – öffne die Kiste")}`);
     } else if (isBoss) {
       const boss = spawnEnemy(isBoss, W / 2, T + 180);
+      if (run.bossIntel) { boss.hp *= 0.85; run.bossIntel = false; addText(W / 2, T + 120, tr("FUNKAUFKLÄRUNG: Boss geschwächt"), "#7aff8a", 16, true); }
       // v2.6 Bedrohung 4+: Elite-Eskorte, 5: der Boss ist zäher und wird früher rasend
       if ((run.threat || 0) >= 4) for (const dx of [-110, 110]) { const t = pick(wavePool().filter((q) => !ZOMBIES[q].pack && q !== "nest")); makeElite(spawnEnemy(t, W / 2 + dx, T + 230), 1); }
       if ((run.threat || 0) >= 5) { boss.hp *= 1.3; boss.maxHp *= 1.3; }
@@ -1241,7 +1246,7 @@
       if (edge(5) || edge(7)) requestThrow();
       if (edge(4)) cycleThrow();
       if (edge(3)) requestUlt();
-    } else {
+    } else if (!(state === "mini" && miniLive)) {
       pad.navT -= dt;
       const ax = Math.abs(pad.x) > Math.abs(pad.y) ? pad.x : pad.y;
       if (Math.abs(ax) > 0.6) { if (pad.navT <= 0) { padNav(ax > 0 ? 1 : -1); pad.navT = 0.22; } } else pad.navT = 0;
@@ -1361,6 +1366,12 @@
       sfx("door");
       nextRoom();
       return;
+    }
+    // v3.0 Mini-Spiel-Station: draufgehen startet das Spiel
+    if (miniSpot && !miniSpot.done) {
+      const d = Math.sqrt(dist2(p, miniSpot));
+      if (d > miniSpot.r + p.r + 30) miniSpot.armed = true;
+      else if (miniSpot.armed && d < miniSpot.r + p.r) { miniSpot.armed = false; openMini(miniSpot); return; }
     }
     // Versorgungskiste
     if (supplyCrate && !supplyCrate.opened && Math.sqrt(dist2(p, supplyCrate)) < p.r + supplyCrate.r + 4) {
@@ -3888,6 +3899,60 @@
     resumePlay();
   }
 
+  // ---------------------------------------------------------- v3.0 Mini-Spiele
+  function openMini(spot) {
+    const MG = window.MiniGames, info = MG.info[spot.kind];
+    state = "mini"; joy.active = false; keys.clear();
+    $("miniTitle").textContent = tr(info.title);
+    $("miniSub").textContent = tr(info.sub);
+    $("miniIc").innerHTML = I(info.icon);
+    $("miniResult").classList.add("hidden");
+    $("miniBtns").classList.remove("hidden");
+    ui.mini.querySelector(".mini-dlg").classList.remove("done");
+    show(ui.mini);
+    MG.run(spot.kind, $("miniCanvas"), {
+      tr, sound: (k, a) => { if (save.sound && window.GameAudio) GameAudio.mini(k, a); },
+      done: (res) => miniDone(spot, res),
+    });
+    miniLive = false;
+    if (window.GameAudio) GameAudio.ui("confirm");
+  }
+  function miniRewards(kind, tier) {
+    const ci = run.mode === "campaign" ? cityIdx() : 0, base = Math.round((30 + 15 * ci) * (run.greed || 1));
+    const out = [{ icon: "coin", text: tr("+{n} Münzen", { n: [Math.round(base * 0.4), base, Math.round(base * 1.6), Math.round(base * 2.4)][tier] }), apply: (n) => { run.coins += n; }, n: [Math.round(base * 0.4), base, Math.round(base * 1.6), Math.round(base * 2.4)][tier] }];
+    if (tier >= 2) out.push({ icon: "grenade", text: tr("2 Wurfwaffen"), apply: () => { addThrow(null, 1, player.x, player.y - 40); addThrow(null, 1, player.x, player.y - 64); } });
+    if (tier >= 2) out.push({ icon: "firstAid", text: tr("Heilt 30 % Leben"), apply: () => healPlayer(player.maxHp * 0.3) });
+    if (tier >= 3) {
+      if (kind === "schiess") { const m = rollMod(); if (m) out.push({ icon: "weapons", text: `${tr("Waffen-Mod")}: ${tr(m.name)}`, apply: () => giveMod(m) }); }
+      else if (kind === "lukas") out.push({ icon: "upgrade", text: tr("Kraftpaket: +10 % max. Leben"), apply: () => { const a = Math.round(player.maxHp * 0.1); player.maxHp += a; player.hp += a; } });
+      else out.push({ icon: "miniRadio", text: tr("Funkaufklärung: nächster Boss −15 % Leben"), apply: () => { run.bossIntel = true; } });
+      out.push({ icon: "star", text: tr("Spezialfähigkeit sofort bereit"), apply: () => { run.ult = 100; } });
+    }
+    return out;
+  }
+  function miniDone(spot, res) {
+    miniLive = false;
+    const list = miniRewards(spot.kind, res.tier);
+    const names = ["Niete", "Bronze", "Silber", "Gold"], tones = ["red", "bronze", "steel", "gold"];
+    const el = $("miniResult");
+    el.innerHTML = `<div class="mini-tier ${tones[res.tier]}">${medal(res.tier ? "trophy" : "close", res.tier === 3 ? "gold" : res.tier ? "steel" : "red")}<div><b>${tr(names[res.tier])}</b><small>${tr("Ergebnis")}: ${res.score}</small></div></div>`
+      + `<ul class="mini-loot">${list.map((r) => `<li>${I(r.icon)}<span>${r.text}</span></li>`).join("")}</ul>`
+      + `<button class="btn primary" id="miniTake">${tr("Belohnung einsacken")}</button>`;
+    el.classList.remove("hidden");
+    ui.mini.querySelector(".mini-dlg").classList.add("done");
+    $("miniTake").onclick = () => {
+      for (const r of list) r.apply(r.n);
+      spot.done = true;
+      track("minigames");
+      if (res.tier === 3) track("minigold");
+      window.MiniGames.stop();
+      if (window.GameAudio) GameAudio.ui("confirm");
+      resumePlay();
+    };
+  }
+  $("miniGo").onclick = () => { $("miniBtns").classList.add("hidden"); miniLive = true; window.MiniGames.start(); if (window.GameAudio) GameAudio.ui("confirm"); };
+  $("miniSkip").onclick = () => { window.MiniGames.stop(); miniLive = false; if (window.GameAudio) GameAudio.ui("back"); resumePlay(); };
+
   function resumePlay() {
     if (run.pendingPicks > 0) { openSkillPick(); return; }
     state = "play";
@@ -4329,6 +4394,7 @@
     updateBullets(dt);
     updateOrbs(dt);
     if (supplyCrate) supplyCrate.bob += dt;
+    if (miniSpot) miniSpot.bob += dt;
     if (run.cleared) run.doorK = Math.min(1, (run.doorK || 0) + dt * 1.8);
     if (run.comboT > 0 && (run.comboT -= dt) <= 0) run.combo = 0;
     if (run.rage > 0) run.rage -= dt;
@@ -4620,7 +4686,7 @@
     get orbs() { return orbs; }, get particles() { return particles; }, get corpses() { return corpses; }, get pieces() { return pieces; },
     get zaps() { return zaps; }, get ambient() { return ambient; }, get roomLights() { return roomLights; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; },
     get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwStyle: (k) => THROWABLES[k],
-    get killCam() { return killCam; }, get gates() { return gates; },
+    get killCam() { return killCam; }, get gates() { return gates; }, get miniSpot() { return miniSpot && !miniSpot.done ? miniSpot : null; },
     get weather() { return curWeather(); }, get fest() { return curFest(); },
     get cityId() { return run && run.mode === "campaign" && run.room > 0 ? curCity().id : ""; }, get district() { return run && run.mode === "campaign" && run.room > 0 ? curDistrict()[0] : ""; },
     get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },
@@ -4788,6 +4854,7 @@
     drawAmbient(false);
     drawOrbs();
     if (supplyCrate) drawSupply();
+    if (miniSpot && !miniSpot.done) drawMiniSpot();
     drawCorpses();
     if (run.obj && (run.obj.kind === "hold" || run.obj.kind === "relay") && !run.obj.done) drawZone(run.obj, { cx: run.obj.x, cy: run.obj.y, rx: run.obj.r, ry: run.obj.r });
     drawLobTargets();
@@ -4860,6 +4927,7 @@
     drawHud();
     drawObjectiveHud();
     if (state === "play") drawGateWarnings();
+    drawMiniLabel();
     if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); }
     drawCombo();
     // Kinobalken bei Boss-Auftritt und Boss-Tod
@@ -5114,6 +5182,40 @@
     g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
   }
 
+  // v3.0 Mini-Spiel-Station von oben: Bude mit Streifendach bzw. Funkkiste, pulsierender Ring
+  function drawMiniSpot() {
+    const s = miniSpot, t = run.time, k = 0.5 + 0.5 * Math.sin(t * 4);
+    ctx.save();
+    ctx.strokeStyle = `rgba(255,212,92,${0.35 + 0.35 * k})`; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.lineDashOffset = -t * 20;
+    ctx.beginPath(); ctx.ellipse(s.x, s.y + 10, s.r + 10, (s.r + 10) * 0.6, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    drawShadow(s.x, s.y + 10, 26);
+    if (s.kind === "funk") {
+      ctx.fillStyle = "#4a3a24"; ctx.fillRect(s.x - 22, s.y - 6, 44, 26);
+      ctx.fillStyle = "#5a6440"; ctx.fillRect(s.x - 17, s.y - 22, 34, 24); ctx.fillStyle = "#3a4228"; ctx.fillRect(s.x - 17, s.y + 0, 34, 4);
+      ctx.fillStyle = "#061006"; ctx.fillRect(s.x - 12, s.y - 18, 16, 9); ctx.fillStyle = `rgba(122,255,138,${0.5 + 0.5 * k})`; ctx.fillRect(s.x - 10, s.y - 14, 12, 1.5);
+      ctx.strokeStyle = "#2a2a22"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s.x + 12, s.y - 20); ctx.lineTo(s.x + 22, s.y - 46); ctx.stroke();
+      ctx.fillStyle = "#c81e1e"; ctx.beginPath(); ctx.arc(s.x + 22, s.y - 46, 2.5, 0, TAU); ctx.fill();
+    } else {
+      ctx.fillStyle = "#6a4426"; ctx.fillRect(s.x - 28, s.y - 10, 56, 26);
+      for (let i = 0; i < 7; i++) { ctx.fillStyle = i % 2 ? "#f0e6d0" : "#c8201a"; ctx.fillRect(s.x - 30 + i * (60 / 7), s.y - 26, 60 / 7 + 0.5, 16); }
+      ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.fillRect(s.x - 30, s.y - 12, 60, 3);
+      for (let i = 0; i < 5; i++) { ctx.fillStyle = (Math.floor(t * 4) + i) % 3 ? "#fff3c4" : "#6a5a3a"; ctx.beginPath(); ctx.arc(s.x - 24 + i * 12, s.y - 8, 1.8, 0, TAU); ctx.fill(); }
+      if (s.kind === "lukas") { ctx.fillStyle = "#e8c21a"; ctx.fillRect(s.x - 3, s.y - 58, 6, 34); ctx.fillStyle = "#c89a2a"; ctx.beginPath(); ctx.arc(s.x, s.y - 60, 6, 0, TAU); ctx.fill(); }
+      else { for (let i = 0; i < 3; i++) { ctx.fillStyle = "#8fb06a"; ctx.beginPath(); ctx.arc(s.x - 14 + i * 14, s.y + 2, 4, 0, TAU); ctx.fill(); } }
+    }
+    ctx.restore();
+  }
+  // Schild über der Station (2D und 3D)
+  function drawMiniLabel() {
+    if (!miniSpot || miniSpot.done || state !== "play") return;
+    const s = miniSpot, q = scr(s.x, s.y, 74), txt = tr(window.MiniGames.info[s.kind].title).toUpperCase();
+    ctx.save(); ctx.font = FONT_UI(13, 800); const w = ctx.measureText(txt).width + 34, y = q.y - 6 + Math.sin(s.bob * 3) * 2;
+    ctx.fillStyle = "rgba(20,16,10,0.85)"; ctx.fillRect(q.x - w / 2, y - 12, w, 22);
+    ctx.fillStyle = "#ffd45c"; ctx.fillRect(q.x - w / 2, y - 12, 3, 22);
+    ctx.textAlign = "left"; ctx.fillStyle = "#ffe2a3"; ctx.fillText(txt, q.x - w / 2 + 24, y + 4);
+    drawIcon(ctx, window.MiniGames.info[s.kind].icon, q.x - w / 2 + 14, y, 15, "#ffd45c");
+    ctx.restore();
+  }
   function drawSupply() {
     const s = supplyCrate;
     drawShadow(s.x, s.y + 8, 24);
@@ -6101,7 +6203,7 @@
     // Nichts zeichnen, was niemand sieht: undurchsichtige Bildschirme (Shop, Arsenal …) verdecken alles,
     // in der Pause steht das Bild still – die GPU darf schlafen
     if (curOverlay && curOverlay.classList.contains("screen")) return;
-    if (state === "pause") { if (pauseFrames++ > 1) return; } else pauseFrames = 0;
+    if (state === "pause" || state === "mini") { if (pauseFrames++ > 1) return; } else pauseFrames = 0; // Mini-Spiel: Hintergrund steht still
     if (save.shakeFx === false) { shake = 0; punchX = punchY = punchFov = 0; } // Barrierefreiheit: kein Wackeln
     draw();
     if (!splashGone) { splashGone = true; requestAnimationFrame(() => Platform.hideSplash()); } // nach dem ersten echten Bild
@@ -7367,7 +7469,7 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), layout: (list = [], withBarrier = false) => {
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), get miniSpot() { return miniSpot; }, mini: (kind = "lukas") => { const s = { kind, x: player.x, y: player.y, r: 30, bob: 0, done: false, armed: false }; miniSpot = s; openMini(s); return s; }, layout: (list = [], withBarrier = false) => {
     const fest = run.mode === "campaign" && run.room > 0 ? curCity().fest : "";
     const obs = (withBarrier ? genBarrier() : []).concat(list.map((q) => { const sz = OBSTACLE_SIZE[q.kind]; let w = q.w || sz[0], h = q.h || sz[2]; if (q.vert && !q.w) [w, h] = [h, w]; const o = { seed: randi(1, 1e9), fest, vert: !!q.vert, ...q, w, h }; if (DESTRUCT[q.kind]) o.hp = DESTRUCT[q.kind]; return o; }));
     obstacles = clearGates(obs); floorCanvas = makeFloor();

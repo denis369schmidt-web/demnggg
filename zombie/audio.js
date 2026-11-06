@@ -553,8 +553,24 @@ window.GameAudio = (() => {
   function setMuted(m) { muted = m; if (ready) master.gain.setTargetAtTime(m ? 0 : 0.95, ctx.currentTime, 0.05); }
   function setMusic(on) { musicOn = on; if (ready) musicBus.gain.setTargetAtTime(on ? 0.5 : 0, ctx.currentTime, 0.2); }
 
+  // v3.0 Mini-Spiele: Korkenknall, Holz-Klack, Glocke, Funktöne, Fanfare
+  const MINI_TONES = [392, 523.25, 659.25, 783.99];
+  function mini(kind, arg = 0) {
+    if (!ready || muted) return;
+    const t = ctx.currentTime + 0.005, out = sfxBus;
+    if (kind === "shot") { const bp = filter("bandpass", 1500, 0.9); bp.connect(out); const e = env(t, 0.001, 0.5, 0.07); e.connect(bp); noiseSrc(t, 0.09, e); const e2 = env(t, 0.001, 0.3, 0.05); e2.connect(out); osc("square", 420, t, 0.05, e2).frequency.exponentialRampToValueAtTime(140, t + 0.05); }
+    else if (kind === "pop") { const e = env(t, 0.001, 0.4, 0.12); e.connect(out); osc("triangle", 980, t, 0.12, e).frequency.exponentialRampToValueAtTime(420, t + 0.1); const e2 = env(t + 0.04, 0.002, 0.18, 0.1); e2.connect(out); osc("square", 260, t + 0.04, 0.1, e2); }
+    else if (kind === "buzz") { const lp = filter("lowpass", 900, 1); lp.connect(out); const e = env(t, 0.005, 0.35, 0.36); e.connect(lp); osc("sawtooth", 110, t, 0.36, e); osc("sawtooth", 116, t, 0.36, e); }
+    else if (kind === "thud") { const e = env(t, 0.001, 0.8, 0.28); e.connect(out); osc("sine", 120, t, 0.28, e).frequency.exponentialRampToValueAtTime(38, t + 0.25); const lp = filter("lowpass", 600, 0.7); lp.connect(out); const e2 = env(t, 0.001, 0.4, 0.12); e2.connect(lp); noiseSrc(t, 0.14, e2); }
+    else if (kind === "rise") { const e = env(t, 0.01, 0.16, 0.42); e.connect(out); osc("triangle", 180, t, 0.45, e).frequency.exponentialRampToValueAtTime(220 + arg * 9, t + 0.42); }
+    else if (kind === "bell") { for (const [f, v, d] of [[1318, 0.32, 1.6], [2637, 0.14, 1.1], [3951, 0.08, 0.7], [1975, 0.1, 1.3]]) { const e = env(t, 0.002, v, d); e.connect(out); if (verb) e.connect(verb); osc("sine", f, t, d, e); } }
+    else if (kind === "tone") { const f = MINI_TONES[arg % 4], e = env(t, 0.008, 0.26, 0.32, 0.06); e.connect(out); if (verb) e.connect(verb); osc("square", f, t, 0.36, e); osc("sine", f / 2, t, 0.36, e); }
+    else if (kind === "ok") { [784, 1047].forEach((f, i) => { const e = env(t + i * 0.08, 0.004, 0.2, 0.18); e.connect(out); osc("triangle", f, t + i * 0.08, 0.2, e); }); }
+    else if (kind === "win") { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => { const e = env(t + i * 0.09, 0.005, 0.24, i === 3 ? 0.6 : 0.16); e.connect(out); if (verb) e.connect(verb); osc("square", f, t + i * 0.09, i === 3 ? 0.6 : 0.18, e); osc("triangle", f * 2, t + i * 0.09, 0.16, e); }); }
+    else if (kind === "lose") { [392, 330, 262].forEach((f, i) => { const e = env(t + i * 0.16, 0.005, 0.22, 0.22); e.connect(out); osc("triangle", f, t + i * 0.16, 0.24, e); }); }
+  }
   return {
-    init, update, setTheme, stinger, thunder, ui, gun, foot, meat, setMuted, setMusic,
+    init, update, setTheme, stinger, thunder, ui, gun, foot, meat, setMuted, setMusic, mini,
     get ready() { return ready; },
     sfxOut: () => (ready ? sfxBus : ctx && ctx.destination),
     get debug() { return { song: { bpm: BPM[S.mode], section: SONG[S.mode] && SONG[S.mode].prog.length > 1 ? Math.floor(bar / 8) % 2 : 0 }, rotor: !!rotor, S: { ...S }, cut: musicTone ? Math.round(musicTone.frequency.value) : 0, layers: Object.fromEntries(LAYERS.map((k) => [k, layer[k] ? +layer[k].gain.value.toFixed(3) : 0])), bar, step }; },

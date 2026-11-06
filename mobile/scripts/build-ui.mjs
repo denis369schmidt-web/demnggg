@@ -61,6 +61,8 @@ const ICONS = {
   // Skins
   soldier: "brodie-helmet", police: "riot-shield", firefighter: "fire-axe", hazmat: "gas-mask", ninja: "ninja-head",
   cyber: "cyborg-face", plagueDoc: "plague-doctor-profile", crown: "crown", hunter: "radioactive",
+  // v3.0 Mini-Spiele
+  miniShoot: "target-shot", miniLukas: "hammer-drop", miniRadio: "walkie-talkie", fair: "carnival-mask",
   // v2.9 Wurfwaffen und Spezialfähigkeiten
   grenade: "grenade", molotov: "molotov", flashbang: "flash-grenade", iceBomb: "ice-bomb", firecracker: "dynamite",
   airstrike: "bombing-run", chainZap: "chain-lightning", fireRing: "fire-ring", toxCloud: "poison-gas", ninjaStar: "ninja-star",

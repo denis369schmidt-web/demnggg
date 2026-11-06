@@ -3066,6 +3066,49 @@ void main() {
     crate.rotation.y = Math.sin(s.bob) * 0.15;
   }
 
+  // v3.0 Mini-Spiel-Station: Jahrmarktbude (Schießbude), Bude mit Lukas-Säule oder Feldfunkgerät auf einer Kiste
+  let miniM = null, miniKind = null;
+  function syncMini(w) {
+    const s = w.miniSpot;
+    if (!s) { if (miniM) miniM.visible = false; return; }
+    if (!miniM || miniKind !== s.kind) {
+      if (miniM) { scene.remove(miniM); disposeTree(miniM); }
+      miniKind = s.kind; miniM = group();
+      if (s.kind === "funk") {
+        miniM.add(mesh(box(44, 20, 34), new T3.MeshLambertMaterial({ map: obstacleTexture("crate"), normalMap: obsNormal("crate") }), 0, 10, 0));
+        miniM.add(mesh(box(36, 26, 22), slam("#5a6440"), 0, 33, 0));
+        miniM.add(mesh(box(38, 3, 24), slam("#3a4228"), 0, 47.5, 0));
+        miniM.add(mesh(box(18, 3, 3), slam("#2a2e20"), 0, 52, 0));
+        miniM.add(mesh(box(16, 9, 1), sbasic("#3aff6a"), -6, 36, 11.4));
+        for (const x of [7, 13]) miniM.add(mesh(cyl(1.8, 1.8, 2, 8), slam("#1a1a14"), x, 36, 11.6).rotateX(Math.PI / 2));
+        const ant = mesh(cyl(0.7, 0.7, 60, 5), slam("#2a2a22"), 16, 74, -6); ant.rotation.z = -0.25; miniM.add(ant);
+        miniM.add(mesh(ico(1.8, 0), sbasic("#ff3a24"), 23.5, 103, -6));
+      } else {
+        const wood = slam("#6a4426");
+        miniM.add(mesh(box(64, 26, 26), wood, 0, 13, 6));
+        miniM.add(mesh(box(66, 3, 30), slam("#8a5a30"), 0, 27.5, 6));
+        miniM.add(mesh(box(64, 56, 4), slam("#5a1418"), 0, 28, -10));
+        for (const x of [-31, 31]) miniM.add(mesh(box(3, 64, 3), wood, x, 32, 18));
+        for (let k = 0; k < 8; k++) { const rf = mesh(box(8, 3, 34), slam(k % 2 ? "#f0e6d0" : "#c8201a"), -28 + k * 8, 66, 4); rf.rotation.x = 0.28; miniM.add(rf); }
+        for (let k = 0; k < 7; k++) miniM.add(mesh(ico(1.7, 0), sbasic("#fff3c4"), -27 + k * 9, 60, 20));
+        if (s.kind === "lukas") {
+          ["#2f7a3a", "#5a9a2a", "#e8c21a", "#e88a1a", "#c81e1e"].forEach((c, i) => miniM.add(mesh(box(8, 22, 6), slam(c), 44, 12 + i * 22, 0)));
+          miniM.add(mesh(cone(8, 10, 10), slam("#c89a2a"), 44, 128, 0));
+          miniM.add(mesh(box(10, 5, 8), slam("#e8e0d0"), 44, 20, 4));
+          miniM.add(mesh(box(26, 6, 20), slam("#4a4a4a"), 44, 3, 0));
+        } else {
+          for (let k = 0; k < 3; k++) {
+            miniM.add(mesh(box(10, 16, 1.5), slam("#4f6b3a"), -18 + k * 18, 40, -7));
+            miniM.add(mesh(cyl(5, 5, 1.5, 10), slam("#8fb06a"), -18 + k * 18, 52, -7).rotateX(Math.PI / 2));
+          }
+        }
+      }
+      bakeStatic(miniM); cast(miniM); scene.add(miniM);
+    }
+    miniM.visible = true;
+    miniM.position.set(s.x, 0, s.y);
+  }
+
   function syncInstanced(w, t) {
     // Schatten unter Figuren (in hoher Qualität werfen Figuren echte Schatten)
     let n = 0;
@@ -3422,6 +3465,7 @@ void main() {
       bill(addB, D.W / 2, 30, D.T, 70, CELL.glow, "140,255,74", dk * 0.45);
     }
     if (w.supplyCrate) bill(addB, w.supplyCrate.x, 30, w.supplyCrate.y, 60, CELL.glow, "140,255,74", 0.35 + 0.12 * Math.sin(t * 4));
+    if (w.miniSpot) { const m = w.miniSpot, k = 0.5 + 0.5 * Math.sin(t * 4); flat(floorB, m.x, 1.5, m.y + 10, 0, m.r + 14, m.r + 14, CELL.ring, "255,212,92", 0.35 + 0.35 * k); bill(addB, m.x, 40, m.y, 50, CELL.glow, "255,200,110", 0.18 + 0.08 * k); }
     // Umgebungspartikel
     const th = w.theme;
     for (const a of w.ambient) {
@@ -3658,6 +3702,7 @@ void main() {
     for (const l of w.roomLights) lightCands.push([l.x, 50, l.y, l.rgb, (1.3 + 0.2 * Math.sin(t * 3 + l.x)) * glowLevel(l, t), l.r * 1.8, 2]);
     if ((w.run.doorK || 0) > 0) lightCands.push([D.W / 2, 40, D.T + 10, "140,255,74", 1.6 * w.run.doorK, 220, 3]);
     if (w.supplyCrate) lightCands.push([w.supplyCrate.x, 50, w.supplyCrate.y, "140,255,74", 1.6, 220, 3]);
+    if (w.miniSpot) lightCands.push([w.miniSpot.x, 60, w.miniSpot.y + 10, "255,200,110", 1.5, 200, 3]);
     if (w.menuCam) {
       for (const o of w.obstacles) if (o.kind === "car") { const red = Math.floor(t * 4) % 2 === 0; lightCands.push([o.x + o.w / 2, 52, o.y + o.h / 2, red ? "255,40,40" : "60,110,255", 3.4, 320, 6]); }
       if (heli) lightCands.push([heliState.tx, 60, heliState.tz, "215,228,255", 3.6, 240, 9]); // Suchscheinwerfer
@@ -3858,6 +3903,7 @@ void main() {
     syncDoor(w);
     syncObstacles();
     syncSupply(w);
+    syncMini(w);
     syncHeli(w, t);
     if (room && room.clock) { room.clock.minute.rotation.z = -t * 0.6; room.clock.hour.rotation.z = -t * 0.05; }
     syncInstanced(w, t);

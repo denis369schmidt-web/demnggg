@@ -300,6 +300,19 @@
       </div>
     </section>
 
+    <!-- ============ v3.0 Mini-Spiel ============ -->
+    <section id="mini" class="overlay modal mini hidden">
+      <div class="dialog mini-dlg">
+        <div class="dlg-head"><span class="dlg-ic" id="miniIc"></span><h2 id="miniTitle">Mini-Spiel</h2><p class="sub" id="miniSub"></p></div>
+        <div class="mini-stage"><canvas id="miniCanvas" width="320" height="340"></canvas></div>
+        <div id="miniResult" class="mini-result hidden"></div>
+        <div class="dlg-row" id="miniBtns">
+          <button class="btn primary" id="miniGo" data-i18n>Los!</button>
+          <button class="btn ghost sm" id="miniSkip" data-i18n>Später</button>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ Einsatzbericht (Game Over) ============ -->
     <section id="over" class="overlay modal hidden">
       <div class="dialog report">
@@ -346,6 +359,7 @@
   <script src="render3d.js"></script>
   <script src="platform.js"></script>
   <script src="audio.js"></script>
+  <script src="minigames.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

@@ -1991,21 +1991,23 @@ void main() {
     if (burn && Math.random() < 0.75) return; // Flammen treffen dauernd – nur ab und zu ein Brandfleck
     const H = M.height || 40, mp = P.mpos, col = P.colAttr.array, n = P.litCount;
     const d = (h.ang ?? e.hitAng ?? 0) + Math.PI - (e.face || 0), dx = Math.cos(d), dz = Math.sin(d);
-    const yh = H * (h.crit && !burn ? 0.86 : 0.4 + Math.random() * 0.32);
-    // Oberfläche zum Schützen hin: Vertex mit der größten Ausdehnung in Schussrichtung nahe der Trefferhöhe
+    const yh = H * (h.crit && !burn ? 0.86 : 0.55 + Math.random() * 0.25);
+    // Oberfläche zum Schützen hin: Vertex mit der größten Ausdehnung in Schussrichtung nahe der Trefferhöhe –
+    // leicht nach oben gezogen, damit die steile Spielkamera die Wunde auch sieht (Schultern, Oberkörper)
     let best = -1, bs = -1e9;
     for (let i = 0; i < n; i++) {
-      const v = mp[i * 3] * dx + mp[i * 3 + 2] * dz - Math.abs(mp[i * 3 + 1] - yh) * 1.6;
+      const v = mp[i * 3] * dx + mp[i * 3 + 2] * dz + mp[i * 3 + 1] * 0.3 - Math.abs(mp[i * 3 + 1] - yh) * 1.3;
       if (v > bs) { bs = v; best = i; }
     }
     if (best < 0) return;
     const cx = mp[best * 3], cy = mp[best * 3 + 1], cz = mp[best * 3 + 2];
-    const rad = H * (h.kind === "blast" ? 0.2 : h.big || h.crit ? 0.13 : 0.09), r2 = rad * rad, run = rad * 3;
-    if (burn) woundC.setRGB(0.035, 0.028, 0.024); else woundC.set((e.def && e.def.blood) || "#6e0f12").multiplyScalar(0.85);
+    const rad = H * (h.kind === "blast" ? 0.22 : h.big || h.crit ? 0.15 : 0.11), r2 = rad * rad, run = rad * 3;
+    // frisches Blut leuchtender als die getrocknete Bodenfarbe, sonst verschwindet es auf dunklem Stoff
+    if (burn) woundC.setRGB(0.035, 0.028, 0.024); else { woundC.set((e.def && e.def.blood) || "#6e0f12").multiplyScalar(2.2); woundC.r = Math.min(0.55, woundC.r); }
     for (let i = 0; i < n; i++) {
       const j = i * 3, ox = mp[j] - cx, oy = mp[j + 1] - cy, oz = mp[j + 2] - cz, q = ox * ox + oy * oy + oz * oz;
       let k = 0;
-      if (q < r2) k = Math.min(0.94, (1 - Math.sqrt(q) / rad) * (1.2 + 0.4 * Math.sin(i * 12.9898)));
+      if (q < r2) k = Math.min(0.96, (1 - Math.sqrt(q) / rad) * (1.5 + 0.5 * Math.sin(i * 12.9898)));
       else if (!burn && oy < 0 && oy > -run && ox * ox + oz * oz < r2 * 0.1) k = 0.55 * (1 + oy / run); // herablaufendes Blut
       if (k <= 0) continue;
       col[j] += (woundC.r - col[j]) * k; col[j + 1] += (woundC.g - col[j + 1]) * k; col[j + 2] += (woundC.b - col[j + 2]) * k;

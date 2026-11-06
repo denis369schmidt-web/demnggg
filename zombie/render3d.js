@@ -792,6 +792,19 @@ void main() {
           g.fillStyle = "#000"; g.fillRect(0, 0, 128, 128);
           for (let y = 9; y < 128; y += 14) for (let x = 14; x < 120; x += 18) { g.fillStyle = (x * 3 + y) % 5 ? "#3cff7a" : "#ff4a3a"; g.fillRect(x, y, 5, 4); }
           break;
+        case "container": {
+          // Wellblech: helle Grundfarbe (wird je Container eingefärbt), Rippen, Rostläufer, Kennzeichnung
+          g.fillStyle = "#e4e4e0"; g.fillRect(0, 0, 128, 128);
+          for (let x = 0; x < 128; x += 8) {
+            g.fillStyle = "rgba(255,255,255,0.35)"; g.fillRect(x, 0, 2, 128);
+            g.fillStyle = "rgba(0,0,0,0.22)"; g.fillRect(x + 5, 0, 3, 128);
+          }
+          g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(0, 0, 128, 5); g.fillRect(0, 123, 128, 5);
+          for (let k = 0; k < 9; k++) { const x = R() * 128, l = 10 + R() * 40; const gr = g.createLinearGradient(0, 4, 0, 4 + l); gr.addColorStop(0, "rgba(120,60,20,0.7)"); gr.addColorStop(1, "rgba(120,60,20,0)"); g.fillStyle = gr; g.fillRect(x, 4, 1.5 + R() * 2, l); }
+          g.save(); g.fillStyle = "rgba(255,255,255,0.85)"; g.font = "bold 10px monospace"; g.fillText("OGXU 204811", 8, 22); g.font = "bold 7px monospace"; g.fillText("45G1  MAX 30480 KG", 8, 32); g.restore();
+          grunge(g, 128, 128, R, { grain: 0.06, scratches: 14, dirt: 5, edge: 0.35, rust: 8 });
+          break;
+        }
         case "mattress":
           g.fillStyle = "#e8eef0"; g.fillRect(0, 0, 128, 128);
           // gesteppte Rauten
@@ -1008,11 +1021,89 @@ void main() {
         g.add(mesh(box(W, 4, Hd + 1), slam("#f4f4f0"), 0, 42, 0));
         break;
       }
+      case "sandsack": {
+        // v3.0 Sandsack-Stellung: drei Lagen versetzter, praller Säcke
+        const len = o.vert ? Hd : W, wid = o.vert ? W : Hd, c = group(); if (o.vert) c.rotation.y = Math.PI / 2; g.add(c);
+        const cols = ["#9a8a62", "#8a7a52", "#a8986e", "#7f7250"].map(slam);
+        const n = Math.max(3, Math.round(len / 22)), sl = len / n;
+        for (let layer = 0; layer < 3; layer++) {
+          const off = layer % 2 ? sl / 2 : 0, cnt = layer % 2 ? n - 1 : n, rows = layer < 2 ? 2 : 1;
+          for (let row = 0; row < rows; row++) for (let i = 0; i < cnt; i++) {
+            const sx = -len / 2 + off + (i + 0.5) * sl, sz = rows === 2 ? (row - 0.5) * wid * 0.5 : 0;
+            const sack = mesh(ico(1, 1), cols[Math.floor(R() * 4)], sx + (R() - 0.5) * 1.5, 4 + layer * 7.2, sz + (R() - 0.5) * 1.2);
+            sack.scale.set(sl * 0.54, 4.4, (rows === 2 ? wid * 0.27 : wid * 0.36));
+            sack.rotation.y = (R() - 0.5) * 0.12;
+            c.add(add(sack));
+          }
+        }
+        break;
+      }
+      case "bus": {
+        // v3.0 Buswrack: Linienbus mit Fensterband, Zielanzeige, verkohltem Dach
+        const len = o.vert ? Hd : W, wid = o.vert ? W : Hd, c = group(); if (o.vert) c.rotation.y = Math.PI / 2; g.add(c);
+        const paint = slam(R() < 0.5 ? "#ddd3b4" : "#d4d8d0"), glass = smat("glass", () => new T3.MeshLambertMaterial({ color: 0x1b2733, emissive: 0x0a1018 }));
+        c.add(add(mesh(box(len, 36, wid), paint, 0, 26, 0)));
+        c.add(mesh(box(len + 0.8, 13, wid + 0.8), glass, 0, 33, 0));
+        for (let x = -len / 2 + 14; x < len / 2 - 8; x += 24) c.add(mesh(box(2.4, 13.4, wid + 1.2), paint, x, 33, 0));
+        c.add(mesh(box(len + 1, 3, wid + 1), slam("#b0201a"), 0, 18, 0));
+        c.add(add(mesh(box(len - 4, 3, wid - 4), slam("#c4c6c0"), 0, 45.5, 0)));
+        c.add(add(mesh(box(len * 0.2, 6, wid * 0.62), slam("#9aa0a4"), -len * 0.2, 50, 0)));
+        c.add(mesh(box(len * 0.22, 0.6, wid * 0.5), slam("#3a3028"), len * 0.2, 47.2, (R() - 0.5) * 6));
+        c.add(mesh(box(len * 0.12, 0.7, wid * 0.3), slam("#241c16"), len * 0.22, 47.4, (R() - 0.5) * 4));
+        for (const ax of [-0.34, 0.3]) for (const sz of [-1, 1]) { const wh = mesh(cyl(9, 9, 6, 12), slam("#151515"), ax * len, 9, sz * (wid / 2 - 3)); wh.rotation.x = Math.PI / 2; c.add(wh); }
+        c.add(mesh(box(1, 6, wid * 0.62), sbasic("#ffa21a"), len / 2 + 0.6, 39, 0));
+        for (const sz of [-1, 1]) { c.add(mesh(box(1.2, 4, 7), sbasic("#ffe9a8"), len / 2 + 0.6, 14, sz * wid * 0.34)); c.add(mesh(box(1.2, 4, 6), sbasic("#b3261e"), -len / 2 - 0.6, 14, sz * wid * 0.34)); }
+        break;
+      }
+      case "bauzaun": {
+        // v3.0 Bauzaun: Rahmen, feines Gitter (durchsichtig), rot-weiße Kunststofffüße, Warnbanner
+        const len = o.vert ? Hd : W, c = group(); if (o.vert) c.rotation.y = Math.PI / 2; g.add(c);
+        const metal = slam("#b8bcc0"), foot = slam("#c8441a"), H2 = 46;
+        const n = Math.max(2, Math.round(len / 38)), pl = len / n;
+        for (let i = 0; i <= n; i++) {
+          const x0 = -len / 2 + i * pl;
+          c.add(add(mesh(box(2, H2, 2), metal, x0, H2 / 2 + 3, 0)));
+          c.add(add(mesh(box(9, 5, 14), foot, x0, 2.5, 0)));
+        }
+        for (const y of [4, H2 + 3]) c.add(add(mesh(box(len, 1.8, 1.8), metal, 0, y, 0)));
+        const meshT = tex("fence:mesh", 64, 64, (gg) => { gg.strokeStyle = "rgba(200,206,212,0.95)"; gg.lineWidth = 1.4; for (let k = 2; k < 64; k += 8) { gg.beginPath(); gg.moveTo(k, 0); gg.lineTo(k, 64); gg.stroke(); gg.beginPath(); gg.moveTo(0, k); gg.lineTo(64, k); gg.stroke(); } }, true);
+        const pg = new T3.PlaneGeometry(len, H2 - 2), uv = pg.attributes.uv;
+        for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * len / 24, uv.getY(k) * (H2 - 2) / 24);
+        const net = mesh(pg, smat("fence:mat", () => new T3.MeshLambertMaterial({ map: meshT, transparent: true, alphaTest: 0.35, side: T3.DoubleSide, depthWrite: true })), 0, H2 / 2 + 3, 0);
+        c.add(net);
+        const bn = tex("fence:banner", 128, 24, (gg) => { gg.fillStyle = "#f0ece0"; gg.fillRect(0, 0, 128, 24); for (let k = -24; k < 128; k += 16) { gg.fillStyle = "#c8201a"; gg.beginPath(); gg.moveTo(k, 24); gg.lineTo(k + 8, 24); gg.lineTo(k + 32, 0); gg.lineTo(k + 24, 0); gg.fill(); } gg.fillStyle = "#f0ece0"; gg.fillRect(20, 5, 88, 14); gg.fillStyle = "#1a1a1a"; gg.font = "bold 11px sans-serif"; gg.textAlign = "center"; gg.fillText("SPERRGEBIET", 64, 16); });
+        c.add(mesh(box(Math.min(len * 0.6, 70), 11, 0.6), new T3.MeshLambertMaterial({ map: bn }), (R() - 0.5) * len * 0.3, 30, 1.4));
+        break;
+      }
+      case "feuertonne": {
+        // v3.0 Feuertonne: rostige Tonne, glühende Löcher, Glut obenauf (Flammen kommen als Partikel)
+        const r0 = Math.min(W, Hd) / 2 - 1;
+        add(mesh(cyl(r0, r0 * 0.94, 34, 12), slam("#5a3a24"), 0, 17, 0));
+        for (const ry of [6, 17, 28]) g.add(mesh(cyl(r0 * 1.05, r0 * 1.05, 1.6, 12), slam("#3a2a1e"), 0, ry, 0));
+        g.add(mesh(cyl(r0 * 0.86, r0 * 0.86, 1, 12), sbasic("#ff7a1a"), 0, 33.8, 0));
+        g.add(mesh(ico(r0 * 0.5, 0), sbasic("#ffc060"), 0, 33, 0));
+        for (let i = 0; i < 6; i++) { const a = i * 1.05 + R() * 0.4, hy = 10 + (i % 3) * 7; const h = mesh(box(2.6, 2.6, 1), sbasic(i % 2 ? "#ffb040" : "#ff7a1a"), Math.cos(a) * (r0 + 0.2), hy, Math.sin(a) * (r0 + 0.2)); h.rotation.y = -a + Math.PI / 2; g.add(h); }
+        break;
+      }
+      case "container": {
+        // v3.0 Schiffscontainer: Wellblech, Eckbeschläge, Türseite mit Verriegelungsstangen
+        const len = o.vert ? Hd : W, wid = o.vert ? W : Hd, c = group(); if (o.vert) c.rotation.y = Math.PI / 2; g.add(c);
+        const col = ["#a8321e", "#2a5a8a", "#c8861a", "#3a6a3a", "#6a6e72"][Math.floor(R() * 5)];
+        const body = new T3.MeshLambertMaterial({ map: obstacleTexture("container"), normalMap: obsNormal("container"), color: col });
+        c.add(add(mesh(box(len, 58, wid), body, 0, 29, 0)));
+        const dark = slam("#222426");
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) for (const y of [2.5, 55.5]) c.add(mesh(box(5, 5, 5), dark, sx * (len / 2 - 2), y, sz * (wid / 2 - 2)));
+        const door = slam(mix3(col, -0.25));
+        c.add(mesh(box(1, 52, wid - 6), door, len / 2 + 0.5, 29, 0));
+        for (const zz of [-0.32, -0.12, 0.12, 0.32]) c.add(mesh(box(1.4, 50, 1.4), slam("#9aa0a4"), len / 2 + 1.1, 29, zz * wid));
+        break;
+      }
       default:
         add(mesh(box(W, 30, Hd), slam("#555555"), 0, 15, 0));
     }
     return g;
   }
+  const mix3 = (hex, k) => { const c = new T3.Color(hex); if (k < 0) c.multiplyScalar(1 + k); else c.lerp(new T3.Color(1, 1, 1), k); return `#${c.getHexString()}`; };
 
   // GPU-Speicher freigeben: alles außer geteilten Geometrien, Materialien und Texturen
   function disposeTree(root) {
@@ -3133,8 +3224,8 @@ void main() {
       const k = Math.max(0, q.life / q.max);
       switch (q.t) {
         case "spark": { const sp = Math.hypot(q.vx, q.vy), len = Math.min(16, sp * 0.05 + 3); flat(addB, q.x - (q.vx / (sp || 1)) * len * 0.5, 16, q.y - (q.vy / (sp || 1)) * len * 0.5, Math.atan2(q.vy, q.vx), len * 0.5, q.w, CELL.streak, q.rgb, k); break; }
-        case "fire": bill(addB, q.x, 14 + (1 - k) * 26, q.y, q.size * (1.5 - k * 0.5), CELL.glow, fireRgb(k), 0.9 * k); break;
-        case "ember": bill(addB, q.x, 18 + (1 - k) * 30, q.y, q.size, CELL.glow, "255,160,60", k); break;
+        case "fire": bill(addB, q.x, (q.z || 0) + 14 + (1 - k) * 26, q.y, q.size * (1.5 - k * 0.5), CELL.glow, fireRgb(k), 0.9 * k); break;
+        case "ember": bill(addB, q.x, (q.z || 0) + 18 + (1 - k) * 30, q.y, q.size, CELL.glow, "255,160,60", k); break;
         case "flash": bill(addB, q.x, 24, q.y, q.r * 0.6, CELL.glow, q.rgb, k * 0.9); break;
         case "ring": { const rr = q.r * (1.15 - k * 0.8); flat(floorB, q.x, 2, q.y, 0, rr, rr, CELL.ring, q.rgb, k * 0.85); break; }
         case "bubble": bill(addB, q.x, 30 + (1 - k) * 20, q.y, q.size, CELL.glow, "140,255,74", k * 0.8); break;

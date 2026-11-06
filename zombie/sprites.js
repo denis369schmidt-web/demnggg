@@ -1223,9 +1223,10 @@ window.Sprites = (() => {
   // ------------------------------------------------------------------
   // Hindernisse (je Kapitel-Thema)
   // ------------------------------------------------------------------
-  const OBS_Z = { car: 0, crate: 12, barrels: 0, barricade: 14, dumpster: 16, bed: 6, cabinet: 18, medcrate: 12, tank: 0, server: 18, labcrate: 12, bude: 16, bierbank: 4, fass: 0, maibaum: 0, brunnen: 6, boeller: 10, automat: 14, rebstock: 18, glascontainer: 16, dixi: 26, telefonzelle: 30, weihnachtsbaum: 0, strandkorb: 18 };
+  const OBS_Z = { car: 0, crate: 12, barrels: 0, barricade: 14, dumpster: 16, bed: 6, cabinet: 18, medcrate: 12, tank: 0, server: 18, labcrate: 12, bude: 16, bierbank: 4, fass: 0, maibaum: 0, brunnen: 6, boeller: 10, automat: 14, rebstock: 18, glascontainer: 16, dixi: 26, telefonzelle: 30, weihnachtsbaum: 0, strandkorb: 18, sandsack: 12, bus: 22, bauzaun: 30, feuertonne: 14, container: 24 };
   const CAR_COLORS = ["#7a2f2f", "#2f4f7a", "#6b6b6b", "#c9b48a", "#2f5f4a", "#d8d8d0"];
 
+  const clamp2 = (v, a, b) => Math.max(a, Math.min(b, v));
   function box3d(g, x, y, w, h, z, top, front, edge) {
     g.fillStyle = front; g.fillRect(x, y + h - 0.5, w, z + 0.5);
     g.fillStyle = top; g.fillRect(x, y, w, h);
@@ -1474,6 +1475,99 @@ window.Sprites = (() => {
           gg.fillStyle = "#1a2a3a"; gg.fillRect(x + 4, y + o.h + 3, o.w - 8, z * 0.45);
           gg.fillStyle = "#7fd0ff"; gg.fillRect(x + 6, y + o.h + 4, o.w - 12, z * 0.25);
           gg.fillStyle = "#fff"; gg.fillRect(x + 4, y + 4, o.w - 8, 3);
+          break;
+        }
+        case "sandsack": {
+          // v3.0 Sandsack-Stellung: Vorderseite mit Sackenden, oben zwei Reihen praller Säcke
+          const v = o.vert, L2 = v ? o.h : o.w, D2 = v ? o.w : o.h;
+          gg.fillStyle = "#5e5338"; gg.fillRect(x, y + o.h - 1, o.w, z + 1);
+          const nf = Math.max(2, Math.round(o.w / 20)), fw = o.w / nf;
+          for (let row = 0; row < 2; row++) for (let i = 0; i < nf; i++) {
+            const fx = x + i * fw + (row ? fw / 2 : 0), fy = y + o.h + row * (z / 2);
+            if (fx + fw > x + o.w + 1) continue;
+            gg.fillStyle = mix("#8a7a54", (R() - 0.5) * 0.2); rr(gg, fx + 0.8, fy + 0.5, fw - 1.6, z / 2 - 0.6, 3); gg.fill();
+            gg.fillStyle = "rgba(255,240,200,0.14)"; gg.fillRect(fx + 2, fy + 1.2, fw - 4, 1.2);
+          }
+          gg.save(); if (v) { gg.translate(x + o.w, y); gg.rotate(Math.PI / 2); } else gg.translate(x, y);
+          const n = Math.max(3, Math.round(L2 / 22)), sl = L2 / n;
+          for (let row = 0; row < 2; row++) for (let i = 0; i < n; i++) {
+            const sx = i * sl + (row ? sl * 0.25 : 0), sy = row * (D2 / 2), sw = Math.min(sl, L2 - sx) - 1, sh = D2 / 2 - 0.8;
+            if (sw < 6) continue;
+            const col = ["#a2916a", "#988760", "#ad9c74", "#93835c"][Math.floor(R() * 4)];
+            gg.fillStyle = vol(gg, sx + sw / 2, sy + sh / 2, Math.max(sw, sh) * 0.7, col, 0.16, -0.3); rr(gg, sx + 0.5, sy + 0.4, sw, sh, Math.min(5, sh / 2)); gg.fill();
+            gg.strokeStyle = "rgba(60,48,26,0.55)"; gg.lineWidth = 0.7; gg.beginPath(); gg.moveTo(sx + sw * 0.15, sy + sh / 2); gg.lineTo(sx + sw * 0.85, sy + sh / 2); gg.stroke();
+            gg.fillStyle = "rgba(60,48,26,0.6)"; gg.fillRect(sx + sw - 3, sy + sh / 2 - 1.5, 2, 3); // abgebundenes Ende
+          }
+          gg.fillStyle = "rgba(120,100,60,0.35)"; for (let i = 0; i < 5; i++) { blob(gg, R() * L2, R() * D2, 1.5 + R() * 2, R); gg.fill(); } // ausgelaufener Sand
+          gg.restore();
+          break;
+        }
+        case "bus": {
+          // v3.0 Buswrack von oben: Dach mit Luken, Klimaanlage, Brandstelle, Fensterband, Zielanzeige
+          const v = o.vert, L2 = v ? o.h : o.w, D2 = v ? o.w : o.h;
+          const body = R() < 0.5 ? "#ddd3b4" : "#d4d8d0";
+          box3d(gg, x, y, o.w, o.h, z, body, mix(body, -0.3), mix(body, -0.5));
+          gg.fillStyle = "#1b2733"; gg.fillRect(x + 2, y + o.h + z * 0.15, o.w - 4, z * 0.42);
+          gg.fillStyle = "#b0201a"; gg.fillRect(x, y + o.h + z * 0.68, o.w, 2.5);
+          gg.save(); if (v) { gg.translate(x + o.w, y); gg.rotate(Math.PI / 2); } else gg.translate(x, y);
+          gg.fillStyle = vol(gg, L2 / 2, D2 / 2, L2 * 0.6, "#c8cac4", 0.12, -0.22); rr(gg, 1, 1, L2 - 2, D2 - 2, 6); gg.fill();
+          gg.fillStyle = "#1b2733"; gg.fillRect(4, 1, L2 - 14, 3); gg.fillRect(4, D2 - 4, L2 - 14, 3); // Fensterband seitlich
+          for (let k = 16; k < L2 - 12; k += 24) { gg.fillStyle = mix(body, -0.1); gg.fillRect(k, 1, 2.4, 3); gg.fillRect(k, D2 - 4, 2.4, 3); }
+          const gr = gg.createLinearGradient(L2 - 10, 0, L2, 0); gr.addColorStop(0, "#22323f"); gr.addColorStop(1, "#4a6478"); gg.fillStyle = gr; rr(gg, L2 - 10, 3, 8, D2 - 6, 3); gg.fill(); // Frontscheibe
+          gg.fillStyle = "#ffa21a"; gg.fillRect(L2 - 12, D2 * 0.25, 1.6, D2 * 0.5); // Zielanzeige
+          gg.fillStyle = "#9aa0a4"; gg.fillRect(L2 * 0.22, D2 * 0.2, L2 * 0.2, D2 * 0.6); // Klimaanlage
+          gg.strokeStyle = "rgba(0,0,0,0.35)"; gg.lineWidth = 0.8; for (let k = 3; k < L2 * 0.2; k += 3) { gg.beginPath(); gg.moveTo(L2 * 0.22 + k, D2 * 0.22); gg.lineTo(L2 * 0.22 + k, D2 * 0.78); gg.stroke(); }
+          for (const hx of [L2 * 0.55, L2 * 0.78]) { gg.fillStyle = "#a8aaa4"; gg.fillRect(hx, D2 * 0.32, 12, D2 * 0.36); gg.strokeStyle = "#7a7c78"; gg.strokeRect(hx + 0.5, D2 * 0.32 + 0.5, 11, D2 * 0.36 - 1); }
+          const bx = L2 * (0.45 + R() * 0.25), by = D2 * 0.5, br = D2 * 0.55; const bg = gg.createRadialGradient(bx, by, 0, bx, by, br); bg.addColorStop(0, "rgba(16,10,6,0.95)"); bg.addColorStop(0.6, "rgba(40,24,12,0.6)"); bg.addColorStop(1, "rgba(40,24,12,0)"); gg.fillStyle = bg; gg.beginPath(); gg.ellipse(bx, by, br * 1.4, br * 0.8, 0, 0, TAU); gg.fill(); // Brandstelle
+          for (let i = 0; i < 5; i++) { gg.fillStyle = "rgba(110,60,20,0.5)"; blob(gg, R() * L2, R() * D2, 2 + R() * 4, R); gg.fill(); }
+          gg.fillStyle = "rgba(100,10,12,0.6)"; blob(gg, L2 * (0.1 + R() * 0.2), D2 * R(), 5, R); gg.fill();
+          gg.restore();
+          break;
+        }
+        case "bauzaun": {
+          // v3.0 Bauzaun: Gitterfelder mit Rahmen, Kunststofffüße am Boden, Warnbanner
+          const v = o.vert, gy = y + z;
+          if (!v) {
+            const top = y + o.h / 2, bot = top + z, n = Math.max(2, Math.round(o.w / 38)), pl = o.w / n;
+            gg.strokeStyle = "rgba(190,196,202,0.55)"; gg.lineWidth = 0.6;
+            for (let k = x + 3; k < x + o.w; k += 3.2) { gg.beginPath(); gg.moveTo(k, top); gg.lineTo(k, bot); gg.stroke(); }
+            for (let k = top + 3; k < bot; k += 3.2) { gg.beginPath(); gg.moveTo(x, k); gg.lineTo(x + o.w, k); gg.stroke(); }
+            gg.strokeStyle = "#c4c8cc"; gg.lineWidth = 1.6; gg.strokeRect(x + 0.8, top, o.w - 1.6, z);
+            for (let i = 0; i <= n; i++) { const px = x + i * pl; gg.fillStyle = "#c8441a"; gg.fillRect(clamp2(px - 4, x, x + o.w - 8), gy, 8, o.h); gg.fillStyle = "#d8dcde"; gg.fillRect(clamp2(px - 1, x, x + o.w - 2), top, 2, z); }
+            const bw = Math.min(o.w * 0.5, 60), bx = x + (o.w - bw) * (0.2 + R() * 0.6);
+            for (let k = 0; k < bw; k += 8) { gg.fillStyle = (k / 8) % 2 ? "#f0ece0" : "#c8201a"; gg.fillRect(bx + k, top + z * 0.3, Math.min(8, bw - k), 7); }
+          } else {
+            const cx = x + o.w / 2, n = Math.max(2, Math.round(o.h / 38)), pl = o.h / n;
+            gg.fillStyle = "rgba(190,196,202,0.45)"; gg.fillRect(cx - 2, y, 4, o.h + z);
+            gg.strokeStyle = "#c4c8cc"; gg.lineWidth = 1.4; gg.beginPath(); gg.moveTo(cx - 2, y); gg.lineTo(cx - 2, y + o.h + z); gg.moveTo(cx + 2, y); gg.lineTo(cx + 2, y + o.h + z); gg.stroke();
+            for (let i = 0; i <= n; i++) { const py = y + i * pl; gg.fillStyle = "#c8441a"; gg.fillRect(x, clamp2(py + z - 3, y, y + o.h + z - 6), o.w, 6); gg.fillStyle = "#d8dcde"; gg.fillRect(cx - 3, clamp2(py - 1, y, y + o.h + z - 2), 6, 2); }
+          }
+          break;
+        }
+        case "feuertonne": {
+          // v3.0 Feuertonne: rostige Trommel, glühende Löcher, Glut oben (Flammen sind Partikel)
+          const cx = x + o.w / 2, r0 = o.w / 2, cy = y + o.h / 2;
+          gg.fillStyle = "#4a2e1c"; gg.fillRect(x, cy, o.w, z); gg.beginPath(); gg.ellipse(cx, cy + z, r0, r0 * 0.45, 0, 0, Math.PI); gg.fill();
+          const sg = gg.createLinearGradient(x, 0, x + o.w, 0); sg.addColorStop(0, "rgba(0,0,0,0.35)"); sg.addColorStop(0.4, "rgba(255,200,150,0.12)"); sg.addColorStop(1, "rgba(0,0,0,0.45)"); gg.fillStyle = sg; gg.fillRect(x, cy, o.w, z);
+          gg.fillStyle = "#2e1e12"; for (const ry of [0.3, 0.7]) gg.fillRect(x, cy + z * ry, o.w, 1.4);
+          for (let i = 0; i < 4; i++) { gg.fillStyle = i % 2 ? "#ffb040" : "#ff7a1a"; circ(gg, x + 5 + i * (o.w - 10) / 3, cy + z * (0.45 + (i % 2) * 0.25), 1.4); gg.fill(); }
+          gg.fillStyle = "#5a3a24"; circ(gg, cx, cy, r0); gg.fill();
+          const eg = gg.createRadialGradient(cx, cy, 0, cx, cy, r0 * 0.85); eg.addColorStop(0, "#fff0b0"); eg.addColorStop(0.35, "#ffa030"); eg.addColorStop(0.8, "#a8300c"); eg.addColorStop(1, "#3a1608"); gg.fillStyle = eg; circ(gg, cx, cy, r0 * 0.85); gg.fill();
+          for (let i = 0; i < 5; i++) { gg.fillStyle = "rgba(40,16,6,0.7)"; circ(gg, cx + (R() - 0.5) * r0, cy + (R() - 0.5) * r0, 1.6 + R() * 1.4); gg.fill(); }
+          break;
+        }
+        case "container": {
+          // v3.0 Schiffscontainer: Wellblech-Dach quer gerippt, Eckbeschläge, Rostläufer, Kennung
+          const v = o.vert, L2 = v ? o.h : o.w, D2 = v ? o.w : o.h;
+          const col = ["#a8321e", "#2a5a8a", "#c8861a", "#3a6a3a", "#6a6e72"][Math.floor(R() * 5)];
+          box3d(gg, x, y, o.w, o.h, z, col, mix(col, -0.32), mix(col, -0.5));
+          for (let k = x + 2; k < x + o.w - 1; k += 4) { gg.fillStyle = "rgba(0,0,0,0.22)"; gg.fillRect(k + 2, y + o.h, 1.5, z); }
+          gg.save(); if (v) { gg.translate(x + o.w, y); gg.rotate(Math.PI / 2); } else gg.translate(x, y);
+          for (let k = 3; k < L2 - 2; k += 4) { gg.fillStyle = "rgba(255,255,255,0.12)"; gg.fillRect(k, 2, 1.2, D2 - 4); gg.fillStyle = "rgba(0,0,0,0.2)"; gg.fillRect(k + 2, 2, 1.2, D2 - 4); }
+          gg.fillStyle = "#222426"; for (const [cx, cy] of [[0, 0], [L2 - 5, 0], [0, D2 - 5], [L2 - 5, D2 - 5]]) gg.fillRect(cx, cy, 5, 5);
+          for (let i = 0; i < 6; i++) { gg.fillStyle = "rgba(120,60,20,0.45)"; blob(gg, R() * L2, R() * D2, 2 + R() * 5, R); gg.fill(); }
+          gg.fillStyle = "rgba(255,255,255,0.75)"; gg.font = "bold 7px monospace"; gg.fillText("OGXU 204811", 8, D2 / 2 + 2.5);
+          gg.restore();
           break;
         }
         default:

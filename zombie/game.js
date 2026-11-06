@@ -17,28 +17,31 @@
   // Jedes Kapitel spielt in einer anderen Umgebung (Straße → Krankenhaus → Labor → …)
   const THEME_ORDER = ["street", "hospital", "lab"];
   const OBSTACLE_POOL = {
-    street: ["car", "car", "crate", "barrels", "barricade", "dumpster", "automat", "glascontainer", "telefonzelle"],
-    hospital: ["bed", "bed", "cabinet", "medcrate", "medcrate", "barrels"],
-    lab: ["tank", "tank", "server", "labcrate", "barrels"],
+    street: ["car", "car", "crate", "barrels", "barricade", "dumpster", "automat", "glascontainer", "telefonzelle", "sandsack", "bauzaun", "feuertonne", "bus", "container"],
+    hospital: ["bed", "bed", "cabinet", "medcrate", "medcrate", "barrels", "sandsack"],
+    lab: ["tank", "tank", "server", "labcrate", "barrels", "sandsack"],
     // Altstadt: Marktbuden, Bierbänke, Bierfässer, Brunnen, Böllerkisten und (höchstens einer) Maibaum
-    markt: ["bude", "bude", "bierbank", "fass", "brunnen", "boeller", "maibaum", "crate", "telefonzelle", "glascontainer"],
+    markt: ["bude", "bude", "bierbank", "fass", "brunnen", "boeller", "maibaum", "crate", "telefonzelle", "glascontainer", "feuertonne", "bauzaun"],
   };
   // Feste verschieben die Mischung: mehr Bierbänke & Fässer auf der Wiesn, mehr Buden am Weihnachtsmarkt …
-  const FEST_OBS = { wein: ["fass", "fass", "bude", "rebstock", "rebstock"], wiesn: ["bierbank", "bierbank", "fass", "fass", "maibaum", "dixi"], weihnachten: ["bude", "bude", "bude", "weihnachtsbaum", "weihnachtsbaum"], karneval: ["boeller", "boeller", "bude", "dixi"], imbiss: ["bude", "glascontainer"], bahn: ["automat"], hafen: ["crate", "fass", "strandkorb", "strandkorb"], apfelwein: ["bierbank", "fass"], werk: ["maibaum", "boeller"] };
+  const FEST_OBS = { wein: ["fass", "fass", "bude", "rebstock", "rebstock"], wiesn: ["bierbank", "bierbank", "fass", "fass", "maibaum", "dixi"], weihnachten: ["bude", "bude", "bude", "weihnachtsbaum", "weihnachtsbaum"], karneval: ["boeller", "boeller", "bude", "dixi"], imbiss: ["bude", "glascontainer"], bahn: ["automat"], hafen: ["crate", "fass", "strandkorb", "strandkorb", "container", "container"], apfelwein: ["bierbank", "fass"], werk: ["maibaum", "boeller"] };
   const OBSTACLE_SIZE = { // [wMin, wMax, hMin, hMax]
     car: [96, 118, 48, 52], crate: [46, 68, 40, 60], medcrate: [46, 62, 40, 54], labcrate: [48, 66, 42, 58],
     barrels: [52, 52, 52, 52], barricade: [90, 130, 26, 30], dumpster: [70, 86, 42, 46],
     bed: [88, 96, 46, 50], cabinet: [44, 60, 32, 36], tank: [56, 60, 56, 60], server: [40, 48, 70, 88],
     bude: [72, 92, 46, 54], bierbank: [84, 104, 34, 38], fass: [48, 50, 48, 50], maibaum: [26, 26, 26, 26], brunnen: [66, 66, 66, 66], boeller: [40, 46, 30, 34], automat: [30, 34, 24, 28],
     rebstock: [86, 100, 20, 24], glascontainer: [66, 74, 40, 44], dixi: [40, 40, 40, 40], telefonzelle: [34, 34, 34, 34], weihnachtsbaum: [46, 46, 46, 46], strandkorb: [50, 54, 38, 40],
+    // v3.0 Sandsack-Stellung, Buswrack, Bauzaun, Feuertonne, Schiffscontainer
+    sandsack: [96, 128, 26, 30], bus: [176, 200, 58, 62], bauzaun: [116, 150, 10, 12], feuertonne: [26, 26, 26, 26], container: [150, 166, 56, 60],
   };
-  const ROTATABLE = { car: true, bed: true, bierbank: true, glascontainer: true, rebstock: true };
-  const GLOWING = { barrels: "150,255,60", tank: "120,255,80", bude: "255,196,120", telefonzelle: "255,236,170", weihnachtsbaum: "255,200,120" };
+  const ROTATABLE = { car: true, bed: true, bierbank: true, glascontainer: true, rebstock: true, sandsack: true, bus: true, bauzaun: true, container: true };
+  const GLOWING = { barrels: "150,255,60", tank: "120,255,80", bude: "255,196,120", telefonzelle: "255,236,170", weihnachtsbaum: "255,200,120", feuertonne: "255,138,48" };
+  const OBS_ONCE = { maibaum: 1, brunnen: 1, telefonzelle: 1, bus: 1, container: 1, weihnachtsbaum: 2, feuertonne: 2 };
   // Walker-Outfits je Welt (Index in die Paletten von sprites.js/render3d.js):
   // 0–2 Zivil, 3 Polizist, 4 Bauarbeiter, 5 Anzug, 6 Patient, 7 Ärztin, 8 Pfleger, 9 Forscher, 10 Soldat, 11 Schutzanzug
   const WALKER_LOOKS = { street: [0, 1, 2, 3, 4, 5, 0, 3], hospital: [6, 6, 7, 8, 0, 2], lab: [9, 9, 10, 11, 1, 10], markt: [0, 1, 2, 5, 0, 1, 3, 2] };
   // Zerstörbar: Giftfässer explodieren (Kettenreaktion!), Kisten zersplittern und lassen Beute fallen
-  const DESTRUCT = { barrels: 70, crate: 45, medcrate: 45, labcrate: 60, bude: 90, bierbank: 50, fass: 40, maibaum: 110, boeller: 30, automat: 40, glascontainer: 60, dixi: 45, weihnachtsbaum: 120, strandkorb: 60, rebstock: 35 };
+  const DESTRUCT = { barrels: 70, crate: 45, medcrate: 45, labcrate: 60, bude: 90, bierbank: 50, fass: 40, maibaum: 110, boeller: 30, automat: 40, glascontainer: 60, dixi: 45, weihnachtsbaum: 120, strandkorb: 60, rebstock: 35, bauzaun: 40, feuertonne: 50 };
   const TAU = Math.PI * 2;
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -663,7 +666,8 @@
     const isSupply = SUPPLY_ROOMS.includes(run.room);
     const objKind = isBoss || isSupply ? null : objectiveFor();
     makeGates(!!isBoss || isSupply);
-    obstacles = clearGates(isSupply ? [] : genObstacles(isBoss ? randi(0, 2) : randi(2, 5)));
+    const barrier = !isBoss && !isSupply && run.room > 1 && Math.random() < 0.38 ? genBarrier() : [];
+    obstacles = clearGates(isSupply ? [] : genObstacles(isBoss ? randi(0, 2) : randi(barrier.length ? 1 : 2, barrier.length ? 4 : 5), barrier));
     floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     initAmbient();
@@ -821,16 +825,16 @@
   }
   const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
-  function genObstacles(n) {
-    const obs = [];
+  function genObstacles(n, pre = []) {
+    const obs = pre.slice();
+    n += obs.length;
     const fest = run && run.mode === "campaign" && run.room > 0 ? curCity().fest : "";
     const district = run && run.mode === "campaign" && run.room > 0 ? curDistrict()[0] : "";
     const pool = district === "Wartberg" ? ["rebstock", "rebstock", "rebstock", "fass"] : OBSTACLE_POOL[theme()].concat(theme() === "markt" || (fest === "bahn" && theme() === "street") ? FEST_OBS[fest] || [] : []);
     let tries = 0;
     while (obs.length < n && tries++ < 200) {
       const kind = pick(pool);
-      if ((kind === "maibaum" || kind === "brunnen" || kind === "telefonzelle") && obs.some((q) => q.kind === kind)) continue;
-      if (kind === "weihnachtsbaum" && obs.filter((q) => q.kind === kind).length >= 2) continue;
+      if (OBS_ONCE[kind] && obs.filter((q) => q.kind === kind).length >= OBS_ONCE[kind]) continue;
       const [w0, w1, h0, h1] = OBSTACLE_SIZE[kind];
       let w = Math.round(rand(w0, w1)), h = Math.round(rand(h0, h1));
       const vert = ROTATABLE[kind] && Math.random() < 0.4;
@@ -844,6 +848,32 @@
       if (!blocked) obs.push(o);
     }
     return obs;
+  }
+  // v3.0 Straßensperre: eine Linie quer durch den Bezirk mit zwei Durchlässen – Engpässe, an denen sich die Meute staut
+  const BARRIER_KINDS = { street: ["sandsack", "barricade", "bauzaun"], markt: ["bauzaun", "sandsack"], hospital: ["sandsack"], lab: ["sandsack", "barricade"] };
+  function genBarrier() {
+    const fest = run && run.mode === "campaign" && run.room > 0 ? curCity().fest : "";
+    const kind = pick(BARRIER_KINDS[theme()] || BARRIER_KINDS.street);
+    const [, , h0, h1] = OBSTACLE_SIZE[kind];
+    const h = Math.round(rand(h0, h1)), y = Math.round(rand(T + 300, B - 330));
+    const gapW = () => Math.round(rand(88, 104));
+    const span = R - L, g1 = gapW(), g2 = gapW();
+    // drei Stücke: links an der Wand, Mitte, rechts an der Wand; die Durchlässe wandern von Raum zu Raum
+    const left = Math.round(rand(90, 150)), mid = Math.round(span - left - g1 - g2 - rand(90, 150));
+    const xs = [[L, left], [L + left + g1, mid], [L + left + g1 + mid + g2, R - (L + left + g1 + mid + g2)]];
+    const out = [];
+    for (const [x, w] of xs) {
+      if (w < 40) continue;
+      const o = { kind, x, y, w, h, vert: false, seed: randi(1, 1e9), fest, barrier: true };
+      if (DESTRUCT[kind]) o.hp = DESTRUCT[kind] * 1.5 * (1 + 0.3 * ((run ? run.chapter : 1) - 1));
+      out.push(o);
+    }
+    // an einem Durchlass brennt eine Feuertonne (Wachposten)
+    if (theme() === "street" || theme() === "markt") {
+      const gx = Math.random() < 0.5 ? L + left - 32 : L + left + g1 + mid + g2 + 6;
+      out.push({ kind: "feuertonne", x: gx, y: y - 34, w: 26, h: 26, vert: false, seed: randi(1, 1e9), fest, hp: DESTRUCT.feuertonne });
+    }
+    return out;
   }
 
   function makeFloor() {
@@ -1051,9 +1081,33 @@
     }
     return true;
   }
+  // v3.0 Umweg um ein Hindernis: die Ecke, die frei erreichbar ist und den kürzesten Weg zum Ziel ergibt
+  function segHitsRect(x0, y0, x1, y1, r, pad) {
+    let t0 = 0, t1 = 1;
+    const dx = x1 - x0, dy = y1 - y0;
+    for (const [pp, q] of [[-dx, x0 - (r.x - pad)], [dx, r.x + r.w + pad - x0], [-dy, y0 - (r.y - pad)], [dy, r.y + r.h + pad - y0]]) {
+      if (pp === 0) { if (q < 0) return false; continue; }
+      const t = q / pp;
+      if (pp < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; }
+    }
+    return t0 < t1;
+  }
+  function detour(e, r, tx, ty) {
+    const m = e.r + 10;
+    let best = null, bc = Infinity;
+    for (const [cx, cy] of [[r.x - m, r.y - m], [r.x + r.w + m, r.y - m], [r.x - m, r.y + r.h + m], [r.x + r.w + m, r.y + r.h + m]]) {
+      if (cx < L + e.r || cx > R - e.r || cy < T + e.r || cy > B - e.r) continue;
+      if ((cx - e.x) ** 2 + (cy - e.y) ** 2 < 400) continue;
+      if (segHitsRect(e.x, e.y, cx, cy, r, e.r * 0.5)) continue;
+      if (obstacles.some((q) => q !== r && cx > q.x - e.r && cx < q.x + q.w + e.r && cy > q.y - e.r && cy < q.y + q.h + e.r)) continue;
+      const c = Math.hypot(cx - e.x, cy - e.y) + Math.hypot(tx - cx, ty - cy);
+      if (c < bc) { bc = c; best = { x: cx, y: cy }; }
+    }
+    return best;
+  }
   function collideWorld(o) {
     let hit = false;
-    for (const r of obstacles) if (pushOutRect(o, r)) hit = true;
+    for (const r of obstacles) if (pushOutRect(o, r)) { hit = true; o.hitRect = r; }
     if (supplyCrate && o !== player) {
       const d = Math.sqrt(dist2(o, supplyCrate));
       if (d < o.r + supplyCrate.r && d > 0) { const k = (o.r + supplyCrate.r) / d; o.x = supplyCrate.x + (o.x - supplyCrate.x) * k; o.y = supplyCrate.y + (o.y - supplyCrate.y) * k; }
@@ -1649,7 +1703,7 @@
       if (b.y < T || b.y > B) { if (b.wall > 0) { b.vy *= -1; b.y = py; bounced = true; } else b.dead = true; }
       // Hindernisse
       for (const o of obstacles) {
-        if (b.dead || !pointInRect(b.x, b.y, o)) continue;
+        if (b.dead || o.kind === "bauzaun" || !pointInRect(b.x, b.y, o)) continue; // v3.0 durch den Bauzaun kann man schießen
         if (o.hp) hitObstacle(o, b.kind === "flame" ? b.dmg * 0.5 : b.dmg);
         if (b.wall > 0) {
           if (px <= o.x || px >= o.x + o.w) b.vx *= -1; else b.vy *= -1;
@@ -1719,7 +1773,7 @@
         // Bierfass rollt, zerplatzt an Wand/Hindernis/Held zu einer Bierlache
         const out = b.x < L + b.r || b.x > R - b.r || b.y < T + b.r || b.y > B - b.r;
         const hitP = (player.x - b.x) ** 2 + (player.y - b.y) ** 2 < (player.r + b.r) ** 2;
-        if (out || b.life <= 0 || hitP || obstacles.some((o) => pointInRect(b.x, b.y, o))) {
+        if (out || b.life <= 0 || hitP || obstacles.some((o) => o.kind !== "bauzaun" && pointInRect(b.x, b.y, o))) {
           b.dead = true; b.x = clamp(b.x, L + 10, R - 10); b.y = clamp(b.y, T + 10, B - 10);
           addHazard(b.x, b.y, 50, 4, 0, "bier"); fxDebris(b.x, b.y, 0, Math.PI, 10, "#6a4426");
           for (let i = 0; i < 6; i++) fxGas(b.x + rand(-24, 24), b.y + rand(-24, 24), 1.2, "250,236,190", 1);
@@ -1733,7 +1787,7 @@
         let hit = false;
         if (b.x < L + b.r || b.x > R - b.r) { b.vx = -b.vx; b.x = clamp(b.x, L + b.r, R - b.r); hit = true; }
         if (b.y < T + b.r || b.y > B - b.r) { b.vy = -b.vy; b.y = clamp(b.y, T + b.r, B - b.r); hit = true; }
-        const o = !hit && obstacles.find((q) => pointInRect(b.x, b.y, q) && !pointInRect(px, py, q)); // nur beim Eintreten abprallen
+        const o = !hit && obstacles.find((q) => q.kind !== "bauzaun" && pointInRect(b.x, b.y, q) && !pointInRect(px, py, q)); // nur beim Eintreten abprallen
         if (o) { if (px > o.x && px < o.x + o.w) b.vy = -b.vy; else b.vx = -b.vx; b.x = px; b.y = py; hit = true; }
         if (hit) {
           b.vx *= 0.88; b.vy *= 0.88; fxDebris(b.x, b.y, rand(0, TAU), Math.PI, 3, "#8a8070"); sfx("kick");
@@ -1743,7 +1797,7 @@
       } else {
         if (b.life <= 0 || b.x < L || b.x > R || b.y < T || b.y > B) { b.dead = true; acidSplash(b); continue; }
         if (!b.slug && !b.kind && Math.random() < 0.25) fxDrip(b);
-        if (obstacles.some((o) => pointInRect(b.x, b.y, o))) { b.dead = true; acidSplash(b); continue; }
+        if (obstacles.some((o) => o.kind !== "bauzaun" && pointInRect(b.x, b.y, o))) { b.dead = true; acidSplash(b); continue; }
       }
       if ((player.x - b.x) ** 2 + (player.y - b.y) ** 2 < (player.r + b.r - 3) ** 2) {
         b.dead = true;
@@ -1838,6 +1892,16 @@
       fxSmoke(ex, ey, 6, 1.2, 1); shake = Math.max(shake, 12); hitStop = Math.max(hitStop, 0.08);
       addText(cx, cy - 26, tr("MAIBAUM FÄLLT!"), "#7fd0ff", 22, true);
       sfx("boom"); fx4d("boom");
+    } else if (o.kind === "feuertonne") {
+      // umgestoßene Feuertonne: brennende Glut läuft aus – trifft nur Zombies
+      for (let i = 0; i < 3; i++) addHazard(cx + rand(-30, 30), cy + rand(-24, 24), 34, 5, player.power * 1.4, "napalm");
+      fxDebris(cx, cy, 0, Math.PI, 12, "#5a4a3a");
+      for (let i = 0; i < 14; i++) fxEmber(cx + rand(-14, 14), cy + rand(-14, 14));
+      fxFlash(cx, cy, 80, "255,150,60", 0.2);
+      sfx("boom"); shake = Math.max(shake, 5);
+    } else if (o.kind === "bauzaun") {
+      fxDebris(cx, cy, 0, Math.PI, 14, "#b8bcc0"); fxSparks(cx, cy, 0, Math.PI, 10, "255,230,180", 220);
+      sfx("kill"); shake = Math.max(shake, 3);
     } else if (o.kind === "rebstock") {
       // Rebstock: Trauben fallen herunter und heilen
       fxDebris(cx, cy, 0, Math.PI, 12, "#3a6a2a"); fxDebris(cx, cy, 0, Math.PI, 8, "#5a1a4a"); fxDebris(cx, cy, 0, Math.PI, 5, "#6a4a2a");
@@ -2928,8 +2992,15 @@
         const q = nearestDecoy(e);
         if (q) { const qx = q.x - e.x, qy = q.y - e.y, qd = Math.hypot(qx, qy) || 1; if (qd > e.r + 8) { mx = qx / qd; my = qy / qd; } else { mx = 0; my = 0; } }
       }
+      // v3.0 Umweg-Punkt: erst zur freien Ecke, dann wieder direkt aufs Ziel
+      if (e.wp) {
+        e.wpT -= dt;
+        const wx = e.wp.x - e.x, wy = e.wp.y - e.y, wd = Math.hypot(wx, wy);
+        if (wd < 10 || e.wpT <= 0 || e.mode !== "walk") e.wp = null;
+        else { mx = wx / wd; my = wy / wd; }
+      }
       // Hindernis-Umgehung: nach Kollision kurz seitlich ausweichen
-      if (e.blocked > 0 && e.mode !== "charge") {
+      if (e.blocked > 0 && e.mode !== "charge" && !e.wp) {
         e.blocked -= dt;
         const tx = -my * e.side, ty = mx * e.side;
         mx = mx * 0.3 + tx * 0.9; my = my * 0.3 + ty * 0.9;
@@ -2944,8 +3015,14 @@
       while (dFace < -Math.PI) dFace += TAU;
       e.face += dFace * Math.min(1, dt * (e.def.boss ? 4 : 9));
       e.anim += dt * (sp / (e.def.boss ? 30 : 55)) * 7;
+      e.hitRect = null;
       if (collideWorld(e)) {
-        if (e.blocked <= 0) { e.blocked = 0.5; if (Math.random() < 0.3) e.side *= -1; }
+        if (!e.wp && e.hitRect && e.mode === "walk" && !e.def.boss) {
+          const tg = e.prey && e.prey.state === "wait" && d > 150 ? e.prey : p;
+          const wp = detour(e, e.hitRect, tg.x, tg.y);
+          if (wp) { e.wp = wp; e.wpT = 2.6; e.blocked = 0; }
+        }
+        if (e.blocked <= 0 && !e.wp) { e.blocked = 0.5; if (Math.random() < 0.3) e.side *= -1; }
         if (e.mode === "charge") { if (e.rush) bossImpact(e); else { e.mode = "walk"; e.aiT = rand(1.5, 2.5); shake = Math.max(shake, 4); } }
       }
 
@@ -4241,6 +4318,12 @@
     updateLobs(dt);
     updateThrowables(dt);
     updateHordes(dt);
+    // v3.0 Feuertonnen: Flammen und Funken steigen aus der Tonne
+    for (const o of obstacles) if (o.kind === "feuertonne" && Math.random() < dt * 14) {
+      const f = { t: "fire", x: o.x + o.w / 2 + rand(-5, 5), y: o.y + o.h / 2 + rand(-4, 4), vx: rand(-8, 8), vy: rand(-26, -10), life: rand(0.35, 0.6), max: 0.6, size: rand(6, 10), z: 26 };
+      addP(f);
+      if (Math.random() < 0.3) addP({ t: "ember", x: f.x, y: f.y, vx: rand(-20, 20), vy: rand(-50, -20), life: rand(0.5, 0.9), max: 0.9, size: rand(1.5, 3), z: 30 });
+    }
     updateParcels(dt);
     updateFireworks(dt);
     updateBullets(dt);
@@ -5372,8 +5455,8 @@
       const k = Math.max(0, q.life / q.max);
       switch (q.t) {
         case "spark": ctx.globalAlpha = k; drawStreak(q.rgb, q.x, q.y, Math.atan2(q.vy, q.vx), Math.min(18, Math.hypot(q.vx, q.vy) * 0.05 + 3), q.w); break;
-        case "fire": glowAt(fireRgb(k), q.x, q.y, q.size * (1.5 - k * 0.5), 0.9 * k); break;
-        case "ember": glowAt("255,160,60", q.x, q.y, q.size, k); break;
+        case "fire": glowAt(fireRgb(k), q.x, q.y - (q.z || 0) * 0.55, q.size * (1.5 - k * 0.5), 0.9 * k); break;
+        case "ember": glowAt("255,160,60", q.x, q.y - (q.z || 0) * 0.55, q.size, k); break;
         case "flash": glowAt(q.rgb, q.x, q.y, q.r * 0.6, k * 0.9); break;
         case "ring":
           ctx.globalAlpha = k * 0.8; ctx.strokeStyle = `rgb(${q.rgb})`; ctx.lineWidth = 3 + 6 * k;
@@ -7284,5 +7367,11 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), layout: (list = [], withBarrier = false) => {
+    const fest = run.mode === "campaign" && run.room > 0 ? curCity().fest : "";
+    const obs = (withBarrier ? genBarrier() : []).concat(list.map((q) => { const sz = OBSTACLE_SIZE[q.kind]; let w = q.w || sz[0], h = q.h || sz[2]; if (q.vert && !q.w) [w, h] = [h, w]; const o = { seed: randi(1, 1e9), fest, vert: !!q.vert, ...q, w, h }; if (DESTRUCT[q.kind]) o.hp = DESTRUCT[q.kind]; return o; }));
+    obstacles = clearGates(obs); floorCanvas = makeFloor();
+    roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
+    return obstacles;
+  }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

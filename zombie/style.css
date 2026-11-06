@@ -915,3 +915,20 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .rank-title b { display: block; margin-top: 3px; font: 800 18px/1 var(--f-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text); }
 .rank-title em { grid-column: 2 / -1; font: 600 11px/1.2 var(--f-ui); font-style: normal; color: var(--text-2); }
 .rank-title strong { grid-row: 1; grid-column: 3; font: 800 12px/1 var(--f-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber); }
+
+/* =====================================================================
+   v2.8 Startpunkt, legendäre Skills
+   ===================================================================== */
+.start-pick { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 2px; }
+.start-pick > small { font: 700 10px/1 var(--f-ui); letter-spacing: 0.16em; color: var(--toxic); }
+.start-cities { display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; }
+.sc { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 0 4px; border: 0; cursor: pointer; color: var(--text-2); background: #18201e; box-shadow: inset 0 0 0 1px var(--line); --cut: 4px; clip-path: var(--chamfer); min-width: 0; }
+.sc b { font: 800 13px/1 var(--f-ui); }
+.sc small { font: 600 8px/1 var(--f-ui); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc.on { color: #0b1408; background: linear-gradient(180deg, #c6ff6a, #7fd61e); box-shadow: 0 0 10px rgba(168, 255, 62, 0.45); }
+.sc.locked { color: #4a5450; cursor: default; }
+.start-pick p { margin: 0; font: 600 11px/1.25 var(--f-ui); color: var(--text-3); }
+.card.legend { --r1: #ffd45c; --r2: #6a3a06; --rc: var(--gold); --rbg: #3a2808; --rline: rgba(255, 212, 92, 0.8); box-shadow: 0 0 22px rgba(255, 196, 64, 0.35); }
+.card .ban { position: absolute; top: 5px; right: 5px; width: 30px; height: 30px; display: grid; place-items: center; color: var(--text-3); background: rgba(0, 0, 0, 0.38); box-shadow: inset 0 0 0 1px var(--line); --cut: 4px; clip-path: var(--chamfer); cursor: pointer; }
+.card .ban svg { width: 14px; height: 14px; }
+.card .ban:hover, .card .ban:active { color: #ff8a7a; }

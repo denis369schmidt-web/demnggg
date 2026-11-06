@@ -91,6 +91,8 @@
     dailyBest: null, // Tagesbefehl: { day, s, o }
     gear: { vest: null, boots: null, badge: null }, // v2.6 angelegte Ausrüstung
     gearBag: [], // erbeutete, noch nicht angelegte Teile
+    cityMax: 0, // v2.8 höchste freigeschaltete Startstadt (Index in CITIES)
+    startCity: 0, // gewählte Startstadt
   });
   function loadSave() {
     const d = defaultSave();
@@ -171,6 +173,9 @@
   // Skills (pro Run, Auswahl bei Level-Up)
   // ============================================================
   const SKILLS = [
+    { id: "storm", name: "Querschläger-Sturm", icon: "ricochet", rarity: "legend", max: 1, cond: (p) => p.level >= 5, desc: "Jede Kugel prallt zweimal ab und durchschlägt einen Zombie", apply: (p) => { p.ricochet += 2; p.pierce += 1; } },
+    { id: "chainboom", name: "Kettenreaktion", icon: "explosion", rarity: "legend", max: 1, cond: (p) => p.level >= 5, desc: "Jeder Abschuss löst eine Explosion aus", apply: (p) => { p.deathBlast += 2; } },
+    { id: "bloodpact", name: "Blutpakt", icon: "vamp", rarity: "legend", max: 1, cond: (p) => p.level >= 5, desc: "+40 % Schaden, jeder Abschuss heilt 1,5 %", apply: (p) => { p.dmgMul *= 1.4; p.lifesteal += 0.015; } },
     { id: "dashcd", name: "Sprinttraining", icon: "speed", rarity: "rare", max: 2, desc: "Ausweichrolle lädt 30 % schneller", apply: (p) => { p.dashCdMul *= 0.7; } },
     { id: "dashblast", name: "Schulterstoß", icon: "splash", rarity: "epic", max: 1, desc: "Die Ausweichrolle stößt Zombies weg und bremst sie", apply: (p) => { p.dashBlast = true; } },
     { id: "multishot", name: "Mehrfachschuss", icon: "multishot", rarity: "epic", max: 3, desc: "+1 zusätzliche Salve (Schaden −10%)", apply: (p) => { p.multishot++; p.dmgMul *= 0.9; } },
@@ -198,7 +203,7 @@
     { id: "revive", name: "Zweites Leben", icon: "revive", rarity: "epic", max: 1, desc: "Einmalige Wiederbelebung mit 60% HP", apply: (p) => p.revives++ },
     { id: "splash", name: "Infektionsbombe", icon: "splash", rarity: "rare", max: 2, desc: "Getötete Zombies explodieren", apply: (p) => p.deathBlast++ },
   ];
-  const RARITY_WEIGHT = { common: 1, rare: 0.7, epic: 0.45 };
+  const RARITY_WEIGHT = { common: 1, rare: 0.7, epic: 0.45, legend: 0.12 };
 
   // ============================================================
   // Evolutionen: zwei Skills auf der nötigen Stufe verschmelzen zu einer Superfähigkeit.
@@ -297,8 +302,37 @@
   const medal = (icon, tone = "", size = "") => `<span class="medal ${tone} ${size}">${I(icon)}</span>`;
   const pipsHtml = (on, max, cls = "") => `<span class="pips ${cls}">${Array.from({ length: max }, (_, i) => `<i class="${i < on ? "on" : ""}"></i>`).join("")}</span>`;
   const adLabel = (txt) => `<span class="vid">${I("video")}</span><span>${txt}</span>`;
-  const RARITY_TONE = { common: "steel", rare: "ice", epic: "violet", evo: "gold", angel: "gold", devil: "red" };
-  const RARITY_NAME = { common: "Gewöhnlich", rare: "Selten", epic: "Episch", evo: "Evolution", angel: "Segen", devil: "Pakt" };
+  const RARITY_TONE = { common: "steel", rare: "ice", epic: "violet", legend: "gold", evo: "gold", angel: "gold", devil: "red" };
+  const RARITY_NAME = { common: "Gewöhnlich", rare: "Selten", epic: "Episch", legend: "Legendär", evo: "Evolution", angel: "Segen", devil: "Pakt" };
+  // v2.8 Synergie-Sets: Skills derselben Richtung schalten ab 3 bzw. 6 Stufen Boni frei
+  const SKILL_SETS = {
+    gun: { name: "Feuerkraft", ids: ["multishot", "front", "diag", "side", "rear", "pierce", "ricochet", "wall", "atk", "rate", "storm"], tiers: [[3, "+10 % Feuerrate", (p) => { p.rateMul *= 1.1; }], [6, "+1 Durchschlag", (p) => { p.pierce += 1; }]] },
+    elem: { name: "Elemente", ids: ["fire", "freeze", "poison", "splash", "exec", "chainboom"], tiers: [[3, "+15 % Schaden", (p) => { p.dmgMul *= 1.15; }], [5, "+15 % Krit-Chance", (p) => { p.crit += 0.15; }]] },
+    surv: { name: "Überleben", ids: ["hp", "dodge", "speed", "revive", "blood", "dashcd", "dashblast", "bloodpact"], tiers: [[3, "+15 % Leben", (p) => { const a = Math.round(p.maxHp * 0.15); p.maxHp += a; p.hp += a; }], [6, "+6 % Ausweichen", (p) => { p.dodge += 0.06; }]] },
+    tech: { name: "Technik", ids: ["orbit", "drone", "crit"], tiers: [[2, "+1 Drohne", (p) => { p.drones += 1; }], [4, "+1 Kreissäge", (p) => { p.orbit += 1; }]] },
+  };
+  const setOf = (id) => Object.keys(SKILL_SETS).find((k) => SKILL_SETS[k].ids.includes(id));
+  const setLevel = (p, k) => SKILL_SETS[k].ids.reduce((a, id) => a + (p.skills[id] || 0), 0);
+  function setHint(s) {
+    const k = setOf(s.id);
+    if (!k) return "";
+    const set = SKILL_SETS[k], lv = setLevel(player, k) + 1, next = set.tiers.find(([n]) => n >= lv);
+    return next ? `${tr(set.name)} ${Math.min(lv, next[0])}/${next[0]}: ${tr(next[1])}` : `${tr(set.name)} ${tr("komplett")}`;
+  }
+  function checkSets() {
+    const p = player;
+    for (const [k, set] of Object.entries(SKILL_SETS)) {
+      const lv = setLevel(p, k);
+      let got = run.setTier[k] || 0;
+      while (got < set.tiers.length && lv >= set.tiers[got][0]) {
+        set.tiers[got][2](p);
+        toast(`${tr("SET")}: ${tr(set.name)} – ${tr(set.tiers[got][1])}`, "combo");
+        fxRing(p.x, p.y, 70, "255,212,92", 0.45);
+        got++;
+      }
+      run.setTier[k] = got;
+    }
+  }
   for (const el of document.querySelectorAll("[data-ic]")) el.innerHTML = I(el.dataset.ic);
 
   let curOverlay = null;
@@ -356,6 +390,7 @@
     view.classList.toggle("three", mode3d);
     if (mode3d) {
       Render3D.setQuality(quality);
+      Render3D.setBloom(save.bloom !== false);
       // 3D-Auflösung bewusst begrenzt: Füllrate ist auf Handys der Engpass, das HUD bleibt trotzdem scharf
       Render3D.resize(W * scale, H * scale, Math.min(window.devicePixelRatio || 1, quality >= 2 ? 1.5 : 1) * RES_STEPS[resStep]);
     }
@@ -544,6 +579,10 @@
     track("runs");
     screenBlood = []; callout = null; ghosts = []; punchX = punchY = punchFov = 0;
     run.threat = mode === "campaign" ? Math.max(0, Math.min(save.threat || 0, save.threatMax || 0)) : 0;
+    // v2.8 Stadt-Checkpoints: Start in einer bereits erreichten Stadt – dafür gibt es zum Ausgleich Start-Skills
+    run.startCity = mode === "campaign" ? Math.max(0, Math.min(save.startCity || 0, save.cityMax || 0)) : 0;
+    if (run.startCity > 0) { run.chapter = Math.floor(run.startCity / 2) + 1; run.room = (run.startCity % 2) * (ROOMS_PER_CHAPTER / 2); }
+    run.freeRerolls = 1; run.setTier = {}; run.event = null; run.bans = 2; run.banned = [];
     run.order = mode === "survival" ? todaysOrder() : null;
     run.bossKills = 0;
     if (run.threat) run.greed *= 1 + 0.25 * run.threat;
@@ -553,6 +592,7 @@
     { const lv = heroLevel(save.skin) - 1; if (lv > 0) { player.maxHp = player.hp = Math.round(player.maxHp * (1 + 0.02 * lv)); player.dmgMul *= 1 + 0.01 * lv; } }
     applyGear(player);
     if (run.order && run.order.apply) run.order.apply(player);
+    if (run.startCity > 0) run.pendingPicks += Math.min(6, run.startCity);
     // Goldener Held: +10 % Münzen
     if (save.skin === "gold") run.greed *= 1.1;
     // Gekaufte Boosts für diesen Run verbrauchen
@@ -581,7 +621,7 @@
     roomFade = 1;
     run.doorK = 0;
     supplyCrate = null;
-    run.obj = null; fuses = [];
+    run.obj = null; run.event = null; fuses = [];
     player.vx = player.vy = 0;
     player.invuln = 1;
     run.cleared = false;
@@ -618,6 +658,7 @@
     } else {
       spawnWave(objKind === "hold" ? 0.45 : objKind === "bounty" ? 0.75 : 1);
       if (objKind) setupObjective(objKind);
+      else if (run.mode === "campaign" && districtIdx() > 0 && cityIdx() > 0 && Math.random() < 0.4) run.event = { kind: pick(["ambush", "horde", "pack"]), at: Math.max(1, Math.ceil(enemies.length * 0.45)), fired: false };
       else if (!banner) showBanner(dName.toUpperCase(), `${city.name} · ${tr("Bezirk {n}/10", { n: districtIdx() + 1 })}`, 1.4);
     }
     // Funkspruch beim Stadtwechsel; beim Einsatzstart nur bis der Prolog einmal gesehen wurde (kein Extra-Tippen bei jeder Runde)
@@ -1428,6 +1469,14 @@
 
   function hurtPlayer(dmg) {
     const p = player;
+    // v2.8 perfektes Ausweichen: der Treffer kommt genau während der Rolle
+    if (p.dashT > 0 && state === "play" && !(p.perfCd > run.time)) {
+      p.perfCd = run.time + 1.2; p.perfectT = run.time + 3;
+      slowMo = Math.max(slowMo, 0.45);
+      addText(p.x, p.y - 56, tr("PERFEKT AUSGEWICHEN!"), "#a8ff3e", 18, true);
+      fxRing(p.x, p.y, 80, "168,255,62", 0.4); sfx("combo"); track("perfect");
+      return;
+    }
     if (p.invuln > 0 || state !== "play") return;
     if (Math.random() < p.dodge) {
       addText(p.x, p.y - 30, tr("AUSGEWICHEN"), "#9ee6ff", 15);
@@ -1833,6 +1882,12 @@
       if (Math.random() < critChance || (p.evo.frost && e.slowT > 0)) { dmg *= p.critMul; crit = true; }
       if (p.evo.vamp && p.hp < p.maxHp * 0.35) dmg *= 1.5;
       if (p.bigGame && (e.elite || e.def.boss)) dmg *= p.bigGame; // Seuchenjäger
+      if (p.perfectT > run.time) dmg *= 1.25; // nach perfektem Ausweichen
+      // Schwachstelle: Treffer in den Rücken eines Bosses
+      if (e.def.boss && o.bullet && !o.aoe && Math.abs(angDiff(e.face, Math.atan2(-o.bullet.vy, -o.bullet.vx))) > 2.0) {
+        dmg *= 1.5;
+        if (!(run.time - (e.wkAt || -9) < 0.7)) { e.wkAt = run.time; addText(e.x, e.y - e.r - 22, tr("SCHWACHSTELLE!"), "#ffd45c", 16, true); }
+      }
       if (!e.def.boss && p.headshot > 0 && Math.random() < p.headshot) { dmg = e.hp; crit = true; exec = true; }
       // … und zerspringen unter 30 % Leben
       if (p.evo.frost && e.slowT > 0 && !e.def.boss && e.hp - dmg < e.maxHp * 0.3) { dmg = e.hp; crit = true; exec = true; o.shatter = true; }
@@ -2301,7 +2356,20 @@
       showBanner(tr(title), tr(sub), 1.4); summon(e, minion, n);
       fxRing(e.x, e.y, 160, "255,80,60", 0.5); shake = Math.max(shake, 8); sfx("rage");
     }
+    // v2.8 dritte Phase unter 25 %: schneller, häufigere Attacken, roter Puls
+    if (e.phase2 && !e.phase3 && e.hp < e.maxHp * 0.25) {
+      e.phase3 = true; e.speed *= 1.25; e.rageT = 999;
+      showBanner(tr("LETZTE PHASE"), tr("{b} wird rasend", { b: e.def.name }), 1.3);
+      fxRing(e.x, e.y, 200, "255,40,40", 0.6); shake = Math.max(shake, 10); sfx("rage");
+    }
+    // Trümmer regnen in Phase 2 und 3 – rote Kreise zeigen, wo
+    if (e.phase2 && (e.hzT = (e.hzT ?? 3) - dt) <= 0) {
+      e.hzT = e.phase3 ? 3.5 : 5.5;
+      for (let i = 0; i < (e.phase3 ? 3 : 2); i++) { const a = rand(0, TAU), dd = rand(50, 170); fuses.push({ x: clamp(p.x + Math.cos(a) * dd, L + 40, R - 40), y: clamp(p.y + Math.sin(a) * dd, T + 40, B - 40), r: 56, t: 1.15, max: 1.15, dmg: e.dmg * 0.5 }); }
+      addText(p.x, p.y - 62, tr("TRÜMMER!"), "#ffb733", 15);
+    }
     e.aiT -= dt;
+    if (e.phase3) e.aiT -= dt * 0.5;
     switch (e.mode) {
       case "tele": {
         // Zielen folgt dem Helden bis kurz vor dem Angriff, dann ist die Richtung fest (Zeit zum Ausweichen)
@@ -2821,6 +2889,10 @@
       save.threatMax = (save.threatMax || 0) + 1; persist();
       setTimeout(() => toast(tr("Bedrohung {n} freigeschaltet!", { n: save.threatMax }), "skull"), 1800);
     }
+    if (BOSS_ROOMS[run.room] && run.mode === "campaign" && cityIdx() + 1 > (save.cityMax || 0) && cityIdx() + 1 < CITIES.length) {
+      save.cityMax = cityIdx() + 1; persist();
+      setTimeout(() => toast(tr("Neuer Startpunkt: {c}", { c: CITIES[save.cityMax].name }), "map"), 3200);
+    }
     if (BOSS_ROOMS[run.room] && run.mode === "campaign") {
       const it = grantGear(0.04 * (run.threat || 0) + 0.015 * cityIdx());
       run.loot = (run.loot || 0) + 1;
@@ -2908,6 +2980,7 @@
   }
   // Solange Stellung oder Rettung laufen, bleibt die Tür zu – auch wenn gerade kein Zombie da ist
   function objectiveBlocksClear() {
+    if (run.event && !run.event.fired) return true; // v2.8: das Ereignis kommt noch
     const o = run.obj;
     if (!o) return false;
     if (o.kind === "hold") return !o.done || o.strikes.length > 0;
@@ -2936,6 +3009,7 @@
       o.done = true;
       showBanner(tr("KOPFGELD KASSIERT"), o.name, 2);
       rewardObjective(o.reward);
+      giveMod(rollMod()); // Kopfgeld-Prämie: ein Waffen-Mod
     }
   }
   function updateHold(o, dt) {
@@ -3046,6 +3120,26 @@
       showBanner(o.saved === o.total ? tr("ALLE GERETTET!") : tr("{n}/{m} GERETTET", { n: o.saved, m: o.total }), o.lost ? tr("{n} verloren", { n: o.lost }) : tr("Die Überlebenden sind auf dem Weg zum Treffpunkt"), 1.8);
     }
   }
+  // v2.8 Bezirks-Ereignisse: wenn die Welle halb erledigt ist, kippt die Lage – Hinterhalt, Horde oder Elite-Rudel
+  function updateEvent() {
+    const ev = run.event;
+    if (!ev || ev.fired || enemies.filter((e) => !e.dead).length > ev.at) return;
+    ev.fired = true;
+    const pool = wavePool().filter((t) => t !== "nest" && !ZOMBIES[t].pack), sp = (t, x, y) => { const e = spawnEnemy(t, x, y); e.spawnT = 0.35; return e; };
+    if (ev.kind === "ambush") {
+      for (let i = 0; i < 6; i++) sp(pick(pool), i % 2 ? R - 36 : L + 36, rand(T + 80, B - 120));
+      showBanner(tr("HINTERHALT!"), tr("Von beiden Seiten!"), 1.4);
+    } else if (ev.kind === "horde") {
+      const fast = ["runner", "crawler", "dog"].filter((t) => ZOMBIES[t]);
+      for (let i = 0; i < 9; i++) sp(pick(fast), rand(L + 40, R - 40), T + rand(30, 90));
+      showBanner(tr("HORDE!"), tr("Sie stürmen von oben"), 1.4);
+    } else {
+      for (let i = 0; i < 2; i++) makeElite(sp(pick(pool), rand(L + 60, R - 60), T + rand(60, 140)), 1);
+      showBanner(tr("ELITE-RUDEL"), tr("Zwei Elite-Zombies greifen an"), 1.4);
+    }
+    shake = Math.max(shake, 6); sfx("rage"); fx4d("boss", 400);
+    track("events");
+  }
   // Explosiv-Elite: kurze Zündschnur am Todesort, dann Detonation
   let fuses = [];
   function updateFuses(dt) {
@@ -3138,7 +3232,8 @@
   // ============================================================
   function rollSkills(n) {
     const p = player;
-    const avail = SKILLS.filter((s) => (p.skills[s.id] || 0) < s.max && (!s.cond || s.cond(p)));
+    const banned = (run && run.banned) || [];
+    const avail = SKILLS.filter((s) => (p.skills[s.id] || 0) < s.max && (!s.cond || s.cond(p)) && !banned.includes(s.id));
     const out = [];
     while (out.length < n && avail.length) {
       const total = avail.reduce((a, s) => a + RARITY_WEIGHT[s.rarity], 0);
@@ -3153,6 +3248,7 @@
   function takeSkill(s) {
     player.skills[s.id] = (player.skills[s.id] || 0) + 1;
     s.apply(player);
+    checkSets();
   }
 
   // Rezept-Fortschritt für eine Evolution, z. B. "Abpraller 1/2 + Feuerrate 2/2"
@@ -3201,10 +3297,12 @@
   }
 
   let rerollHandler = null;
-  function renderCards(title, cards, onReroll = null, sub = tr("Wähle eine Fähigkeit")) {
+  function renderCards(title, cards, onReroll = null, sub = tr("Wähle eine Fähigkeit"), onBan = null) {
     $("skillPick").classList.toggle("shrine", cards.some((c) => c.rarity === "angel"));
     rerollHandler = onReroll;
-    $("rerollBtn").classList.toggle("hidden", !(onReroll && Platform.ads.available));
+    const freeRoll = run && run.freeRerolls > 0;
+    $("rerollBtn").classList.toggle("hidden", !(onReroll && (Platform.ads.available || freeRoll)));
+    $("rerollBtn").innerHTML = freeRoll ? `${I("dna")} ${tr("Neu würfeln (gratis)")}` : adLabel(tr("Neu würfeln"));
     $("skillTitle").textContent = title;
     $("skillSub").textContent = sub;
     const box = $("skillCards");
@@ -3217,6 +3315,14 @@
       const hint = c.hint ? `<div class="recipe evo-hint">${c.hint}</div>` : "";
       btn.innerHTML = `${medal(c.icon)}<div><div class="rar">${tr(RARITY_NAME[c.rarity] || "Fähigkeit")}</div><div class="name">${c.name}${sk}</div><div class="desc">${c.desc}</div>${hint}</div>`;
       btn.addEventListener("click", () => c.onPick(), { once: true });
+      if (onBan && c.id && SKILLS.includes(skillById(c.id))) {
+        // Schloss oben rechts: Skill für diesen Einsatz sperren (span statt button – Knöpfe dürfen nicht verschachtelt sein)
+        const ban = document.createElement("span");
+        ban.className = "ban"; ban.setAttribute("role", "button"); ban.title = tr("Skill für diesen Einsatz sperren");
+        ban.innerHTML = I("lock");
+        ban.addEventListener("click", (ev) => { ev.stopPropagation(); onBan(c.id); });
+        btn.appendChild(ban);
+      }
       box.appendChild(btn);
     }
     joy.active = false;
@@ -3224,23 +3330,41 @@
     show(ui.skillPick);
   }
 
-  function openSkillPick(rerolled = false) {
-    if (!rerolled) { run.pendingPicks--; sfx("level"); trackMax("level", player.level); }
+  function openSkillPick(rerolled = false, again = false) {
+    if (!rerolled && !again) { run.pendingPicks--; sfx("level"); trackMax("level", player.level); }
     // Fertiges Rezept: Evolution erscheint garantiert als erste Karte
     const ready = EVOLUTIONS.filter((ev) => evoReady(player, ev));
     const choices = rollSkills(ready.length ? 2 : 3);
     if (!choices.length && !ready.length) { resumePlay(); return; }
-    const cards = choices.map((s) => ({ ...s, hint: evoHint(s), onPick: () => { takeSkill(s); resumePlay(); } }));
+    const cards = choices.map((s) => ({ ...s, hint: [evoHint(s), setHint(s)].filter(Boolean).join(" · "), onPick: () => { takeSkill(s); resumePlay(); } }));
     if (ready.length) {
       const ev = ready[0];
       cards.unshift({ icon: ev.icon, name: ev.name, desc: ev.desc, rarity: "evo", onPick: () => { takeEvolution(ev); resumePlay(); } });
     }
-    renderCards(tr("AUFSTIEG!"), cards, rerolled ? null : () => openSkillPick(true));
+    const bans = run.bans || 0;
+    const onBan = bans > 0 ? (id) => { run.bans--; run.banned.push(id); sfx("paper"); openSkillPick(rerolled, true); } : null;
+    renderCards(tr("AUFSTIEG!"), cards, rerolled ? null : () => openSkillPick(true), bans > 0 ? `${tr("Wähle eine Fähigkeit")} · ${tr("Schloss sperrt einen Skill ({n} übrig)", { n: bans })}` : tr("Wähle eine Fähigkeit"), onBan);
   }
 
+  // v2.8 Waffen-Mods: Umbauten für die aktuelle Waffe, aus der Versorgungskiste und als Kopfgeld-Prämie
+  const WEAPON_MODS = [
+    { id: "hollow", name: "Hohlspitz-Munition", desc: "+25 % Schaden", apply: (p) => { p.dmgMul *= 1.25; } },
+    { id: "mag", name: "Schnellfeuer-Magazin", desc: "+20 % Feuerrate", apply: (p) => { p.rateMul *= 1.2; } },
+    { id: "ap", name: "Panzerbrechende Munition", desc: "+1 Durchschlag", apply: (p) => { p.pierce += 1; } },
+    { id: "laser", name: "Laservisier", desc: "+12 % Krit-Chance", apply: (p) => { p.crit += 0.12; } },
+    { id: "drum", name: "Trommelmagazin", desc: "+1 Salve ohne Schadensverlust", apply: (p) => { p.multishot += 1; } },
+  ];
+  function rollMod() { const have = player.mods || [], left = WEAPON_MODS.filter((m) => !have.includes(m.id)); return left.length ? pick(left) : null; }
+  function giveMod(m) {
+    if (!m) return;
+    m.apply(player); player.mods = (player.mods || []).concat(m.id);
+    toast(`${tr("Waffen-Mod")}: ${tr(m.name)} – ${tr(m.desc)}`, "weapons"); track("mods");
+  }
   function openSupply() {
     sfx("level");
+    const mod = rollMod();
     renderCards(tr("NACHSCHUB"), [
+      ...(mod ? [{ icon: "weapons", name: tr("Waffen-Mod"), desc: `${tr(mod.name)}: ${tr(mod.desc)}`, rarity: "epic", onPick: () => { giveMod(mod); afterSupply(); } }] : []),
       { icon: "firstAid", name: tr("Erste Hilfe"), desc: tr("Heilt 50% deiner max. HP"), rarity: "common", onPick: () => { healPlayer(player.maxHp * 0.5); afterSupply(); } },
       { icon: "ammo", name: tr("Waffenkiste"), desc: tr("Wähle einen zusätzlichen Skill"), rarity: "epic", onPick: () => { run.pendingPicks++; afterSupply(); } },
     ], null, tr("Versorgungskiste geöffnet"));
@@ -3671,6 +3795,7 @@
       stampDot(e.x + rand(-5, 5), e.y + rand(-5, 5), rand(0.9, 2) * (e.def.boss ? 2 : 1), e.def.blood);
     }
     updateObjective(dt);
+    updateEvent();
     updateFuses(dt);
     updateHazards(dt);
     updateLobs(dt);
@@ -5709,7 +5834,8 @@
     $("campaignInfo").textContent = save.best.chapter ? `${tr("Rekord")}: ${cityAt(cityIdx(save.best)).name} · ${tr("Bezirk {n}/10", { n: districtIdx(save.best) + 1 })}` : tr("Heilbronn → Hamburg · 9 Städte");
     const todayWorld = THEME_ORDER[Math.floor(Date.now() / 864e5) % THEME_ORDER.length];
     const th = Math.min(save.threat || 0, save.threatMax || 0);
-    $("ctaSub").textContent = mode === "campaign" ? (th ? `${tr("Kampagne")} · ${tr("Bedrohung {n}", { n: th })} · ×${threatScore(th).toLocaleString(I18N.lang)} ${tr("Punkte")}` : tr("Kampagne · Start in Heilbronn")) : `${tr("Überleben")} · ${tr(WORLD_NAME[todayWorld])}${save.stats.survival ? ` · ${tr("Rekord")} ${fmtTime(save.stats.survival)}` : ""}`;
+    const sc = Math.min(save.startCity || 0, save.cityMax || 0), scName = CITIES[sc].name;
+    $("ctaSub").textContent = mode === "campaign" ? (th ? `${tr("Start in {c}", { c: scName })} · ${tr("Bedrohung {n}", { n: th })} · ×${threatScore(th).toLocaleString(I18N.lang)} ${tr("Punkte")}` : sc ? tr("Kampagne · Start in {c}", { c: scName }) : tr("Kampagne · Start in Heilbronn")) : `${tr("Überleben")} · ${tr(WORLD_NAME[todayWorld])}${save.stats.survival ? ` · ${tr("Rekord")} ${fmtTime(save.stats.survival)}` : ""}`;
     $("playBtn").classList.toggle("primary", mode === "campaign");
     $("playBtn").classList.toggle("amber", mode === "survival");
     for (const el of document.querySelectorAll(".coinsVal")) el.textContent = num(save.coins);
@@ -5994,7 +6120,15 @@
     $("routeBack").style.visibility = mode === "menu" ? "" : "hidden";
     show(ui.route);
     renderStory();
+    $("startPick").classList.toggle("hidden", mode !== "menu" || !(save.cityMax > 0));
+    if (mode === "menu" && save.cityMax > 0) renderStartPick();
     if (window.GameAudio) GameAudio.stinger("radio");
+  }
+  // v2.8 Startpunkt im Fluchtplan wählen (jede besiegte Stadt schaltet die nächste frei)
+  function renderStartPick() {
+    const max = Math.min(CITIES.length - 1, save.cityMax || 0), cur = Math.min(save.startCity || 0, max);
+    $("startCities").innerHTML = CITIES.map((c, i) => `<button class="sc${i === cur ? " on" : ""}${i > max ? " locked" : ""}" data-c="${i}" ${i > max ? "disabled" : ""}><b>${KFZ[c.id] || c.name.slice(0, 2).toUpperCase()}</b><small>${i > max ? I("lock") : c.name}</small></button>`).join("");
+    $("startInfo").textContent = cur ? (cur === 1 ? tr("Start in {c} mit einem Start-Skill", { c: CITIES[cur].name }) : tr("Start in {c} mit {n} Start-Skills", { c: CITIES[cur].name, n: Math.min(6, cur) })) : tr("Start in Heilbronn – besiege Stadt-Bosse, um weitere Startpunkte freizuschalten");
   }
   let typeTimer = 0;
   function renderStory() {
@@ -6413,6 +6547,8 @@
     $("cineBtn").innerHTML = row("cinema", tr("Kino-Effekte"), sw(save.cine !== false));
     $("motionBtn").innerHTML = row("motion", tr("4D-Bewegung (Neigen)"), sw(save.motion !== false));
     $("shakeBtn").innerHTML = row("explosion", tr("Bildschirmwackeln"), sw(save.shakeFx !== false));
+    $("bloomBtn").innerHTML = row("star", tr("Leuchteffekte"), sw(save.bloom !== false));
+    $("bloomBtn").classList.toggle("hidden", !init3d());
     $("privacyOptsBtn").innerHTML = row("privacy", tr("Werbe-Einwilligung ändern"), "");
     $("privacyOptsBtn").classList.toggle("hidden", !Platform.isNative);
     $("privacyLink").innerHTML = row("info", tr("Datenschutzerklärung"), "");
@@ -6462,6 +6598,12 @@
   // Startknopf startet die gewählte Einsatzart; Karte antippen wählt, zweites Antippen startet sofort
   $("playBtn").addEventListener("click", () => startRun(save.menuMode === "survival" ? "survival" : "campaign"));
   // v2.5 Bedrohung wählen, Bestenliste, Teilen
+  $("startCities").addEventListener("click", (ev) => {
+    const b = ev.target.closest(".sc");
+    if (!b || b.disabled) return;
+    save.startCity = +b.dataset.c; persist(); renderStartPick(); refreshMenu();
+    if (window.GameAudio) GameAudio.ui("tap");
+  });
   $("threatPips").addEventListener("click", (ev) => {
     const b = ev.target.closest(".tp");
     if (!b) return;
@@ -6557,6 +6699,7 @@
     if (!fn) return;
     rerollHandler = null;
     $("rerollBtn").classList.add("hidden");
+    if (run && run.freeRerolls > 0 && state === "pick") { run.freeRerolls--; fn(); return; } // einmal pro Einsatz ohne Werbung
     const ok = await Platform.ads.showRewarded("reroll");
     if (ok && state === "pick") { run.adWatched = true; fn(); } else if (!ok) toast(tr("Kein Video verfügbar"), "video");
   });
@@ -6583,6 +6726,7 @@
   $("soundBtn2").addEventListener("click", toggleSound);
   $("cineBtn").addEventListener("click", () => { save.cine = save.cine === false; persist(); applyCine(); renderSettings(); });
   $("shakeBtn").addEventListener("click", () => { save.shakeFx = save.shakeFx === false; persist(); renderSettings(); });
+  $("bloomBtn").addEventListener("click", () => { save.bloom = save.bloom === false; persist(); if (window.Render3D && Render3D.ready) Render3D.setBloom(save.bloom !== false); renderSettings(); });
   $("motionBtn").addEventListener("click", () => { save.motion = save.motion === false; persist(); renderSettings(); if (!save.motion && webgl && Render3D.setTilt) for (let i = 0; i < 40; i++) Render3D.setTilt(0, 0); });
   // 4D: Handy neigen schwenkt die Menükamera (Ausgangslage wird laufend nachgeführt)
   let baseBeta = null;
@@ -6656,5 +6800,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

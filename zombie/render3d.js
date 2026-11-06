@@ -422,6 +422,7 @@ window.Render3D = (() => {
     renderer.setSize(cssW, cssH, false);
   }
 
+  function setBloom(on) { postWanted = !!on; } // gleiche Shader-Programme wie direkt – Umschalten kostet nichts
   function setQuality(q) {
     quality = q;
     if (!ready) return;
@@ -1057,7 +1058,11 @@ void main() {
       if (grade.fogNear) scene.fog.near = grade.fogNear;
       if (grade.fogFar) scene.fog.far = grade.fogFar;
       renderer.toneMappingExposure = grade.exposure || 1.15;
+      const mc = new T3.Color(grade.moon), avg = (mc.r + mc.g + mc.b) / 3;
+      postTint.set(1 + (mc.r - avg) * 0.12, 1 + (mc.g - avg) * 0.12, 1 + (mc.b - avg) * 0.12);
+      if (boss) postTint.x *= 1.04;
     } else {
+      postTint.set(1, 1, 1);
       scene.fog.near = 1500; scene.fog.far = 2700;
       renderer.toneMappingExposure = 1.15;
     }
@@ -1180,6 +1185,7 @@ void main() {
     const beacons = w.theme === "lab" ? [[D.W / 2 - D.DOOR_W / 2 - 26, D.T - 8], [D.W / 2 + D.DOOR_W / 2 + 26, D.T - 8]] : [];
     for (const [bx, bz] of beacons) { deco.add(mesh(cyl(6, 7, 6, 10), slam("#2a2a2a"), bx, 64, bz)); deco.add(mesh(cyl(5, 5, 8, 10), sbasic("#ff3020"), bx, 71, bz)); }
     addProps(deco, w);
+    addClutter(deco, w);
     const clock = w.cityId === "heilbronn" ? addHeilbronn(deco, w, WH) : null;
     addCityMark(deco, w, WH);
 
@@ -1857,19 +1863,21 @@ void main() {
   const MAXP = 8;
   const ZERO = new T3.Matrix4().makeScale(0, 0, 0);
   // v2.7 Randlicht: kühle Kante an der Silhouette – Figuren heben sich vom dunklen Boden ab (Augen ausgenommen)
+  // v2.8 Material-Körnung: feines, am Körper haftendes Rauschen (Stoff, Haut, Schmutz) statt glatter Flächen
+  const GRAIN_GLSL = (k) => `float gn = fract(sin(dot(floor(vGrain * 0.85), vec3(12.9898, 78.233, 37.719))) * 43758.5453);\n\toutgoingLight *= 1.0 + (gn - 0.5) * 0.16${k};\n\t`;
   const RIM_GLSL = "float rimK = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);\n\toutgoingLight += vec3(0.36, 0.44, 0.56) * pow(rimK, 2.4) * 0.44";
   function injectParts(sh, uni, kind) {
     sh.uniforms.partMat = uni;
     const pm = "partMat[int(part + 0.5)]";
-    let vs = `attribute float part;\nuniform mat4 partMat[${MAXP}];\n${kind === "lit" ? "attribute float glow;\nvarying float vGlow;\n" : ""}${sh.vertexShader}`;
+    let vs = `attribute float part;\nuniform mat4 partMat[${MAXP}];\n${kind === "lit" ? "attribute float glow;\nvarying float vGlow;\nvarying vec3 vGrain;\n" : ""}${sh.vertexShader}`;
     if (kind === "lit") vs = vs.replace("#include <beginnormal_vertex>", `vec3 objectNormal = mat3(${pm}) * normal;`);
-    vs = vs.replace("#include <begin_vertex>", `vec3 transformed = (${pm} * vec4(position, 1.0)).xyz;${kind === "outline" ? `\n  transformed += mat3(${pm}) * normal;` : ""}${kind === "lit" ? "\n  vGlow = glow;" : ""}`);
+    vs = vs.replace("#include <begin_vertex>", `vec3 transformed = (${pm} * vec4(position, 1.0)).xyz;${kind === "outline" ? `\n  transformed += mat3(${pm}) * normal;` : ""}${kind === "lit" ? "\n  vGlow = glow; vGrain = position;" : ""}`);
     sh.vertexShader = vs;
-    if (kind === "lit") sh.fragmentShader = "varying float vGlow;\n" + sh.fragmentShader.replace("#include <opaque_fragment>", `${RIM_GLSL} * (1.0 - vGlow);\n\toutgoingLight = mix(outgoingLight, diffuseColor.rgb, vGlow);\n\t#include <opaque_fragment>`);
+    if (kind === "lit") sh.fragmentShader = "varying float vGlow;\nvarying vec3 vGrain;\n" + sh.fragmentShader.replace("#include <opaque_fragment>", `${GRAIN_GLSL(" * (1.0 - vGlow)")}${RIM_GLSL} * (1.0 - vGlow);\n\toutgoingLight = mix(outgoingLight, diffuseColor.rgb, vGlow);\n\t#include <opaque_fragment>`);
   }
   function partMaterial(m, uni, kind) {
     m.onBeforeCompile = (sh) => injectParts(sh, uni, kind);
-    m.customProgramCacheKey = () => `parts${MAXP}:${kind}:rim`; // alle Figuren teilen sich ein Programm je Art
+    m.customProgramCacheKey = () => `parts${MAXP}:${kind}:v28`; // alle Figuren teilen sich ein Programm je Art
     return m;
   }
   function updateParts(M) {
@@ -1939,7 +1947,10 @@ void main() {
     // Matrizen direkt vor dem Zeichnen: three.js hat die Gruppenmatrizen dann schon aktualisiert
     body.onBeforeRender = outline.onBeforeRender = body.onBeforeShadow = () => updateParts(M);
     M.root.add(body, outline);
-    M.parts = { nodes, parent, uni, hidden: nodes.map(() => false), body, litCount };
+    // v2.8: Ruhelage jedes Vertex im Modellraum + Originalfarben – Treffer-Wunden malen darauf
+    const mpos = new Float32Array(count * 3);
+    sphere.forEach((v, i) => { mpos[i * 3] = v.x; mpos[i * 3 + 1] = v.y; mpos[i * 3 + 2] = v.z; });
+    M.parts = { nodes, parent, uni, hidden: nodes.map(() => false), body, litCount, mpos, col0: col.slice(), colAttr: geo.attributes.color, wounds: 0 };
     updateParts(M);
     return true;
   }
@@ -1959,11 +1970,48 @@ void main() {
     if (bakeParts(M, keep, look)) { M.mats = [M.parts.body.material, ...kept]; return; }
     // Bosse mit sehr vielen Gelenken: je Knoten ein verschmolzenes Mesh
     const lit = new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-    lit.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace("#include <opaque_fragment>", `${RIM_GLSL};\n\t#include <opaque_fragment>`); };
-    lit.customProgramCacheKey = () => "boss:rim";
+    lit.onBeforeCompile = (sh) => {
+      sh.vertexShader = "varying vec3 vGrain;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n  vGrain = position;");
+      sh.fragmentShader = "varying vec3 vGrain;\n" + sh.fragmentShader.replace("#include <opaque_fragment>", `${GRAIN_GLSL("")}${RIM_GLSL};\n\t#include <opaque_fragment>`);
+    };
+    lit.customProgramCacheKey = () => "boss:v28";
     const glow = new T3.MeshBasicMaterial({ vertexColors: true });
     bakeNode(M.root, lit, glow, keep, true, look);
     M.mats = [lit, ...kept];
+  }
+
+  // v2.8 Treffer-Wunden: die Einschlagstelle (Schussrichtung relativ zur Blickrichtung, Brust- oder Kopfhöhe)
+  // färbt die Vertexfarben blutrot – angeschossene Zombies tragen ihre Treffer sichtbar, auch als Leiche
+  const WOUND_MAX = 14, woundC = new T3.Color();
+  function woundAt(M, e) {
+    const P = M.parts, h = e.lastHit;
+    if (!P || !P.mpos || !h || P.wounds >= WOUND_MAX) return;
+    if (h.kind === "cryo" || h.kind === "shock") return;
+    const burn = h.kind === "burn";
+    if (burn && Math.random() < 0.75) return; // Flammen treffen dauernd – nur ab und zu ein Brandfleck
+    const H = M.height || 40, mp = P.mpos, col = P.colAttr.array, n = P.litCount;
+    const d = (h.ang ?? e.hitAng ?? 0) + Math.PI - (e.face || 0), dx = Math.cos(d), dz = Math.sin(d);
+    const yh = H * (h.crit && !burn ? 0.86 : 0.4 + Math.random() * 0.32);
+    // Oberfläche zum Schützen hin: Vertex mit der größten Ausdehnung in Schussrichtung nahe der Trefferhöhe
+    let best = -1, bs = -1e9;
+    for (let i = 0; i < n; i++) {
+      const v = mp[i * 3] * dx + mp[i * 3 + 2] * dz - Math.abs(mp[i * 3 + 1] - yh) * 1.6;
+      if (v > bs) { bs = v; best = i; }
+    }
+    if (best < 0) return;
+    const cx = mp[best * 3], cy = mp[best * 3 + 1], cz = mp[best * 3 + 2];
+    const rad = H * (h.kind === "blast" ? 0.2 : h.big || h.crit ? 0.13 : 0.09), r2 = rad * rad, run = rad * 3;
+    if (burn) woundC.setRGB(0.035, 0.028, 0.024); else woundC.set((e.def && e.def.blood) || "#6e0f12").multiplyScalar(0.85);
+    for (let i = 0; i < n; i++) {
+      const j = i * 3, ox = mp[j] - cx, oy = mp[j + 1] - cy, oz = mp[j + 2] - cz, q = ox * ox + oy * oy + oz * oz;
+      let k = 0;
+      if (q < r2) k = Math.min(0.94, (1 - Math.sqrt(q) / rad) * (1.2 + 0.4 * Math.sin(i * 12.9898)));
+      else if (!burn && oy < 0 && oy > -run && ox * ox + oz * oz < r2 * 0.1) k = 0.55 * (1 + oy / run); // herablaufendes Blut
+      if (k <= 0) continue;
+      col[j] += (woundC.r - col[j]) * k; col[j + 1] += (woundC.g - col[j + 1]) * k; col[j + 2] += (woundC.b - col[j + 2]) * k;
+    }
+    P.colAttr.needsUpdate = true;
+    P.wounds++;
   }
 
   // Brutnest: pulsierender Fleischsack mit Ranken und leuchtenden Eiern
@@ -1998,6 +2046,9 @@ void main() {
       cast(M.root);
     }
     M.root.visible = true;
+    // Wunden des Vorbesitzers aus dem Pool abwaschen
+    if (M.parts && M.parts.wounds) { M.parts.colAttr.array.set(M.parts.col0); M.parts.colAttr.needsUpdate = true; M.parts.wounds = 0; }
+    M.hitRef = null;
     if (M.extra.head) M.extra.head.visible = true;
     for (const A of M.arms) A.g.visible = true;
     M.root.rotation.set(0, 0, 0);
@@ -2030,8 +2081,16 @@ void main() {
       M.body.position.y = Math.abs(Math.sin(ph)) * 0.05 * e.r;
       // Schlurfen: seitliches Wanken; Treffer: nach hinten zucken; Sturmangriff: weit vorgebeugt
       const rush = e.mode === "lunge" || e.mode === "charge" ? -0.35 : 0;
-      M.body.rotation.x = Math.sin(ph) * 0.07;
-      M.body.rotation.z = (M.lean || 0) + rush + Math.min(0.1, e.hitT) * 3.2;
+      // v2.8 Körper-Animation: Gangart je Zombie (0 normal, 1 hinkend, 2 Arm schleift, 3 Kopf hängt),
+      // Treffer schubsen den Oberkörper in Schussrichtung und reißen den Kopf mit, schwer Verletzte taumeln
+      const gait = M.kind === "player" || (e.def && e.def.boss) ? 0 : Math.floor((e.wob || 0) * 10) % 4;
+      const fl = Math.min(0.1, e.hitT || 0) * 3.2, hd = (e.hitAng || 0) - (e.face || 0);
+      const weak = e.maxHp ? Math.max(0, 1 - e.hp / (e.maxHp * 0.35)) : 0;
+      M.body.rotation.x = Math.sin(ph) * (gait === 1 ? 0.15 : 0.07) + Math.sin(hd) * fl + Math.sin(t * 4.2 + (e.wob || 0)) * 0.1 * weak;
+      M.body.rotation.z = (M.lean || 0) + rush - Math.cos(hd) * fl + 0.12 * weak;
+      M.body.rotation.y = Math.sin(ph) * 0.09;
+      if (gait === 1) { M.body.position.y -= Math.max(0, Math.sin(ph)) * 0.06 * e.r; for (const L of M.legs) if (L.s > 0 && !L.spider) L.g.rotation.z *= 0.35; }
+      else if (gait === 2) for (const A of M.arms) if (A.s < 0 && !A.crawl) A.g.rotation.z = -0.1 + Math.sin(ph) * 0.12;
       if (e.mode === "crouch") { M.body.position.y = -0.22 * e.r; M.body.rotation.z -= 0.35; for (const L of M.legs) L.g.rotation.z = L.s * 0.5; }
       else if (e.mode === "leap") { M.body.rotation.z -= 0.6; for (const L of M.legs) L.g.rotation.z = -0.9; for (const A of M.arms) A.g.rotation.z = 0.9; }
       else if (e.mode === "scream") { if (M.extra.head) M.extra.head.rotation.z = 0.55; for (const A of M.arms) { A.g.rotation.y = A.s * 1.1; A.g.rotation.z = 0.5; } M.body.rotation.z += 0.2; }
@@ -2043,6 +2102,10 @@ void main() {
       else if (e.mode === "tele" && e.tele && e.tele.k === "cone") { for (const A of M.arms) A.g.rotation.z = A.s > 0 ? 2.0 : 0.4; M.body.rotation.z -= 0.2; }
       else if (e.mode === "whistle" || e.pose === "whistle") { for (const A of M.arms) A.g.rotation.z = A.s > 0 ? 1.9 + Math.sin(t * 30) * 0.1 : 0.3; if (M.extra.head) M.extra.head.rotation.z = 0.25; }
       if (e.mode !== "scream" && e.mode !== "whistle" && e.pose !== "whistle" && M.extra.head) M.extra.head.rotation.z = 0;
+      if (M.extra.head) {
+        M.extra.head.rotation.x = Math.sin(t * 1.6 + (e.wob || 0) * 3) * (gait === 3 ? 0.34 : 0.1) + Math.sin(hd) * fl * 1.4;
+        if (e.mode !== "scream") M.extra.head.rotation.z -= Math.cos(hd) * fl * 1.6;
+      }
       if (e.mode !== "scream" && e.mode !== "spin") for (const A of M.arms) if (!A.crawl) A.g.rotation.y = A.s * 0.18;
     }
     if (e.armOff) for (const A of M.arms) A.g.visible = !e.armOff[A.s]; // abgeschossener Arm
@@ -2664,6 +2727,7 @@ void main() {
       M.root.scale.setScalar(s);
       animate(M, e, t, near);
       tint(M, e, t);
+      if (e.lastHit !== M.hitRef) { M.hitRef = e.lastHit; woundAt(M, e); }
       M.root.visible = !e.under && (e.type !== "phantom" || (e.glitchT > 0 ? Math.random() < 0.5 : Math.random() > 0.04));
     }
     // Gestorbene: Pose und Flugbahn kommen aus der Körper-Physik des Spiels
@@ -3199,7 +3263,7 @@ void main() {
     if (p.tier >= 2) bill(addB, (p.x + mz.x) / 2, 26, (p.y + mz.y) / 2, 22, CELL.glow, "180,107,255", 0.3 + 0.1 * Math.sin(t * 5));
     for (let i = 0; i < p.drones; i++) { const d = w.dronePos(i); bill(addB, d.x + 6, 58, d.y + 30, 9, CELL.glow, "127,231,255", 0.8); }
     // Raum: leuchtende Fässer/Tanks, Tür-Pfeile, Versorgungskiste
-    for (const l of w.roomLights) bill(addB, l.x, 40, l.y, l.r * 0.42, CELL.glow, l.rgb, 0.3 + 0.08 * Math.sin(t * 3 + l.x));
+    for (const l of w.roomLights) bill(addB, l.x, 40, l.y, l.r * 0.42, CELL.glow, l.rgb, (0.3 + 0.08 * Math.sin(t * 3 + l.x)) * glowLevel(l, t));
     const dk = w.run.doorK || 0;
     if (dk > 0) {
       for (let i = 0; i < 3; i++) flat(floorB, D.W / 2, 1.5, D.T + 26 + i * 24 - ((t * 40) % 24), -Math.PI / 2, 12, 15, CELL.chevron, "140,255,74", dk * (0.8 - i * 0.22));
@@ -3269,6 +3333,8 @@ void main() {
       }
     }
   }
+  // v2.8: jedes dritte leuchtende Objekt hat einen Wackelkontakt – Licht und Schein setzen gemeinsam kurz aus
+  const glowLevel = (l, t) => ((((l.x * 7 + l.y * 3) | 0) % 3 === 0 && Math.sin(t * 0.9 + l.x * 0.37) > 0.8 && Math.sin(t * 37 + l.y) > -0.3) ? 0.2 : 1);
   function lampLevel(l, t) {
     let k = 1;
     if (l.flicker) k = l.fluor ? (Math.sin(t * 31 + l.x) + Math.sin(t * 5.1 + l.z) > 1.4 ? 0.2 : Math.random() < 0.03 ? 0.5 : 1) : Math.sin(t * 23) + Math.sin(t * 7.3 + 1) > 1.25 ? 0.15 : 1;
@@ -3384,15 +3450,45 @@ void main() {
     if (w.theme === "lab") for (const x of [D.L + 5, D.R - 5]) for (const [y, c] of [[10, "#4a5a52"], [17, "#7a3a2a"]]) { const pipe = mesh(cyl(2.4, 2.4, D.B - D.T - 40, 8), slam(c), x, y, (D.T + D.B) / 2); pipe.rotation.x = Math.PI / 2; deco.add(pipe); }
   }
 
+  // v2.8 Kleinkram: Dosen, Flaschen, Papier, Kartons, Ziegel, Kabel – macht leere Flächen glaubwürdig.
+  // Liegt flach am Boden (kein Sichtschutz, keine Kollision) und wird mit der Deko zusammengebacken.
+  function addClutter(deco, w) {
+    let s = 91 + (w.obstacles ? w.obstacles.length * 17 : 0) + w.theme.length * 53 + String(w.district || "").length * 7;
+    const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    const free = (x, z, r) => !(w.obstacles || []).some((o) => x + r > o.x - 4 && x - r < o.x + o.w + 4 && z + r > o.y - 4 && z - r < o.y + o.h + 4);
+    const doorX = D.W / 2, th = w.theme;
+    const paper = th === "hospital" ? ["#e8ecea", "#d8e4f0"] : ["#cfc6b4", "#b8b0a0", "#e0d8c4"];
+    let placed = 0;
+    for (let i = 0; i < 90 && placed < 22; i++) {
+      // zwei Drittel an Wänden und Hindernissen entlang, der Rest frei verteilt
+      let x, z;
+      if (R() < 0.65) { const side = R() < 0.5; x = side ? D.L + 10 + R() * 40 : D.R - 10 - R() * 40; z = D.T + 40 + R() * (D.B - D.T - 80); }
+      else { x = D.L + 30 + R() * (D.R - D.L - 60); z = D.T + 40 + R() * (D.B - D.T - 80); }
+      if (Math.abs(x - doorX) < D.DOOR_W && z < D.T + 90) continue;
+      if (!free(x, z, 8)) continue;
+      placed++;
+      const k = R(), rot = R() * Math.PI;
+      let m;
+      if (k < 0.3) { m = mesh(box(7 + R() * 4, 0.4, 5 + R() * 3), slam(paper[Math.floor(R() * paper.length)]), x, 0.3, z); m.rotation.set((R() - 0.5) * 0.2, rot, (R() - 0.5) * 0.2); }
+      else if (k < 0.45) { m = mesh(cyl(1.6, 1.6, 4.2, 8), slam(["#b8231c", "#2a5aa8", "#c8c8c0", "#3a8a3a"][Math.floor(R() * 4)]), x, 1.6, z); m.rotation.set(Math.PI / 2, rot, 0); }
+      else if (k < 0.58) { m = mesh(cyl(1.1, 1.5, 7, 8), slam(th === "lab" ? "#6ad8c8" : ["#2a5a2a", "#5a3a14", "#2a4a5a"][Math.floor(R() * 3)]), x, 1.5, z); m.rotation.set(Math.PI / 2, rot, 0.1); }
+      else if (k < 0.72 && x < D.L + 60 || k < 0.72 && x > D.R - 60) { m = mesh(box(10 + R() * 6, 6 + R() * 4, 8 + R() * 4), slam(th === "hospital" ? "#b8b0a0" : "#8a6a42"), x, 3.5, z); m.rotation.y = rot; }
+      else if (k < 0.84) { m = mesh(box(6, 3, 3), slam(th === "markt" ? "#7a6a5a" : "#7a3a2a"), x, 1.5, z); m.rotation.set(0, rot, (R() - 0.5) * 0.4); }
+      else if (k < 0.92) { m = mesh(torus(5 + R() * 3, 0.7, Math.PI * (0.8 + R() * 0.8)), slam("#18181a"), x, 0.7, z); m.rotation.set(Math.PI / 2, 0, rot); }
+      else { m = mesh(ico(3 + R() * 2, 0), slam(th === "lab" ? "#2a3a40" : "#1a1c1e"), x, 1.6, z); m.scale.set(1.2, 0.55, 1); m.rotation.y = rot; } // Müllbeutel
+      deco.add(m);
+    }
+  }
+
   // Punktlicht-Pool: die stärksten Lichtquellen des Frames bekommen echtes Licht
   const lightCands = [];
   function assignLights(w, t) {
     lightCands.length = 0;
     const p = w.player;
-    if (p.muzzle > 0 && p.weapon.flash) { const m = w.muzzlePoint(); lightCands.push([m.x, 28, m.y, p.weapon.tracer, 2.6, 240, 10]); }
+    if (p.muzzle > 0 && p.weapon.flash) { const m = w.muzzlePoint(); lightCands.push([m.x, 28, m.y, p.weapon.tracer, 3.4, 300, 10]); }
     for (const q of w.particles) {
-      if (q.t === "flash") lightCands.push([q.x, 30, q.y, q.rgb, 3.2 * (q.life / q.max), q.r * 1.8, 9]);
-      else if (q.t === "boom") lightCands.push([q.x, 50, q.y, "255,150,60", 5 * (q.life / q.max), q.r * 3.2, 11]);
+      if (q.t === "flash") lightCands.push([q.x, 30, q.y, q.rgb, 3.8 * (q.life / q.max), q.r * 1.9, 9]);
+      else if (q.t === "boom") { const k = q.life / q.max; lightCands.push([q.x, 50, q.y, k > 0.7 ? "255,220,170" : "255,140,50", 6.5 * k, q.r * 4, 11]); } // erst weiß-heiß, dann glühend orange
       else if (q.t === "lvl") lightCands.push([w.player.x, 60, w.player.y, "255,225,130", 3 * (q.life / q.max), 260, 10]);
     }
     for (const z of w.zaps) lightCands.push([z.x2, 30, z.y2, "127,231,255", 2.2 * (z.life / z.max), 200, 8]);
@@ -3405,7 +3501,7 @@ void main() {
     for (const b of w.bullets) if (b.kind === "rocket") lightCands.push([b.x, 26, b.y, "255,160,60", 2, 160, 6]);
     let fires = 0;
     for (const b of w.bullets) if (b.kind === "flame" && fires++ % 6 === 0) lightCands.push([b.x, 22, b.y, "255,150,50", 1.8, 160, 5]);
-    for (const l of w.roomLights) lightCands.push([l.x, 50, l.y, l.rgb, 1.3 + 0.2 * Math.sin(t * 3 + l.x), l.r * 1.8, 2]);
+    for (const l of w.roomLights) lightCands.push([l.x, 50, l.y, l.rgb, (1.3 + 0.2 * Math.sin(t * 3 + l.x)) * glowLevel(l, t), l.r * 1.8, 2]);
     if ((w.run.doorK || 0) > 0) lightCands.push([D.W / 2, 40, D.T + 10, "140,255,74", 1.6 * w.run.doorK, 220, 3]);
     if (w.supplyCrate) lightCands.push([w.supplyCrate.x, 50, w.supplyCrate.y, "140,255,74", 1.6, 220, 3]);
     if (w.menuCam) {
@@ -3434,6 +3530,90 @@ void main() {
     beam.position.copy(flashlight.position);
     beam.rotation.set(0, -p.aim, -0.16);
     beam.visible = w.state !== "over";
+  }
+
+  // ------------------------------------------------------------------
+  // v2.8 Leuchten (Bloom) + Farbstimmung
+  // ------------------------------------------------------------------
+  // Die Szene landet in einer Halbfloat-Render-Textur – und zwar genau so, wie sie sonst auf dem Bildschirm
+  // landen würde (Tonemapping + sRGB je Pixel, additive Effekte mischen im selben Farbraum). Dafür gilt das
+  // Ziel für three.js als „XR-Ziel“: nur dort wendet es Tonemapping und Ausgabe-Farbraum auf Render-Targets an.
+  // Ohne Glühen ist das Bild deshalb pixelgleich zur direkten Ausgabe, und die Shader-Programme sind dieselben.
+  // Helle Stellen – Mündungsfeuer, Explosionen, Augen, Lampen, Blitze – werden auf Viertel-Auflösung
+  // weichgezeichnet und aufaddiert; zuletzt kommen Sättigung und Stadt-Farbton dazu.
+  // Nur bei Grafikstufe 2; fällt die Bildrate, senkt das Spiel die Stufe und der Effekt entfällt.
+  let post = null, postWanted = true, postBroken = false;
+  const postSize = new T3.Vector2(), postTint = new T3.Vector3(1, 1, 1);
+  const POST_VS = "varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }";
+  function makePost() {
+    const ext = renderer.extensions, full = ext.has("EXT_color_buffer_float");
+    if (!full && !ext.has("EXT_color_buffer_half_float")) return null; // ohne Halbfloat-Ziel: direkte Ausgabe wie bisher
+    const tOpt = { type: T3.HalfFloatType, generateMipmaps: false, minFilter: T3.LinearFilter, magFilter: T3.LinearFilter };
+    const main = new T3.WebGLRenderTarget(4, 4, { ...tOpt, samples: full ? Math.min(4, renderer.capabilities.maxSamples || 0) : 0 });
+    main.texture.colorSpace = T3.SRGBColorSpace; // Halbfloat: bleibt RGBA16F, die Shader schreiben sRGB-Werte hinein
+    main.isXRRenderTarget = true;
+    const a = new T3.WebGLRenderTarget(4, 4, { ...tOpt, depthBuffer: false }), b = new T3.WebGLRenderTarget(4, 4, { ...tOpt, depthBuffer: false });
+    const sm = (frag, uniforms, toneMapped = false) => new T3.ShaderMaterial({ uniforms, vertexShader: POST_VS, fragmentShader: frag, depthTest: false, depthWrite: false, toneMapped });
+    const bright = sm(`uniform sampler2D src; uniform vec2 texel; uniform float th; varying vec2 vUv;
+vec3 tap(vec2 o) { vec3 c = texture2D(src, vUv + o * texel).rgb; float l = max(c.r, max(c.g, c.b)); return c * smoothstep(th, th + 0.22, l); }
+void main() { gl_FragColor = vec4((tap(vec2(-1.0, -1.0)) + tap(vec2(1.0, -1.0)) + tap(vec2(-1.0, 1.0)) + tap(vec2(1.0, 1.0))) * 0.25, 1.0); }`,
+    { src: { value: null }, texel: { value: new T3.Vector2() }, th: { value: 0.8 } });
+    const blur = sm(`uniform sampler2D src; uniform vec2 dir; varying vec2 vUv;
+void main() {
+  vec3 c = texture2D(src, vUv).rgb * 0.227;
+  c += (texture2D(src, vUv + dir * 1.385).rgb + texture2D(src, vUv - dir * 1.385).rgb) * 0.316;
+  c += (texture2D(src, vUv + dir * 3.231).rgb + texture2D(src, vUv - dir * 3.231).rgb) * 0.07;
+  gl_FragColor = vec4(c, 1.0);
+}`, { src: { value: null }, dir: { value: new T3.Vector2() } });
+    const comp = sm(`uniform sampler2D src; uniform sampler2D glow; uniform float k; uniform float sat; uniform vec3 tint; varying vec2 vUv;
+void main() {
+  vec3 c = texture2D(src, vUv).rgb + texture2D(glow, vUv).rgb * k;
+  float l = dot(c, vec3(0.299, 0.587, 0.114));
+  gl_FragColor = vec4(clamp(mix(vec3(l), c, sat) * tint, 0.0, 1.0), 1.0); // Werte sind schon Bildschirm-sRGB
+}`, { src: { value: null }, glow: { value: null }, k: { value: 0.85 }, sat: { value: 1.06 }, tint: { value: postTint } });
+    const quad = new T3.Mesh(new T3.PlaneGeometry(2, 2), comp), sc = new T3.Scene();
+    quad.frustumCulled = false;
+    sc.add(quad);
+    return { main, a, b, quad, sc, cam: new T3.Camera(), bright, blur, comp, w: 0, h: 0 };
+  }
+  const postActive = () => postWanted && quality >= 2 && !postBroken;
+  function ensurePost() {
+    if (!postActive()) return null;
+    if (!post) {
+      try { post = makePost(); } catch (e) { post = null; }
+      if (!post) { postBroken = true; return null; }
+    }
+    return post;
+  }
+  function renderFrame() {
+    const P = ensurePost();
+    if (!P) { renderer.render(scene, camera); return; }
+    try {
+      renderer.getDrawingBufferSize(postSize);
+      const W = postSize.x, H = postSize.y;
+      if (W !== P.w || H !== P.h) {
+        P.w = W; P.h = H;
+        P.main.setSize(W, H);
+        const qw = Math.max(1, Math.round(W / 4)), qh = Math.max(1, Math.round(H / 4));
+        P.a.setSize(qw, qh); P.b.setSize(qw, qh);
+      }
+      renderer.setRenderTarget(P.main);
+      renderer.render(scene, camera);
+      const { quad, sc, cam, a, b } = P;
+      quad.material = P.bright; P.bright.uniforms.src.value = P.main.texture; P.bright.uniforms.texel.value.set(1 / W, 1 / H);
+      renderer.setRenderTarget(a); renderer.render(sc, cam);
+      const u = P.blur.uniforms;
+      quad.material = P.blur;
+      u.src.value = a.texture; u.dir.value.set(1 / a.width, 0); renderer.setRenderTarget(b); renderer.render(sc, cam);
+      u.src.value = b.texture; u.dir.value.set(0, 1 / a.height); renderer.setRenderTarget(a); renderer.render(sc, cam);
+      quad.material = P.comp; P.comp.uniforms.src.value = P.main.texture; P.comp.uniforms.glow.value = a.texture;
+      renderer.setRenderTarget(null); renderer.render(sc, cam);
+    } catch (err) {
+      console.warn("[Outbreak] Leuchteffekte abgeschaltet", err && err.message);
+      postBroken = true;
+      renderer.setRenderTarget(null);
+      renderer.render(scene, camera);
+    }
   }
 
   // Alle Shader vorab übersetzen – auch für noch unsichtbare Effekte (Explosion, Säule, Leichen).
@@ -3493,7 +3673,7 @@ void main() {
     frame++;
     renderer.shadowMap.autoUpdate = false;
     if (quality >= 2 && frame % 2 === 0) renderer.shadowMap.needsUpdate = true;
-    renderer.render(scene, camera);
+    renderFrame();
   }
 
   // Welt-Position → Bildschirm (logische 540×960-Koordinaten des HUD-Canvas)
@@ -3520,11 +3700,12 @@ void main() {
   }
 
   return {
-    init, resize, render, project, heightOf, setQuality, clear, preview, stopPreview, showcase,
+    init, resize, render, project, heightOf, setQuality, setBloom, clear, preview, stopPreview, showcase,
     setCinematic(on) { cinematic = on; }, get flash() { return atmo.flash; },
     menuOrbit(d, end = false) { if (end) { menuCam.drag = false; return; } menuCam.drag = true; menuCam.yaw = Math.max(-1.6, Math.min(1.6, menuCam.yaw + d)); },
     setTilt(x, y) { menuCam.tiltX += (x - menuCam.tiltX) * 0.15; menuCam.tiltY += (y - menuCam.tiltY) * 0.15; },
     get ready() { return ready; },
-    get debug() { return { scene, camera, renderer, models, atmo, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
+    get bloom() { return !!(post && postActive()); },
+    get debug() { return { scene, camera, renderer, models, atmo, post: () => post, woundAt, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
   };
 })();

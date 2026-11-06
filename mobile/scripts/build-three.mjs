@@ -14,7 +14,7 @@ const names = [
   "HemisphereLight", "DirectionalLight", "SpotLight", "PointLight", "MeshLambertMaterial", "MeshBasicMaterial", "MeshPhongMaterial", "MeshDepthMaterial", "Vector2",
   "BoxGeometry", "CylinderGeometry", "IcosahedronGeometry", "CapsuleGeometry", "ConeGeometry", "TorusGeometry",
   "PlaneGeometry", "BufferGeometry", "BufferAttribute", "CanvasTexture", "SRGBColorSpace", "RepeatWrapping", "ClampToEdgeWrapping",
-  "ShaderMaterial", "WebGLRenderTarget", "Camera", "LinearMipmapLinearFilter",
+  "ShaderMaterial", "WebGLRenderTarget", "Camera", "LinearMipmapLinearFilter", "LinearFilter", "HalfFloatType",
   "AdditiveBlending", "NormalBlending", "DoubleSide", "BackSide", "PCFShadowMap", "ACESFilmicToneMapping", "DynamicDrawUsage",
 ];
 await build({

@@ -1815,6 +1815,30 @@ window.Sprites = (() => {
     } else {
       g.fillStyle = "#3a4a44"; g.fillRect(0, T - 5, W, 5);
     }
+    // v2.8 Kleinkram am Boden: Papierfetzen, Kippen, Scherben, Flecken, Laub
+    {
+      const lr = rng(seed + 577), outdoor = theme === "street" || theme === "markt";
+      for (let i = 0, n = outdoor ? 48 : 22; i < n; i++) {
+        const px = L + 10 + lr() * (aw - 20), py = T + 14 + lr() * (ah - 28), k = outdoor ? lr() : lr() * 0.5;
+        g.save(); g.translate(px, py); g.rotate(lr() * Math.PI * 2);
+        if (k < 0.28) {
+          const v = (theme === "hospital" ? 225 : 190) + lr() * 30;
+          g.fillStyle = `rgba(${v | 0},${(v - 8) | 0},${(v - 24) | 0},0.5)`; g.fillRect(-4, -3, 6 + lr() * 5, 4 + lr() * 3);
+          g.fillStyle = "rgba(0,0,0,0.22)"; g.fillRect(-4, 1, 6, 1);
+        } else if (k < 0.45) {
+          g.fillStyle = "rgba(230,222,205,0.7)"; g.fillRect(-2.5, -0.6, 4, 1.2); g.fillStyle = "rgba(200,120,60,0.8)"; g.fillRect(1.5, -0.6, 1.4, 1.2);
+        } else if (k < 0.62) {
+          g.fillStyle = theme === "lab" ? "rgba(120,230,210,0.45)" : "rgba(150,200,170,0.45)";
+          g.beginPath(); g.moveTo(0, -2.5); g.lineTo(2.5, 1.5); g.lineTo(-2, 2); g.closePath(); g.fill();
+        } else if (k < 0.82) {
+          g.fillStyle = "rgba(10,8,6,0.2)"; g.beginPath(); g.ellipse(0, 0, 6 + lr() * 10, 3 + lr() * 5, 0, 0, Math.PI * 2); g.fill();
+        } else {
+          g.fillStyle = theme === "markt" ? "rgba(150,96,40,0.6)" : "rgba(96,76,40,0.55)";
+          g.beginPath(); g.ellipse(0, 0, 3, 1.6, 0, 0, Math.PI * 2); g.fill(); g.fillRect(-0.3, -3, 0.6, 3);
+        }
+        g.restore();
+      }
+    }
     if (opts.wet && gc) {
       const pr = rng(seed + 911), gcx = gc.getContext("2d");
       for (let i = 0; i < 6; i++) {

@@ -1,4 +1,4 @@
-/* Escape from Germany (intern „Outbreak Hero“) – Zombie-Roguelite im Stil von Room-Clearing-Shootern.
+/* Outbreak! Germany (früher „Escape from Germany“, intern „Outbreak Hero“) – Zombie-Roguelite im Stil von Room-Clearing-Shootern.
  * Reines Canvas + Vanilla JS, keine Abhängigkeiten. Läuft als PWA auf Android.
  */
 "use strict";
@@ -4549,7 +4549,7 @@
   function shareText(e) {
     const mode = e.m === "survival" ? `${tr("Überleben")} (${tr(ORDERS.find((q) => q.id === e.o)?.name || "Tagesbefehl")})` : `${tr("Kampagne")}${e.t ? ` · ${tr("Bedrohung {n}", { n: e.t })}` : ""}`;
     const link = Platform.cfg.playStoreUrl ? ` ${Platform.cfg.playStoreUrl}` : "";
-    return tr("Escape from Germany: {s} Punkte – {m}, {p}, Dienstgrad {r}. Schaffst du mehr?", { s: num(e.s), m: mode, p: e.p, r: rankOf(bestScore()).name }) + link;
+    return tr("Outbreak! Germany: {s} Punkte – {m}, {p}, Dienstgrad {r}. Schaffst du mehr?", { s: num(e.s), m: mode, p: e.p, r: rankOf(bestScore()).name }) + link;
   }
   async function shareScore(e) {
     const text = shareText(e);
@@ -7225,7 +7225,7 @@
     // In der App im selben WebView öffnen: externe Links leitet Capacitor an den Browser weiter,
     // lokale Seiten bleiben per Zurück-Taste erreichbar.
     if (Platform.isNative) $("privacyLink").removeAttribute("target");
-    $("versionLine").innerHTML = `Escape from Germany v${Platform.cfg.version || "1.0.0"}${Platform.isNative ? " · Android" : " · Web"}<br>${tr("Icons: game-icons.net (CC BY 3.0) · Schriften: Teko, Barlow, Saira Stencil (SIL OFL)")}`;
+    $("versionLine").innerHTML = `Outbreak! Germany v${Platform.cfg.version || "1.0.0"}${Platform.isNative ? " · Android" : " · Web"}<br>${tr("Icons: game-icons.net (CC BY 3.0) · Schriften: Teko, Barlow, Saira Stencil (SIL OFL)")}`;
   }
 
   // Vollbild-Werbung nur an natürlichen Pausen, nie für Käufer von "Werbefrei"

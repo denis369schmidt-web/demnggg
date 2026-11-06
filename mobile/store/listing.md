@@ -1,8 +1,8 @@
-# Play-Store-Eintrag – Escape from Germany
+# Play-Store-Eintrag – Outbreak! Germany
 
 Texte zum Kopieren in die Play Console (Hauptseite des Store-Eintrags).
 Grafiken: `de/` und `en/` (8 Screenshots 1080×1920, Feature-Grafik 1024×500),
-App-Symbol 512×512: `../../zombie/icons/icon-512.png`.
+App-Symbol 512×512: `icon-512.png` (Ortsausgangsschild „Deutschland“, durchgestrichen, mit Zombiehand).
 Promo-Poster für Stories/TikTok/Reels (1080×1920): `promo/poster-de.png`, `promo/poster-en.png`.
 
 ---
@@ -10,14 +10,20 @@ Promo-Poster für Stories/TikTok/Reels (1080×1920): `promo/poster-de.png`, `pro
 ## Deutsch (de-DE) – Standardsprache
 
 **App-Name (max. 30):**
-Escape from Germany: Zombies
+Outbreak! Germany: Zombies
 
 **Kurzbeschreibung (max. 80):**
-Flucht durch Deutschland: Zombie-Roguelite mit Story, 8 Bossen – offline!
+Zombie-Horden, 9 Städte, 8 Bosse, Mini-Spiele: Flucht durch Deutschland!
 
 **Vollständige Beschreibung:**
 
 Deutschland ist gefallen. Eine Zombie-Epidemie hat das Land überrannt, und dein Plan ist einfach: raus hier. Kämpf dich von Heilbronn über Stuttgart, München, Nürnberg, Leipzig, Berlin, Frankfurt und Köln bis nach Hamburg, wo die letzte Fähre ablegt – die ARCHE.
+
+🚨 NEU IN 3.0: HORDEN, SPERREN, MINI-SPIELE
+Durch Gänge in der Stadtmauer stürmen ganze Horden herein – erst warnt das rote Licht, dann bricht die Masse durch. Straßensperren aus Sandsäcken, Bauzäunen und Buswracks machen jeden Bezirk zum Engpass-Kampf: Halt die Lücke, schieß durch den Bauzaun, wirf den Molotow in den Stau. Im Versorgungsbezirk wartet der Rummel: Schießbude, Hau den Lukas oder Funkcode knacken – wer Gold holt, bekommt Waffen-Mods, mehr Leben oder Funkaufklärung gegen den nächsten Boss. Dazu ein neuer Soundtrack mit eigener Leitmelodie, Druckwellen, Hechtrolle und Kill-Cam.
+
+💣 WURFWAFFEN & HELDENFÄHIGKEITEN
+Splittergranate, Molotow, Blend-, Frostgranate und Silvesterböller – und jeder der neun Helden hat seine Spezialfähigkeit: Luftschlag, Taser-Salve, Feuerwalze, Drohnenschwarm und mehr.
 
 🗺️ NEUN STÄDTE, 90 STADTTEILE
 Jeder Raum ist ein echter Stadtteil: Heilbronner Marktplatz, Neckarmeile, Wartberg, Kreuzberg, Prenzlauer Berg, Schwabing, Ehrenfeld, St. Pauli … Nach zehn Bezirken und einem Boss wartet die nächste Stadt. Funksprüche und eine Fluchtkarte erzählen die Geschichte der Epidemie – und nach Hamburg geht die Flucht durch Europa weiter. Unterwegs warten Einsätze: Rette Überlebende, bevor die Horde sie erwischt, halte eine Stellung bis zum Luftschlag oder jage berüchtigte Zombies mit Kopfgeld. Neun Helden mit eigener Fähigkeit, sechs Bedrohungsstufen für Profis und ein täglicher Tagesbefehl mit Bestenliste sorgen dafür, dass kein Einsatz wie der andere ist.
@@ -89,14 +95,20 @@ Schaffst du es raus aus Deutschland?
 ## English (en-US)
 
 **App name (max 30):**
-Escape from Germany: Zombies
+Outbreak! Germany: Zombies
 
 **Short description (max 80):**
-Escape through Germany: zombie roguelite with story & 8 bosses – offline!
+Zombie hordes, 9 cities, 8 bosses, mini-games: escape across Germany!
 
 **Full description:**
 
 Germany has fallen. A zombie epidemic has overrun the country, and your plan is simple: get out. Fight your way from Heilbronn through Stuttgart, Munich, Nuremberg, Leipzig, Berlin, Frankfurt and Cologne to Hamburg, where the last ferry departs – the ARCHE.
+
+🚨 NEW IN 3.0: HORDES, BARRICADES, MINI-GAMES
+Whole hordes storm in through passages in the city wall – first the red light warns you, then the mass breaks through. Barricades made of sandbags, construction fences and wrecked buses turn every district into a chokepoint fight: hold the gap, shoot through the fence, throw the Molotov into the crowd. In the supply district the funfair awaits: shooting gallery, high striker or cracking the radio code – score gold for weapon mods, more health or radio intel against the next boss. Plus a new soundtrack with its own theme, shockwaves, dive rolls and a kill cam.
+
+💣 THROWABLES & HERO ABILITIES
+Frag grenade, Molotov, flashbang, frost grenade and firecrackers – and each of the nine heroes has a special ability: air strike, taser volley, fire wave, drone swarm and more.
 
 🗺️ NINE CITIES, 90 DISTRICTS
 Every room is a real district: Heilbronn's market square, Neckarmeile, Wartberg, Kreuzberg, Prenzlauer Berg, Schwabing, Ehrenfeld, St. Pauli … After ten districts and a boss, the next city awaits. Radio messages and an escape map tell the story of the epidemic – and after Hamburg the escape continues across Europe. Along the way you take on missions: rescue survivors before the horde gets them, hold a position until the air strike hits, or hunt notorious zombies with a bounty on their heads. Nine heroes with their own abilities, six threat levels for veterans and a daily order with a leaderboard make sure no run plays the same.

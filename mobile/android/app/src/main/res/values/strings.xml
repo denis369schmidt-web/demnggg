@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Escape from Germany</string>
-    <string name="title_activity_main">Escape from Germany</string>
+    <string name="app_name">Outbreak! Germany</string>
+    <string name="title_activity_main">Outbreak! Germany</string>
     <string name="package_name">de.outbreakhero.game</string>
     <string name="custom_url_scheme">de.outbreakhero.game</string>
 </resources>

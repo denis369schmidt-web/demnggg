@@ -1,4 +1,4 @@
-# Baut die Android-App (Capacitor) von Escape from Germany (intern „Outbreak Hero“).
+# Baut die Android-App (Capacitor) von Outbreak! Germany (früher „Escape from Germany“, intern „Outbreak Hero“).
 #
 # - Jeder Push auf zombie/ oder mobile/: Debug-APK zum direkten Installieren
 #   (Artifact "outbreak-hero-debug-apk") + Start-Test im Android-Emulator.
@@ -125,7 +125,7 @@ jobs:
       - name: Zusammenfassung
         run: |
           {
-            echo "## Escape from Germany – Android-Build #${VERSION_CODE}"
+            echo "## Outbreak! Germany – Android-Build #${VERSION_CODE}"
             echo ""
             echo "- Debug-APK: Artifact **outbreak-hero-debug-apk** (aufs Handy laden & installieren)"
             if [ "${{ steps.keystore.outputs.signed }}" = "true" ]; then

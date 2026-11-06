@@ -1,5 +1,5 @@
 /* =====================================================================
-   Escape from Germany – Design-System „Quarantäne-Einsatzkommando“
+   Outbreak! Germany (früher Escape from Germany) – Design-System „Quarantäne-Einsatzkommando“
    Stahlplatten mit taktischen Eckwinkeln, Warnstreifen, Schablonenschrift.
    Giftgrün nur als Akzent; Bernstein für Währung & Aufmerksamkeit.
    ===================================================================== */
@@ -602,7 +602,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 /* Logo: Lichtschimmer läuft alle paar Sekunden darüber, ab und zu ein Flackern wie eine kaputte Leuchtreklame */
 .brand-top { position: relative; animation: logo-flicker 9s steps(1) infinite; }
 .brand-top::after {
-  content: "ESCAPE"; position: absolute; inset: 0; color: transparent; text-shadow: none; pointer-events: none;
+  content: "OUTBREAK!"; position: absolute; inset: 0; color: transparent; text-shadow: none; pointer-events: none;
   background: linear-gradient(100deg, transparent 42%, rgba(255, 255, 255, 0.85) 50%, transparent 58%); background-size: 300% 100%; background-position: 120% 0;
   -webkit-background-clip: text; background-clip: text; animation: logo-sweep 6s ease-in-out infinite;
 }
@@ -1290,3 +1290,9 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .mini-dlg.done .sub { display: none; }
 .mini-dlg.done .mini-stage { max-width: 180px; }
 .mini-dlg.done .mini-loot li { padding: 3px 8px; font-size: 14px; }
+
+/* ---------------------------------------------------------------- v3.0 Logo „OUTBREAK! GERMANY“ */
+.brand-top { font-size: clamp(40px, 13.6vw, 62px); letter-spacing: 0.03em; white-space: nowrap; }
+.brand-top em { font-style: normal; color: #d8322a; text-shadow: 0 3px 0 #1c1913, 0 0 14px rgba(216, 50, 42, 0.45); }
+.brand-bottom span { position: relative; letter-spacing: 0.55em; text-indent: 0.55em; }
+.brand-bottom span::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: -8px; height: 5px; border-radius: 1px; background: linear-gradient(90deg, #111 0 33.3%, #d4161c 33.3% 66.6%, #ffcc00 66.6%); box-shadow: 0 0 0 1.5px rgba(239, 232, 212, 0.7), 0 2px 3px rgba(0, 0, 0, 0.6); }

@@ -1,120 +1,78 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="60%" r="75%">
-      <stop offset="0" stop-color="#335f2c"/>
-      <stop offset="0.42" stop-color="#132717"/>
-      <stop offset="1" stop-color="#050906"/>
+    <radialGradient id="bg" cx="50%" cy="78%" r="80%">
+      <stop offset="0" stop-color="#5a1a0c"/><stop offset="0.35" stop-color="#2a0e0a"/><stop offset="0.75" stop-color="#110a09"/><stop offset="1" stop-color="#070606"/>
     </radialGradient>
-    <radialGradient id="skin" cx="36%" cy="26%" r="85%">
-      <stop offset="0" stop-color="#cfe3ad"/>
-      <stop offset="0.38" stop-color="#94b476"/>
-      <stop offset="0.78" stop-color="#4f6d3f"/>
-      <stop offset="1" stop-color="#26381f"/>
-    </radialGradient>
-    <radialGradient id="socket" cx="50%" cy="42%" r="62%">
-      <stop offset="0" stop-color="#070303"/>
-      <stop offset="0.65" stop-color="#2a1612"/>
-      <stop offset="1" stop-color="#3f3a25" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="eye" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#fff6e8"/>
-      <stop offset="0.28" stop-color="#ff6a3a"/>
-      <stop offset="0.7" stop-color="#e01414"/>
-      <stop offset="1" stop-color="#7a0000"/>
-    </radialGradient>
-    <linearGradient id="bone" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#f4ecd2"/>
-      <stop offset="1" stop-color="#a99a72"/>
-    </linearGradient>
-    <linearGradient id="mouth" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#3a0b0b"/>
-      <stop offset="1" stop-color="#0c0202"/>
-    </linearGradient>
-    <linearGradient id="ooze" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#c8ff6a"/>
-      <stop offset="1" stop-color="#5cbf1a"/>
-    </linearGradient>
-    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="7" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="dot" x="-400%" y="-400%" width="900%" height="900%">
-      <feGaussianBlur stdDeviation="6" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="haze" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"/></filter>
-    <clipPath id="head">
-      <path d="M256 92C342 92 400 150 400 236C400 283 386 313 367 337C356 378 330 425 290 439C268 447 244 447 222 439C182 425 156 379 145 337C126 313 112 283 112 236C112 150 170 92 256 92Z"/>
-    </clipPath>
-    <clipPath id="left"><rect x="0" y="0" width="236" height="512"/></clipPath>
+    <radialGradient id="fire" cx="50%" cy="100%" r="60%"><stop offset="0" stop-color="#ff7a1a" stop-opacity="0.75"/><stop offset="1" stop-color="#ff3a0a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="plate" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd84a"/><stop offset="0.55" stop-color="#f2bd00"/><stop offset="1" stop-color="#c99400"/></linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.45"/><stop offset="0.35" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9cc92"/><stop offset="0.5" stop-color="#8aa266"/><stop offset="1" stop-color="#4f6238"/></linearGradient>
+    <linearGradient id="arm" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5a6e40"/><stop offset="0.45" stop-color="#8aa266"/><stop offset="1" stop-color="#4a5a34"/></linearGradient>
+    <clipPath id="face"><rect x="-150" y="-105" width="300" height="210" rx="8"/></clipPath>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#000" flood-opacity="0.75"/></filter>
   </defs>
-
-  <!-- Hintergrund: Giftnebel -->
   <rect width="512" height="512" fill="url(#bg)"/>
-  <circle cx="256" cy="300" r="200" fill="#8cff4a" opacity="0.2" filter="url(#haze)"/>
-  <g fill="#8cff4a" opacity="0.18">
-    <circle cx="70" cy="420" r="9"/><circle cx="96" cy="452" r="5"/><circle cx="448" cy="96" r="7"/><circle cx="430" cy="64" r="4"/>
+  <ellipse cx="256" cy="520" rx="300" ry="190" fill="url(#fire)"/>
+  <g fill="#ffb060" opacity="0.8"><circle cx="70" cy="420" r="2.5"/><circle cx="96" cy="380" r="1.8"/><circle cx="430" cy="400" r="2.2"/><circle cx="456" cy="350" r="1.6"/><circle cx="390" cy="450" r="2"/><circle cx="130" cy="460" r="1.6"/></g>
+  <g stroke="#9aa4b0" stroke-width="1.4" opacity="0.18"><path d="M40 30 L28 90"/><path d="M120 10 L108 70"/><path d="M300 20 L288 80"/><path d="M460 40 L448 100"/><path d="M380 120 L370 170"/><path d="M60 200 L50 250"/></g>
+  <g transform="translate(256 236) scale(1.0) rotate(-8)">
+    <g filter="url(#shadow)">
+      <rect x="-172" y="-127" width="344" height="254" rx="20" fill="url(#plate)"/>
+      <rect x="-172" y="-127" width="344" height="254" rx="20" fill="url(#sheen)"/>
+      <rect x="-155" y="-110" width="310" height="220" rx="10" fill="none" stroke="#161310" stroke-width="11"/>
+    </g>
+    <g clip-path="url(#face)">
+      <polygon points="-31.3,-100.0 -17.9,-97.3 -7.8,-89.3 7.3,-85.3 7.3,-76.0 22.4,-81.3 30.8,-80.0 47.6,-92.0 54.3,-89.3 62.7,-74.7 66.0,-57.3 61.8,-45.3 69.4,-30.7 71.1,-18.7 75.8,2.7 69.4,8.0 64.4,6.7 51.8,13.3 30.8,22.7 27.4,25.3 34.2,37.3 41.7,49.3 53.5,58.7 56.8,64.0 50.1,69.3 41.7,78.7 42.5,88.0 41.7,93.3 30.0,92.0 19.9,96.0 9.0,100.0 -0.3,96.0 -8.6,97.3 -15.4,94.7 -26.3,92.0 -33.8,93.3 -48.1,94.7 -48.1,81.3 -44.7,68.0 -38.0,57.9 -53.1,54.7 -62.3,50.7 -68.7,44.0 -72.4,32.0 -68.2,22.7 -74.1,10.7 -75.8,2.7 -71.6,-2.7 -75.8,-13.3 -69.1,-18.7 -62.3,-25.3 -57.3,-32.0 -62.3,-40.0 -54.8,-54.7 -57.3,-64.0 -49.8,-68.0 -39.7,-69.3 -32.1,-64.0 -29.6,-73.3 -27.1,-77.3 -31.3,-86.7 -32.1,-96.0" transform="translate(4,2) scale(0.86)" fill="#161310" stroke="#161310" stroke-width="6" stroke-linejoin="round"/>
+      <line x1="-190" y1="120" x2="190" y2="-120" stroke="#d4161c" stroke-width="36"/>
+      <line x1="-190" y1="120" x2="190" y2="-120" stroke="#ff4a3a" stroke-width="4" opacity="0.5" transform="translate(-6,-10)"/>
+      <!-- Kratzspuren: blankes Blech -->
+      <g stroke="#e8e2cc" stroke-width="4" stroke-linecap="round" opacity="0.9">
+        <path d="M70 -96 L118 -22"/><path d="M90 -100 L136 -30"/><path d="M110 -100 L150 -40"/>
+      </g>
+      <g stroke="#5a4a10" stroke-width="2" stroke-linecap="round" opacity="0.6">
+        <path d="M73 -92 L118 -24"/><path d="M93 -96 L136 -32"/><path d="M113 -96 L150 -42"/>
+      </g>
+    </g>
+    <!-- Einschusslöcher -->
+    <g>
+      <circle cx="-104" cy="-62" r="9" fill="#e9dca0"/><circle cx="-104" cy="-62" r="5.5" fill="#120c08"/>
+      <circle cx="122" cy="62" r="8" fill="#e9dca0"/><circle cx="122" cy="62" r="5" fill="#120c08"/>
+      <circle cx="-38" cy="74" r="7" fill="#e9dca0"/><circle cx="-38" cy="74" r="4.2" fill="#120c08"/>
+    </g>
+    <!-- Blut: Handabdruck-Wischer und Tropfen an der Oberkante -->
+    <g fill="#7a0b0b">
+      <path d="M96 -127 C112 -131 140 -131 150 -126 C152 -112 148 -100 146 -86 C144 -98 140 -108 136 -110 C134 -96 132 -80 128 -70 C126 -84 124 -100 120 -108 C116 -100 114 -92 110 -88 C108 -100 104 -112 96 -127Z"/>
+      <circle cx="146" cy="-80" r="4.5"/><circle cx="128" cy="-64" r="4"/>
+    </g>
+    <g transform="translate(-90 128) scale(1.28) translate(90 -128)">
+    <g fill="#000" opacity="0.38" filter="url(#soft)"><path d="M-126.5 132 L-125.5 114 Q-118 102 -110.5 114 L-109.5 132Z"/><path d="M-105.0 132 L-104.0 108 Q-96 96 -88.0 108 L-87.0 132Z"/><path d="M-83.0 132 L-82.0 110 Q-74 98 -66.0 110 L-65.0 132Z"/><path d="M-61.0 132 L-60.0 118 Q-53 106 -46.0 118 L-45.0 132Z"/></g>
+    <g>
+      <path d="M-124 176 C-118 168 -60 166 -46 176 L-62 330 L-150 330Z" fill="url(#arm)" stroke="#232a1a" stroke-width="3"/>
+      <path d="M-134 134 C-140 160 -130 186 -100 190 C-72 194 -46 186 -42 160 C-40 146 -46 136 -50 132Z" fill="url(#skin)" stroke="#232a1a" stroke-width="3"/>
+      <path d="M-126 150 C-110 158 -70 158 -54 148" stroke="#5a6e40" stroke-width="3" fill="none"/>
+      
+      <path d="M-130.5 150 L-129.5 112 Q-128.5 103 -122 101 Q-115.5 103 -114.5 112 L-113.5 150Z" fill="url(#skin)" stroke="#232a1a" stroke-width="3"/>
+      <path d="M-127.5 109 L-122 91 L-116.5 109 Q-122 104 -127.5 109Z" fill="#2a1c12" stroke="#120c08" stroke-width="1.5"/>
+      <path d="M-127.5 124 Q-122 128 -116.5 124" stroke="#4a5a34" stroke-width="2" fill="none"/>
+      <path d="M-127.5 131 Q-122 136 -116.5 131" stroke="#3a4628" stroke-width="2.5" fill="none"/>
+      <path d="M-109.0 150 L-108.0 106 Q-107.0 97 -100 95 Q-93.0 97 -92.0 106 L-91.0 150Z" fill="url(#skin)" stroke="#232a1a" stroke-width="3"/>
+      <path d="M-106.0 103 L-100 85 L-94.0 103 Q-100 98 -106.0 103Z" fill="#2a1c12" stroke="#120c08" stroke-width="1.5"/>
+      <path d="M-106.0 118 Q-100 122 -94.0 118" stroke="#4a5a34" stroke-width="2" fill="none"/>
+      <path d="M-106.0 131 Q-100 136 -94.0 131" stroke="#3a4628" stroke-width="2.5" fill="none"/>
+      <path d="M-87.0 150 L-86.0 108 Q-85.0 99 -78 97 Q-71.0 99 -70.0 108 L-69.0 150Z" fill="url(#skin)" stroke="#232a1a" stroke-width="3"/>
+      <path d="M-84.0 105 L-78 87 L-72.0 105 Q-78 100 -84.0 105Z" fill="#2a1c12" stroke="#120c08" stroke-width="1.5"/>
+      <path d="M-84.0 120 Q-78 124 -72.0 120" stroke="#4a5a34" stroke-width="2" fill="none"/>
+      <path d="M-84.0 131 Q-78 136 -72.0 131" stroke="#3a4628" stroke-width="2.5" fill="none"/>
+      <path d="M-65.0 150 L-64.0 116 Q-63.0 107 -57 105 Q-51.0 107 -50.0 116 L-49.0 150Z" fill="url(#skin)" stroke="#232a1a" stroke-width="3"/>
+      <path d="M-62.0 113 L-57 95 L-52.0 113 Q-57 108 -62.0 113Z" fill="#2a1c12" stroke="#120c08" stroke-width="1.5"/>
+      <path d="M-62.0 128 Q-57 132 -52.0 128" stroke="#4a5a34" stroke-width="2" fill="none"/>
+      <path d="M-62.0 131 Q-57 136 -52.0 131" stroke="#3a4628" stroke-width="2.5" fill="none"/>
+      <circle cx="-96" cy="172" r="6" fill="#6a3a2a" opacity="0.8"/><circle cx="-72" cy="178" r="3.5" fill="#6a3a2a" opacity="0.7"/>
+      <path d="M-118 164 L-106 176 M-110 160 L-98 172" stroke="#7a0b0b" stroke-width="3" stroke-linecap="round"/>
+      <path d="M-156 262 L-140 248 L-128 262 L-114 246 L-98 264 L-82 250 L-66 266 L-50 252 L-56 330 L-160 330Z" fill="#2a2f3a" stroke="#14161c" stroke-width="3"/>
+      <path d="M-140 276 L-134 320 M-100 278 L-98 326 M-70 276 L-70 320" stroke="#3c4250" stroke-width="3"/>
+    </g>
+    </g>
   </g>
-
-  <!-- Fadenkreuz-Ring hinter dem Kopf -->
-  <g fill="none" stroke="#8cff4a" stroke-linecap="round" filter="url(#glow)">
-    <circle cx="256" cy="266" r="206" stroke-width="13" stroke-dasharray="104 30" stroke-dashoffset="52"/>
-  </g>
-
-  <!-- Kopf -->
-  <path d="M256 92C342 92 400 150 400 236C400 283 386 313 367 337C356 378 330 425 290 439C268 447 244 447 222 439C182 425 156 379 145 337C126 313 112 283 112 236C112 150 170 92 256 92Z" fill="url(#skin)"/>
-  <g clip-path="url(#head)">
-    <!-- freiliegender Schädel mit Riss -->
-    <path d="M300 96C344 104 382 132 396 180L370 196C356 176 340 168 322 168C318 150 308 138 296 132Z" fill="url(#bone)"/>
-    <path d="M330 120l-10 26l14 14l-8 24" fill="none" stroke="#5a4a32" stroke-width="4" stroke-linecap="round"/>
-    <path d="M296 132C308 138 318 150 322 168C340 168 356 176 370 196" fill="none" stroke="#7a1414" stroke-width="7" stroke-linecap="round"/>
-    <!-- Nähte über der Stirn -->
-    <path d="M150 196C176 176 206 166 236 164" fill="none" stroke="#2b1c14" stroke-width="5" stroke-linecap="round"/>
-    <path d="M162 176l8 20M180 168l7 20M198 162l6 20M216 159l5 20" stroke="#2b1c14" stroke-width="4" stroke-linecap="round"/>
-    <!-- Schatten unter dem Kiefer, Wangen eingefallen -->
-    <ellipse cx="256" cy="452" rx="140" ry="40" fill="#0f170c" opacity="0.55"/>
-    <path d="M150 300C170 330 180 360 196 392" fill="none" stroke="#2c3f24" stroke-width="18" opacity="0.5" stroke-linecap="round"/>
-    <path d="M362 300C342 330 332 360 316 392" fill="none" stroke="#2c3f24" stroke-width="18" opacity="0.6" stroke-linecap="round"/>
-    <!-- Wunde auf der Wange -->
-    <path d="M330 312l26 -10l-6 18z" fill="#6e0f12"/>
-    <path d="M168 270l22 6l-18 10z" fill="#6e0f12"/>
-  </g>
-  <!-- grünes Kantenlicht links -->
-  <path clip-path="url(#left)" d="M256 92C170 92 112 150 112 236C112 283 126 313 145 337C156 379 182 425 222 439" fill="none" stroke="#b6ff7a" stroke-width="7" opacity="0.75"/>
-  <path d="M256 92C342 92 400 150 400 236C400 283 386 313 367 337C356 378 330 425 290 439C268 447 244 447 222 439C182 425 156 379 145 337C126 313 112 283 112 236C112 150 170 92 256 92Z" fill="none" stroke="#0b1209" stroke-width="9"/>
-
-  <!-- Brauen & Augenhöhlen -->
-  <path d="M160 214C184 196 218 196 238 212" fill="none" stroke="#2c3f24" stroke-width="12" stroke-linecap="round"/>
-  <path d="M274 214C294 196 330 194 352 210" fill="none" stroke="#2c3f24" stroke-width="12" stroke-linecap="round"/>
-  <ellipse cx="203" cy="242" rx="44" ry="36" fill="url(#socket)" transform="rotate(8 203 242)"/>
-  <ellipse cx="310" cy="242" rx="44" ry="36" fill="url(#socket)" transform="rotate(-8 310 242)"/>
-  <g filter="url(#glow)">
-    <circle cx="205" cy="244" r="17" fill="url(#eye)"/>
-    <circle cx="308" cy="244" r="17" fill="url(#eye)"/>
-  </g>
-  <circle cx="200" cy="239" r="4.5" fill="#fff"/>
-  <circle cx="303" cy="239" r="4.5" fill="#fff"/>
-
-  <!-- Nase -->
-  <path d="M246 280l-8 22h12zM266 280l8 22h-12z" fill="#1c120c"/>
-
-  <!-- Maul mit Zähnen -->
-  <path d="M182 332C220 352 292 352 330 332L318 388C292 414 220 414 194 388Z" fill="url(#mouth)" stroke="#0b1209" stroke-width="6" stroke-linejoin="round"/>
-  <path d="M190 338l10 22l10-18l10 24l10-22l10 24l10-22l10 24l10-22l10 24l10-22l10 24l10-22l10 18l8-16Z" fill="url(#bone)"/>
-  <path d="M206 392l8-20l10 16l10-20l10 20l10-20l10 20l10-20l10 20l10-20l8 18Z" fill="url(#bone)" opacity="0.92"/>
-  <!-- Geifer -->
-  <path d="M302 384C306 404 300 420 306 438C310 450 322 448 320 434C318 420 316 404 314 382Z" fill="url(#ooze)"/>
-  <circle cx="313" cy="452" r="6" fill="#9be63a"/>
-
-  <!-- Blutspritzer -->
-  <g fill="#b0141a">
-    <circle cx="372" cy="356" r="8"/><circle cx="388" cy="376" r="4"/><circle cx="140" cy="364" r="5"/><circle cx="398" cy="330" r="3"/>
-  </g>
-
-  <!-- Fadenkreuz vorne + Laserpunkt auf der Stirn -->
-  <g stroke="#8cff4a" stroke-width="13" stroke-linecap="round" filter="url(#glow)">
-    <path d="M256 40v58M256 434v58M30 266h58M424 266h58"/>
-  </g>
-  <circle cx="256" cy="168" r="9" fill="#ff2b2b" filter="url(#dot)"/>
-  <circle cx="256" cy="168" r="3.5" fill="#fff"/>
 </svg>

@@ -14,12 +14,13 @@ const fontDir = join(vendor, "fonts");
 mkdirSync(fontDir, { recursive: true });
 
 // ---------------------------------------------------------------- Schriften
-// Teko: Zahlen & große Titel · Barlow Condensed: Knöpfe & Beschriftungen · Barlow: Fließtext · Saira Stencil: Logo & Stempel
+// Teko: Zahlen & große Titel · Barlow Condensed: Knöpfe & Beschriftungen · Barlow: Fließtext · Saira Stencil: Logo & Stempel · Special Elite: Schreibmaschine
 const FONTS = [
   ["teko", "Teko", [500, 600, 700]],
   ["barlow-condensed", "Barlow Condensed", [600, 700, 800]],
   ["barlow", "Barlow", [500, 600, 700]],
   ["saira-stencil-one", "Saira Stencil One", [400]],
+  ["special-elite", "Special Elite", [400]], // v3.0 Schreibmaschine für Akten, Funksprüche, Stempel
 ];
 let css = "/* Automatisch erzeugt von mobile/scripts/build-ui.mjs – Schriften unter SIL Open Font License (siehe *-OFL.txt) */\n";
 for (const [pkg, family, weights] of FONTS) {

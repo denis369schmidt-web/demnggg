@@ -932,3 +932,335 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .card .ban { position: absolute; top: 5px; right: 5px; width: 30px; height: 30px; display: grid; place-items: center; color: var(--text-3); background: rgba(0, 0, 0, 0.38); box-shadow: inset 0 0 0 1px var(--line); --cut: 4px; clip-path: var(--chamfer); cursor: pointer; }
 .card .ban svg { width: 14px; height: 14px; }
 .card .ban:hover, .card .ban:active { color: #ff8a7a; }
+
+/* =====================================================================
+   v3.0 Materialsprache „Einsatzakte“
+   Weg vom glatten Vorlagen-Look (Neon, Sechsecke, schräge Ecken überall):
+   Papier-Karteikarten mit Klebeband, Klemmbrett-Dialoge, Prägeband-Etiketten,
+   lackierte Metallplatten mit Schrauben, aufgenähte Abzeichen, Kippschalter,
+   Sprühschablonen-Titel mit rauen Kanten. Kleine Schieflagen sind gewollt.
+   ===================================================================== */
+:root {
+  --ink: #1c1913; --ink-2: #4a4334; --ink-3: #6d6450;
+  --paper: #e9e1cc; --paper-2: #dcd2b8; --paper-edge: #b9ad8c;
+  --olive-0: #191a15; --olive-1: #24261f; --olive-2: #33362b; --olive-3: #4a4e3d;
+  --signal: #e2561f; --signal-2: #b9400f; --signal-lip: #5e1d05;
+  --khaki: #cdbd8f;
+  --text: #ece6d6; --text-2: #bdb49d; --text-3: #8a8169;
+  --line: #3a372c; --line-2: #4c4838;
+  --toxic: #a6d14a; --toxic-2: #7ea52c; --toxic-glow: rgba(166, 209, 74, 0.25);
+  --chamfer: inset(0 round 3px);
+  --paper-tex: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' seed='7' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .3  0 0 0 0 .2  0 0 0 .5 0'/></filter><rect width='100%' height='100%' filter='url(%23p)' opacity='.22'/></svg>");
+  --grime: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='4' seed='3'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1.4 -.55'/></filter><rect width='100%' height='100%' filter='url(%23g)' opacity='.55'/></svg>");
+  --metal-tex: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 1px, rgba(0, 0, 0, 0.03) 1px 3px);
+  --brush: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 12' preserveAspectRatio='none'><path d='M2 7 C40 3 90 9 140 5 S190 6 198 4 L197 8 C150 10 100 11 60 9 S10 11 3 10 Z' fill='%23e2561f'/></svg>");
+  --screw: radial-gradient(circle, #2a251c 1.6px, #c9bfa6 2.2px, #8d846c 3.2px, transparent 3.8px);
+}
+
+/* ---------------------------------------------------------------- Flächen */
+.screen {
+  background:
+    radial-gradient(140% 70% at 50% -10%, rgba(255, 226, 170, 0.07), transparent 60%),
+    var(--grime),
+    var(--noise),
+    linear-gradient(180deg, #1c1d18 0%, #121310 100%);
+}
+.bar {
+  background: var(--metal-tex), linear-gradient(180deg, #2a2c24, #1d1e18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 22px rgba(0, 0, 0, 0.55);
+}
+/* Nietenreihe statt Warnstreifen */
+.bar::after {
+  height: 8px; bottom: -8px; opacity: 1; clip-path: none;
+  background: radial-gradient(circle, #6b6452 1.3px, #2c2a22 1.9px, transparent 2.4px) 6px 50% / 22px 8px repeat-x, linear-gradient(180deg, #1d1e18, rgba(29, 30, 24, 0));
+}
+/* Prägeband-Etikett als Rubrik */
+.bar .title small {
+  display: inline-block; padding: 3px 7px 2px; border-radius: 2px; transform: rotate(-1.4deg);
+  font: 800 10px/1 var(--f-ui); letter-spacing: 0.2em; color: #f2eee3; opacity: 1;
+  background: linear-gradient(180deg, #2b2a28, #171614); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 0 rgba(0, 0, 0, 0.7);
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+/* Sprühschablone mit rauer Kante und Pinselstrich darunter */
+.bar h2 {
+  margin-top: 5px; padding-bottom: 7px; font-family: var(--f-stencil); font-size: 27px; font-weight: 400; letter-spacing: 0.05em; color: #efe8d4;
+  background: var(--brush) no-repeat 0 100% / 132px 7px; filter: url(#rough);
+}
+
+.back, .x {
+  clip-path: none; border-radius: 5px;
+  background: var(--screw) 5px 5px / 8px 8px no-repeat, var(--screw) calc(100% - 5px) calc(100% - 5px) / 8px 8px no-repeat, var(--metal-tex), linear-gradient(180deg, #4a4e3d, #33362b);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -3px 0 #1b1d15, 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.back::before { border-color: #efe8d4; }
+
+.wallet {
+  border: 0; border-radius: 3px; height: 34px; padding: 0 12px 0 7px; transform: rotate(-0.6deg);
+  background: var(--paper-tex), linear-gradient(180deg, #b8935c, #9c7744);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 0 rgba(0, 0, 0, 0.35), 0 6px 12px rgba(0, 0, 0, 0.35);
+}
+.wallet b { color: #2a1a07; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25); }
+.wallet .coin { color: #5a3a0c; filter: none; }
+
+/* ---------------------------------------------------------------- Knöpfe: lackierte Platten */
+.btn {
+  clip-path: none; border-radius: 4px;
+  background: var(--metal-tex), linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 46%), linear-gradient(180deg, var(--c1), var(--c2));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -4px 0 var(--lip), 0 2px 0 rgba(0, 0, 0, 0.45), 0 8px 16px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+.btn:active { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -1px 0 var(--lip), 0 1px 0 rgba(0, 0, 0, 0.45); }
+.btn.primary { --c1: #ef6a2c; --c2: #c9471a; --lip: #5e1d05; --fg: #fff6ea; text-shadow: 0 1px 0 rgba(60, 14, 0, 0.6); }
+.btn.amber { --c1: #e2ad4c; --c2: #b97d22; --lip: #5a370a; --fg: #241404; text-shadow: 0 1px 0 rgba(255, 240, 200, 0.35); }
+.btn.ghost { --c1: #4c513e; --c2: #34382a; --lip: #1a1c14; --fg: #e9e3cf; }
+.btn.danger { --c1: #b8352a; --c2: #8a2016; --lip: #430c06; --fg: #fff1ea; }
+.btn.ad { --c1: #4b6b86; --c2: #31495e; --lip: #14212d; --fg: #eef5fb; }
+.btn.ad.ghosted { --c1: #3a4650; --c2: #2a333b; --lip: #12181d; }
+.vid { background: rgba(0, 0, 0, 0.28); color: #ffd98a; border-radius: 3px; }
+
+/* Prägeband-Etiketten statt Neon-Fähnchen */
+.tag {
+  clip-path: none; border-radius: 2px; padding: 3px 7px 3px; transform: rotate(-1.6deg);
+  color: #f3efe4; background: linear-gradient(180deg, #2c2b29, #161513);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 1px 1px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.tag.amber { background: linear-gradient(180deg, #e8b83a, #c99419); color: #2a1b02; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
+.tag.gold { background: linear-gradient(180deg, #d9a845, #b3821f); color: #2a1b02; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3); }
+.tag.red { background: linear-gradient(180deg, #c8382b, #9a2418); color: #fff3ec; }
+.tag.violet { background: linear-gradient(180deg, #4b6b86, #31495e); color: #eef5fb; }
+.badge { background: linear-gradient(180deg, #e2561f, #b23a0c); box-shadow: 0 0 0 2px #1c1913; }
+
+/* ---------------------------------------------------------------- Listen: Karteikarten mit Klebeband */
+.item {
+  --text: var(--ink); --text-2: var(--ink-2); --text-3: var(--ink-3); --acc: transparent;
+  color: var(--ink); border: 0; border-radius: 2px;
+  background:
+    linear-gradient(90deg, transparent 0 74px, rgba(196, 72, 50, 0.28) 74px 75px, transparent 75px),
+    repeating-linear-gradient(180deg, transparent 0 23px, rgba(70, 96, 130, 0.13) 23px 24px),
+    var(--paper-tex),
+    linear-gradient(180deg, #ece4d0, #ddd3b9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 0 rgba(0, 0, 0, 0.28), 0 10px 18px rgba(0, 0, 0, 0.42);
+}
+.item::before {
+  inset: auto; top: -7px; left: 50%; width: 62px; height: 15px; transform: translateX(-50%) rotate(-2.5deg);
+  background: linear-gradient(180deg, rgba(240, 233, 205, 0.78), rgba(222, 212, 178, 0.72));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  -webkit-mask: linear-gradient(90deg, transparent 0 2px, #000 2px calc(100% - 2px), transparent calc(100% - 2px));
+}
+.list .item:nth-child(odd) { transform: rotate(-0.35deg); }
+.list .item:nth-child(even) { transform: rotate(0.3deg); }
+.list .item:nth-child(3n)::before { left: 22%; transform: rotate(3deg); }
+.list .item:nth-child(3n + 2)::before { left: 78%; transform: translateX(-50%) rotate(-4deg); }
+.item.active { box-shadow: inset 5px 0 0 var(--signal), inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 0 rgba(0, 0, 0, 0.28), 0 10px 18px rgba(0, 0, 0, 0.42); background-color: transparent; }
+.item.active { background:
+    linear-gradient(90deg, transparent 0 74px, rgba(196, 72, 50, 0.28) 74px 75px, transparent 75px),
+    repeating-linear-gradient(180deg, transparent 0 23px, rgba(70, 96, 130, 0.13) 23px 24px),
+    var(--paper-tex), linear-gradient(180deg, #f1ead8, #e3dac2); }
+.item .name { color: var(--ink); }
+.item .amt b, .dialog .amt b, .card .amt b { color: #6e3f05; }
+.item .amt .ic, .dialog .amt .ic, .card .amt .ic { color: #a5650c; }
+.item .ico img { filter: drop-shadow(0 2px 2px rgba(60, 40, 10, 0.45)); }
+.item .bar-p, .dialog .bar-p, .card .bar-p { background: rgba(60, 50, 30, 0.18); border-color: rgba(60, 50, 30, 0.35); }
+.bar-p i { background: linear-gradient(180deg, #b6d65a, #7c9e2a); box-shadow: none; }
+.bar-p.amber i { background: linear-gradient(180deg, #e6b04e, #b97d22); box-shadow: none; }
+.item .pips i, .card .pips i { background: rgba(60, 50, 30, 0.15); border-color: rgba(60, 50, 30, 0.4); }
+.pips i.on { background: linear-gradient(180deg, #e2561f, #b9400f); border-color: #8a2f0a; }
+
+/* ---------------------------------------------------------------- Aufgenähte Abzeichen statt Sechsecke */
+.medal {
+  --t1: #5e604c; --t2: #2e2f25; --fg: #efe8d4;
+  clip-path: none; border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.2), transparent 55%), var(--paper-tex), linear-gradient(160deg, var(--t1), var(--t2));
+  box-shadow: 0 0 0 2px rgba(20, 18, 12, 0.55), 0 3px 6px rgba(0, 0, 0, 0.35);
+}
+.medal::after { inset: 4px; clip-path: none; border-radius: 50%; border: 1.6px dashed rgba(255, 248, 225, 0.45); background: none; }
+.medal.toxic { --t1: #6f8a32; --t2: #2f3c12; --fg: #f2f7e2; }
+.medal.amber { --t1: #b07c27; --t2: #4b310a; --fg: #fff1d6; }
+.medal.red { --t1: #a63526; --t2: #451109; --fg: #ffe9e2; }
+.medal.ice { --t1: #3d6f8e; --t2: #15303f; --fg: #e6f3fb; }
+.medal.violet { --t1: #6b5590; --t2: #2a1f3c; --fg: #f1ebfb; }
+.medal.gold { --t1: #c29a3c; --t2: #5a420c; --fg: #fff6dc; }
+.medal.steel { --t1: #5f604f; --t2: #2b2c22; }
+
+/* ---------------------------------------------------------------- Reiter: Aktenordner */
+.tabs { clip-path: none; padding: 0 6px; gap: 3px; background: none; border: 0; border-bottom: 3px solid #d8ceb3; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35); }
+.tab { clip-path: none; border-radius: 7px 7px 0 0; margin-top: 4px; color: #2b2519; background: var(--paper-tex), linear-gradient(180deg, #9a8f73, #857a5f); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+.tab.active { margin-top: 0; color: var(--ink); background: var(--paper-tex), linear-gradient(180deg, #ece4d0, #d8ceb3); box-shadow: none; }
+
+/* ---------------------------------------------------------------- Dialoge: Klemmbrett */
+.modal { background: rgba(10, 9, 7, 0.72); }
+.dialog {
+  --text: var(--ink); --text-2: var(--ink-2); --text-3: var(--ink-3);
+  color: var(--ink); clip-path: none; border-radius: 3px; margin-top: 18px;
+  background: var(--paper-tex), linear-gradient(180deg, #ede5d1, #ddd3b9);
+  box-shadow: 0 0 0 9px #6e5236, 0 0 0 10px #4a3622, 0 18px 40px rgba(0, 0, 0, 0.6);
+}
+.dialog::before {
+  left: 50%; right: auto; top: -24px; width: 120px; height: 26px; transform: translateX(-50%); opacity: 1; border-radius: 7px 7px 4px 4px;
+  background: var(--screw) 10px 50% / 8px 8px no-repeat, var(--screw) calc(100% - 10px) 50% / 8px 8px no-repeat, linear-gradient(180deg, #d8dcdf, #8f969b 60%, #6f767b);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 3px 4px rgba(0, 0, 0, 0.45);
+}
+.dlg-head h2 { font-family: var(--f-stencil); font-weight: 400; letter-spacing: 0.04em; color: var(--ink); filter: url(#rough); }
+.dlg-head .kicker { font-family: "Special Elite", var(--f-ui); letter-spacing: 0.12em; color: var(--ink-3); }
+.dialog .stats > span { color: var(--ink-2); }
+.dialog .stats > b { color: var(--ink); }
+.dialog .x { background: linear-gradient(180deg, #4a4e3d, #33362b); border-radius: 50%; }
+.danger .dialog { background: var(--paper-tex), linear-gradient(180deg, #ecd9cf, #d9bfb1); }
+
+/* Stempel: schief, ausgefranst, Stempelfarbe */
+.stamp { filter: url(#rough); }
+
+/* ---------------------------------------------------------------- Skill-Karten: Dienstausweise */
+.card {
+  --text: var(--ink); --text-2: var(--ink-2); --text-3: var(--ink-3);
+  color: var(--ink); clip-path: none; border-radius: 4px;
+  background: linear-gradient(90deg, var(--rc) 0 7px, transparent 7px), var(--paper-tex), linear-gradient(180deg, #efe7d4, #ddd3b9);
+  box-shadow: inset 0 0 0 1px rgba(60, 50, 30, 0.25), 0 3px 0 rgba(0, 0, 0, 0.35), 0 12px 22px rgba(0, 0, 0, 0.45);
+}
+.card:nth-child(1) { transform: rotate(-0.6deg); }
+.card:nth-child(3) { transform: rotate(0.5deg); }
+.card .rar {
+  display: inline-block; padding: 3px 6px 2px; border-radius: 2px; transform: rotate(-1.5deg); color: #f3efe4;
+  background: linear-gradient(180deg, #2c2b29, #161513); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.card .name { color: var(--ink); }
+.card { --rc: #8a8673; }
+.card.rare { --rc: #3d6f8e; }
+.card.epic { --rc: #6b5590; }
+.card.legend { --rc: #c99419; box-shadow: inset 0 0 0 2px rgba(201, 148, 25, 0.6), 0 3px 0 rgba(0, 0, 0, 0.35), 0 12px 26px rgba(201, 148, 25, 0.25); }
+.card.evo, .card.angel { --rc: #c29a3c; }
+.card.devil { --rc: #a63526; }
+.recipe .ing { color: var(--ink-2); }
+.pick-head h2 { font-family: var(--f-stencil); font-weight: 400; color: #efe8d4; filter: url(#rough); }
+
+/* ---------------------------------------------------------------- Einstellungen: Schaltpult mit Kippschaltern */
+.set-row {
+  clip-path: none; border-radius: 4px; color: var(--text);
+  background: var(--screw) 6px 50% / 8px 8px no-repeat, var(--metal-tex), linear-gradient(180deg, #2f3228, #23251e);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -2px 0 #15160f; padding-left: 20px;
+}
+.set-row .ic { color: var(--khaki); }
+.switch { width: 44px; height: 24px; border-radius: 4px; background: linear-gradient(180deg, #121310, #22241c); box-shadow: inset 0 0 0 1px #4a4838, inset 0 2px 4px rgba(0, 0, 0, 0.6); }
+.switch::after { top: 2px; left: 2px; width: 18px; height: 20px; border-radius: 3px; background: linear-gradient(90deg, #a7a28d, #e5dfca 45%, #8d8874); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+.switch.on { background: radial-gradient(circle at 10px 50%, #b6f05a 0 3px, #5c7a20 4px, transparent 5px), linear-gradient(180deg, #121310, #22241c); box-shadow: inset 0 0 0 1px #5c6a3a, inset 0 2px 4px rgba(0, 0, 0, 0.6); }
+.switch.on::after { transform: translateX(22px); background: linear-gradient(90deg, #a7a28d, #e5dfca 45%, #8d8874); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+
+/* ---------------------------------------------------------------- Hinweise: Notizzettel */
+.toast {
+  clip-path: none; border-radius: 1px; color: var(--ink); transform: translateX(-50%) rotate(-1deg);
+  background: var(--paper-tex), linear-gradient(180deg, #f3e3a2, #e6d07f);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25), 0 10px 18px rgba(0, 0, 0, 0.45);
+}
+.toast .ic { color: #7a4a06; }
+.toast .amt b { color: #6e3f05; }
+
+/* ---------------------------------------------------------------- Hauptmenü */
+.menu-top .round, .round {
+  background: var(--metal-tex), linear-gradient(180deg, #4a4e3d, #2f3228); border: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -3px 0 #16170f, 0 3px 6px rgba(0, 0, 0, 0.5);
+}
+.ticker { background: #121210; box-shadow: inset 0 0 0 1px #2c2a22; border-radius: 2px; }
+.ticker > b { background: #b8352a; color: #fff3ec; }
+.brand-top { color: #efe8d4; text-shadow: 0 3px 0 #1c1913, 0 0 18px rgba(0, 0, 0, 0.6); filter: url(#spray); animation: none !important; }
+.brand-top .drips { display: none; }
+.brand-bottom { transform: rotate(-1.8deg); }
+.brand-bottom::before { display: none; }
+.brand-bottom span {
+  display: inline-block; padding: 4px 12px 3px; border-radius: 2px; color: #f3efe4; letter-spacing: 0.32em;
+  background: linear-gradient(180deg, #2c2b29, #161513); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 3px 6px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+/* Seitenleisten: Aufnäher, leicht schief aufgenäht */
+.menu .rail-btn > [data-ic] {
+  border-radius: 50%; color: #efe8d4; clip-path: none;
+  background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.18), transparent 55%), var(--paper-tex), linear-gradient(160deg, #5e604c, #2e2f25);
+  box-shadow: inset 0 0 0 4px rgba(0, 0, 0, 0.0), 0 0 0 2px rgba(20, 18, 12, 0.7), 0 4px 8px rgba(0, 0, 0, 0.5);
+  outline: 1.6px dashed rgba(255, 248, 225, 0.45); outline-offset: -6px;
+}
+.menu .rail-btn:nth-child(1) > [data-ic] { transform: rotate(-6deg); }
+.menu .rail-btn:nth-child(2) > [data-ic] { transform: rotate(4deg); }
+.menu .rail-btn:nth-child(3) > [data-ic] { transform: rotate(-3deg); }
+.menu .rail-btn.pass > [data-ic] { background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.2), transparent 55%), var(--paper-tex), linear-gradient(160deg, #c29a3c, #5a420c); }
+.menu .rail-btn.route > [data-ic] { background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.2), transparent 55%), var(--paper-tex), linear-gradient(160deg, #b9561f, #4a1d07); }
+.menu .rail-btn span { color: #efe8d4; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0, 0, 0, 0.9); }
+/* Held & Waffe: Erkennungsmarken */
+.picker {
+  clip-path: none; border-radius: 14px 14px 14px 14px / 18px 18px 18px 18px; color: #1d2226;
+  background: radial-gradient(circle at 16px 50%, #1a1c1d 0 4px, #5a6064 5px, transparent 6px), linear-gradient(180deg, #c8cdd0, #8e959a 55%, #a9afb3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -2px 0 rgba(0, 0, 0, 0.25), 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+.picker .pk-main b, .picker .pk-main small, .picker.wpn .pk-main b { color: #1d2226; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55); }
+.picker .pk-main small { opacity: 0.85; }
+.pk-arrow::before { border-color: #2a3034 !important; }
+/* Einsatzart: Einsatzbefehle auf Papier */
+.mode-card {
+  clip-path: none; border-radius: 2px; color: var(--ink); --text-2: var(--ink-2);
+  background: var(--paper-tex), linear-gradient(180deg, #d9cfb4, #c6bb9c); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3), 0 6px 12px rgba(0, 0, 0, 0.35); opacity: 0.86;
+}
+.mode-card:first-child { transform: rotate(-0.8deg); }
+.mode-card:last-child { transform: rotate(0.7deg); }
+.mode-card b { color: var(--ink); }
+.mode-card small { color: var(--ink-2) !important; }
+.mode-card > [data-ic] { color: var(--ink-2) !important; }
+.mode-card.active, .mode-card.amber.active { opacity: 1; background: var(--paper-tex), linear-gradient(180deg, #f0e8d5, #ded4bb); box-shadow: inset 0 0 0 2px var(--signal), 0 2px 0 rgba(0, 0, 0, 0.3), 0 8px 14px rgba(0, 0, 0, 0.4); }
+.mode-card.active > [data-ic], .mode-card.amber.active > [data-ic] { color: var(--signal-2) !important; }
+.threat-row { clip-path: none; border-radius: 3px; background: var(--metal-tex), linear-gradient(180deg, #3a1d16, #24120d); box-shadow: inset 0 0 0 1px rgba(226, 86, 31, 0.35); }
+.threat-row .tr-label { color: #f0b49c; }
+/* Startknopf: schwere Signalplatte mit Schrauben, Schablonenschrift */
+.cta.btn.primary {
+  font-family: var(--f-stencil); font-weight: 400; letter-spacing: 0.06em;
+  background:
+    var(--screw) 9px 9px / 8px 8px no-repeat, var(--screw) calc(100% - 9px) 9px / 8px 8px no-repeat,
+    var(--screw) 9px calc(100% - 9px) / 8px 8px no-repeat, var(--screw) calc(100% - 9px) calc(100% - 9px) / 8px 8px no-repeat,
+    var(--metal-tex), linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 46%), linear-gradient(180deg, #ef6a2c, #c9471a);
+}
+.cta > span { filter: url(#rough); }
+.cta::after { opacity: 0.35; }
+/* Leiste unten: Werkzeugkiste */
+.dock-btn {
+  clip-path: none; border-radius: 4px; color: #efe8d4;
+  background: var(--metal-tex), linear-gradient(180deg, #4c513e, #2f3228);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -3px 0 #16170f, 0 3px 6px rgba(0, 0, 0, 0.45);
+}
+.dock-btn > [data-ic] { color: var(--khaki); }
+.dock-btn span { font-family: var(--f-ui); color: #efe8d4; }
+.route-strip { border-radius: 3px; clip-path: none; }
+.hud-btn { clip-path: none; border-radius: 6px; background: var(--metal-tex), linear-gradient(180deg, #4a4e3d, #2f3228); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -3px 0 #16170f; }
+
+/* ---------------------------------------------------------------- Tagesbonus, Pass, Kodex */
+.day {
+  clip-path: none; border-radius: 2px; color: var(--ink); --text-2: var(--ink-2);
+  background: var(--paper-tex), linear-gradient(180deg, #ebe3cf, #d9cfb4); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+.day.today { box-shadow: inset 0 0 0 2px var(--signal), 0 2px 0 rgba(0, 0, 0, 0.3); }
+.pass-cell { clip-path: none; border-radius: 3px; }
+.empty { color: var(--text-3); font-family: "Special Elite", var(--f-body); }
+.story-card p { font-family: "Special Elite", var(--f-body); }
+/* Bericht & Statistik auf dem Klemmbrett: Tabelle als Formular mit Linien statt dunklem Kasten */
+.dialog .stats, .dialog .stats.panel, .item .stats { background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(60, 50, 30, 0.35); }
+.dialog .stats > span, .dialog .stats > b { border-bottom: 1px dashed rgba(60, 50, 30, 0.3); }
+.dialog .stats > span .ic { color: var(--ink-3); }
+.dialog .stats > b.gold, .dialog .stats .rec, .dialog .stats .rank { color: #8a4f06; }
+.day b { color: #6e3f05; }
+.day .ic { color: #a8660a; }
+.day.done { filter: saturate(0.7); }
+/* Dunkle Einleger im Klemmbrett behalten helle Schrift */
+.dialog .rank-title, .dialog .order-box, .dialog .rank-list > li { --text: #efe8d4; --text-2: #c9c0a8; --text-3: #9d947c; color: #efe8d4; }
+/* Knöpfe in Karteikarten: Beträge hell lassen (Ausnahme: Bernstein-Knöpfe mit dunkler Schrift) */
+.item .btn:not(.amber):not(.primary) .amt b, .card .btn:not(.amber):not(.primary) .amt b { color: #ffe2a3; }
+.item .btn:not(.amber):not(.primary) .amt .ic { color: var(--amber); }
+.card .recipe, .card .evo-hint, .item .recipe { color: #8a4f06; }
+/* Ausrüstungsplätze: Gepäckanhänger aus Papier */
+.gear-slot {
+  --text: var(--ink); --text-2: var(--ink-2); --text-3: var(--ink-3); clip-path: none; border-radius: 3px;
+  background: radial-gradient(circle at 50% 9px, #1c1913 0 3px, transparent 3.5px), var(--paper-tex), linear-gradient(180deg, #e3d9c0, #cfc4a6);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3), 0 8px 14px rgba(0, 0, 0, 0.35); padding-top: 18px;
+}
+.gear-slot:nth-child(1) { transform: rotate(-1.2deg); }
+.gear-slot:nth-child(3) { transform: rotate(1deg); }
+.gear-slot.r1 { box-shadow: inset 0 -4px 0 #3d6f8e, 0 2px 0 rgba(0, 0, 0, 0.3); }
+.gear-slot.r2 { box-shadow: inset 0 -4px 0 #6b5590, 0 2px 0 rgba(0, 0, 0, 0.3); }
+.gear-slot.r3 { box-shadow: inset 0 -4px 0 #c29a3c, 0 2px 0 rgba(0, 0, 0, 0.3); }
+.gear-slot em { color: #4f6a18; }
+.picker.wpn small #menuWeaponLv, .picker .pk-main small span { color: #8a2f0a !important; }

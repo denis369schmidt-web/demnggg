@@ -63,7 +63,7 @@
       <div class="pickers">
         <div class="picker" id="heroPicker">
           <button class="pk-arrow l" data-dir="-1" aria-label="Vorheriger Held"></button>
-          <button class="pk-main" id="heroPickBtn"><small data-i18n>Held</small><b id="menuSkinName"></b></button>
+          <button class="pk-main" id="heroPickBtn"><small id="menuHeroPerk"></small><b id="menuSkinName"></b></button>
           <button class="pk-arrow r" data-dir="1" aria-label="Nächster Held"></button>
         </div>
         <div class="picker wpn" id="weaponPicker">
@@ -83,12 +83,19 @@
           <i data-ic="stopwatch"></i><span><b data-i18n>Überleben</b><small id="survivalBest"></small></span>
         </button>
       </div>
+      <!-- v2.5 Bedrohungsstufen (nur Kampagne) -->
+      <div class="threat-row" id="threatRow">
+        <span class="tr-label"><i data-ic="skull"></i><span data-i18n>Bedrohung</span></span>
+        <div class="tr-pips" id="threatPips"></div>
+        <small id="threatInfo"></small>
+      </div>
       <button class="btn primary xl cta" id="playBtn"><span data-i18n>EINSATZ STARTEN</span><small id="ctaSub"></small></button>
 
       <nav class="dock">
         <button class="dock-btn" id="shopBtn"><i data-ic="shop"></i><span>Shop</span></button>
         <button class="dock-btn" id="armoryBtn"><i data-ic="weapons"></i><span data-i18n>Waffen</span></button>
         <button class="dock-btn" id="talentBtn"><i data-ic="talents"></i><span data-i18n>Talente</span></button>
+        <button class="dock-btn" id="ranksBtn"><i data-ic="trophy"></i><span data-i18n>Bestenliste</span></button>
       </nav>
       <a class="btn ghost store-cta hidden" id="storeCta" target="_blank" rel="noopener" data-i18n>Jetzt im Play Store holen</a>
     </section>
@@ -289,10 +296,22 @@
         <div class="dlg-head"><small class="kicker" data-i18n>EINSATZBERICHT</small><h2 id="overTitle" class="stamp">GEFALLEN</h2></div>
         <div id="overStats" class="stats"></div>
         <button class="btn ad hidden" id="doubleBtn"></button>
+        <button class="btn ghost share" id="shareBtn"><i data-ic="trophy"></i><span data-i18n>Ergebnis teilen</span></button>
         <div class="dlg-row">
           <button class="btn ghost" id="menuBtn" data-i18n>Menü</button>
           <button class="btn primary" id="againBtn" data-i18n>Nochmal</button>
         </div>
+      </div>
+    </section>
+
+    <!-- ============ v2.5 Bestenliste ============ -->
+    <section id="ranks" class="overlay modal hidden">
+      <div class="dialog ranks">
+        <button class="x" data-back aria-label="Schließen"></button>
+        <div class="dlg-head"><small class="kicker" data-i18n>BESTENLISTE</small><h2 data-i18n>Deine besten Einsätze</h2></div>
+        <div class="order-box" id="dailyOrder"></div>
+        <ol class="rank-list" id="rankList"></ol>
+        <button class="btn primary" id="rankShare"><span data-i18n>Bestwert teilen</span></button>
       </div>
     </section>
 

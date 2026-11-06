@@ -85,6 +85,10 @@
     bestiary: {}, // Gegnertyp → Abschüsse (Bestiarium)
     pass: { season: 0, xp: 0, premium: 0, free: [], prem: [] },
     patrol: { since: 0, quickDay: "", quick: 0 },
+    threat: 0, // v2.5 gewählte Bedrohungsstufe (Kampagne)
+    threatMax: 0, // höchste freigeschaltete Stufe
+    scores: [], // Bestenliste: Top 10 { s, m, t, h, p, o, d }
+    dailyBest: null, // Tagesbefehl: { day, s, o }
   });
   function loadSave() {
     const d = defaultSave();
@@ -279,7 +283,7 @@
     menu: $("menu"), armory: $("armory"), talents: $("talents"), skillPick: $("skillPick"),
     pause: $("pause"), over: $("over"), pauseBtn: $("pauseBtn"),
     shop: $("shop"), daily: $("daily"), settings: $("settings"), revive: $("revive"),
-    missions: $("missions"), pass: $("pass"), patrol: $("patrol"), codex: $("codex"), route: $("route"),
+    missions: $("missions"), pass: $("pass"), patrol: $("patrol"), codex: $("codex"), route: $("route"), ranks: $("ranks"),
   };
   const overlays = Object.values(ui).filter((o) => o !== ui.pauseBtn);
   // UI-Bausteine: Icons aus dem Sprite, Münzbeträge, Sechseck-Medaillons, Fortschritts-Pips
@@ -534,7 +538,14 @@
     if (mode === "survival") Object.assign(run, { survT: 0, spawnCd: 1.2, theme: THEME_ORDER[Math.floor(Date.now() / 864e5) % THEME_ORDER.length] });
     track("runs");
     screenBlood = []; callout = null; ghosts = []; punchX = punchY = punchFov = 0;
+    run.threat = mode === "campaign" ? Math.max(0, Math.min(save.threat || 0, save.threatMax || 0)) : 0;
+    run.order = mode === "survival" ? todaysOrder() : null;
+    run.bossKills = 0;
+    if (run.threat) run.greed *= 1 + 0.25 * run.threat;
+    if (run.order && run.order.greed) run.greed *= run.order.greed;
     player = newPlayer();
+    heroPerk(save.skin).apply(player);
+    if (run.order && run.order.apply) run.order.apply(player);
     // Goldener Held: +10 % Münzen
     if (save.skin === "gold") run.greed *= 1.1;
     // Gekaufte Boosts für diesen Run verbrauchen
@@ -548,6 +559,8 @@
     if (used.length) persist();
     try { if (webgl) Render3D.clear(); } catch (e) { console.warn("[Outbreak] 3D-Clear", e); }
     nextRoom();
+    if (run.order) showBanner(`${tr("TAGESBEFEHL")}: ${tr(run.order.name).toUpperCase()}`, tr(run.order.desc), 2.8);
+    else if (run.threat) setTimeout(() => toast(tr("Bedrohung {n}", { n: run.threat }), "skull"), 400);
     roomFade = 0; // beim Start übernimmt der Kameraflug aus dem Menü die Überblendung
     if (used.length) setTimeout(() => toast(`${tr("Boosts aktiv")}: ${used.join(" · ")}`, "gift"), 300);
     if (!run.storyOpen) { show(null); state = "play"; } // sonst läuft erst der Fluchtplan/Prolog
@@ -829,7 +842,7 @@
 
   function spawnWave(scale = 1) {
     const ch = run.chapter, room = run.room;
-    let budget = (4 + room * 1.1 + (ch - 1) * 4) * scale;
+    let budget = (4 + room * 1.1 + (ch - 1) * 4) * scale * (1 + 0.1 * (run.threat || 0));
     const pool = wavePool();
     const maxCount = 14 + ch * 2;
     let count = 0;
@@ -843,6 +856,10 @@
       const pos = freeSpot(T + 60, (T + B) / 2 + 60);
       for (let i = 0; i < n; i++) spawnEnemy(type, pos.x + rand(-20, 20), pos.y + rand(-20, 20));
       count += n;
+    }
+    if ((run.threat || 0) >= 2 && !enemies.some((e) => e.elite)) {
+      const cand = enemies.filter((e) => !e.def.boss && !e.def.pack && !e.dead);
+      if (cand.length) makeElite(pick(cand), 1);
     }
   }
   // Gegner-Pool des aktuellen Bezirks (Wellen und Nachschub bei Einsatzzielen)
@@ -889,8 +906,9 @@
   function spawnEnemy(type, x, y) {
     const def = ZOMBIES[type];
     const ch = run.chapter, room = run.room;
-    const hpMul = (1 + (room - 1) * 0.07) * Math.pow(1.6, ch - 1);
-    const dmgMul = (1 + (room - 1) * 0.03) * Math.pow(1.3, ch - 1);
+    const th = run.threat || 0, ord = runOrder();
+    const hpMul = (1 + (room - 1) * 0.07) * Math.pow(1.6, ch - 1) * threatHp(th) * (ord.foeHp || 1);
+    const dmgMul = (1 + (room - 1) * 0.03) * Math.pow(1.3, ch - 1) * threatDmg(th);
     const e = {
       type, def, x: clamp(x, L + def.r, R - def.r), y: clamp(y, T + def.r, B - def.r), r: def.r,
       hp: def.hp * hpMul, maxHp: def.hp * hpMul, dmg: def.dmg * dmgMul, speed: def.speed * rand(0.9, 1.1),
@@ -902,7 +920,8 @@
       rageT: 0, jumpZ: 0, elite: false, shield: 0, shieldT: 0, under: null, glitchT: 0,
     };
     // Elite: goldene Aura, dreifaches Leben, mehr Beute (ab Raum 4, häufiger in späteren Kapiteln)
-    if (!def.boss && !def.pack && (room >= 4 || ch > 1) && Math.random() < 0.04 + 0.03 * (ch - 1)) {
+    if (ord.foeSpeed) e.speed *= ord.foeSpeed;
+    if (!def.boss && !def.pack && (room >= 4 || ch > 1 || th > 0) && Math.random() < (0.04 + 0.03 * (ch - 1) + 0.03 * th) * (ord.eliteX || 1)) {
       makeElite(e, 1);
     }
     e.spawnMax = e.spawnT;
@@ -1085,6 +1104,7 @@
   // Schwächungen durch deutsche Gegner: „Verspätung" (Feuerrate) und „Ausgebremst" (Tempo)
   function debuff(key, t, label) {
     const fresh = !(player[key] > 0);
+    if (key === "slowT") t *= player.slowResist || 1;
     player[key] = Math.max(player[key] || 0, t);
     if (fresh) addText(player.x, player.y - 34, tr(label), key === "jamT" ? "#ffd84a" : "#c9d4ff", 16);
   }
@@ -1361,6 +1381,7 @@
       p.invuln = 0.3;
       return;
     }
+    dmg *= p.dmgTaken || 1; // SWAT-Weste
     p.hp -= dmg;
     p.invuln = 0.8;
     shake = Math.max(shake, 8);
@@ -1592,7 +1613,8 @@
       }
       if (h.kind === "gas") { if (Math.random() < 0.3) fxGas(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, h.r / 40, "150,200,60"); }
       else if (Math.random() < 0.3) fxFire(h.x + rand(-h.r, h.r) * 0.6, h.y + rand(-h.r, h.r) * 0.6, 0.7, 0.45);
-      if ((player.x - h.x) ** 2 + (player.y - h.y) ** 2 < (h.r + player.r * 0.5) ** 2) hurtPlayer(h.dmg);
+      // Feuerwehr ist feuerfest, Biohazard-Anzug hält Giftgas ab
+      if ((player.x - h.x) ** 2 + (player.y - h.y) ** 2 < (h.r + player.r * 0.5) ** 2 && !(h.kind === "gas" ? player.gasproof : player.fireproof)) hurtPlayer(h.dmg);
     }
     hazards = hazards.filter((h) => h.life > 0);
   }
@@ -1757,6 +1779,7 @@
       // Absoluter Nullpunkt: verlangsamte Zombies werden immer kritisch getroffen
       if (Math.random() < critChance || (p.evo.frost && e.slowT > 0)) { dmg *= p.critMul; crit = true; }
       if (p.evo.vamp && p.hp < p.maxHp * 0.35) dmg *= 1.5;
+      if (p.bigGame && (e.elite || e.def.boss)) dmg *= p.bigGame; // Seuchenjäger
       if (!e.def.boss && p.headshot > 0 && Math.random() < p.headshot) { dmg = e.hp; crit = true; exec = true; }
       // … und zerspringen unter 30 % Leben
       if (p.evo.frost && e.slowT > 0 && !e.def.boss && e.hp - dmg < e.maxHp * 0.3) { dmg = e.hp; crit = true; exec = true; o.shatter = true; }
@@ -1870,7 +1893,8 @@
     spawnCorpse(e);
     track("kills");
     if (e.elite) track("elites");
-    if (def.boss) { track("bosses"); addPassXp(60); }
+    if (def.boss) { track("bosses"); addPassXp(60); run.bossKills = (run.bossKills || 0) + 1; }
+    else if (runOrder().volatile && Math.random() < runOrder().volatile && !(e.aff && e.aff.includes("volatile"))) fuses.push({ x: e.x, y: e.y, r: 64, t: 0.7, max: 0.7, dmg: e.dmg });
     if (e.death === "headshot") { track("headshots"); run.headshots = (run.headshots || 0) + 1; }
     else if (e.death === "blast" || e.death === "burst") track("blasts");
     sfx(def.boss ? "boom" : "kill");
@@ -2739,6 +2763,10 @@
     shake = Math.max(shake, 5);
     showBanner(tr("BEZIRK SICHER"), tr("TÜR OFFEN ↑"), 1.7);
     addText(W / 2, T + 40, tr("TÜR OFFEN ↑"), "#8cff4a", 22);
+    if (BOSS_ROOMS[run.room] && run.mode === "campaign" && (run.threat || 0) >= (save.threatMax || 0) && (save.threatMax || 0) < THREAT_MAX) {
+      save.threatMax = (save.threatMax || 0) + 1; persist();
+      setTimeout(() => toast(tr("Bedrohung {n} freigeschaltet!", { n: save.threatMax }), "skull"), 1800);
+    }
     if (BOSS_ROOMS[run.room]) {
       healPlayer(player.maxHp * 0.2);
       run.shrineT = 1.6;
@@ -2797,7 +2825,7 @@
       e.hp *= 2.2; e.maxHp *= 2.2; e.scale *= 1.06; e.bounty = true;
       o.target = e;
       o.name = tr("{n} von {c}", { n: tr(pick(BOUNTY_NAMES)), c: curCity().name });
-      o.reward = 40 + 25 * ci;
+      o.reward = (40 + 25 * ci) * (player.bigGame ? 2 : 1);
     }
     run.obj = o;
     const info = OBJ_INFO[kind];
@@ -2998,7 +3026,7 @@
 
   function addXp(v) {
     const p = player;
-    p.xp += v;
+    p.xp += v * (p.xpGain || 1);
     while (p.xp >= p.xpNeed) {
       p.xp -= p.xpNeed;
       p.level++;
@@ -3599,6 +3627,74 @@
     }
   }
 
+  // ============================================================
+  // v2.5 Bedrohungsstufen, Tagesbefehl, Punkte & Bestenliste
+  // ============================================================
+  // Schwierigkeitsleiter wie im Genre üblich: jede Stufe wird mit einem Stadt-Boss-Sieg auf der Stufe davor freigeschaltet
+  const THREAT_MAX = 5;
+  const threatHp = (t) => 1 + 0.25 * t, threatDmg = (t) => 1 + 0.12 * t;
+  const threatScore = (t) => 1 + 0.5 * t;
+  function threatInfoText(t) {
+    if (!t) return (save.threatMax || 0) > 0 ? tr("Normal – ohne Aufschlag") : tr("Besiege einen Stadt-Boss, um Bedrohung 1 freizuschalten");
+    return tr("Gegner +{h} % Leben · +{c} % Münzen · ×{s} Punkte", { h: t * 25, c: t * 25, s: threatScore(t).toLocaleString(I18N.lang) }) + (t >= 2 ? ` · ${tr("Elite in jedem Bezirk")}` : "");
+  }
+  // Tagesbefehl: der Überlebensmodus bekommt jeden Tag eine eigene Regel – alle Spieler dieselbe
+  const ORDERS = [
+    { id: "glass", name: "Glaskanone", desc: "+50 % Schaden, aber −40 % Leben", mul: 1.3, apply: (p) => { p.dmgMul *= 1.5; p.maxHp = p.hp = Math.round(p.maxHp * 0.6); } },
+    { id: "elite", name: "Elite-Nacht", desc: "Dreimal so viele Elite-Zombies", mul: 1.25, eliteX: 3 },
+    { id: "sprint", name: "Sprinter", desc: "Alle laufen 25 % schneller – du auch", mul: 1.15, foeSpeed: 1.25, apply: (p) => { p.speed *= 1.25; } },
+    { id: "blood", name: "Blutdurst", desc: "Abschüsse heilen 2 %, aber −25 % Leben", mul: 1.1, apply: (p) => { p.lifesteal += 0.02; p.maxHp = p.hp = Math.round(p.maxHp * 0.75); } },
+    { id: "fuse", name: "Kurze Lunte", desc: "Jeder fünfte Zombie explodiert beim Tod", mul: 1.35, volatile: 0.2 },
+    { id: "payday", name: "Zahltag", desc: "Doppelte Münzen, Gegner +30 % Leben", mul: 1.1, greed: 2, foeHp: 1.3 },
+  ];
+  const dayNo = () => { const d = new Date(); return Math.floor((d.getTime() - d.getTimezoneOffset() * 6e4) / 864e5); };
+  const todaysOrder = () => ORDERS[dayNo() % ORDERS.length];
+  const ORDER_NONE = {};
+  const runOrder = () => (run && run.order) || ORDER_NONE;
+  function runScore() {
+    const r = run;
+    const fight = r.kills * 10 + (r.headshots || 0) * 5 + (r.bestCombo || 0) * 15 + (r.objDone || 0) * 300 + (r.bossKills || 0) * 600;
+    const prog = r.mode === "survival" ? Math.floor(Math.min(r.survT || 0, SURVIVAL_TIME)) * 12 : ((r.chapter - 1) * ROOMS_PER_CHAPTER + r.room) * 120;
+    return Math.round((fight + prog) * threatScore(r.threat || 0) * (r.order ? r.order.mul : 1));
+  }
+  function recordScore(score) {
+    const surv = run.mode === "survival";
+    const entry = { s: score, m: run.mode, t: run.threat || 0, h: save.skin, p: surv ? fmtTime(Math.min(run.survT || 0, SURVIVAL_TIME)) : placeLabel(run.chapter, run.room), o: run.order ? run.order.id : "", d: localDay() };
+    const list = (save.scores || []).concat(entry).sort((a, b) => b.s - a.s).slice(0, 10);
+    save.scores = list;
+    let daily = false;
+    if (surv && run.order) {
+      const day = dayNo();
+      if (!save.dailyBest || save.dailyBest.day !== day || score > save.dailyBest.s) { daily = true; save.dailyBest = { day, s: score, o: run.order.id }; }
+    }
+    return { rank: list.indexOf(entry) + 1, daily, entry };
+  }
+  function shareText(e) {
+    const mode = e.m === "survival" ? `${tr("Überleben")} (${tr(ORDERS.find((q) => q.id === e.o)?.name || "Tagesbefehl")})` : `${tr("Kampagne")}${e.t ? ` · ${tr("Bedrohung {n}", { n: e.t })}` : ""}`;
+    const link = Platform.cfg.playStoreUrl ? ` ${Platform.cfg.playStoreUrl}` : "";
+    return tr("Escape from Germany: {s} Punkte – {m}, {p}. Schaffst du mehr?", { s: num(e.s), m: mode, p: e.p }) + link;
+  }
+  async function shareScore(e) {
+    const text = shareText(e);
+    try { if (navigator.share) { await navigator.share({ text }); return; } } catch (err) { if (err && err.name === "AbortError") return; }
+    try { await navigator.clipboard.writeText(text); toast(tr("Ergebnis kopiert – jetzt einfügen und teilen"), "check"); }
+    catch { toast(text, "trophy"); }
+  }
+  function renderRanks() {
+    const o = todaysOrder(), db = save.dailyBest && save.dailyBest.day === dayNo() ? save.dailyBest.s : 0;
+    $("dailyOrder").innerHTML = `${I("stopwatch")}<span><small>${tr("Tagesbefehl im Überlebensmodus")}</small><b>${tr(o.name)}</b><em>${tr(o.desc)} · ×${o.mul.toLocaleString(I18N.lang)} ${tr("Punkte")}</em></span><strong>${db ? num(db) : "–"}</strong>`;
+    const list = save.scores || [];
+    $("rankList").innerHTML = list.length ? list.map((e, i) => `<li class="${i === 0 ? "top" : ""}"><b>${i + 1}</b><span><strong>${num(e.s)}</strong><small>${e.m === "survival" ? tr("Überleben") : tr("Kampagne")}${e.t ? ` · ${tr("Bedrohung {n}", { n: e.t })}` : ""} · ${(SKINS.find((q) => q.id === e.h) || SKINS[0]).name}</small></span><em>${e.p}</em></li>`).join("") : `<p class="empty">${tr("Noch keine Einsätze – deine Bestwerte erscheinen hier.")}</p>`;
+    $("rankShare").disabled = !list.length;
+  }
+  function renderThreat() {
+    const max = Math.min(THREAT_MAX, save.threatMax || 0), cur = Math.min(save.threat || 0, max);
+    const row = $("threatRow");
+    row.classList.toggle("hidden", save.menuMode === "survival");
+    $("threatPips").innerHTML = Array.from({ length: THREAT_MAX + 1 }, (_, t) => `<button class="tp${t === cur ? " on" : ""}${t > max ? " locked" : ""}" data-t="${t}" aria-label="${tr("Bedrohung {n}", { n: t })}">${t > max ? I("lock") : t}</button>`).join("");
+    $("threatInfo").textContent = threatInfoText(cur);
+  }
+  let lastScore = null;
   function gameOver(quit, won = false) {
     state = "over";
     if (window.GameAudio && !quit) GameAudio.stinger(won ? "victory" : "death");
@@ -3622,6 +3718,8 @@
       const score = run.chapter * 100 + run.room;
       if (score > save.best.chapter * 100 + save.best.room) { save.best = { chapter: run.chapter, room: run.room }; record = true; }
     }
+    const points = runScore(), rk = recordScore(points);
+    lastScore = rk.entry;
     persist();
     const title = $("overTitle");
     title.textContent = won ? tr("ÜBERLEBT!") : quit ? tr("EINSATZ BEENDET") : tr("GEFALLEN");
@@ -3635,7 +3733,11 @@
     const city = !surv && run.room > 0 ? curCity() : null;
     const left = city ? 9 - districtIdx() : 0;
     const tease = city && !won && left >= 1 ? (left > 1 ? tr("Noch {n} Bezirke bis {boss}", { n: left, boss: ZOMBIES[city.boss].name }) : tr("Boss wartet: {boss}", { boss: ZOMBIES[city.boss].name })) : "";
+    const tags = `${rk.rank === 1 && save.scores.length > 1 ? `<em class="rec">${tr("BESTWERT")}</em>` : rk.rank > 1 ? `<em class="rank">#${rk.rank}</em>` : ""}${rk.daily ? `<em class="rec">${tr("TAGESBESTWERT")}</em>` : ""}`;
     $("overStats").innerHTML =
+      line("trophy", tr("Punkte"), `${num(points)}${tags}`, "gold") +
+      (run.threat ? line("skull", tr("Bedrohung"), `${run.threat} · ×${threatScore(run.threat).toLocaleString(I18N.lang)}`) : "") +
+      (run.order ? line("stopwatch", tr("Tagesbefehl"), tr(run.order.name)) : "") +
       line(surv ? "stopwatch" : "map", surv ? tr("Überlebt") : tr("Erreicht"), `${reached}${record ? `<em class="rec">${tr("REKORD")}</em>` : ""}`) +
       line("skull", tr("Abschüsse"), num(run.kills)) +
       line("headshot", tr("Kopfschüsse"), num(run.headshots || 0)) +
@@ -5390,9 +5492,11 @@
     $("menuWeaponLv").textContent = tr("St. {n}", { n: lvl });
     const sk = SKINS.find((q) => q.id === save.skin) || SKINS[0];
     $("menuSkinName").textContent = sk.name;
+    const perk = heroPerk(sk.id);
+    $("menuHeroPerk").textContent = tr(perk.name);
     const bs = BOOSTS.filter((q) => save.boosts[q.id] > 0).map((q) => `${q.name} ×${save.boosts[q.id]}`).join(" · ");
-    $("menuSkin").textContent = bs ? `${tr("Boosts")}: ${bs}` : "";
-    $("menuSkin").classList.toggle("hidden", !bs);
+    $("menuSkin").innerHTML = `<b>${tr(perk.name)}:</b> ${tr(perk.desc)}${bs ? `  ·  ${tr("Boosts")}: ${bs}` : ""}`;
+    $("menuSkin").classList.remove("hidden");
     for (const b of document.querySelectorAll("#heroPicker .pk-arrow")) b.disabled = ownedSkins().length < 2;
     for (const b of document.querySelectorAll("#weaponPicker .pk-arrow")) b.disabled = ownedWeapons().length < 2;
     // Einsatzart
@@ -5401,11 +5505,13 @@
     $("survivalBtn").classList.toggle("active", mode === "survival");
     $("campaignInfo").textContent = save.best.chapter ? `${tr("Rekord")}: ${cityAt(cityIdx(save.best)).name} · ${tr("Bezirk {n}/10", { n: districtIdx(save.best) + 1 })}` : tr("Heilbronn → Hamburg · 9 Städte");
     const todayWorld = THEME_ORDER[Math.floor(Date.now() / 864e5) % THEME_ORDER.length];
-    $("ctaSub").textContent = mode === "campaign" ? tr("Kampagne · Start in Heilbronn") : `${tr("Überleben")} · ${tr(WORLD_NAME[todayWorld])}`;
+    const th = Math.min(save.threat || 0, save.threatMax || 0);
+    $("ctaSub").textContent = mode === "campaign" ? (th ? `${tr("Kampagne")} · ${tr("Bedrohung {n}", { n: th })} · ×${threatScore(th).toLocaleString(I18N.lang)} ${tr("Punkte")}` : tr("Kampagne · Start in Heilbronn")) : `${tr("Überleben")} · ${tr(WORLD_NAME[todayWorld])}${save.stats.survival ? ` · ${tr("Rekord")} ${fmtTime(save.stats.survival)}` : ""}`;
     $("playBtn").classList.toggle("primary", mode === "campaign");
     $("playBtn").classList.toggle("amber", mode === "survival");
     for (const el of document.querySelectorAll(".coinsVal")) el.textContent = num(save.coins);
-    $("survivalBest").textContent = save.stats.survival ? `${tr("Rekord")} ${fmtTime(save.stats.survival)}` : tr("5 Minuten · Welt des Tages");
+    $("survivalBest").textContent = `${tr("Tagesbefehl")}: ${tr(todaysOrder().name)}`;
+    renderThreat();
     $("missionsBadge").classList.toggle("hidden", !missionsClaimable());
     $("passBadge").classList.toggle("hidden", !passClaimable());
     const pc = patrolCoins();
@@ -5835,6 +5941,19 @@
     { id: "gold", icon: "crown", name: tr("Goldener Held"), iap: IDS.goldSkin, desc: tr("Premium-Skin · +10% Münzen") },
     { id: "hunter", icon: "hunter", name: tr("Seuchenjäger"), pass: true, desc: tr("Exklusiv im Premium-Saisonpass") },
   ];
+  // v2.5 Helden: jeder Held spielt sich anders (vorher reine Optik)
+  const HERO_PERKS = {
+    soldier: { name: "Feldtraining", desc: "+15 % Erfahrung", apply: (p) => { p.xpGain = 1.15; } },
+    police: { name: "Schutzweste", desc: "−15 % erlittener Schaden", apply: (p) => { p.dmgTaken = 0.85; } },
+    firefighter: { name: "Hitzeschild", desc: "Immun gegen Feuer · +10 % Leben", apply: (p) => { p.fireproof = true; p.maxHp = p.hp = Math.round(p.maxHp * 1.1); } },
+    hazmat: { name: "Schutzanzug", desc: "Immun gegen Giftgas · Verlangsamung halbiert", apply: (p) => { p.gasproof = true; p.slowResist = 0.5; } },
+    ninja: { name: "Schattenschritt", desc: "+12 % Tempo · 8 % Ausweichen", apply: (p) => { p.speed *= 1.12; p.dodge += 0.08; } },
+    cyber: { name: "Kampfdrohne", desc: "Startet mit einer Drohne", apply: (p) => { p.drones += 1; } },
+    plague: { name: "Aderlass", desc: "Heilt 1 % Leben pro Abschuss", apply: (p) => { p.lifesteal += 0.01; } },
+    gold: { name: "Goldrausch", desc: "+10 % Münzen", apply: () => { /* run.greed in startRun */ } },
+    hunter: { name: "Kopfgeldjäger", desc: "+20 % Schaden gegen Elites und Bosse · doppeltes Kopfgeld", apply: (p) => { p.bigGame = 1.2; } },
+  };
+  const heroPerk = (id) => HERO_PERKS[id] || HERO_PERKS.soldier;
   const BOOSTS = [
     { id: "hp", icon: "heartArmor", name: tr("Zähigkeit+"), desc: tr("+30% max. HP im nächsten Einsatz"), price: 300 },
     { id: "coins", icon: "clover", name: tr("Glücksbringer"), desc: tr("+50% Münzen im nächsten Einsatz"), price: 400 },
@@ -5994,8 +6113,8 @@
       let row;
       if (q.iap && !owned) row = iapRow(ic, q.name, q.desc, `<span class="tag gold">${tr("PREMIUM")}</span>`, q.iap, false);
       else if (q.pass && !owned) row = shopRow(ic, q.name, q.desc, `<span class="tag amber">${tr("SAISONPASS")}</span>`, `${I("pass")}${tr("Zum Pass")}`, true, () => { renderPass(); show(ui.pass); });
-      else if (owned) row = shopRow(ic, q.name, active ? tr("Ausgerüstet") : tr("Im Besitz"), active ? `<span class="tag">${tr("Aktiv")}</span>` : "", active ? I("check") : tr("Ausrüsten"), !active, () => { save.skin = q.id; previewSkin = q.id; persist(); sfx("coin"); renderShop(); }, active ? "" : "primary");
-      else row = shopRow(ic, q.name, tr("Nur Optik – zeig, wer du bist."), "", coinAmt(q.price), save.coins >= q.price, () => {
+      else if (owned) row = shopRow(ic, q.name, `${tr(heroPerk(q.id).name)}: ${tr(heroPerk(q.id).desc)}${active ? ` · ${tr("Ausgerüstet")}` : ""}`, active ? `<span class="tag">${tr("Aktiv")}</span>` : "", active ? I("check") : tr("Ausrüsten"), !active, () => { save.skin = q.id; previewSkin = q.id; persist(); sfx("coin"); renderShop(); }, active ? "" : "primary");
+      else row = shopRow(ic, q.name, `${tr(heroPerk(q.id).name)}: ${tr(heroPerk(q.id).desc)}`, "", coinAmt(q.price), save.coins >= q.price, () => {
         if (save.coins < q.price) return;
         save.coins -= q.price; save.skins[q.id] = true; save.skin = q.id; previewSkin = q.id;
         persist(); sfx("level"); toast(`${q.name}!`, q.icon); renderShop();
@@ -6134,6 +6253,18 @@
   $("loadoutBtn").addEventListener("click", () => { ensureAudio(); renderArmory(); show(ui.armory); });
   // Startknopf startet die gewählte Einsatzart; Karte antippen wählt, zweites Antippen startet sofort
   $("playBtn").addEventListener("click", () => startRun(save.menuMode === "survival" ? "survival" : "campaign"));
+  // v2.5 Bedrohung wählen, Bestenliste, Teilen
+  $("threatPips").addEventListener("click", (ev) => {
+    const b = ev.target.closest(".tp");
+    if (!b) return;
+    const t = +b.dataset.t;
+    if (b.classList.contains("locked")) { toast(tr("Besiege einen Stadt-Boss auf Bedrohung {n}, um Stufe {m} freizuschalten", { n: save.threatMax || 0, m: (save.threatMax || 0) + 1 }), "lock"); return; }
+    save.threat = t; persist(); refreshMenu();
+    toast(threatInfoText(t), "skull");
+  });
+  $("ranksBtn").addEventListener("click", () => { renderRanks(); show(ui.ranks); });
+  $("rankShare").addEventListener("click", () => { const e = (save.scores || [])[0]; if (e) shareScore(e); });
+  $("shareBtn").addEventListener("click", () => { if (lastScore) shareScore(lastScore); });
   const pickMode = (m) => {
     if ((save.menuMode || "campaign") === m) { startRun(m); return; }
     save.menuMode = m; persist(); refreshMenu();

@@ -225,7 +225,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .btn.mode small { font-size: 10px; letter-spacing: 0.06em; }
 
 /* Dock */
-.dock { width: 100%; max-width: 360px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.dock { width: 100%; max-width: 380px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
 .dock-btn {
   display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 9px; border: 0; cursor: pointer; color: var(--text);
   background: linear-gradient(180deg, rgba(42, 54, 50, 0.95), rgba(22, 29, 27, 0.95)); clip-path: var(--chamfer); --cut: 8px;
@@ -846,3 +846,41 @@ canvas { display: block; background: #121a16; touch-action: none; }
 
 /* v2.4 Controller: sichtbarer Fokus für Steuerkreuz-Navigation */
 .pad-focus { outline: 3px solid var(--toxic) !important; outline-offset: 3px; box-shadow: 0 0 18px rgba(168, 255, 62, 0.45) !important; }
+
+/* =====================================================================
+   v2.5 Bedrohungsstufen, Bestenliste, Teilen
+   ===================================================================== */
+.threat-row { width: 100%; max-width: 380px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 10px; margin-top: 6px; padding: 5px 8px; --cut: 6px; clip-path: var(--chamfer); background: linear-gradient(180deg, rgba(40, 14, 14, 0.82), rgba(16, 8, 8, 0.9)); box-shadow: inset 0 0 0 1px rgba(229, 56, 59, 0.35); }
+.threat-row .tr-label { display: inline-flex; align-items: center; gap: 6px; font: 800 12px/1 var(--f-ui); letter-spacing: 0.12em; text-transform: uppercase; color: #ff8a7a; }
+.threat-row .tr-label [data-ic] { font-size: 15px; }
+.tr-pips { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.tp { height: 22px; border: 0; cursor: pointer; font: 800 14px/1 var(--f-ui); color: var(--text-2); background: #1d1514; box-shadow: inset 0 0 0 1px #4a2a28; --cut: 4px; clip-path: var(--chamfer); }
+.tp.on { color: #1a0605; background: linear-gradient(180deg, #ff7a5a, #d6342a); box-shadow: 0 0 10px rgba(229, 56, 59, 0.5); }
+.tp.locked { color: #5a4442; cursor: default; font-size: 11px; }
+.tp .ic { vertical-align: -0.1em; }
+.threat-row small { display: none; } /* Erklärung steht im Start-Knopf bzw. als Hinweis beim Antippen */
+.tp.locked { cursor: help; }
+/* v2.5: Heldenfähigkeit und Bedrohungsleiste brauchen Platz – Seitenleisten auf niedrigen Displays höher und enger */
+@media (max-height: 720px) {
+  .menu .rail { top: calc(142px + env(safe-area-inset-top)); gap: 2px; }
+  .menu .rail-btn > [data-ic] { width: 42px; height: 42px; font-size: 22px; }
+  .menu .rail-btn span { font-size: 10px; }
+  .boost-line { margin-top: 3px; font-size: 11px; }
+}
+.stats .rank { color: var(--amber); font: 800 11px/1 var(--f-ui); letter-spacing: 0.1em; margin-left: 6px; vertical-align: 3px; font-style: normal; }
+.btn.share { gap: 8px; }
+.dialog.ranks { max-height: 86vh; overflow-y: auto; }
+.order-box { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; --cut: 8px; clip-path: var(--chamfer); background: linear-gradient(180deg, rgba(70, 50, 16, 0.9), rgba(28, 19, 6, 0.92)); box-shadow: inset 0 0 0 1px rgba(255, 183, 51, 0.5); }
+.order-box > .ic { font-size: 24px; color: var(--amber); }
+.order-box small { display: block; font: 700 10px/1 var(--f-ui); letter-spacing: 0.14em; text-transform: uppercase; color: var(--amber); }
+.order-box b { display: block; margin-top: 3px; font: 800 17px/1 var(--f-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text); }
+.order-box em { display: block; margin-top: 3px; font: 600 11px/1.2 var(--f-ui); font-style: normal; color: var(--text-2); }
+.order-box strong { font: 700 20px/1 var(--f-num, var(--f-ui)); color: var(--gold); font-variant-numeric: tabular-nums; }
+.rank-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rank-list li { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 10px; padding: 8px 10px; background: rgba(255, 255, 255, 0.03); box-shadow: inset 0 0 0 1px var(--line); }
+.rank-list li > b { font: 800 16px/1 var(--f-ui); color: var(--text-3); text-align: center; }
+.rank-list li.top > b { color: var(--gold); }
+.rank-list li strong { display: block; font: 700 18px/1 var(--f-num, var(--f-ui)); color: var(--text); font-variant-numeric: tabular-nums; }
+.rank-list li small { display: block; margin-top: 3px; font: 600 11px/1.2 var(--f-ui); color: var(--text-3); }
+.rank-list li em { font: 600 12px/1.2 var(--f-ui); font-style: normal; color: var(--text-2); text-align: right; max-width: 120px; }
+.rank-list .empty { padding: 14px 6px; }

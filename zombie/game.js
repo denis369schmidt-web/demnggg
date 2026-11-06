@@ -541,6 +541,7 @@
   let shake = 0;
   let punchX = 0, punchY = 0, punchFov = 0; // gerichteter Kamerastoß + FOV-Kick
   let ghosts = []; // Nachbilder beim Ausweichen
+  let killCam = null, lastKill = null; // v3.0 Kamera fährt beim letzten Abschuss eines Bezirks heran
   let banner = null;
   let callout = null; // Kombo-Ansage unter dem HUD
   const volleyQueue = [];
@@ -630,7 +631,7 @@
     run.doorK = 0;
     supplyCrate = null;
     run.obj = null; run.event = null; fuses = [];
-    throws = []; decoys = []; strikes = []; run.blink = null;
+    throws = []; decoys = []; strikes = []; run.blink = null; killCam = null; lastKill = null; wetSpots = [];
     player.vx = player.vy = 0;
     player.invuln = 1;
     run.cleared = false;
@@ -863,8 +864,20 @@
   }
   // Blutlachen wachsen unter liegenden Körpern langsam auf: mehrere überlappende Kreise mit wenig
   // Deckkraft ergeben einen unregelmäßigen Rand und eine dunklere, nasse Mitte
+  // v3.0 nasse Stellen merken: wer hindurchläuft, hinterlässt blutige Fußabdrücke
+  let wetSpots = [];
+  function stampFoot(x, y, ang, color, a) {
+    if (!floorCtx || x < L || x > R || y < T || y > B) return;
+    floorDirty = true;
+    floorCtx.save(); floorCtx.globalAlpha = a; floorCtx.fillStyle = color;
+    floorCtx.translate(x, y); floorCtx.rotate(ang);
+    floorCtx.beginPath(); floorCtx.ellipse(0, 0, 4.2, 2.1, 0, 0, TAU); floorCtx.fill();
+    floorCtx.beginPath(); floorCtx.ellipse(5.2, 0, 1.8, 1.9, 0, 0, TAU); floorCtx.fill();
+    floorCtx.restore();
+  }
   function addPool(x, y, max, color, delay = rand(0.2, 0.6)) {
     if (pools.length >= 40 || x < L || x > R || y < T || y > B) return;
+    wetSpots.push({ x, y, r: max * 0.8, color }); if (wetSpots.length > 60) wetSpots.shift();
     const lobes = Array.from({ length: 3 }, () => ({ dx: rand(-0.45, 0.45), dy: rand(-0.35, 0.35), k: rand(0.55, 0.85) }));
     pools.push({ x, y, r: 0, drawn: 0, max, color, lobes, delay });
   }
@@ -990,6 +1003,7 @@
     // Zombie bricht aus dem Boden
     stamp(Sprites.crack(), e.x, e.y + e.r * 0.3, rand(0, TAU), e.r / 16, 0.6);
     fxDebris(e.x, e.y, 0, Math.PI, def.boss ? 20 : 5, "#5a4a3a");
+    fxDust(e.x, e.y + 4, def.boss ? 8 : 2, def.boss ? 1.4 : 0.6);
     if (def.boss) { shake = Math.max(shake, 10); fxSmoke(e.x, e.y, 10, 2.2, 1.6); }
     return e;
   }
@@ -1219,6 +1233,7 @@
         if (window.GameAudio) GameAudio.ui("swipe");
         fx4d("kick");
         fxDebris(p.x, p.y, 0, Math.PI, 4, "#5a4a3a");
+        fxDust(p.x, p.y + 4, 4, 0.75);
         if (p.dashBlast) {
           fxRing(p.x, p.y, 90, "168,255,62", 0.35);
           for (const e of enemies) {
@@ -1246,6 +1261,13 @@
       const step = Math.floor(p.walkT / 1.55);
       if (step !== p.footStep) {
         p.footStep = step;
+        if (Math.random() < 0.7) fxDust(p.x - v.x * 8, p.y - v.y * 8 + 4, 1, 0.45);
+        for (const q of wetSpots) if ((q.x - p.x) ** 2 + (q.y - p.y) ** 2 < q.r * q.r) { p.bloodSteps = 10; p.bloodCol = q.color; break; }
+        if (p.bloodSteps > 0) {
+          const a = Math.atan2(v.y, v.x), sd = step % 2 ? 1 : -1;
+          stampFoot(p.x - Math.sin(a) * 4 * sd, p.y + Math.cos(a) * 4 * sd, a, p.bloodCol || "#5a0c0e", 0.12 + 0.05 * p.bloodSteps);
+          p.bloodSteps--;
+        }
         if (window.GameAudio && GameAudio.foot) GameAudio.foot();
       }
       if ((p.ghostCd -= dt) <= 0) {
@@ -1428,6 +1450,7 @@
       fxCasing(p.x + c * 8 - sn * 6, p.y + sn * 8 + c * 6, aim + Math.PI / 2 + rand(-0.4, 0.4), w.casing === 2);
     }
     if (w.kind === "grenade" || w.kind === "rocket") fxSmoke(mz.x, mz.y, 2, 0.6, 0.6);
+    else if ((w.shake || 0) >= 3 && Math.random() < 0.6) fxSmoke(mz.x, mz.y, 1, 0.4, 0.5); // Rauch aus schweren Läufen
     if (w.kind !== "flame" || Math.random() < 0.25) {
       if (window.GameAudio && GameAudio.gun) GameAudio.gun(p.weaponId);
       else sfx("shoot");
@@ -2028,6 +2051,7 @@
     if (e.dead) return;
     e.dead = true;
     run.kills++;
+    lastKill = { x: e.x, y: e.y };
     addCombo(e);
     const def = e.def;
     fxBlood(e.x, e.y, e.hitAng, def.boss ? 40 : 12, def.blood, def.boss ? 320 : 220);
@@ -2930,6 +2954,7 @@
 
   function roomCleared() {
     run.cleared = true;
+    if (lastKill && !BOSS_ROOMS[run.room]) killCam = { x: lastKill.x, y: lastKill.y, t: 0.9, max: 0.9 };
     track("rooms");
     if (run.belt) addThrow(save.throwOwned[save.throwSel] ? save.throwSel : "frag", 1, player.x, player.y - 46); // Nachschub je Bezirk
     sfx("door");
@@ -3248,6 +3273,7 @@
     throws.push({ kind, x0: p.x, y0: p.y, x1, y1, x: p.x, y: p.y, z: 30, t: 0, T: 0.42 + dist / 1100, r: def.r, spin: rand(0, TAU) });
     run.belt[kind]--;
     run.throwCd = THROW_CD;
+    p.throwT = 0.32;
     p.aim = Math.atan2(y1 - p.y, x1 - p.x);
     if (!(run.belt[kind] > 0)) { const ks = beltKinds(); if (ks.length) run.beltSel = ks[0]; }
     if (window.GameAudio) GameAudio.ui("swipe");
@@ -3283,6 +3309,8 @@
     if (!run.belt) return;
     const p = player;
     run.throwCd = Math.max(0, run.throwCd - dt);
+    if (p.throwT > 0) p.throwT -= dt;
+    if (p.ultT > 0) p.ultT -= dt;
     run.ult = Math.min(100, run.ult + dt * 0.6); // lädt auch langsam von selbst
     if (throwWanted) { throwWanted = false; doThrow(); }
     if (ultWanted) { ultWanted = false; if (run.ult >= 100) activateUlt(); else if (window.GameAudio) GameAudio.ui("tick"); }
@@ -3338,6 +3366,7 @@
   function activateUlt() {
     const p = player, sp = heroSpecial(save.skin), U = powerUnit();
     run.ult = 0;
+    p.ultT = 0.7;
     endUltFx(); // eine noch laufende Wirkung zuerst sauber beenden (sonst blieben z. B. Drohnen für immer)
     track("specials");
     slowMo = Math.max(slowMo, 0.35); punchFov = Math.max(punchFov, 3); shake = Math.max(shake, 7);
@@ -3749,6 +3778,10 @@
     const s = rand(70, 130);
     addP({ t: "casing", x, y, z: 10, vx: Math.cos(ang) * s, vy: Math.sin(ang) * s, vz: rand(90, 170), rot: rand(0, TAU), vr: rand(-25, 25), life: 3, max: 3, spr: Sprites.casing(shell) });
   }
+  // v3.0 Staub: hellbraune, flache Wölkchen (Schritte, Rolle, aufbrechender Boden)
+  function fxDust(x, y, n = 1, size = 0.5) {
+    for (let i = 0; i < n; i++) addP({ t: "smoke", x: x + rand(-5, 5), y: y + rand(-3, 3), vx: rand(-22, 22), vy: rand(-10, 4), life: rand(0.35, 0.6), max: 0.6, size: rand(0.7, 1.1) * size, rot: rand(0, TAU), rgb: "150,132,108", h: 4, rise: 12 });
+  }
   function fxSmoke(x, y, n, size = 1, life = 1.2) {
     for (let i = 0; i < n; i++) {
       addP({ t: "smoke", x: x + rand(-8, 8) * size, y: y + rand(-8, 8) * size, vx: rand(-18, 18), vy: rand(-28, -6), life: life * rand(0.8, 1.2), max: life, size: rand(0.7, 1.15) * size, rot: rand(0, TAU) });
@@ -4096,6 +4129,7 @@
     if (Math.abs(punchX) + Math.abs(punchY) < 0.12) punchX = punchY = 0;
     punchFov = Math.max(0, punchFov - dt * 22);
     for (const g of ghosts) g.life -= dt;
+    if (killCam && (killCam.t -= dt) <= 0) killCam = null;
     if (ghosts.length) ghosts = ghosts.filter((g) => g.life > 0);
     roomFade = Math.max(0, roomFade - frameDt * 2.2);
     cineT = Math.max(0, cineT - frameDt);
@@ -4427,6 +4461,7 @@
     get orbs() { return orbs; }, get particles() { return particles; }, get corpses() { return corpses; }, get pieces() { return pieces; },
     get zaps() { return zaps; }, get ambient() { return ambient; }, get roomLights() { return roomLights; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; },
     get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwStyle: (k) => THROWABLES[k],
+    get killCam() { return killCam; },
     get weather() { return curWeather(); }, get fest() { return curFest(); },
     get cityId() { return run && run.mode === "campaign" && run.room > 0 ? curCity().id : ""; }, get district() { return run && run.mode === "campaign" && run.room > 0 ? curDistrict()[0] : ""; },
     get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },

@@ -2866,6 +2866,30 @@ void main() {
     const ph = p.moving ? (p.walkT / 8) * TAU : 0;
     for (const L of M.legs) L.g.rotation.z = p.moving ? Math.sin(ph + (L.s > 0 ? Math.PI : 0)) * 0.6 : 0;
     M.body.position.y = p.moving ? Math.abs(Math.sin(ph)) * 0.8 : 0;
+    // v3.0 Körpersprache: in Laufrichtung lehnen, Rückstoß im Oberkörper, Atmen im Stand, Zusammenzucken,
+    // Ausholen beim Wurf, Hechtrolle beim Ausweichen (um die Körpermitte, nicht um die Füße)
+    {
+      const fdt = Math.max(1e-3, frameDt || 0.016);
+      const vx = (p.x - (M.lx ?? p.x)) / fdt, vz = (p.y - (M.lz ?? p.y)) / fdt;
+      M.lx = p.x; M.lz = p.y;
+      const spd = Math.min(1, Math.hypot(vx, vz) / 220), rel = Math.atan2(vz, vx) - p.aim;
+      const fwd = spd > 0.05 ? Math.cos(rel) * spd : 0, side = spd > 0.05 ? Math.sin(rel) * spd : 0;
+      M.leanF = (M.leanF || 0) + (fwd - (M.leanF || 0)) * Math.min(1, fdt * 10);
+      M.leanS = (M.leanS || 0) + (side - (M.leanS || 0)) * Math.min(1, fdt * 10);
+      let rz = -M.leanF * 0.14 + (p.kick || 0) * 0.022, rx = M.leanS * 0.16, ry = 0, bx = 0;
+      if (!p.moving) M.body.position.y += Math.sin(t * 2.4) * 0.35;
+      if (p.hurtT > 0) rx += Math.sin(t * 45) * 0.1 * Math.min(1, p.hurtT / 0.2);
+      if (p.throwT > 0) { const k = Math.sin((1 - p.throwT / 0.32) * Math.PI); ry = -0.7 * k; rz -= 0.15 * k; }
+      if (p.ultT > 0) M.body.position.y += Math.sin((1 - p.ultT / 0.7) * Math.PI) * 4;
+      if (p.dashT > 0) {
+        const k = Math.min(1, 1 - p.dashT / 0.18), th = -k * TAU, h = (M.height || 40) * 0.42;
+        rz = th; bx = h * Math.sin(th);
+        M.body.position.y = h * (1 - Math.cos(th)) + Math.sin(k * Math.PI) * 5;
+        for (const L of M.legs) L.g.rotation.z = -1.1;
+      }
+      M.body.rotation.set(rx, ry, rz);
+      M.body.position.x = bx;
+    }
     const wpn = M.extra.weapon;
     wpn.position.x = M.extra.gripX - p.kick * 0.8;
     if (wpn.userData.barrels) wpn.userData.barrels.rotation.x = p.barrel;
@@ -3104,7 +3128,7 @@ void main() {
         case "ice": bill(addB, q.x, 24, q.y, q.size, CELL.glow, "170,230,255", k * 0.9); break;
         case "drip": bill(addB, q.x, 18, q.y, q.size * 2, CELL.glow, q.rgb, k * 0.5); break;
         case "gas": bill(normB, q.x, 12 + (1 - k) * 16, q.y, 26 * q.size, CELL.smoke, q.rgb, Math.min(1, k * 1.6) * 0.42, q.rot); break;
-        case "smoke": bill(normB, q.x, 20 + (1 - k) * 40, q.y, 24 * q.size, CELL.smoke, "120,120,115", Math.min(1, k * 1.4) * 0.7, q.rot); break;
+        case "smoke": bill(normB, q.x, (q.h ?? 20) + (1 - k) * (q.rise ?? 40), q.y, 24 * q.size, CELL.smoke, q.rgb || "120,120,115", Math.min(1, k * 1.4) * 0.7, q.rot); break;
         case "blood": {
           // schnelle Tropfen als Streifen in Flugrichtung, langsame als runde Tropfen
           const sp = Math.hypot(q.vx, q.vy);
@@ -3568,6 +3592,7 @@ void main() {
   // weichgezeichnet und aufaddiert; zuletzt kommen Sättigung und Stadt-Farbton dazu.
   // Nur bei Grafikstufe 2; fällt die Bildrate, senkt das Spiel die Stufe und der Effekt entfällt.
   let post = null, postWanted = true, postBroken = false;
+  const shockU = [0, 1, 2, 3].map(() => new T3.Vector4());
   const postSize = new T3.Vector2(), postTint = new T3.Vector3(1, 1, 1);
   const POST_VS = "varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }";
   function makePost() {
@@ -3590,18 +3615,51 @@ void main() {
   c += (texture2D(src, vUv + dir * 3.231).rgb + texture2D(src, vUv - dir * 3.231).rgb) * 0.07;
   gl_FragColor = vec4(c, 1.0);
 }`, { src: { value: null }, dir: { value: new T3.Vector2() } });
-    const comp = sm(`uniform sampler2D src; uniform sampler2D glow; uniform float k; uniform float sat; uniform vec3 tint; varying vec2 vUv;
+    // v3.0: Druckwellen verzerren das Bild ringförmig (bis zu 4 gleichzeitig), leichter Farbsaum zum Rand hin,
+    // bei Treffern kurz entsättigt und rötlich
+    const comp = sm(`uniform sampler2D src; uniform sampler2D glow; uniform float k; uniform float sat; uniform vec3 tint;
+uniform vec4 shock[4]; uniform float aspect; uniform float ca; uniform float hurt; varying vec2 vUv;
 void main() {
-  vec3 c = texture2D(src, vUv).rgb + texture2D(glow, vUv).rgb * k;
+  vec2 off = vec2(0.0);
+  for (int i = 0; i < 4; i++) {
+    vec4 s = shock[i];
+    if (s.w > 0.0) {
+      vec2 d = (vUv - s.xy) * vec2(aspect, 1.0);
+      float dl = length(d) + 1e-4;
+      float ring = smoothstep(s.z - 0.07, s.z, dl) * (1.0 - smoothstep(s.z, s.z + 0.05, dl));
+      off += (d / dl) / vec2(aspect, 1.0) * ring * s.w * 0.035;
+    }
+  }
+  vec2 uv = vUv - off;
+  float a = ca + length(off) * 0.3;
+  vec2 dir = vUv - 0.5;
+  vec3 c = vec3(texture2D(src, uv + dir * a).r, texture2D(src, uv).g, texture2D(src, uv - dir * a).b);
+  c += texture2D(glow, uv).rgb * k;
   float l = dot(c, vec3(0.299, 0.587, 0.114));
-  gl_FragColor = vec4(clamp(mix(vec3(l), c, sat) * tint, 0.0, 1.0), 1.0); // Werte sind schon Bildschirm-sRGB
-}`, { src: { value: null }, glow: { value: null }, k: { value: 0.85 }, sat: { value: 1.06 }, tint: { value: postTint } });
+  c = mix(vec3(l), c, sat) * tint;
+  c = mix(c, vec3(l) * vec3(1.25, 0.75, 0.72), hurt * 0.4);
+  gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0); // Werte sind schon Bildschirm-sRGB
+}`, { src: { value: null }, glow: { value: null }, k: { value: 0.85 }, sat: { value: 1.06 }, tint: { value: postTint }, shock: { value: shockU }, aspect: { value: 1 }, ca: { value: 0.001 }, hurt: { value: 0 } });
     const quad = new T3.Mesh(new T3.PlaneGeometry(2, 2), comp), sc = new T3.Scene();
     quad.frustumCulled = false;
     sc.add(quad);
     return { main, a, b, quad, sc, cam: new T3.Camera(), bright, blur, comp, w: 0, h: 0 };
   }
   const postActive = () => postWanted && quality >= 2 && !postBroken;
+  // Druckwellen aus neuen Explosionen (Feuerball-Partikel „boom“) – Bildschirmposition über die Kamera
+  const shocks = [], seenBoom = new WeakSet();
+  function updateShocks(w) {
+    for (const q of w.particles) if (q.t === "boom" && !seenBoom.has(q)) { seenBoom.add(q); shocks.push({ x: q.x, y: q.y, t0: time, pow: Math.min(1.4, 0.5 + q.r / 120) }); }
+    for (let i = shocks.length - 1; i >= 0; i--) if (time - shocks[i].t0 > 0.55) shocks.splice(i, 1);
+    while (shocks.length > 4) shocks.shift();
+    for (let i = 0; i < 4; i++) {
+      const s = shocks[i];
+      if (!s) { shockU[i].set(0, 0, 0, 0); continue; }
+      const a = (time - s.t0) / 0.55;
+      pv.set(s.x, 20, s.y).project(camera);
+      shockU[i].set((pv.x + 1) / 2, (pv.y + 1) / 2, 0.02 + a * 0.42, s.pow * (1 - a) * (1 - a));
+    }
+  }
   function ensurePost() {
     if (!postActive()) return null;
     if (!post) {
@@ -3610,7 +3668,7 @@ void main() {
     }
     return post;
   }
-  function renderFrame() {
+  function renderFrame(w) {
     const P = ensurePost();
     if (!P) { renderer.render(scene, camera); return; }
     try {
@@ -3632,6 +3690,9 @@ void main() {
       u.src.value = a.texture; u.dir.value.set(1 / a.width, 0); renderer.setRenderTarget(b); renderer.render(sc, cam);
       u.src.value = b.texture; u.dir.value.set(0, 1 / a.height); renderer.setRenderTarget(a); renderer.render(sc, cam);
       quad.material = P.comp; P.comp.uniforms.src.value = P.main.texture; P.comp.uniforms.glow.value = a.texture;
+      updateShocks(w);
+      P.comp.uniforms.aspect.value = W / H;
+      P.comp.uniforms.hurt.value = Math.min(1, ((w.player && w.player.hurtT) || 0) * 3);
       renderer.setRenderTarget(null); renderer.render(sc, cam);
     } catch (err) {
       console.warn("[Outbreak] Leuchteffekte abgeschaltet", err && err.message);
@@ -3671,6 +3732,10 @@ void main() {
     for (const e of w.enemies) if (e.def.boss && e.spawnT > 0) { bossK = Math.sin(Math.min(1, 1 - e.spawnT / e.spawnMax) * Math.PI); bx = e.x - CAM.tx; bz = e.y - CAM.tz; }
     for (const [c, d] of dying) if (d.boss && c.t < 2) { bossK = Math.sin(Math.min(1, c.t / 2) * Math.PI) * 0.9; bx = c.x - CAM.tx; bz = c.y - CAM.tz; }
     CAM.boss += (bossK - CAM.boss) * Math.min(1, dt * 5);
+    // v3.0 Kill-Cam: beim letzten Abschuss eines Bezirks kurz heranfahren
+    const kc = w.killCam, kTarget = kc ? Math.sin(Math.min(1, 1 - kc.t / kc.max) * Math.PI) : 0;
+    CAM.kill = (CAM.kill || 0) + (kTarget - (CAM.kill || 0)) * Math.min(1, dt * 8);
+    if (kc) { CAM.kx = kc.x - CAM.tx; CAM.kz = kc.y - CAM.tz; }
     // Raumwechsel: Kamera setzt aus etwas größerer Höhe auf
     const intro = w.intro || 0;
     frameDt = dt;
@@ -3678,7 +3743,8 @@ void main() {
     else {
       const wantFov = CAM.fov + (punch.fov || 0);
       if (Math.abs(camera.fov - wantFov) > 0.04) { camera.fov = wantFov; camera.updateProjectionMatrix(); }
-      placeCamera(CAM.dist * (1 - 0.3 * CAM.boss + 0.22 * intro * intro), sx + CAM.fx + bx * 0.6 * CAM.boss, sz + CAM.fz + bz * 0.6 * CAM.boss - 60 * intro * intro);
+      const kk = CAM.kill || 0;
+      placeCamera(CAM.dist * (1 - 0.3 * CAM.boss - 0.2 * kk + 0.22 * intro * intro), sx + CAM.fx + bx * 0.6 * CAM.boss + (CAM.kx || 0) * 0.45 * kk, sz + CAM.fz + bz * 0.6 * CAM.boss + (CAM.kz || 0) * 0.45 * kk - 60 * intro * intro);
     }
     updateAtmo(dt, t);
     syncEnemies(w, t, dt);
@@ -3698,7 +3764,7 @@ void main() {
     frame++;
     renderer.shadowMap.autoUpdate = false;
     if (quality >= 2 && frame % 2 === 0) renderer.shadowMap.needsUpdate = true;
-    renderFrame();
+    renderFrame(w);
   }
 
   // Welt-Position → Bildschirm (logische 540×960-Koordinaten des HUD-Canvas)
@@ -3731,6 +3797,6 @@ void main() {
     setTilt(x, y) { menuCam.tiltX += (x - menuCam.tiltX) * 0.15; menuCam.tiltY += (y - menuCam.tiltY) * 0.15; },
     get ready() { return ready; },
     get bloom() { return !!(post && postActive()); },
-    get debug() { return { scene, camera, renderer, models, atmo, post: () => post, woundAt, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
+    get debug() { return { scene, camera, renderer, models, atmo, post: () => post, woundAt, playerModel: () => playerModel, shocks, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
   };
 })();

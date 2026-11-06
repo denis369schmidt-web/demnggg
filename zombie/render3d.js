@@ -32,7 +32,7 @@ window.Render3D = (() => {
     return g;
   }
   const box = (w, h, d) => geo(`b${r1(w)},${r1(h)},${r1(d)}`, () => new T3.BoxGeometry(w, h, d));
-  const cap = (r, len) => geo(`c${r1(r)},${r1(len)}`, () => new T3.CapsuleGeometry(r, len, 2, 7));
+  const cap = (r, len) => geo(`c${r1(r)},${r1(len)}`, () => new T3.CapsuleGeometry(r, len, 3, 10)); // v2.7: 10 statt 7 Segmente – rundere Körper
   const ico = (r, d = 1) => geo(`i${r1(r)},${d}`, () => new T3.IcosahedronGeometry(r, d));
   const cyl = (rt, rb, h, seg = 10) => geo(`y${r1(rt)},${r1(rb)},${r1(h)},${seg}`, () => new T3.CylinderGeometry(rt, rb, h, seg));
   const cone = (r, h, seg = 6) => geo(`k${r1(r)},${r1(h)},${seg}`, () => new T3.ConeGeometry(r, h, seg));
@@ -71,7 +71,32 @@ window.Render3D = (() => {
   // Wand-, Dach- und Hindernis-Texturen in doppelter Auflösung: aus der Nähe scharf statt verwaschen
   // (einmalig je Sorte erzeugt und zwischengespeichert, Klone teilen sich den GPU-Speicher)
   const TEX_SCALE = 2;
-  const tex = (key, w, h, draw, repeat) => { let t = texCache.get(key); if (!t) { t = canvasTex(w, h, draw, repeat, TEX_SCALE); texCache.set(key, t); } return t; };
+  const tex = (key, w, h, draw, repeat) => { let t = texCache.get(key); if (!t) { t = canvasTex(w, h, /^(wall|roof|obs):/.test(key) ? (g, ww, hh) => { draw(g, ww, hh); weather(g, ww, hh, key); } : draw, repeat, TEX_SCALE); texCache.set(key, t); } return t; };
+  // v2.7 Verwitterung: Regenschlieren, Schmutz am Fuß, Moos, Risse und Kratzer – einmal je Textur, danach aus dem Cache
+  function weather(g, w, h, key) {
+    let s = 0;
+    for (const ch of key) s = (s * 31 + ch.charCodeAt(0)) >>> 0;
+    const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    const wall = key.startsWith("wall:"), roof = key.startsWith("roof:");
+    g.save();
+    if (wall) {
+      for (let i = 0; i < 22; i++) {
+        const x = R() * w, len = h * (0.2 + R() * 0.6), gr = g.createLinearGradient(0, 0, 0, len);
+        gr.addColorStop(0, `rgba(0,0,0,${0.12 + R() * 0.16})`); gr.addColorStop(1, "rgba(0,0,0,0)");
+        g.fillStyle = gr; g.fillRect(x, 0, 0.6 + R() * 2.2, len);
+      }
+      const gb = g.createLinearGradient(0, h, 0, h * 0.62);
+      gb.addColorStop(0, "rgba(22,17,12,0.42)"); gb.addColorStop(1, "rgba(22,17,12,0)");
+      g.fillStyle = gb; g.fillRect(0, h * 0.62, w, h * 0.38);
+      for (let i = 0; i < 7; i++) { g.fillStyle = `rgba(${56 + R() * 20},${74 + R() * 24},${36 + R() * 12},${0.12 + R() * 0.12})`; g.beginPath(); g.ellipse(R() * w, h - R() * h * 0.22, 4 + R() * 14, 2 + R() * 6, 0, 0, Math.PI * 2); g.fill(); }
+    }
+    if (roof) for (let i = 0; i < 26; i++) { g.fillStyle = `rgba(${150 + R() * 60},${150 + R() * 40},${60 + R() * 30},${0.08 + R() * 0.1})`; g.beginPath(); g.arc(R() * w, R() * h, 0.8 + R() * 2.6, 0, Math.PI * 2); g.fill(); } // Flechten
+    g.strokeStyle = "rgba(0,0,0,0.38)"; g.lineWidth = 0.7;
+    for (let i = 0; i < (wall ? 4 : 2); i++) { let x = R() * w, y = R() * h; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (R() - 0.5) * 10; y += 3 + R() * 7; g.lineTo(x, y); } g.stroke(); } // Risse
+    g.strokeStyle = "rgba(255,255,255,0.07)"; g.lineWidth = 0.6;
+    for (let i = 0; i < (wall ? 10 : 14); i++) { const x = R() * w, y = R() * h, a = R() * Math.PI; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * (3 + R() * 9), y + Math.sin(a) * (3 + R() * 9)); g.stroke(); } // Kratzer
+    g.restore();
+  }
   const seededR = (seed) => { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; };
   // Gebrauchsspuren: feines Korn, Kratzer, Schmutzflecken und dunklere Kanten
   function grunge(g, w, h, R, o = {}) {
@@ -1259,6 +1284,7 @@ void main() {
     const bulk = P.brute ? 1.18 : P.big ? 1.2 : P.pustules ? 1.28 : P.bloat ? 1.1 : P.belly ? 1.14 : P.thin ? 0.84 : 1;
     const la = P.longArms ? 1.3 : 1;
     const shirt = flashMat(M, P.shirt), pants = flashMat(M, P.pants), skin = flashMat(M, P.skin);
+    shirt.userData.role = "shirt"; pants.userData.role = "pants"; skin.userData.role = "skin"; // v2.7: Wunden, Blut, Schlamm je Material
     const dark = slam("#1a1a1a");
     // Beine (Pivot an der Hüfte)
     for (const s of [-1, 1]) {
@@ -1297,7 +1323,7 @@ void main() {
       const arm = mesh(cap(0.15 * r * bulk, 0.72 * r * la), P.armor ? slam("#1b2433") : P.brute || P.bloat || P.claws ? skin : shirt, 0.5 * r * la, 0, 0);
       arm.rotation.z = -Math.PI / 2;
       sh.add(arm);
-      sh.add(mesh(ico(0.17 * r * bulk * (P.brute ? 1.35 : 1), 0), P.armor ? slam("#1d2330") : skin, 1.04 * r * la, 0, 0));
+      sh.add(mesh(ico(0.17 * r * bulk * (P.brute ? 1.35 : 1), 1), P.armor ? slam("#1d2330") : skin, 1.04 * r * la, 0, 0)); // Hände mit Rundung
       if (P.claws) for (let k = -1; k <= 1; k++) { const cl = mesh(cone(0.05 * r, 0.42 * r, 4), slam("#e8e0c8"), 1.3 * r * la, 0, k * 0.09 * r); cl.rotation.z = -Math.PI / 2; sh.add(cl); }
       sh.rotation.y = s * 0.18;
       M.body.add(sh);
@@ -1306,8 +1332,8 @@ void main() {
     // Kopf
     const head = group(0.14 * r + (P.lean ? 0.1 * r : 0), 2.4 * r * (P.brute ? 0.96 : 1), 0);
     const hr = (P.brute ? 0.36 : 0.4) * r;
-    head.add(mesh(ico(hr, 1), skin));
-    if (P.hood) { const hood = mesh(ico(hr * 1.2, 1), shirt, -0.08 * r, 0.04 * r, 0); hood.scale.set(1, 1, 1.05); head.add(hood); }
+    head.add(mesh(ico(hr, 2), skin)); // v2.7: rundere Köpfe (aus der Draufsicht das Auffälligste am Körper)
+    if (P.hood) { const hood = mesh(ico(hr * 1.2, 2), shirt, -0.08 * r, 0.04 * r, 0); hood.scale.set(1, 1, 1.05); head.add(hood); }
     if (P.armor) {
       head.add(mesh(ico(hr * 1.15, 1), slam("#2b3548"), -0.02 * r, 0.06 * r, 0));
       head.add(mesh(box(0.12 * r, 0.22 * r, 0.62 * r), basic(0x50aae6), hr * 0.98, 0.02 * r, 0));
@@ -1727,12 +1753,42 @@ void main() {
   const hash1 = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
   const wp = new T3.Vector3();
   // Vertexfarben je Dreieck (Grundfarbe c, ab Vertex o in col); P liegt im Raum von toRoot
-  function paintFaces(col, P, n, o, c, toRoot, look) {
+  const fA = new T3.Vector3(), fB = new T3.Vector3(), fN = new T3.Vector3();
+  const tintTo = (rgb, tr, tg, tb, k) => { rgb[0] += (tr - rgb[0]) * k; rgb[1] += (tg - rgb[1]) * k; rgb[2] += (tb - rgb[2]) * k; };
+  const RGB = [0, 0, 0];
+  function paintFaces(col, P, n, o, c, toRoot, look, role) {
     for (let i = 0; i < n; i += 3) {
       let r = c.r, gg = c.g, b = c.b;
       if (look) {
         // Flächenmittelpunkt in Modell-Koordinaten
         wp.set((P[i * 3] + P[i * 3 + 3] + P[i * 3 + 6]) / 3, (P[i * 3 + 1] + P[i * 3 + 4] + P[i * 3 + 7]) / 3, (P[i * 3 + 2] + P[i * 3 + 5] + P[i * 3 + 8]) / 3).applyMatrix4(toRoot);
+        if (role) {
+          // v2.7 Körper-Details je Material: Flächennormale (Modellraum, vorn = +x) und Höhe entscheiden
+          fA.set(P[i * 3 + 3] - P[i * 3], P[i * 3 + 4] - P[i * 3 + 1], P[i * 3 + 5] - P[i * 3 + 2]);
+          fB.set(P[i * 3 + 6] - P[i * 3], P[i * 3 + 7] - P[i * 3 + 1], P[i * 3 + 8] - P[i * 3 + 2]);
+          fN.crossVectors(fA, fB).transformDirection(toRoot);
+          const h = look.h || 40, yk = wp.y / h, zombie = look.grime > 0.5, sd = look.seed;
+          RGB[0] = r; RGB[1] = gg; RGB[2] = b;
+          if (role === "skin" && zombie) {
+            const v = Math.sin(wp.x * 0.9 + sd) * Math.sin(wp.y * 1.15 + sd * 0.7) * Math.sin(wp.z * 0.8 + sd * 2.1);
+            if (v > 0.5) tintTo(RGB, 0.3, 0.16, 0.3, 0.38); // Bluterguss
+            else if (v < -0.55) tintTo(RGB, 0.22, 0.3, 0.1, 0.32); // Fäulnis
+            if (hash1(i * 7 + o + sd) < 0.06) tintTo(RGB, 0.42, 0.04, 0.05, 0.7); // offene Wunde
+            if (fN.y > 0.55 && yk > 0.78 && hash1(i * 3 + sd * 5) < 0.28) tintTo(RGB, 0.34, 0.04, 0.05, 0.6); // Kopfwunde (von oben sichtbar)
+          } else if (role === "shirt") {
+            if (hash1(sd * 13) < 0.35) { if (Math.sin(wp.y * 2.4 + sd) > 0.72) tintTo(RGB, RGB[0] * 0.7, RGB[1] * 0.7, RGB[2] * 0.7, 1); } // Streifenstoff
+            if (zombie && fN.x > 0.25 && yk > 0.42 && yk < 0.9) {
+              const drip = Math.sin(wp.z * 2.3 + sd * 5) * 0.5 + 0.5, top = Math.min(1, (yk - 0.42) / 0.4);
+              if (drip > 0.62) tintTo(RGB, 0.32, 0.02, 0.03, 0.65 * look.grime * (0.4 + 0.6 * top)); // Blut läuft vorn herunter
+            }
+            if (zombie && fN.y > 0.4) { const sp = Math.sin(wp.x * 1.7 + sd * 3) * Math.sin(wp.z * 1.9 + sd); if (sp > 0.42) tintTo(RGB, 0.3, 0.02, 0.03, 0.72 * look.grime); } // Blutspritzer auf den Schultern
+            if (yk > 0.4 && yk < 0.46) tintTo(RGB, RGB[0] * 0.72, RGB[1] * 0.72, RGB[2] * 0.72, 1); // Saum/Gürtellinie
+          } else if (role === "pants") {
+            if (yk < 0.26) tintTo(RGB, 0.2, 0.15, 0.1, (zombie ? 0.55 : 0.3) * (1 - yk / 0.26)); // Schlamm an den Hosenbeinen
+            if (Math.abs(Math.sin(wp.z * 1.7 + sd)) < 0.08) tintTo(RGB, RGB[0] * 0.8, RGB[1] * 0.8, RGB[2] * 0.8, 1); // Naht
+          }
+          r = RGB[0]; gg = RGB[1]; b = RGB[2];
+        }
         const j = 1 + (hash1(o + i + look.seed) - 0.5) * 0.16;
         r *= j; gg *= j; b *= j;
         if (look.grime) {
@@ -1751,16 +1807,16 @@ void main() {
       m.updateMatrix();
       const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
       g.applyMatrix4(m.matrix);
-      parts.push([g, m.material.color]);
+      parts.push([g, m.material.color, m.material.userData.role]);
       count += g.attributes.position.count;
     }
     const pos = new Float32Array(count * 3), nrm = new Float32Array(count * 3), col = new Float32Array(count * 3);
     let o = 0;
-    for (const [g, c] of parts) {
+    for (const [g, c, role] of parts) {
       const n = g.attributes.position.count, P = g.attributes.position.array;
       pos.set(P, o * 3);
       if (g.attributes.normal) nrm.set(g.attributes.normal.array, o * 3);
-      paintFaces(col, P, n, o, c, node.matrixWorld, look);
+      paintFaces(col, P, n, o, c, node.matrixWorld, look, role);
       o += n;
       g.dispose();
     }
@@ -1800,6 +1856,8 @@ void main() {
   // Leuchtende Teile (Augen) stecken mit im Mesh und werden im Shader unbeleuchtet ausgegeben.
   const MAXP = 8;
   const ZERO = new T3.Matrix4().makeScale(0, 0, 0);
+  // v2.7 Randlicht: kühle Kante an der Silhouette – Figuren heben sich vom dunklen Boden ab (Augen ausgenommen)
+  const RIM_GLSL = "float rimK = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);\n\toutgoingLight += vec3(0.36, 0.44, 0.56) * pow(rimK, 2.4) * 0.44";
   function injectParts(sh, uni, kind) {
     sh.uniforms.partMat = uni;
     const pm = "partMat[int(part + 0.5)]";
@@ -1807,11 +1865,11 @@ void main() {
     if (kind === "lit") vs = vs.replace("#include <beginnormal_vertex>", `vec3 objectNormal = mat3(${pm}) * normal;`);
     vs = vs.replace("#include <begin_vertex>", `vec3 transformed = (${pm} * vec4(position, 1.0)).xyz;${kind === "outline" ? `\n  transformed += mat3(${pm}) * normal;` : ""}${kind === "lit" ? "\n  vGlow = glow;" : ""}`);
     sh.vertexShader = vs;
-    if (kind === "lit") sh.fragmentShader = "varying float vGlow;\n" + sh.fragmentShader.replace("#include <opaque_fragment>", "outgoingLight = mix(outgoingLight, diffuseColor.rgb, vGlow);\n\t#include <opaque_fragment>");
+    if (kind === "lit") sh.fragmentShader = "varying float vGlow;\n" + sh.fragmentShader.replace("#include <opaque_fragment>", `${RIM_GLSL} * (1.0 - vGlow);\n\toutgoingLight = mix(outgoingLight, diffuseColor.rgb, vGlow);\n\t#include <opaque_fragment>`);
   }
   function partMaterial(m, uni, kind) {
     m.onBeforeCompile = (sh) => injectParts(sh, uni, kind);
-    m.customProgramCacheKey = () => `parts${MAXP}:${kind}`; // alle Figuren teilen sich ein Programm je Art
+    m.customProgramCacheKey = () => `parts${MAXP}:${kind}:rim`; // alle Figuren teilen sich ein Programm je Art
     return m;
   }
   function updateParts(M) {
@@ -1843,18 +1901,18 @@ void main() {
       m.updateMatrix();
       const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
       g.applyMatrix4(m.matrix);
-      parts.push({ g, c: m.material.color, pi, isGlow });
+      parts.push({ g, c: m.material.color, pi, isGlow, role: m.material.userData.role });
       count += g.attributes.position.count;
       if (!isGlow) litCount = count;
     }
     const pos = new Float32Array(count * 3), nrm = new Float32Array(count * 3), col = new Float32Array(count * 3);
     const partA = new Uint8Array(count), glowA = new Uint8Array(count), sphere = [];
     let o = 0;
-    for (const { g, c, pi, isGlow } of parts) {
+    for (const { g, c, pi, isGlow, role } of parts) {
       const n = g.attributes.position.count, P = g.attributes.position.array;
       pos.set(P, o * 3);
       if (g.attributes.normal) nrm.set(g.attributes.normal.array, o * 3);
-      paintFaces(col, P, n, o, c, bind[pi], isGlow ? null : look);
+      paintFaces(col, P, n, o, c, bind[pi], isGlow ? null : look, role);
       partA.fill(pi, o, o + n); glowA.fill(isGlow, o, o + n);
       for (let i = 0; i < n; i++) sphere.push(new T3.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]).applyMatrix4(bind[pi]));
       o += n;
@@ -1901,6 +1959,8 @@ void main() {
     if (bakeParts(M, keep, look)) { M.mats = [M.parts.body.material, ...kept]; return; }
     // Bosse mit sehr vielen Gelenken: je Knoten ein verschmolzenes Mesh
     const lit = new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    lit.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace("#include <opaque_fragment>", `${RIM_GLSL};\n\t#include <opaque_fragment>`); };
+    lit.customProgramCacheKey = () => "boss:rim";
     const glow = new T3.MeshBasicMaterial({ vertexColors: true });
     bakeNode(M.root, lit, glow, keep, true, look);
     M.mats = [lit, ...kept];
@@ -2816,6 +2876,7 @@ void main() {
     let n = 0;
     const blob = (x, z, r) => { if (n < 160) inst(blobShadows, n++, x, 0.6, z, 0, 0, r * 2.6, 1, r * 1.9); };
     for (const e of w.enemies) if (e.spawnT <= 0) blob(e.x, e.y, e.r * e.scale);
+    for (const s of w.survivors || []) if (s.state === "wait" || s.state === "run") blob(s.x, s.y, 13);
     blob(w.player.x, w.player.y, 16);
     for (const b of w.bullets) if (b.kind === "grenade" || b.kind === "rocket" || b.kind === "disc") blob(b.x, b.y, b.kind === "disc" ? 8 : 5);
     blobShadows.count = n; blobShadows.instanceMatrix.needsUpdate = true;

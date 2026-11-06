@@ -779,7 +779,7 @@
 
   function makeFloor() {
     const city = run && run.mode === "campaign" && run.room > 0 ? curCity() : null;
-    const c = Sprites.floor(theme(), { W, H, L, T, R, B }, randi(1, 1e9), { snow: !!city && city.weather === "snow", confetti: !!city && city.weather === "confetti", leaves: !!city && (city.fest === "wiesn" || city.fest === "wein"), tram: !!city && city.id !== "hamburg" && Math.random() < 0.55 });
+    const c = Sprites.floor(theme(), { W, H, L, T, R, B }, randi(1, 1e9), { snow: !!city && city.weather === "snow", confetti: !!city && city.weather === "confetti", leaves: !!city && (city.fest === "wiesn" || city.fest === "wein"), tram: !!city && city.id !== "hamburg" && Math.random() < 0.55, wet: theme() === "street" || (!!city && city.weather === "rain") });
     floorCtx = c.getContext("2d");
     const res = c.width / W;
     floorCtx.setTransform(res, 0, 0, res, 0, 0);

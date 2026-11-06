@@ -102,6 +102,11 @@ window.Sprites = (() => {
   function outlined(fn, ol = 1.2, color = "rgba(6,8,6,0.92)", res) {
     return (g, w, h) => {
       const t = canvas(w, h, res || RES); fn(t.g, w, h);
+      // v2.7 Volumen: Mitte leicht aufgehellt, Rand abgedunkelt – wirkt wie Licht von oben, egal wie die Figur gedreht ist
+      t.g.save(); t.g.globalCompositeOperation = "source-atop";
+      const vg = t.g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.5);
+      vg.addColorStop(0, "rgba(255,248,230,0.1)"); vg.addColorStop(0.5, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.32)");
+      t.g.fillStyle = vg; t.g.fillRect(0, 0, w, h); t.g.restore();
       const sil = canvas(w, h, res || RES);
       sil.g.drawImage(t.c, 0, 0, w, h);
       sil.g.globalCompositeOperation = "source-in";
@@ -1809,6 +1814,21 @@ window.Sprites = (() => {
       g.fillStyle = "#d9b21a"; for (let x = 0; x < W; x += 16) g.fillRect(x, T - 4, 8, 4);
     } else {
       g.fillStyle = "#3a4a44"; g.fillRect(0, T - 5, W, 5);
+    }
+    if (opts.wet && gc) {
+      const pr = rng(seed + 911), gcx = gc.getContext("2d");
+      for (let i = 0; i < 6; i++) {
+        const px = L + 40 + pr() * (RR - L - 80), py = T + 50 + pr() * (B - T - 100), rx = 18 + pr() * 40, ry = 8 + pr() * 16, rot = pr() * Math.PI;
+        g.save(); g.translate(px, py); g.rotate(rot);
+        const pg = g.createRadialGradient(0, 0, 0, 0, 0, rx);
+        pg.addColorStop(0, "rgba(8,12,18,0.42)"); pg.addColorStop(0.8, "rgba(8,12,18,0.28)"); pg.addColorStop(1, "rgba(8,12,18,0)");
+        g.fillStyle = pg; g.scale(1, ry / rx); g.beginPath(); g.arc(0, 0, rx, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = "rgba(180,200,220,0.12)"; g.lineWidth = 1.2; g.beginPath(); g.arc(-rx * 0.2, -rx * 0.15, rx * 0.55, 3.6, 5.2); g.stroke();
+        g.restore();
+        gcx.save(); gcx.setTransform(gc.width / W, 0, 0, gc.height / H, 0, 0); gcx.translate(px, py); gcx.rotate(rot); gcx.scale(1, ry / rx);
+        const gg2 = gcx.createRadialGradient(0, 0, 0, 0, 0, rx); gg2.addColorStop(0, "rgba(255,255,255,0.9)"); gg2.addColorStop(1, "rgba(255,255,255,0)");
+        gcx.fillStyle = gg2; gcx.beginPath(); gcx.arc(0, 0, rx, 0, Math.PI * 2); gcx.fill(); gcx.restore();
+      }
     }
     c.gloss = gc;
     return c;

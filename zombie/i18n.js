@@ -537,6 +537,12 @@ window.I18N = (() => {
     "Leuchteffekte": "Glow effects",
     "Skill für diesen Einsatz sperren": "Ban this skill for the run",
     "Start in {c} mit einem Start-Skill": "Start in {c} with one starting skill",
+    // v3.0 Horden-Gänge
+    "HORDE IM ANMARSCH!": "HORDE INCOMING!",
+    "Aus beiden Gängen!": "From both passages!",
+    "Linker Gang!": "Left passage!",
+    "Rechter Gang!": "Right passage!",
+    "HORDE!": "HORDE!",
     // v2.9 Wurfwaffen und Spezialfähigkeiten
     "Neu: Wurfwaffen (Q) und Spezialfähigkeit (E)": "New: throwables (Q) and special ability (E)",
     "Sprengstoffkiste": "Explosives crate",

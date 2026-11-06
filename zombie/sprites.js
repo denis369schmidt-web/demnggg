@@ -1800,6 +1800,16 @@ window.Sprites = (() => {
     g.fillRect(0, T - 22, W, 22); g.fillRect(0, T - 22, L, H); g.fillRect(RR, T - 22, W - RR, H); g.fillRect(0, B, W, H - B);
     g.fillStyle = th.wallTop;
     g.fillRect(0, T - 22, W, 6); g.fillRect(L - 6, T - 22, 6, ah + 22); g.fillRect(RR, T - 22, 6, ah + 22); g.fillRect(0, B, W, 5);
+    // v3.0 Horden-Gänge: Öffnung in der Seitenwand, dunkler Gang nach draußen, Warnstreifen an den Kanten
+    for (const gt of opts.gates || []) {
+      const y0 = gt.y - gt.h / 2, x0 = gt.side < 0 ? 0 : RR, x1 = gt.side < 0 ? L : W;
+      const gr = g.createLinearGradient(gt.side < 0 ? L : RR, 0, gt.side < 0 ? 0 : W, 0);
+      gr.addColorStop(0, "#2a2622"); gr.addColorStop(1, "#050505");
+      g.fillStyle = gr; g.fillRect(x0, y0, x1 - x0, gt.h);
+      for (const yy of [y0 - 5, y0 + gt.h]) for (let i = 0; i * 8 < x1 - x0; i++) { g.fillStyle = i % 2 ? "#1a1a1a" : "#d8a01a"; g.fillRect(x0 + i * 8, yy, 8, 5); }
+      g.fillStyle = "rgba(0,0,0,0.28)";
+      for (let i = 0; i < 5; i++) g.fillRect(gt.side < 0 ? L : RR - 70, y0 + 10 + i * 13, 70, 2); // Schleifspuren in die Arena
+    }
     if (theme === "street") {
       g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 1;
       for (let y = T - 16; y < T; y += 5) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }

@@ -516,6 +516,19 @@
   let particles = [];
   let texts = [];
   let obstacles = [];
+  // v3.0 Horden-Gänge: Öffnungen in den Seitenwänden, durch die Massen an Zombies hereinstürmen
+  let gates = [], hordeQ = [], quietSpawn = false;
+  const GATE_H = 76, GATE_LEN = 230;
+  function makeGates(skip) {
+    gates = [];
+    if (skip) return;
+    const late = run.mode === "campaign" && cityIdx() >= 2;
+    const n = run.mode === "survival" ? 2 : Math.random() < (late ? 0.45 : 0.2) ? 2 : 1;
+    const sides = n === 2 ? [-1, 1] : [Math.random() < 0.5 ? -1 : 1];
+    for (const side of sides) gates.push({ side, y: Math.round(rand(T + 200, B - 240)), h: GATE_H, warn: 0 });
+  }
+  // Hindernisse dürfen den Gang nicht zustellen
+  const clearGates = (obs) => obs.filter((o) => !gates.some((g) => o.y < g.y + g.h / 2 + 55 && o.y + o.h > g.y - g.h / 2 - 55 && (g.side < 0 ? o.x < L + 120 : o.x + o.w > R - 120)));
   let supplyCrate = null;
   let floorCanvas = null;
   let floorCtx = null;
@@ -630,7 +643,7 @@
     roomFade = 1;
     run.doorK = 0;
     supplyCrate = null;
-    run.obj = null; run.event = null; fuses = [];
+    run.obj = null; run.event = null; fuses = []; hordeQ = [];
     throws = []; decoys = []; strikes = []; run.blink = null; killCam = null; lastKill = null; wetSpots = [];
     player.vx = player.vy = 0;
     player.invuln = 1;
@@ -649,7 +662,8 @@
     const isBoss = BOSS_ROOMS[run.room] ? (run.mode === "campaign" && curCity().boss) || BOSS_ROOMS[run.room] : null;
     const isSupply = SUPPLY_ROOMS.includes(run.room);
     const objKind = isBoss || isSupply ? null : objectiveFor();
-    obstacles = isSupply ? [] : genObstacles(isBoss ? randi(0, 2) : randi(2, 5));
+    makeGates(!!isBoss || isSupply);
+    obstacles = clearGates(isSupply ? [] : genObstacles(isBoss ? randi(0, 2) : randi(2, 5)));
     floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     initAmbient();
@@ -668,7 +682,9 @@
     } else {
       spawnWave(objKind === "hold" ? 0.45 : objKind === "bounty" ? 0.75 : 1);
       if (objKind) setupObjective(objKind);
-      else if (run.mode === "campaign" && districtIdx() > 0 && cityIdx() > 0 && Math.random() < 0.4) run.event = { kind: pick(["ambush", "horde", "pack"]), at: Math.max(1, Math.ceil(enemies.length * 0.45)), fired: false };
+      else if (run.mode === "campaign" && districtIdx() > 0 && cityIdx() > 0 && Math.random() < 0.45) run.event = { kind: pick(gates.length ? ["ambush", "horde", "pack", "massive", "massive"] : ["ambush", "horde", "pack"]), at: Math.max(1, Math.ceil(enemies.length * 0.45)), fired: false };
+      // Heilbronn: ab Bezirk 4 gelegentlich eine kleine Horde durch den Gang, damit man es kennenlernt
+      else if (run.mode === "campaign" && gates.length && districtIdx() >= 3 && Math.random() < 0.3) run.event = { kind: "massive", at: Math.max(1, Math.ceil(enemies.length * 0.4)), fired: false };
       else if (!banner) showBanner(dName.toUpperCase(), `${city.name} · ${tr("Bezirk {n}/10", { n: districtIdx() + 1 })}`, 1.4);
     }
     // Funkspruch beim Stadtwechsel; beim Einsatzstart nur bis der Prolog einmal gesehen wurde (kein Extra-Tippen bei jeder Runde)
@@ -764,7 +780,8 @@
     run.room = 1;
     resetRoomState();
     player.x = W / 2; player.y = (T + B) / 2 + 140;
-    obstacles = genObstacles(3);
+    makeGates(false);
+    obstacles = clearGates(genObstacles(3));
     floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     initAmbient();
@@ -780,6 +797,7 @@
   }
   function updateSurvival(dt) {
     run.survT += dt;
+    if (run.survT > 30 && (run.hordeT = (run.hordeT ?? 45) - dt) <= 0) { run.hordeT = 45; startHorde(14 + Math.floor(run.survT / 12)); }
     // Leben & Schaden wachsen wie in späteren Räumen (spawnEnemy rechnet mit run.room)
     run.room = 1 + Math.floor(run.survT / 15);
     if (run.survT >= SURVIVAL_TIME) { gameOver(false, true); return; }
@@ -830,7 +848,7 @@
 
   function makeFloor() {
     const city = run && run.mode === "campaign" && run.room > 0 ? curCity() : null;
-    const c = Sprites.floor(theme(), { W, H, L, T, R, B }, randi(1, 1e9), { snow: !!city && city.weather === "snow", confetti: !!city && city.weather === "confetti", leaves: !!city && (city.fest === "wiesn" || city.fest === "wein"), tram: !!city && city.id !== "hamburg" && Math.random() < 0.55, wet: theme() === "street" || (!!city && city.weather === "rain") });
+    const c = Sprites.floor(theme(), { W, H, L, T, R, B }, randi(1, 1e9), { snow: !!city && city.weather === "snow", confetti: !!city && city.weather === "confetti", leaves: !!city && (city.fest === "wiesn" || city.fest === "wein"), tram: !!city && city.id !== "hamburg" && Math.random() < 0.55, wet: theme() === "street" || (!!city && city.weather === "rain"), gates });
     floorCtx = c.getContext("2d");
     const res = c.width / W;
     floorCtx.setTransform(res, 0, 0, res, 0, 0);
@@ -1000,10 +1018,12 @@
     e.spawnMax = e.spawnT;
     e.face = Math.atan2(player.y - e.y, player.x - e.x);
     enemies.push(e);
-    // Zombie bricht aus dem Boden
-    stamp(Sprites.crack(), e.x, e.y + e.r * 0.3, rand(0, TAU), e.r / 16, 0.6);
-    fxDebris(e.x, e.y, 0, Math.PI, def.boss ? 20 : 5, "#5a4a3a");
-    fxDust(e.x, e.y + 4, def.boss ? 8 : 2, def.boss ? 1.4 : 0.6);
+    // Zombie bricht aus dem Boden (nicht, wenn er durch einen Gang hereinstürmt)
+    if (!quietSpawn) {
+      stamp(Sprites.crack(), e.x, e.y + e.r * 0.3, rand(0, TAU), e.r / 16, 0.6);
+      fxDebris(e.x, e.y, 0, Math.PI, def.boss ? 20 : 5, "#5a4a3a");
+      fxDust(e.x, e.y + 4, def.boss ? 8 : 2, def.boss ? 1.4 : 0.6);
+    }
     if (def.boss) { shake = Math.max(shake, 10); fxSmoke(e.x, e.y, 10, 2.2, 1.6); }
     return e;
   }
@@ -1038,7 +1058,10 @@
       const d = Math.sqrt(dist2(o, supplyCrate));
       if (d < o.r + supplyCrate.r && d > 0) { const k = (o.r + supplyCrate.r) / d; o.x = supplyCrate.x + (o.x - supplyCrate.x) * k; o.y = supplyCrate.y + (o.y - supplyCrate.y) * k; }
     }
-    o.x = clamp(o.x, L + o.r, R - o.r);
+    let xmin = L + o.r, xmax = R - o.r, gt = null;
+    if (o !== player && gates.length) for (const g of gates) if (Math.abs(o.y - g.y) < g.h / 2 - 2 || (g.side < 0 ? o.x < L : o.x > R) && Math.abs(o.y - g.y) < g.h) { gt = g; if (g.side < 0) xmin = L - GATE_LEN; else xmax = R + GATE_LEN; }
+    o.x = clamp(o.x, xmin, xmax);
+    if (gt && (o.x < L + o.r || o.x > R - o.r)) o.y = clamp(o.y, gt.y - gt.h / 2 + Math.min(o.r, gt.h / 2 - 4), gt.y + gt.h / 2 - Math.min(o.r, gt.h / 2 - 4)); // im Gang bleiben
     o.y = clamp(o.y, T + o.r, B - o.r);
     return hit;
   }
@@ -1198,7 +1221,7 @@
   function nearestEnemy(from, exclude) {
     let best = null, bd = Infinity;
     for (const e of enemies) {
-      if (e.dead || e.spawnT > 0 || (exclude && exclude.has(e))) continue;
+      if (e.dead || e.spawnT > 0 || (exclude && exclude.has(e)) || e.x < L - 4 || e.x > R + 4) continue;
       const d = dist2(from, e);
       if (d < bd) { bd = d; best = e; }
     }
@@ -3061,6 +3084,7 @@
   // Solange Stellung oder Rettung laufen, bleibt die Tür zu – auch wenn gerade kein Zombie da ist
   function objectiveBlocksClear() {
     if (run.event && !run.event.fired) return true; // v2.8: das Ereignis kommt noch
+    if (hordeQ.length) return true; // v3.0: die Horde ist noch nicht ganz drin
     const o = run.obj;
     if (!o) return false;
     if (o.kind === "hold") return !o.done || o.strikes.length > 0;
@@ -3200,6 +3224,51 @@
       showBanner(o.saved === o.total ? tr("ALLE GERETTET!") : tr("{n}/{m} GERETTET", { n: o.saved, m: o.total }), o.lost ? tr("{n} verloren", { n: o.lost }) : tr("Die Überlebenden sind auf dem Weg zum Treffpunkt"), 1.8);
     }
   }
+  // v3.0 Massen-Horde durch die Gänge: 2,6 s Warnlicht und Grollen, dann strömen sie im Gänsemarsch herein
+  const hordePool = () => {
+    const base = ["walker", "walker", "runner", "runner", "crawler"];
+    const ci = run.mode === "campaign" ? cityIdx() : Math.floor((run.survT || 0) / 60);
+    return ci >= 3 ? base.concat(["dog", "brute", "runner"]) : ci >= 1 ? base.concat(["dog"]) : base;
+  };
+  function startHorde(n, list = gates) {
+    if (!list.length) return false;
+    for (const g of list) g.warn = 2.6;
+    hordeQ.push({ n, gates: list.slice(), t: 2.6, cd: 0, spawned: 0 });
+    showBanner(tr("HORDE IM ANMARSCH!"), list.length > 1 ? tr("Aus beiden Gängen!") : list[0].side < 0 ? tr("Linker Gang!") : tr("Rechter Gang!"), 1.6);
+    shake = Math.max(shake, 5); fx4d("boss", 600); track("hordes");
+    if (window.GameAudio) GameAudio.stinger("horde");
+    return true;
+  }
+  function updateHordes(dt) {
+    for (const g of gates) if (g.warn > 0) g.warn -= dt;
+    for (const h of hordeQ) {
+      if (h.t > 0) { h.t -= dt; continue; }
+      if ((h.cd -= dt) > 0) continue;
+      h.cd = 0.11;
+      const g = h.gates[h.spawned % h.gates.length];
+      quietSpawn = true;
+      const gx = g.side < 0 ? L - rand(110, 210) : R + rand(110, 210), gy = g.y + rand(-g.h / 2 + 18, g.h / 2 - 18);
+      const e = spawnEnemy(pick(hordePool()), gx, gy);
+      quietSpawn = false;
+      e.x = gx; e.y = gy; // spawnEnemy klemmt in die Arena – die Horde startet aber hinten im Gang
+      e.spawnT = 0; e.horde = true; e.face = g.side < 0 ? 0 : Math.PI;
+      if (++h.spawned >= h.n) h.done = true;
+    }
+    if (hordeQ.length) hordeQ = hordeQ.filter((h) => !h.done);
+  }
+  function drawGateWarnings() {
+    for (const g of gates) {
+      if (!(g.warn > 0)) continue;
+      const k = 0.5 + 0.5 * Math.sin(run.time * 16), dir = -g.side, q = scr(g.side < 0 ? L + 16 : R - 16, g.y, 6);
+      ctx.save(); ctx.globalAlpha = 0.55 + 0.45 * k;
+      ctx.fillStyle = "#e2561f"; ctx.beginPath();
+      ctx.moveTo(q.x + dir * 24, q.y); ctx.lineTo(q.x - dir * 6, q.y - 17); ctx.lineTo(q.x - dir * 6, q.y + 17); ctx.closePath(); ctx.fill();
+      ctx.font = FONT_UI(14, 800); ctx.textAlign = dir > 0 ? "left" : "right"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.85)";
+      ctx.strokeText(tr("HORDE!"), q.x + dir * 32, q.y + 5); ctx.fillStyle = "#ffd2b8"; ctx.fillText(tr("HORDE!"), q.x + dir * 32, q.y + 5);
+      ctx.restore();
+    }
+  }
+
   // v2.8 Bezirks-Ereignisse: wenn die Welle halb erledigt ist, kippt die Lage – Hinterhalt, Horde oder Elite-Rudel
   function updateEvent() {
     const ev = run.event;
@@ -3209,6 +3278,12 @@
     if (ev.kind === "ambush") {
       for (let i = 0; i < 6; i++) sp(pick(pool), i % 2 ? R - 36 : L + 36, rand(T + 80, B - 120));
       showBanner(tr("HINTERHALT!"), tr("Von beiden Seiten!"), 1.4);
+    } else if (ev.kind === "massive" && gates.length) {
+      startHorde(Math.min(30, 12 + 4 * (run.mode === "campaign" ? cityIdx() : 2)));
+      return;
+    } else if (ev.kind === "horde" && gates.length) {
+      startHorde(Math.min(24, 10 + 3 * cityIdx()));
+      return;
     } else if (ev.kind === "horde") {
       const fast = ["runner", "crawler", "dog"].filter((t) => ZOMBIES[t]);
       for (let i = 0; i < 9; i++) sp(pick(fast), rand(L + 40, R - 40), T + rand(30, 90));
@@ -4165,6 +4240,7 @@
     updateHazards(dt);
     updateLobs(dt);
     updateThrowables(dt);
+    updateHordes(dt);
     updateParcels(dt);
     updateFireworks(dt);
     updateBullets(dt);
@@ -4461,7 +4537,7 @@
     get orbs() { return orbs; }, get particles() { return particles; }, get corpses() { return corpses; }, get pieces() { return pieces; },
     get zaps() { return zaps; }, get ambient() { return ambient; }, get roomLights() { return roomLights; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; },
     get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwStyle: (k) => THROWABLES[k],
-    get killCam() { return killCam; },
+    get killCam() { return killCam; }, get gates() { return gates; },
     get weather() { return curWeather(); }, get fest() { return curFest(); },
     get cityId() { return run && run.mode === "campaign" && run.room > 0 ? curCity().id : ""; }, get district() { return run && run.mode === "campaign" && run.room > 0 ? curDistrict()[0] : ""; },
     get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },
@@ -4700,6 +4776,7 @@
     drawScreenFx();
     drawHud();
     drawObjectiveHud();
+    if (state === "play") drawGateWarnings();
     if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); }
     drawCombo();
     // Kinobalken bei Boss-Auftritt und Boss-Tod
@@ -7207,5 +7284,5 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

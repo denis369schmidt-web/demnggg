@@ -442,6 +442,12 @@ window.GameAudio = (() => {
       const e = env(t, 0.02, 0.2, 2.6); const lp = filter("lowpass", 900); e.connect(lp).connect(out);
       for (const d of [-10, 10]) { const o = ctx.createOscillator(); o.type = "sawtooth"; o.detune.value = d; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(36, t + 2.6); o.connect(e); o.start(t); o.stop(t + 2.8); }
       kick(t, out, 1);
+    } else if (name === "horde") {
+      // anrollende Masse: tiefes Rauschen schwillt an, dazu Trommeln und am Ende ein dumpfer Braam
+      const lp = filter("lowpass", 160, 0.8); lp.frequency.setValueAtTime(120, t); lp.frequency.exponentialRampToValueAtTime(600, t + 2.2); lp.connect(out);
+      const e = ctx.createGain(); e.gain.setValueAtTime(0.0001, t); e.gain.exponentialRampToValueAtTime(0.45, t + 2.2); e.gain.exponentialRampToValueAtTime(0.0001, t + 3.2); e.connect(lp); noiseSrc(t, 3.3, e);
+      for (let i = 0; i < 6; i++) tom(t + 0.4 + i * 0.36, out, 70 + i * 6, 0.35);
+      braam(t + 2.4, 33, out, 2.2, 0.22);
     } else if (name === "radio") {
       // Funkgerät: Rauschen mit Bandpass, dann zwei Pieptöne
       const bp = filter("bandpass", 1800, 1.6); bp.connect(out);

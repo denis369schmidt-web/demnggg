@@ -1112,8 +1112,21 @@ void main() {
     const BACK = 260, SIDE = 240;
     wall(-SIDE, D.T - BACK, dl, D.T, WH, "z");
     wall(dr, D.T - BACK, D.W + SIDE, D.T, WH, "z");
-    wall(-SIDE, D.T, D.L, D.B + 60, WH, "x");
-    wall(D.R, D.T, D.W + SIDE, D.B + 60, WH, "x");
+    // v3.0 Seitenwände mit Öffnungen für die Horden-Gänge
+    const gts = w.gates || [];
+    for (const left of [true, false]) {
+      const x0 = left ? -SIDE : D.R, x1 = left ? D.L : D.W + SIDE;
+      const cuts = gts.filter((q) => (q.side < 0) === left).map((q) => [q.y - q.h / 2, q.y + q.h / 2]).sort((a, b) => a[0] - b[0]);
+      let z = D.T;
+      for (const [a, b] of cuts) {
+        if (a > z) wall(x0, z, x1, a, WH, "x");
+        z = b;
+        deco.add(mesh(box(x1 - x0, 1, b - a), slam("#141210"), (x0 + x1) / 2, 0.45, (a + b) / 2)); // Gangboden
+        for (const zz of [a - 3, b + 3]) deco.add(mesh(box(x1 - x0, 2, 5), slam("#c8901a"), (x0 + x1) / 2, WH + 1.2, zz)); // Warnkante oben
+        deco.add(mesh(box(8, 7, 12), sbasic("#ff3a24"), left ? D.L - 6 : D.R + 6, WH + 4, a - 8)); // Warnlampe
+      }
+      wall(x0, z, x1, D.B + 60, WH, "x");
+    }
     wall(D.L, D.B, D.R, D.B + 60, 14, "z");
     // Gang hinter der Tür
     const hall = mesh(box(D.DOOR_W, 1, BACK), slam(ROOF[w.theme] || ROOF.street), D.W / 2, 0.3, D.T - BACK / 2);
@@ -3540,6 +3553,7 @@ void main() {
       else if (q.t === "lvl") lightCands.push([w.player.x, 60, w.player.y, "255,225,130", 3 * (q.life / q.max), 260, 10]);
     }
     for (const z of w.zaps) lightCands.push([z.x2, 30, z.y2, "127,231,255", 2.2 * (z.life / z.max), 200, 8]);
+    for (const q of w.gates || []) if (q.warn > 0) lightCands.push([q.side < 0 ? D.L + 12 : D.R - 12, 46, q.y, "255,40,24", 3.4 * (0.45 + 0.55 * Math.abs(Math.sin(t * 9))), 320, 10]); // v3.0 Horden-Warnlicht
     for (const q of w.decoys || []) lightCands.push([q.x, 20, q.y, "255,180,80", 1.2 + Math.random() * 1.2, 150, 6]); // v2.9 Böller knistert
     for (const e of w.enemies) {
       if (e.burnT > 0 || e.type === "burner") lightCands.push([e.x, 26, e.y, "255,140,40", 1.4, 150, 4]);

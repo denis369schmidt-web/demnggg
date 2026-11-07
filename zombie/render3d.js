@@ -37,6 +37,7 @@ window.Render3D = (() => {
   const cyl = (rt, rb, h, seg = 10) => geo(`y${r1(rt)},${r1(rb)},${r1(h)},${seg}`, () => new T3.CylinderGeometry(rt, rb, h, seg));
   const cone = (r, h, seg = 6) => geo(`k${r1(r)},${r1(h)},${seg}`, () => new T3.ConeGeometry(r, h, seg));
   const torus = (R, t, arc = TAU) => geo(`t${r1(R)},${r1(t)},${r1(arc)}`, () => new T3.TorusGeometry(R, t, 5, 16, arc));
+  const ring = (R, t) => geo(`R${r1(R)},${r1(t)}`, () => new T3.TorusGeometry(R, t, 4, 10)); // v3.2: sparsamer Ring (Kragen)
 
   const lam = (c, extra) => new T3.MeshLambertMaterial({ color: c, flatShading: true, ...extra });
   const basic = (c, extra) => new T3.MeshBasicMaterial({ color: c, ...extra });
@@ -537,7 +538,9 @@ window.Render3D = (() => {
     const shadows = q >= 2;
     if (renderer.shadowMap.enabled !== shadows) {
       renderer.shadowMap.enabled = shadows;
-      scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.needsUpdate = true; }); });
+      const upd = (o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { m.needsUpdate = true; }); };
+      scene.traverse(upd);
+      for (const list of pools.values()) for (const M of list) M.root.traverse(upd); // v3.2: auch geparkte Figuren wechseln zwischen vollem und sparsamem Oberflächen-Shader
       warmPending = true;
     }
     renderer.shadowMap.needsUpdate = true;
@@ -1514,7 +1517,7 @@ void main() {
     for (const s of [-1, 1]) {
       const hip = group(-0.05 * r, 0.92 * r, s * 0.3 * r * bulk);
       hip.add(mesh(limb(0.21 * r * bulk, 0.26 * r), pants, 0, -0.24 * r, 0));
-      hip.add(mesh(ico(0.175 * r * bulk, 1), pants, 0.035 * r, -0.5 * r, 0));
+      hip.add(mesh(ico(0.175 * r * bulk, 0), pants, 0.035 * r, -0.5 * r, 0));
       hip.add(mesh(limb(0.165 * r * bulk, 0.22 * r), bareShin ? skin : pants, 0, -0.68 * r, 0));
       if (bareShin) for (let k = 0; k < 4; k++) { const fl = fine(mesh(cone(0.07 * r, 0.2 * r, 4), pants, Math.cos(k * 1.6) * 0.17 * r, -0.62 * r, Math.sin(k * 1.6) * 0.17 * r)); fl.rotation.x = Math.PI + Math.sin(k * 1.6) * 0.5; fl.rotation.z = Math.cos(k * 1.6) * 0.5; hip.add(fl); } // zerfetzter Hosensaum
       else hip.add(fine(mesh(cyl(0.185 * r * bulk, 0.19 * r * bulk, 0.08 * r, 10), pants, 0, -0.78 * r, 0))); // Hosenaufschlag
@@ -1524,7 +1527,7 @@ void main() {
         if (rnd(4 + s) < 0.5) hip.add(fine(mesh(box(0.1 * r, 0.05 * r, 0.12 * r), gore, 0.0, -0.84 * r, s * 0.1 * r)));
       } else {
         hip.add(mesh(box(0.4 * r, 0.17 * r, 0.27 * r), shoeM, 0.07 * r, -0.83 * r, 0));
-        const toe = mesh(ico(0.14 * r, 1), shoeM, 0.25 * r, -0.86 * r, 0); toe.scale.set(1, 0.62, 0.98); hip.add(toe);
+        const toe = mesh(ico(0.14 * r, 0), shoeM, 0.25 * r, -0.86 * r, 0); toe.scale.set(1, 0.62, 0.98); hip.add(toe);
         hip.add(mesh(box(0.56 * r, 0.05 * r, 0.31 * r), soleM, 0.1 * r, -0.925 * r, 0));
         for (let k = 0; k < 2; k++) hip.add(fine(mesh(box(0.04 * r, 0.025 * r, 0.2 * r), lace, 0.06 * r + k * 0.09 * r, -0.74 * r, 0)));
       }
@@ -1560,7 +1563,7 @@ void main() {
     const fx = 0.344 * r * bulk; // Vorderseite des Rumpfs
     const plainShirt = !(P.bloat || P.brute || P.armor || P.hazmat || P.robe || P.vest || P.tactical || P.motley || P.lederhosen || P.plate || P.hood || P.coat);
     M.body.add(mesh(cyl(0.15 * r, 0.19 * r, 0.42 * r, 10), skin, 0.06 * r + (P.lean ? 0.05 * r : 0), 2.06 * r, 0));
-    if (!(P.bloat || P.brute || P.armor || P.hazmat || P.robe || P.plate)) { const col2 = mesh(torus(0.25 * r, 0.065 * r), shirt, 0.04 * r, 1.97 * r, 0); col2.rotation.x = Math.PI / 2; col2.scale.set(1, 1.28, 1); M.body.add(col2); }
+    if (!(P.bloat || P.brute || P.armor || P.hazmat || P.robe || P.plate)) { const col2 = mesh(ring(0.25 * r, 0.065 * r), shirt, 0.04 * r, 1.97 * r, 0); col2.rotation.x = Math.PI / 2; col2.scale.set(1, 1.28, 1); M.body.add(col2); }
     if (plainShirt) {
       M.body.add(fine(mesh(box(0.025 * r, 0.62 * r, 0.06 * r), shirt, fx, 1.56 * r, 0)));
       for (let k = 0; k < 4; k++) M.body.add(fine(mesh(box(0.035 * r, 0.05 * r, 0.05 * r), bone, fx + 0.012 * r, 1.3 * r + k * 0.16 * r, 0)));
@@ -1573,7 +1576,7 @@ void main() {
     if (zomb && (P.thin || P.lean)) for (let k = 0; k < 5; k++) M.body.add(fine(mesh(ico(0.075 * r, 0), P.brute || P.bloat ? skin : shirt, -0.33 * r * bulk, 1.28 * r + k * 0.14 * r, 0)));
     if (zomb && !P.armor && !P.plate && !P.hazmat && (P.torn || rnd(6) < 0.5)) {
       const ws = rnd(7) < 0.5 ? -1 : 1, wy = 1.36 * r + rnd(8) * 0.25 * r;
-      const wd = mesh(ico(0.2 * r, 1), gore, fx - 0.07 * r, wy, ws * 0.26 * r); wd.scale.set(0.4, 1, 1.05); M.body.add(wd);
+      const wd = mesh(ico(0.2 * r, 0), gore, fx - 0.07 * r, wy, ws * 0.26 * r); wd.scale.set(0.4, 1, 1.05); M.body.add(wd);
       for (let k = 0; k < 3; k++) { const rb = fine(mesh(box(0.05 * r, 0.035 * r, 0.24 * r), bone, fx - 0.02 * r, wy - 0.12 * r + k * 0.1 * r, ws * 0.26 * r)); rb.rotation.x = ws * 0.25; M.body.add(rb); }
     }
     // Arme nach vorn (Zombie-Griff): Schulter, Oberarm, Ellbogen, Unterarm (oft zerrissener Ärmel), Hand mit Fingern
@@ -1581,9 +1584,9 @@ void main() {
       const sh = group(0.04 * r, 1.86 * r, s * 0.66 * r * bulk);
       const sleeve = P.armor ? slam("#1b2433") : P.brute || P.bloat || P.claws ? skin : shirt;
       const bare = sleeve === skin || (zomb && !P.armor && (P.torn ? rnd(9 + s) < 0.7 : rnd(11 + s) < 0.3));
-      sh.add(mesh(ico(0.19 * r * bulk, 1), sleeve, 0.02 * r, 0, 0));
+      sh.add(mesh(ico(0.19 * r * bulk, 0), sleeve, 0.02 * r, 0, 0));
       const up = mesh(limb(0.155 * r * bulk, 0.3 * r * la), sleeve, 0.3 * r * la, 0, 0); up.rotation.z = -Math.PI / 2; sh.add(up);
-      sh.add(mesh(ico(0.14 * r * bulk, 1), bare ? skin : sleeve, 0.55 * r * la, 0, 0));
+      sh.add(mesh(ico(0.14 * r * bulk, 0), bare ? skin : sleeve, 0.55 * r * la, 0, 0));
       const fo = mesh(limb(0.13 * r * bulk, 0.3 * r * la), bare ? skin : sleeve, 0.77 * r * la, 0, 0); fo.rotation.z = -Math.PI / 2; sh.add(fo);
       if (bare && sleeve !== skin) { // Ärmel endet zerfetzt am Ellbogen
         for (let k = 0; k < 3; k++) { const fl = fine(mesh(cone(0.06 * r, 0.18 * r, 4), sleeve, 0.56 * r * la, Math.cos(k * 2.1) * 0.12 * r, Math.sin(k * 2.1) * 0.12 * r)); fl.rotation.z = -Math.PI / 2; sh.add(fl); }
@@ -1596,9 +1599,8 @@ void main() {
       else {
         const hb = bulk * (P.brute ? 1.35 : 1), hx = 1.05 * r * la;
         sh.add(mesh(box(0.22 * r * hb, 0.1 * r * hb, 0.22 * r * hb), skin, hx, 0, 0));
-        for (let k = 0; k < 4; k++) { const fg = fine(mesh(cyl(0.032 * r * hb, 0.026 * r * hb, 0.16 * r * hb, 5), skin, hx + 0.16 * r * hb, -0.035 * r * hb, (k - 1.5) * 0.052 * r * hb)); fg.rotation.z = Math.PI / 2 + 0.55; sh.add(fg); }
-        const th = fine(mesh(cyl(0.035 * r * hb, 0.03 * r * hb, 0.13 * r * hb, 5), skin, hx + 0.06 * r * hb, -0.02 * r * hb, -s * 0.13 * r * hb)); th.rotation.z = Math.PI / 2; th.rotation.x = s * 0.7; sh.add(th);
-        if (zomb) for (let k = 0; k < 4; k++) sh.add(fine(mesh(box(0.025 * r * hb, 0.02 * r * hb, 0.03 * r * hb), tlam("#2a2418", "bone"), hx + 0.235 * r * hb, -0.08 * r * hb, (k - 1.5) * 0.052 * r * hb))); // dreckige Nägel
+        for (let k = 0; k < 4; k++) { const fg = fine(mesh(box(0.17 * r * hb, 0.045 * r * hb, 0.042 * r * hb), skin, hx + 0.16 * r * hb, -0.04 * r * hb, (k - 1.5) * 0.054 * r * hb)); fg.rotation.z = -0.55; sh.add(fg); } // gekrümmte Finger
+        const th = fine(mesh(box(0.13 * r * hb, 0.045 * r * hb, 0.045 * r * hb), skin, hx + 0.06 * r * hb, -0.02 * r * hb, -s * 0.13 * r * hb)); th.rotation.y = s * 0.6; sh.add(th);
       }
       if (P.claws) for (let k = -1; k <= 1; k++) { const cl = mesh(cone(0.05 * r, 0.42 * r, 4), bone, 1.3 * r * la, 0, k * 0.09 * r); cl.rotation.z = -Math.PI / 2; sh.add(cl); }
       sh.rotation.y = s * 0.18;
@@ -1616,9 +1618,9 @@ void main() {
     } else {
       // v3.2 Gesicht: Augenhöhlen, Brauenwulst, Nase (bei Zombies manchmal abgefault), Ohren, Kiefer mit Zahnreihen
       for (const s of [-1, 1]) {
-        head.add(fine(mesh(ico(0.1 * r, 1), cavity, hr * 0.8, 0.06 * r, s * 0.15 * r)));
+        head.add(fine(mesh(ico(0.1 * r, 0), cavity, hr * 0.8, 0.06 * r, s * 0.15 * r)));
         head.add(mesh(ico(0.075 * r, 0), sbasic(P.eye || "#ff3030"), hr * 0.86, 0.06 * r, s * 0.15 * r));
-        if (!P.hood && !P.hazmat) { const ear = mesh(ico(0.1 * r, 1), skin, -0.02 * r, 0.02 * r, s * hr * 0.97); ear.scale.set(0.55, 1, 0.38); head.add(ear); }
+        if (!P.hood && !P.hazmat) { const ear = mesh(ico(0.1 * r, 0), skin, -0.02 * r, 0.02 * r, s * hr * 0.97); ear.scale.set(0.55, 1, 0.38); head.add(ear); }
       }
       const brow = fine(mesh(box(0.1 * r, 0.07 * r, 0.48 * r), skin, hr * 0.84, 0.16 * r, 0)); brow.rotation.z = -0.3; head.add(brow);
       if (!P.nose) {
@@ -1633,7 +1635,7 @@ void main() {
       }
       if (zomb && rnd(16) < 0.4) { // aufgerissene Wange mit Zähnen
         const cs = rnd(17) < 0.5 ? -1 : 1;
-        head.add(fine(mesh(ico(0.1 * r, 1), gore, hr * 0.72, -0.12 * r, cs * hr * 0.66)));
+        head.add(fine(mesh(ico(0.1 * r, 0), gore, hr * 0.72, -0.12 * r, cs * hr * 0.66)));
         for (let k = 0; k < 2; k++) head.add(fine(mesh(box(0.04 * r, 0.05 * r, 0.03 * r), bone, hr * 0.78 - k * 0.07 * r, -0.12 * r, cs * hr * 0.74)));
       }
     }
@@ -1641,11 +1643,11 @@ void main() {
     // Haare: Kappe + abstehende Strähnen
     if (P.hair) {
       const hm = tlam(P.hair, "hair");
-      const hair = mesh(ico(hr * 1.06, 2), hm, -0.07 * r, 0.1 * r, 0); hair.scale.set(1, 0.6, 1.04); head.add(hair);
+      const hair = mesh(ico(hr * 1.06, 1), hm, -0.07 * r, 0.1 * r, 0); hair.scale.set(1, 0.6, 1.04); head.add(hair);
       for (let i = 0; i < 9; i++) { const t2 = mesh(cone(0.07 * r, 0.32 * r, 4), hm, -0.06 * r - (i % 5) * 0.06 * r, 0.28 * r + (i > 4 ? 0.06 * r : 0), ((i % 5) - 2) * 0.12 * r + (i > 4 ? 0.06 * r : 0)); t2.rotation.z = 0.9 + (i % 5) * 0.12; t2.rotation.x = ((i % 5) - 2) * 0.3; head.add(t2); }
     } else if (zomb && !P.hat && !P.hood && !P.hazmat && !P.armor && !P.longHair && !P.mohawk && rnd(18) < 0.5) {
       // kahler Schädel mit aufgeplatzter Kopfhaut
-      const sk = fine(mesh(ico(0.16 * r, 1), bone, -0.04 * r, hr * 0.86, rnd(19) * 0.2 * r - 0.1 * r)); sk.scale.set(1, 0.38, 1); head.add(sk);
+      const sk = fine(mesh(ico(0.16 * r, 0), bone, -0.04 * r, hr * 0.86, rnd(19) * 0.2 * r - 0.1 * r)); sk.scale.set(1, 0.38, 1); head.add(sk);
       head.add(fine(mesh(box(0.2 * r, 0.03 * r, 0.025 * r), cavity, -0.04 * r, hr * 0.92, 0)));
     }
     // Freiliegende Rippen
@@ -1939,7 +1941,7 @@ void main() {
     M.body.add(head); M.extra.head = head;
     const tail = group(-0.95 * r, 0.6 * r, 0);
     const tl = mesh(cyl(0.05 * r, 0.1 * r, 1.6 * r, 6), skin, -0.8 * r, 0, 0); tl.rotation.z = Math.PI / 2 + 0.2; tail.add(tl);
-    for (let k = 0; k < 6; k++) { const rg = fine(mesh(torus(0.085 * r - k * 0.007 * r, 0.014 * r), skin, -0.2 * r - k * 0.24 * r, 0.04 * r + k * 0.048 * r, 0)); rg.rotation.y = Math.PI / 2; rg.rotation.x = 0.2; tail.add(rg); } // Schwanzringe
+    for (let k = 0; k < 4; k++) { const rg = fine(mesh(ring(0.085 * r - k * 0.01 * r, 0.014 * r), skin, -0.25 * r - k * 0.34 * r, 0.05 * r + k * 0.068 * r, 0)); rg.rotation.y = Math.PI / 2; rg.rotation.x = 0.2; tail.add(rg); } // Schwanzringe
     M.body.add(tail); M.extra.tail = tail;
     M.height = 1.3 * r;
     return M;
@@ -2020,7 +2022,7 @@ void main() {
       const th = fine(mesh(cone(0.025 * r, 0.09 * r, 4), bone, tx + (ry ? 0 : -0.04 * r), y * r, tz)); th.rotation.z = ry; head.add(th);
     }
     head.add(mesh(ico(0.07 * r, 0), slam("#111111"), 0.64 * r, -0.0 * r, 0));
-    const collar = mesh(torus(0.3 * r, 0.05 * r), tlam("#5a2a1a", "leather"), -0.18 * r, -0.12 * r, 0); collar.rotation.y = Math.PI / 2; collar.rotation.x = 0.3; head.add(collar);
+    const collar = mesh(ring(0.3 * r, 0.05 * r), tlam("#5a2a1a", "leather"), -0.18 * r, -0.12 * r, 0); collar.rotation.y = Math.PI / 2; collar.rotation.x = 0.3; head.add(collar);
     head.add(fine(mesh(cyl(0.06 * r, 0.06 * r, 0.02 * r, 8), tlam("#c9a227", "metal"), -0.05 * r, -0.42 * r, 0).rotateZ(Math.PI / 2)));
     for (const s of [-1, 1]) {
       const ear = mesh(cone(0.1 * r, 0.3 * r, 4), fur, -0.12 * r, 0.32 * r, s * 0.2 * r); ear.rotation.x = s * 0.4; head.add(ear);
@@ -2081,7 +2083,7 @@ void main() {
     const abdomen = mesh(ico(0.85 * r, 2), shell, -0.4 * r, 0.9 * r, 0); abdomen.scale.set(1.1, 0.75, 0.95);
     M.body.add(abdomen);
     // v3.2: Panzerringe, Rückenstacheln, Adern zu den Eiern
-    for (let k = 0; k < 4; k++) { const rg = mesh(torus(0.62 * r - Math.abs(k - 1.5) * 0.1 * r, 0.045 * r), dark, -0.82 * r + k * 0.28 * r, 0.9 * r, 0); rg.rotation.y = Math.PI / 2; rg.scale.set(1, 0.78, 1); M.body.add(rg); }
+    for (let k = 0; k < 4; k++) { const rg = mesh(ring(0.62 * r - Math.abs(k - 1.5) * 0.1 * r, 0.045 * r), dark, -0.82 * r + k * 0.28 * r, 0.9 * r, 0); rg.rotation.y = Math.PI / 2; rg.scale.set(1, 0.78, 1); M.body.add(rg); }
     for (let k = 0; k < 5; k++) { const sp = mesh(cone(0.07 * r, 0.34 * r, 5), tlam("#c8d8a0", "bone"), -0.9 * r + k * 0.24 * r, 1.48 * r - Math.abs(k - 2) * 0.05 * r, 0); sp.rotation.z = 0.35; M.body.add(sp); }
     M.extra.eggs = [];
     for (let i = 0; i < 9; i++) {
@@ -2233,72 +2235,69 @@ float sNoise(vec3 x) {
 }
 float sLine(float n, float w) { return 1.0 - smoothstep(0.0, w, abs(n - 0.5)); }
 vec3 surf(vec3 c, vec3 p, float t, float px, float z) {
-  // Relief (gH) nur aus weichen, großen Formen – feines Rauschen im Relief würde mit dem Glanz zu Pixel-Funkeln werden
-  float big = sNoise(p * 0.2), mid = sNoise(p * 0.75 + 7.1);
+  // Relief (gH) nur aus weichen, großen Formen – feines Rauschen im Relief würde mit dem Glanz zu Pixel-Funkeln werden.
+  // Jede Klasse berechnet nur die Rauschwerte, die sie braucht (2–4 Aufrufe je Pixel).
+  float big = sNoise(p * 0.2);
   float aF = clamp(2.4 - px * 3.6, 0.0, 1.0), aM = clamp(2.4 - px * 1.6, 0.0, 1.0);
-  gSheen = 0.0;
-  if (t < 0.5) { gH = big * 0.6; return c * (0.94 + 0.12 * mid); }
-  if (t < 1.5) { // Haut: Flecken, Blutergüsse, Adern, Poren; feucht glänzend
-    float fine = sNoise(p * 1.1 + 3.3), vein = sLine(sNoise(p * vec3(0.45, 0.8, 0.45) + 11.0), 0.045) * aM;
-    c *= 0.86 + 0.26 * big;
+  gSheen = 0.0; gH = big * 0.8;
+  if (t < 0.5) { return c * (0.9 + 0.2 * big); }
+  if (t < 1.5) { // Haut: Flecken, Blutergüsse, Adern; feucht glänzend
+    float mid = sNoise(p * 0.75 + 7.1), vein = sLine(sNoise(p * vec3(0.45, 0.8, 0.45) + 11.0), 0.028) * smoothstep(0.5, 0.7, big) * aM;
+    c *= 0.84 + 0.26 * big + 0.08 * (mid - 0.5) * aM;
     c = mix(c, c * vec3(0.74, 0.62, 0.92), smoothstep(0.6, 0.82, mid) * 0.5 * z);
     c = mix(c, c * vec3(0.5, 0.42, 0.62), vein * (0.12 + 0.32 * z));
-    c = mix(c, vec3(0.28, 0.035, 0.04), smoothstep(0.78, 0.84, sNoise(p * 0.5 + 23.0)) * 0.6 * z);
-    c *= 0.95 + 0.1 * fine * aM;
-    gH = big * 1.4 - vein * 0.35; gSheen = (0.05 + 0.07 * z) * aM; gShin = 16.0;
+    c = mix(c, vec3(0.28, 0.035, 0.04), smoothstep(0.7, 0.86, 1.0 - mid) * smoothstep(0.55, 0.75, big) * 0.55 * z);
+    gH = big * 1.4; gSheen = (0.05 + 0.07 * z) * aM; gShin = 16.0;
     return c;
   }
   if (t < 2.5) { // Stoff: Gewebe, Falten, Schmutz, Blut, Risse
     float k = 3.0, wv = sin(p.y * k) * sin((p.x + p.z) * k) * clamp(2.2 - px * k * 0.8, 0.0, 1.0);
-    float fold = sNoise(vec3(p.x * 0.45, p.y * 0.15, p.z * 0.45) + 4.0);
+    float fold = sNoise(vec3(p.x * 0.45, p.y * 0.15, p.z * 0.45) + 4.0), bl = sNoise(p * 0.3 + 19.0);
     c *= 0.92 + 0.06 * wv + 0.24 * (fold - 0.5);
     c = mix(c, c * vec3(0.6, 0.52, 0.42), smoothstep(0.62, 0.8, big) * 0.5);
-    c = mix(c, vec3(0.22, 0.025, 0.03), smoothstep(0.72, 0.78, sNoise(p * 0.3 + 19.0)) * 0.65 * z);
-    float hole = smoothstep(0.84, 0.87, sNoise(p * 0.38 + 31.0)) * z;
-    c = mix(c, vec3(0.06, 0.03, 0.025), hole * 0.9);
-    gH = fold * 1.6 - hole * 0.5; gSheen = 0.0;
+    c = mix(c, vec3(0.22, 0.025, 0.03), smoothstep(0.66, 0.82, bl) * 0.6 * z);
+    c = mix(c, vec3(0.06, 0.03, 0.025), smoothstep(0.84, 0.88, fold * 0.5 + (1.0 - bl) * 0.5 + big * 0.15) * 0.9 * z); // Risse
+    gH = fold * 1.6;
     return c;
   }
-  if (t < 3.5) { // Köper (Hose): schräge Rippen, verwaschene Stellen
+  if (t < 3.5) { // Köper (Hose): schräge Rippen, verwaschene Stellen, Blut
     float k = 4.0, tw = sin((p.y + (p.x + p.z) * 0.7) * k) * clamp(2.2 - px * k * 0.8, 0.0, 1.0);
     float fold = sNoise(vec3(p.x * 0.45, p.y * 0.18, p.z * 0.45) + 9.0);
     c *= 0.9 + 0.07 * tw + 0.24 * (big - 0.5) + 0.16 * (fold - 0.5);
-    c = mix(c, c * vec3(0.55, 0.47, 0.38), smoothstep(0.66, 0.82, mid) * 0.4);
-    c = mix(c, vec3(0.22, 0.025, 0.03), smoothstep(0.76, 0.8, sNoise(p * 0.3 + 41.0)) * 0.6 * z);
-    gH = fold * 1.4; gSheen = 0.0;
+    c = mix(c, c * vec3(0.55, 0.47, 0.38), smoothstep(0.66, 0.84, 1.0 - big) * 0.4);
+    c = mix(c, vec3(0.22, 0.025, 0.03), smoothstep(0.7, 0.86, fold * 0.6 + big * 0.4) * 0.5 * z);
+    gH = fold * 1.4;
     return c;
   }
-  if (t < 4.5) { // Leder/Gummi: Knitterfalten, Glanz
-    float crease = sLine(sNoise(p * 0.9 + 2.0), 0.06) * aM;
-    c *= 0.92 + 0.16 * mid - 0.28 * crease;
-    gH = big * 0.8 - crease * 0.25; gSheen = 0.22 * aM; gShin = 20.0;
+  if (t < 4.5) { // Leder/Gummi: weiche Abnutzung + Glanz (feine Linien würden auf Gürteln wie Schrift aussehen)
+    float mid = sNoise(p * 0.75 + 7.1);
+    c *= 0.88 + 0.22 * mid;
+    gSheen = 0.22 * aM; gShin = 20.0;
     return c;
   }
-  if (t < 5.5) { // Metall: gebürstet, Kratzer, Rost, Glanz
-    float br = sNoise(vec3(p.x * 0.3, p.y * 5.0, p.z * 0.3)) * aF;
-    float scr = sLine(sNoise(vec3(p.x * 2.0, p.y * 0.35, p.z * 2.0) + 5.0), 0.02) * aF;
+  if (t < 5.5) { // Metall: gebürstet, Rost, Glanz
+    float br = sNoise(vec3(p.x * 0.3, p.y * 5.0, p.z * 0.3)) * aF, mid = sNoise(p * 0.75 + 7.1);
     float rust = smoothstep(0.66, 0.84, big) * (0.25 + 0.6 * z);
-    c *= 0.92 + 0.14 * br;
-    c += vec3(0.08) * scr * (1.0 - rust);
+    c *= 0.9 + 0.16 * br;
     c = mix(c, vec3(0.28, 0.12, 0.055) * (0.75 + 0.5 * mid), rust * 0.7);
-    gH = big * 0.8; gSheen = 0.42 * (1.0 - rust) * aM; gShin = 24.0;
+    gSheen = 0.42 * (1.0 - rust) * aM; gShin = 24.0;
     return c;
   }
   if (t < 6.5) { // Haare/Fell: Strähnen mit Glanzband
     float st = sin((p.x * 0.9 + p.z * 1.2) * 4.0 + sNoise(p * vec3(0.7, 0.25, 0.7)) * 6.0) * clamp(2.2 - px * 3.5, 0.0, 1.0);
-    c *= 0.86 + 0.16 * st + 0.18 * (mid - 0.5);
-    gH = big * 0.8; gSheen = 0.1 * aM; gShin = 12.0;
+    c *= 0.86 + 0.16 * st + 0.18 * (big - 0.5);
+    gSheen = 0.1 * aM; gShin = 12.0;
     return c;
   }
   if (t < 7.5) { // Knochen/Zähne: vergilbt, porös
     float pit = smoothstep(0.7, 0.76, sNoise(p * 2.0 + 13.0)) * aF;
-    c *= vec3(1.0, 0.96, 0.86) * (0.9 + 0.14 * mid) - 0.18 * pit;
+    c *= vec3(1.0, 0.96, 0.86) * (0.9 + 0.14 * big) - 0.18 * pit;
     gH = big * 0.6; gSheen = 0.08 * aM; gShin = 16.0;
     return c;
   }
   // Holz: Maserung entlang der Längsachse (Waffenschäfte, Stiele)
   float ring = sin((p.y + p.z * 0.6) * 5.0 + sNoise(p * vec3(0.12, 1.1, 1.1)) * 7.0) * clamp(2.2 - px * 3.0, 0.0, 1.0);
-  c *= 0.86 + 0.1 * ring + 0.14 * (mid - 0.5);
+  c *= 0.86 + 0.1 * ring + 0.14 * (big - 0.5);
   gH = big * 0.6; gSheen = 0.06 * aM; gShin = 14.0;
   return c;
 }
@@ -2315,8 +2314,30 @@ vec3 bumpN(vec3 n, float h) {
 \tfor (int i = 0; i < NUM_DIR_LIGHTS; i++) { vec3 sHv = normalize(directionalLights[i].direction + sVd); outgoingLight += directionalLights[i].color * (pow(max(dot(normal, sHv), 0.0), gShin) * gSheen${glow}); } }
 \t#endif
 \t`;
+  // Sparvariante für Grafikstufe 1: ein einziger Rauschwert tönt je Materialklasse – kein Relief, kein Glanz, keine Ableitungen
+  const SURF_LITE_GLSL = `
+float sHash(vec3 p) { p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419)); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float sNoise(vec3 x) {
+  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(sHash(i), sHash(i + vec3(1.0, 0.0, 0.0)), f.x), mix(sHash(i + vec3(0.0, 1.0, 0.0)), sHash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+             mix(mix(sHash(i + vec3(0.0, 0.0, 1.0)), sHash(i + vec3(1.0, 0.0, 1.0)), f.x), mix(sHash(i + vec3(0.0, 1.0, 1.0)), sHash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+}
+vec3 surfLite(vec3 c, vec3 p, float t, float z) {
+  float n = sNoise(p * 0.22);
+  c *= 0.88 + 0.24 * n;
+  if (t > 0.5 && t < 3.5) c = mix(c, vec3(0.24, 0.03, 0.035), smoothstep(0.72, 0.86, n) * 0.5 * z);
+  return c;
+}
+`;
   function surfShader(sh, glow, zk) {
     sh.uniforms.uZombie = { value: zk };
+    if (quality < 2) {
+      sh.fragmentShader = `uniform float uZombie;\nvarying float vTex;\nvarying vec3 vGrain;\n${glow ? "varying float vGlow;\n" : ""}` + sh.fragmentShader
+        .replace("void main() {", `${SURF_LITE_GLSL}\nvoid main() {`)
+        .replace("#include <color_fragment>", `#include <color_fragment>\n\tdiffuseColor.rgb = ${glow ? "mix(surfLite(diffuseColor.rgb, vGrain, vTex, uZombie), diffuseColor.rgb, vGlow)" : "surfLite(diffuseColor.rgb, vGrain, vTex, uZombie)"};`)
+        .replace("#include <opaque_fragment>", `${RIM_GLSL}${glow ? " * (1.0 - vGlow)" : ""};\n\t${glow ? "outgoingLight = mix(outgoingLight, diffuseColor.rgb, vGlow);\n\t" : ""}#include <opaque_fragment>`);
+      return;
+    }
     const g = glow ? " * (1.0 - vGlow)" : "";
     sh.fragmentShader = `uniform float uZombie;\nvarying float vTex;\nvarying vec3 vGrain;\n${glow ? "varying float vGlow;\n" : ""}` + sh.fragmentShader
       .replace("void main() {", `${SURF_GLSL}\nvoid main() {`)
@@ -2335,7 +2356,7 @@ vec3 bumpN(vec3 n, float h) {
   }
   function partMaterial(m, uni, kind, zk = 1) {
     m.onBeforeCompile = (sh) => injectParts(sh, uni, kind, zk);
-    m.customProgramCacheKey = () => `parts${MAXP}:${kind}:v32`; // alle Figuren teilen sich ein Programm je Art
+    m.customProgramCacheKey = () => `parts${MAXP}:${kind}:v32${kind === "lit" && quality < 2 ? ":lite" : ""}`; // alle Figuren teilen sich ein Programm je Art (und Grafikstufe)
     return m;
   }
   // Materialklasse eines Teils: ausdrücklich (userData.tex), über die Rolle (Haut/Hemd/Hose) oder geschätzt aus der Farbe
@@ -2370,6 +2391,7 @@ vec3 bumpN(vec3 n, float h) {
         (m.isMeshBasicMaterial ? glow : c.userData.fine ? fine : lit).push([c, i]);
       }
     }
+    if (quality < 2 && M.kind !== "player") { for (const [m] of fine) m.parent.remove(m); fine.length = 0; } // v3.2: Kleinteile nur mit voller Grafik
     if (nodes.length > MAXP || !lit.length) return false;
     // Ruhelage je Knoten im Modellraum (für Vertexfarben und Begrenzungskugel)
     const bind = nodes.map(() => new T3.Matrix4());
@@ -2449,7 +2471,7 @@ vec3 bumpN(vec3 n, float h) {
       sh.vertexShader = "attribute float tex;\nvarying float vTex;\nvarying vec3 vGrain;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n  vGrain = position; vTex = tex;");
       surfShader(sh, false, look.grime > 0.5 ? 1 : 0);
     };
-    lit.customProgramCacheKey = () => "boss:v32";
+    lit.customProgramCacheKey = () => `boss:v32${quality < 2 ? ":lite" : ""}`;
     const glow = new T3.MeshBasicMaterial({ vertexColors: true });
     bakeNode(M.root, lit, glow, keep, true, look);
     M.mats = [lit, ...kept];
@@ -2879,10 +2901,10 @@ vec3 bumpN(vec3 n, float h) {
       const hip = group(-0.05 * r, 0.92 * r, s * 0.3 * r);
       hip.add(mesh(limb(0.21 * r, 0.26 * r), pants, 0, -0.24 * r, 0));
       hip.add(mesh(limb(0.17 * r, 0.24 * r), pants, 0, -0.64 * r, 0));
-      const pad = mesh(ico(0.15 * r, 1), C("pads", "plain"), 0.13 * r, -0.48 * r, 0); pad.scale.set(0.6, 1, 0.95); hip.add(pad);
+      const pad = mesh(ico(0.15 * r, 0), C("pads", "plain"), 0.13 * r, -0.48 * r, 0); pad.scale.set(0.6, 1, 0.95); hip.add(pad);
       hip.add(fine(mesh(box(0.05 * r, 0.04 * r, 0.32 * r), strap, 0.06 * r, -0.4 * r, 0)));
       hip.add(mesh(box(0.42 * r, 0.22 * r, 0.3 * r), dark, 0.08 * r, -0.82 * r, 0));
-      const toe = mesh(ico(0.15 * r, 1), dark, 0.27 * r, -0.86 * r, 0); toe.scale.set(1, 0.6, 0.98); hip.add(toe);
+      const toe = mesh(ico(0.15 * r, 0), dark, 0.27 * r, -0.86 * r, 0); toe.scale.set(1, 0.6, 0.98); hip.add(toe);
       hip.add(mesh(box(0.6 * r, 0.06 * r, 0.33 * r), tlam("#0d0c0b", "leather"), 0.1 * r, -0.935 * r, 0));
       for (let k = 0; k < 3; k++) hip.add(fine(mesh(box(0.04 * r, 0.025 * r, 0.22 * r), stitch, 0.04 * r + k * 0.08 * r, -0.7 * r + k * 0.01 * r, 0)));
       hip.add(fine(mesh(cyl(0.18 * r, 0.18 * r, 0.06 * r, 10), dark, 0, -0.69 * r, 0)));
@@ -2896,7 +2918,7 @@ vec3 bumpN(vec3 n, float h) {
     // Rumpf mit Plattenträger: Platte vorn, Klettfeld, MOLLE-Schlaufen, Magazintaschen mit Klappen
     const torso = mesh(cap(0.42 * r, 0.42 * r), torsoMat, 0, 1.52 * r, 0); torso.scale.set(0.84, 1, 1.32); M.body.add(torso);
     M.body.add(mesh(cyl(0.15 * r, 0.18 * r, 0.36 * r, 10), slam(S.face), 0.05 * r, 2.06 * r, 0));
-    const col2 = mesh(torus(0.25 * r, 0.07 * r), torsoMat, 0.03 * r, 1.97 * r, 0); col2.rotation.x = Math.PI / 2; col2.scale.set(1, 1.28, 1); M.body.add(col2);
+    const col2 = mesh(ring(0.25 * r, 0.07 * r), torsoMat, 0.03 * r, 1.97 * r, 0); col2.rotation.x = Math.PI / 2; col2.scale.set(1, 1.28, 1); M.body.add(col2);
     M.body.add(mesh(box(0.1 * r, 0.62 * r, 0.74 * r), C("pouch"), 0.33 * r, 1.6 * r, 0));
     M.body.add(fine(mesh(box(0.02 * r, 0.12 * r, 0.3 * r), C("pads", "plain"), 0.385 * r, 1.82 * r, 0)));
     for (let k = 0; k < 3; k++) M.body.add(fine(mesh(box(0.02 * r, 0.03 * r, 0.7 * r), stitch, 0.385 * r, 1.42 * r + k * 0.1 * r, 0)));
@@ -2914,14 +2936,14 @@ vec3 bumpN(vec3 n, float h) {
     } else if (S.tank) {
       M.body.add(mesh(cyl(0.26 * r, 0.26 * r, 1.0 * r, 12), C("pack", "metal"), -0.52 * r, 1.6 * r, 0));
       M.body.add(mesh(cyl(0.1 * r, 0.1 * r, 0.2 * r, 8), tlam("#9aa3ab", "metal"), -0.52 * r, 2.15 * r, 0));
-      for (const y of [1.25, 1.95]) { const bd = fine(mesh(torus(0.27 * r, 0.025 * r), strap, -0.52 * r, y * r, 0)); bd.rotation.x = Math.PI / 2; M.body.add(bd); }
+      for (const y of [1.25, 1.95]) { const bd = fine(mesh(ring(0.27 * r, 0.025 * r), strap, -0.52 * r, y * r, 0)); bd.rotation.x = Math.PI / 2; M.body.add(bd); }
     } else {
       M.body.add(mesh(box(0.42 * r, 0.9 * r, 0.8 * r), C("pack"), -0.52 * r, 1.6 * r, 0));
       M.body.add(mesh(box(0.12 * r, 0.42 * r, 0.6 * r), C("pack"), -0.78 * r, 1.48 * r, 0));
       M.body.add(fine(mesh(box(0.14 * r, 0.1 * r, 0.62 * r), C("pouch"), -0.79 * r, 1.72 * r, 0)));
       for (const z of [-0.3, 0.3]) M.body.add(fine(mesh(box(0.44 * r, 0.05 * r, 0.06 * r), strap, -0.52 * r, 1.25 * r, z * r)));
       const roll = mesh(cyl(0.16 * r, 0.16 * r, 0.82 * r, 10), C("roll"), -0.55 * r, 2.12 * r, 0); roll.rotation.x = Math.PI / 2; M.body.add(roll);
-      for (const z of [-0.25, 0.25]) { const rs = fine(mesh(torus(0.17 * r, 0.025 * r), strap, -0.55 * r, 2.12 * r, z * r)); M.body.add(rs); }
+      for (const z of [-0.25, 0.25]) { const rs = fine(mesh(ring(0.17 * r, 0.025 * r), strap, -0.55 * r, 2.12 * r, z * r)); M.body.add(rs); }
     }
     for (const s of [-1, 1]) {
       const sp = mesh(ico(0.26 * r, 1), C("pads", "plain"), 0, 1.9 * r, s * 0.66 * r); sp.scale.set(1, 0.8, 1); M.body.add(sp);
@@ -2959,12 +2981,12 @@ vec3 bumpN(vec3 n, float h) {
       const el = sh.clone().add(tgt).multiplyScalar(0.5).add(new T3.Vector3(-0.08 * r, -0.2 * r, s * 0.16 * r));
       seg(sh, el, 0.145 * r, C("arm"));
       seg(el, tgt, 0.125 * r, C("arm"));
-      const ep = mesh(ico(0.14 * r, 1), C("pads", "plain"), el.x - 0.03 * r, el.y - 0.02 * r, el.z); ep.scale.set(0.8, 0.8, 0.9); M.body.add(ep);
-      M.body.add(fine(mesh(ico(0.13 * r, 1), C("arm"), sh.x, sh.y - 0.05 * r, sh.z)));
+      const ep = mesh(ico(0.14 * r, 0), C("pads", "plain"), el.x - 0.03 * r, el.y - 0.02 * r, el.z); ep.scale.set(0.8, 0.8, 0.9); M.body.add(ep);
+      M.body.add(fine(mesh(ico(0.13 * r, 0), C("arm"), sh.x, sh.y - 0.05 * r, sh.z)));
       const wr = tgt.clone().lerp(el, 0.18);
-      M.body.add(fine(mesh(ico(0.13 * r, 1), glove, wr.x, wr.y, wr.z)));
+      M.body.add(fine(mesh(ico(0.13 * r, 0), glove, wr.x, wr.y, wr.z)));
       M.body.add(mesh(ico(0.15 * r, 1), glove, tgt.x, tgt.y, tgt.z));
-      for (let k = 0; k < 4; k++) { const fg = fine(mesh(cyl(0.035 * r, 0.03 * r, 0.15 * r, 5), glove, tgt.x + 0.08 * r, tgt.y - 0.06 * r, tgt.z + (k - 1.5) * 0.055 * r)); fg.rotation.z = Math.PI / 2 + 1.0; M.body.add(fg); }
+      for (let k = 0; k < 4; k++) { const fg = fine(mesh(box(0.15 * r, 0.05 * r, 0.048 * r), glove, tgt.x + 0.08 * r, tgt.y - 0.06 * r, tgt.z + (k - 1.5) * 0.055 * r)); fg.rotation.z = -1.0; M.body.add(fg); }
     }
     // Kopf: Helm/Kapuze/Hut je Skin
     const head = group(0.08 * r, 2.4 * r, 0);
@@ -2986,7 +3008,7 @@ vec3 bumpN(vec3 n, float h) {
       head.add(fine(mesh(cyl(0.385 * r, 0.385 * r, 0.06 * r, 14), strap, 0, 0.37 * r, 0)));
     } else {
       const helmet = mesh(ico(0.46 * r, 2), C("helmet", S.riot ? "plain" : "cloth"), -0.03 * r, 0.1 * r, 0); helmet.scale.set(1, 0.8, 1); head.add(helmet);
-      head.add(fine(mesh(torus(0.45 * r, 0.03 * r), strap, -0.03 * r, 0.12 * r, 0).rotateX(Math.PI / 2))); // Helmband
+      head.add(fine(mesh(ring(0.45 * r, 0.03 * r), strap, -0.03 * r, 0.12 * r, 0).rotateX(Math.PI / 2))); // Helmband
       if (!S.riot && !S.tank) { // Nachtsichthalterung + Schutzbrille auf dem Helm
         head.add(mesh(box(0.1 * r, 0.12 * r, 0.16 * r), tlam("#24272b", "metal"), 0.36 * r, 0.32 * r, 0));
         for (const z of [-1, 1]) { const gl = fine(mesh(cyl(0.07 * r, 0.07 * r, 0.06 * r, 10), tlam("#2a2e33", "metal"), 0.32 * r, 0.4 * r, z * 0.12 * r)); gl.rotation.z = Math.PI / 2; head.add(gl); head.add(fine(mesh(cyl(0.05 * r, 0.05 * r, 0.02 * r, 10), sbasic(S.visor), 0.355 * r, 0.4 * r, z * 0.12 * r).rotateZ(Math.PI / 2))); }

@@ -1,5 +1,5 @@
 // Offline-Cache: App-Dateien sofort aus dem Cache, Update im Hintergrund.
-const CACHE = "outbreak-hero-v24";
+const CACHE = "outbreak-hero-v25";
 const FILES = [
   "./", "./index.html", "./style.css", "./config.js", "./i18n.js", "./sprites.js", "./vendor/three.min.js", "./render3d.js", "./platform.js", "./audio.js", "./minigames.js", "./game.js",
   "./manifest.webmanifest", "./icon.svg", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png",

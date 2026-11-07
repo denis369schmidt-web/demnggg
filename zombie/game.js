@@ -4901,6 +4901,73 @@
     }
     ctx.restore();
   }
+  // v3.2 Minikarte: in Nah- und Schulteransicht bleibt die ganze Arena im Blick – Mauern mit Horden-Gängen, Tür,
+  // Hindernisse, Ziele, Gegner (Elite orange, Boss groß) und der Bodenausschnitt, den die Kamera gerade zeigt
+  function drawMinimap() {
+    if (!mode3d || !window.Render3D || Render3D.camMode === "top") return;
+    const p = player, t = run.time, k = 0.17, mw = (R - L) * k, mh = (B - T) * k;
+    const objUp = run.obj && !(run.obj.done && run.obj.doneT > 2.5), bossUp = enemies.some((e) => e.def.boss && e.spawnT <= 0);
+    const x0 = W - 16 - mw, y0 = Math.max(objUp ? 168 : 112, bossUp ? 188 : 0);
+    const mx = (x) => x0 + (Math.max(L - 14, Math.min(R + 14, x)) - L) * k, my = (y) => y0 + (Math.max(T - 10, Math.min(B + 10, y)) - T) * k;
+    ctx.save();
+    ctx.fillStyle = "rgba(6,9,8,0.74)"; roundRect(x0 - 5, y0 - 5, mw + 10, mh + 10, 5); ctx.fill();
+    ctx.fillStyle = "rgba(92,86,72,0.28)"; ctx.fillRect(x0, y0, mw, mh);
+    ctx.beginPath(); ctx.rect(x0 - 3, y0 - 3, mw + 6, mh + 6); ctx.clip();
+    // sichtbarer Ausschnitt der Kamera
+    const q = Render3D.viewQuad && Render3D.viewQuad();
+    if (q) {
+      ctx.beginPath(); q.forEach((v, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, x0 + (v.x - L) * k, y0 + (v.y - T) * k)); ctx.closePath();
+      ctx.fillStyle = "rgba(255,236,190,0.1)"; ctx.fill();
+      ctx.strokeStyle = "rgba(255,236,190,0.38)"; ctx.lineWidth = 1; ctx.stroke();
+    }
+    ctx.fillStyle = "rgba(186,176,152,0.55)";
+    for (const o of obstacles) if (o.w) ctx.fillRect(x0 + (o.x - L) * k, y0 + (o.y - T) * k, Math.max(1.5, o.w * k), Math.max(1.5, o.h * k));
+    // Mauern: Seiten mit Lücken für die Horden-Gänge (warnende Gänge blinken rot), oben die Tür
+    ctx.lineWidth = 2;
+    for (const side of [-1, 1]) {
+      const x = side < 0 ? x0 - 1 : x0 + mw + 1, cuts = gates.filter((g) => g.side === side).sort((a, b) => a.y - b.y);
+      let y = T;
+      ctx.strokeStyle = "rgba(232,239,233,0.6)"; ctx.beginPath();
+      for (const g of cuts) { ctx.moveTo(x, my(y)); ctx.lineTo(x, my(g.y - g.h / 2)); y = g.y + g.h / 2; }
+      ctx.moveTo(x, my(y)); ctx.lineTo(x, my(B)); ctx.stroke();
+      for (const g of cuts) if (g.warn > 0) {
+        ctx.strokeStyle = `rgba(255,70,50,${0.5 + 0.5 * Math.sin(t * 14)})`; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(x, my(g.y - g.h / 2)); ctx.lineTo(x, my(g.y + g.h / 2)); ctx.stroke(); ctx.lineWidth = 2;
+      }
+    }
+    const dl = W / 2 - DOOR_W / 2, dr = W / 2 + DOOR_W / 2;
+    ctx.strokeStyle = "rgba(232,239,233,0.6)"; ctx.beginPath();
+    ctx.moveTo(x0 - 1, y0 - 1); ctx.lineTo(mx(dl), y0 - 1); ctx.moveTo(mx(dr), y0 - 1); ctx.lineTo(x0 + mw + 1, y0 - 1);
+    ctx.moveTo(x0 - 1, y0 + mh + 1); ctx.lineTo(x0 + mw + 1, y0 + mh + 1); ctx.stroke();
+    ctx.strokeStyle = run.cleared ? `rgba(168,255,62,${0.6 + 0.4 * Math.sin(t * 6)})` : "rgba(255,90,60,0.8)"; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(mx(dl), y0 - 1); ctx.lineTo(mx(dr), y0 - 1); ctx.stroke();
+    // Einsatzziele
+    const o = run.obj;
+    if (objUp && o && o.r && (o.kind === "hold" || o.kind === "relay")) {
+      ctx.strokeStyle = "rgba(255,183,51,0.85)"; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(mx(o.x), my(o.y), o.r * k, 0, TAU); ctx.stroke();
+    }
+    if (o && o.list) {
+      ctx.fillStyle = "#7dff9a";
+      for (const s of o.list) if (s.state === "wait" || s.state === "run") { ctx.beginPath(); ctx.arc(mx(s.x), my(s.y), 2.2, 0, TAU); ctx.fill(); }
+    }
+    // Gegner
+    for (const e of enemies) {
+      if (e.dead || e.spawnT > 0 || e.under) continue;
+      const boss = e.def.boss, r = boss ? 4.2 : Math.max(1.4, Math.min(3, e.r * k * 1.1));
+      ctx.fillStyle = boss ? "#ff3a24" : e.elite ? "#ffb733" : "#e8322a";
+      ctx.beginPath(); ctx.arc(mx(e.x), my(e.y), r, 0, TAU); ctx.fill();
+      if (boss) { ctx.strokeStyle = `rgba(255,58,36,${0.4 + 0.4 * Math.sin(t * 8)})`; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(mx(e.x), my(e.y), r + 3, 0, TAU); ctx.stroke(); }
+    }
+    // Held: Pfeil in Blickrichtung
+    ctx.translate(mx(p.x), my(p.y)); ctx.rotate(p.aim || -Math.PI / 2);
+    ctx.fillStyle = "#f4f1e6"; ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(5.5, 0); ctx.lineTo(-3.5, -3.6); ctx.lineTo(-1.8, 0); ctx.lineTo(-3.5, 3.6); ctx.closePath(); ctx.stroke(); ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,183,51,0.55)"; ctx.lineWidth = 1.2; roundRect(x0 - 5, y0 - 5, mw + 10, mh + 10, 5); ctx.stroke();
+    ctx.restore();
+  }
   // v3.1 Nah-/Third-Person-Kamera: rote Randpfeile für Zombies außerhalb des Bildes (Bosse groß, nahe kräftiger)
   function drawOffscreen() {
     if (!mode3d || !window.Render3D || Render3D.camMode === "top") return;
@@ -4964,7 +5031,7 @@
     drawObjectiveHud();
     if (state === "play") drawGateWarnings();
     drawMiniLabel();
-    if (state === "play") drawOffscreen();
+    if (state === "play") { drawOffscreen(); drawMinimap(); }
     if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); }
     drawCombo();
     // Kinobalken bei Boss-Auftritt und Boss-Tod

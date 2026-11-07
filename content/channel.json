@@ -1,125 +1,125 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-11-06",
-  "generatedAt": "2026-11-06T12:57:40.133Z",
-  "attempt": 0,
+  "edition": "2026-11-07",
+  "generatedAt": "2026-11-07T11:43:54.682Z",
+  "attempt": 3,
   "theme": {
-    "id": "spiegelbild",
-    "title": "Spiegelbild",
-    "mood": "ehrlich",
-    "description": "Selbstreflexion ohne Filter – die härteste Battle-Runde.",
+    "id": "heimathafen",
+    "title": "Heimathafen",
+    "mood": "warm",
+    "description": "Wurzeln, alte Freunde und der Block, der dich geprägt hat.",
     "keywords": [
-      "Spiegel",
-      "Wahrheit",
-      "Zweifel",
-      "Stolz",
-      "Wandel",
-      "Kern"
+      "Heimat",
+      "Wurzeln",
+      "Block",
+      "Familie",
+      "Erinnerung",
+      "Anker"
     ]
   },
   "challenge": {
-    "id": "leiser-lauter",
-    "title": "Leiser & Lauter",
-    "task": "Performe 12 Bars über „Spiegelbild“ und steigere die Dynamik von Flüstern bis volle Energie.",
-    "constraint": "Mindestens zwei Zeilen enthalten einen Doppelreim.",
+    "id": "silben-sprint",
+    "title": "Silben-Sprint",
+    "task": "Schreibe 12 Bars zum Thema „Heimathafen“ und lande jede Punchline exakt auf der Snare (Zählzeit 3).",
+    "constraint": "Verwende mindestens ein Bild aus der Natur.",
     "bars": 12,
-    "bpm": 92
+    "bpm": 141
   },
   "wordPacks": [
     {
-      "id": "spiegelbild-thema",
-      "title": "Thema: Spiegelbild",
+      "id": "heimathafen-thema",
+      "title": "Thema: Heimathafen",
       "words": [
-        "Kern",
-        "Zweifel",
-        "Wandel",
-        "Spiegel",
-        "Wahrheit",
-        "Stolz"
+        "Heimat",
+        "Wurzeln",
+        "Block",
+        "Erinnerung",
+        "Anker",
+        "Familie"
       ]
     },
     {
-      "id": "2026-11-06-bilder",
+      "id": "2026-11-07-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Spiegel",
-        "Tinte",
-        "Fundament",
-        "Tresor",
-        "Anker",
-        "Magnet"
+        "Leuchtturm",
+        "Silhouette",
+        "Satellit",
+        "Asphalt",
+        "Echo",
+        "Antenne"
       ]
     },
     {
-      "id": "2026-11-06-energie",
+      "id": "2026-11-07-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Feuer",
-        "Hunger",
-        "Balance",
-        "grinden",
-        "kreisen",
-        "landen"
+        "Ruhe",
+        "Frieden",
+        "Geduld",
+        "steigen",
+        "klettern",
+        "pushen"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Fluss",
-      "b": "Schluss"
+      "a": "Ton",
+      "b": "davon"
     },
     {
-      "a": "Hand",
-      "b": "Verstand"
+      "a": "Licht",
+      "b": "Sicht"
     },
     {
-      "a": "Boden",
-      "b": "Methoden"
-    },
-    {
-      "a": "Leben",
-      "b": "geben"
+      "a": "Klang",
+      "b": "Drang"
     },
     {
       "a": "Nebel",
       "b": "Pegel"
     },
     {
-      "a": "Blick",
-      "b": "Genick"
+      "a": "Glut",
+      "b": "Mut"
+    },
+    {
+      "a": "Wind",
+      "b": "geschwind"
     }
   ],
   "starterBars": [
     {
-      "line": "Mit Satellit in der Stimme klingt selbst Stille wie ein Ruf",
-      "syllables": 15
-    },
-    {
-      "line": "Spiegel im Blick, ich bleib ruhig auf der Eins",
+      "line": "Block bleibt der Anker, wenn der Offbeat mich ruft",
       "syllables": 11
     },
     {
-      "line": "Spiegel als Kompass und die Snare gibt den Takt",
+      "line": "Zwischen Block und Funken find ich Raum für den Reim",
       "syllables": 12
     },
     {
-      "line": "Zwischen Stolz und Satellit find ich Raum für den Reim",
+      "line": "Ich stapel Silben auf Heimat, bis der Pegel sich häuft",
+      "syllables": 14
+    },
+    {
+      "line": "Der Tag war Heimat, doch die Nacht macht ihn zu meinem",
       "syllables": 13
     }
   ],
   "flowTip": {
-    "id": "aufnahme-check",
-    "title": "Der 24-Stunden-Check",
-    "tip": "Höre jede Aufnahme erst am nächsten Tag erneut. Frische Ohren erkennen Timing-Fehler sofort."
+    "id": "call-response",
+    "title": "Call & Response",
+    "tip": "Lass Zeile 2 auf Zeile 1 antworten – Frage/Antwort-Strukturen halten Zuhörer automatisch im Takt."
   },
-  "quote": "Große Hooks entstehen oft aus kleinen Selbstgesprächen.",
+  "quote": "Deine Stimme ist das einzige Instrument, das du immer dabei hast.",
   "beatPreset": {
-    "bpm": 92,
-    "pattern": "Boom Bap",
+    "bpm": 141,
+    "pattern": "Trap Halftime",
     "energy": "mittel"
   },
   "editorial": {
-    "score": 99,
+    "score": 100,
     "gates": [
       {
         "gate": "Vollständigkeit",
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-11-06",
+    "latestEdition": "2026-11-07",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

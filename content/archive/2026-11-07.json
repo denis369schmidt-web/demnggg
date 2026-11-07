@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-11-07",
+  "generatedAt": "2026-11-07T11:43:54.682Z",
+  "attempt": 3,
+  "theme": {
+    "id": "heimathafen",
+    "title": "Heimathafen",
+    "mood": "warm",
+    "description": "Wurzeln, alte Freunde und der Block, der dich geprägt hat.",
+    "keywords": [
+      "Heimat",
+      "Wurzeln",
+      "Block",
+      "Familie",
+      "Erinnerung",
+      "Anker"
+    ]
+  },
+  "challenge": {
+    "id": "silben-sprint",
+    "title": "Silben-Sprint",
+    "task": "Schreibe 12 Bars zum Thema „Heimathafen“ und lande jede Punchline exakt auf der Snare (Zählzeit 3).",
+    "constraint": "Verwende mindestens ein Bild aus der Natur.",
+    "bars": 12,
+    "bpm": 141
+  },
+  "wordPacks": [
+    {
+      "id": "heimathafen-thema",
+      "title": "Thema: Heimathafen",
+      "words": [
+        "Heimat",
+        "Wurzeln",
+        "Block",
+        "Erinnerung",
+        "Anker",
+        "Familie"
+      ]
+    },
+    {
+      "id": "2026-11-07-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Leuchtturm",
+        "Silhouette",
+        "Satellit",
+        "Asphalt",
+        "Echo",
+        "Antenne"
+      ]
+    },
+    {
+      "id": "2026-11-07-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Ruhe",
+        "Frieden",
+        "Geduld",
+        "steigen",
+        "klettern",
+        "pushen"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Ton",
+      "b": "davon"
+    },
+    {
+      "a": "Licht",
+      "b": "Sicht"
+    },
+    {
+      "a": "Klang",
+      "b": "Drang"
+    },
+    {
+      "a": "Nebel",
+      "b": "Pegel"
+    },
+    {
+      "a": "Glut",
+      "b": "Mut"
+    },
+    {
+      "a": "Wind",
+      "b": "geschwind"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Block bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 11
+    },
+    {
+      "line": "Zwischen Block und Funken find ich Raum für den Reim",
+      "syllables": 12
+    },
+    {
+      "line": "Ich stapel Silben auf Heimat, bis der Pegel sich häuft",
+      "syllables": 14
+    },
+    {
+      "line": "Der Tag war Heimat, doch die Nacht macht ihn zu meinem",
+      "syllables": 13
+    }
+  ],
+  "flowTip": {
+    "id": "call-response",
+    "title": "Call & Response",
+    "tip": "Lass Zeile 2 auf Zeile 1 antworten – Frage/Antwort-Strukturen halten Zuhörer automatisch im Takt."
+  },
+  "quote": "Deine Stimme ist das einzige Instrument, das du immer dabei hast.",
+  "beatPreset": {
+    "bpm": 141,
+    "pattern": "Trap Halftime",
+    "energy": "mittel"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-11-07",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

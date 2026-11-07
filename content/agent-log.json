@@ -1,5 +1,55 @@
 [
   {
+    "runAt": "2026-11-07T11:43:54.682Z",
+    "edition": "2026-11-07",
+    "attempt": 3,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 21,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 2 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 3 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Heimathafen“, Trap Halftime @ 141 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Silben-Sprint“ (12 Bars), Versuch 4."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-11-07 veröffentlicht (Hash 4d725acc)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-11-06T12:57:40.133Z",
     "edition": "2026-11-06",
     "attempt": 0,
@@ -1846,41 +1896,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-09-17 veröffentlicht (Hash b2e979d4)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-09-16T09:58:13.836Z",
-    "edition": "2026-09-16",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 27,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Zeitkapsel“, Boom Bap @ 91 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Double-Time-Drill“ (16 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-09-16 veröffentlicht (Hash 9bcb29db)."
       }
     ]
   }

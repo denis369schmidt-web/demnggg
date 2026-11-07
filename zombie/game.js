@@ -929,8 +929,10 @@
     floorCtx.restore();
   }
   function addPool(x, y, max, color, delay = rand(0.2, 0.6)) {
-    if (pools.length >= 40 || x < L || x > R || y < T || y > B) return;
+    if (x < L || x > R || y < T || y > B) return;
+    // nasse Stellen auch dann, wenn die Lachen-Grenze erreicht ist – gerade in großen Gefechten soll man durchs Blut stapfen
     wetSpots.push({ x, y, r: max * 0.8, color }); if (wetSpots.length > 60) wetSpots.shift();
+    if (pools.length >= 40) return;
     const lobes = Array.from({ length: 3 }, () => ({ dx: rand(-0.45, 0.45), dy: rand(-0.35, 0.35), k: rand(0.55, 0.85) }));
     pools.push({ x, y, r: 0, drawn: 0, max, color, lobes, delay });
   }
@@ -1341,10 +1343,11 @@
       p.aim = Math.atan2(v.y, v.x);
       p.walkT += dt * 10;
       const step = Math.floor(p.walkT / 1.55);
+      // Sohlen werden nass, sobald der Held durch eine Lache läuft – nicht nur, wenn ein Schritt genau darin landet
+      for (const q of wetSpots) if ((q.x - p.x) ** 2 + (q.y - p.y) ** 2 < (q.r + p.r * 0.6) ** 2) { if (!(p.bloodSteps > 6)) { p.bloodSteps = 10; p.bloodCol = q.color; } break; } // Fuß am Lachenrand zählt
       if (step !== p.footStep) {
         p.footStep = step;
         if (Math.random() < 0.7) fxDust(p.x - v.x * 8, p.y - v.y * 8 + 4, 1, 0.45);
-        for (const q of wetSpots) if ((q.x - p.x) ** 2 + (q.y - p.y) ** 2 < q.r * q.r) { p.bloodSteps = 10; p.bloodCol = q.color; break; }
         if (p.bloodSteps > 0) {
           const a = Math.atan2(v.y, v.x), sd = step % 2 ? 1 : -1;
           stampFoot(p.x - Math.sin(a) * 4 * sd, p.y + Math.cos(a) * 4 * sd, a, p.bloodCol || "#5a0c0e", 0.12 + 0.05 * p.bloodSteps);
@@ -7469,7 +7472,7 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), get miniSpot() { return miniSpot; }, mini: (kind = "lukas") => { const s = { kind, x: player.x, y: player.y, r: 30, bob: 0, done: false, armed: false }; miniSpot = s; openMini(s); return s; }, layout: (list = [], withBarrier = false) => {
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), get miniSpot() { return miniSpot; }, get wetSpots() { return wetSpots; }, mini: (kind = "lukas") => { const s = { kind, x: player.x, y: player.y, r: 30, bob: 0, done: false, armed: false }; miniSpot = s; openMini(s); return s; }, layout: (list = [], withBarrier = false) => {
     const fest = run.mode === "campaign" && run.room > 0 ? curCity().fest : "";
     const obs = (withBarrier ? genBarrier() : []).concat(list.map((q) => { const sz = OBSTACLE_SIZE[q.kind]; let w = q.w || sz[0], h = q.h || sz[2]; if (q.vert && !q.w) [w, h] = [h, w]; const o = { seed: randi(1, 1e9), fest, vert: !!q.vert, ...q, w, h }; if (DESTRUCT[q.kind]) o.hp = DESTRUCT[q.kind]; return o; }));
     obstacles = clearGates(obs); floorCanvas = makeFloor();

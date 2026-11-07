@@ -313,7 +313,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .item.selected { --acc: var(--amber); border-color: rgba(255, 183, 51, 0.55); }
 
 /* ---------------------------------------------------------------- Dialoge */
-.modal { align-items: center; justify-content: center; padding: 20px 14px; background: rgba(4, 6, 5, 0.78); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); overflow-y: auto; }
+.modal { align-items: center; justify-content: center; padding: 20px 14px; background: rgba(4, 6, 5, 0.78); overflow-y: auto; }
 .dialog {
   position: relative; width: 100%; max-width: 380px; display: flex; flex-direction: column; align-items: stretch; gap: 10px;
   padding: 22px 18px 18px; background: var(--noise), linear-gradient(180deg, #1d2826 0%, #121917 100%);
@@ -686,7 +686,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
   .stage-hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .menu.enter > *, .brand-top, .brand-top::after, .cta::after, .stage-hint { animation: none !important; }
+  .menu.enter > *, .brand-top, .brand-top::after, .cta::after, .cta::before, .stage-hint { animation: none !important; }
 }
 
 /* Seitenleisten im neuen Menü kompakter, damit sie nie die Auswahlfelder berühren */
@@ -828,8 +828,15 @@ canvas { display: block; background: #121a16; touch-action: none; }
 /* =====================================================================
    v2.3 Game-Feel: CTA atmet, kritische HP, Stempel-Einsatzbericht
    ===================================================================== */
-.btn.primary.xl.cta { animation: cta-breathe 2.4s ease-in-out infinite; }
-@keyframes cta-breathe { 50% { filter: brightness(1.14); } }
+/* v3.0 Leistung: „Atmen“ über die Deckkraft einer Lichtschicht statt animiertem filter: brightness() –
+   ein animierter Filter zwingt den Browser, den Knopf in jedem Bild neu zu rastern (halbe Menü-Bildrate) */
+.btn.primary.xl.cta { position: relative; }
+.btn.primary.xl.cta::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0;
+  background: rgba(255, 236, 200, 0.14); opacity: 0; will-change: opacity;
+  animation: cta-breathe 2.4s ease-in-out infinite;
+}
+@keyframes cta-breathe { 50% { opacity: 1; } }
 #view.critical::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   box-shadow: inset 0 0 90px rgba(160, 8, 12, 0.55);
@@ -984,7 +991,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 /* Sprühschablone mit rauer Kante und Pinselstrich darunter */
 .bar h2 {
   margin-top: 5px; padding-bottom: 7px; font-family: var(--f-stencil); font-size: 27px; font-weight: 400; letter-spacing: 0.05em; color: #efe8d4;
-  background: var(--brush) no-repeat 0 100% / 132px 7px; filter: url(#rough);
+  background: var(--brush) no-repeat 0 100% / 132px 7px; -webkit-mask: var(--rough-mask); mask: var(--rough-mask);
 }
 
 .back, .x {
@@ -1089,7 +1096,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .tab.active { margin-top: 0; color: var(--ink); background: var(--paper-tex), linear-gradient(180deg, #ece4d0, #d8ceb3); box-shadow: none; }
 
 /* ---------------------------------------------------------------- Dialoge: Klemmbrett */
-.modal { background: rgba(10, 9, 7, 0.72); }
+.modal { background: rgba(10, 9, 7, 0.8); } /* v3.0 Leistung: ohne backdrop-filter – der Weichzeichner kostete in der Pause 3/4 der Bildrate */
 .dialog {
   --text: var(--ink); --text-2: var(--ink-2); --text-3: var(--ink-3);
   color: var(--ink); clip-path: none; border-radius: 3px; margin-top: 18px;
@@ -1101,7 +1108,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
   background: var(--screw) 10px 50% / 8px 8px no-repeat, var(--screw) calc(100% - 10px) 50% / 8px 8px no-repeat, linear-gradient(180deg, #d8dcdf, #8f969b 60%, #6f767b);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 3px 4px rgba(0, 0, 0, 0.45);
 }
-.dlg-head h2 { font-family: var(--f-stencil); font-weight: 400; letter-spacing: 0.04em; color: var(--ink); filter: url(#rough); }
+.dlg-head h2 { font-family: var(--f-stencil); font-weight: 400; letter-spacing: 0.04em; color: var(--ink); -webkit-mask: var(--rough-mask); mask: var(--rough-mask); }
 .dlg-head .kicker { font-family: "Special Elite", var(--f-ui); letter-spacing: 0.12em; color: var(--ink-3); }
 .dialog .stats > span { color: var(--ink-2); }
 .dialog .stats > b { color: var(--ink); }
@@ -1109,7 +1116,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .danger .dialog { background: var(--paper-tex), linear-gradient(180deg, #ecd9cf, #d9bfb1); }
 
 /* Stempel: schief, ausgefranst, Stempelfarbe */
-.stamp { filter: url(#rough); }
+.stamp { -webkit-mask: var(--rough-mask); mask: var(--rough-mask); }
 
 /* ---------------------------------------------------------------- Skill-Karten: Dienstausweise */
 .card {
@@ -1132,7 +1139,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .card.evo, .card.angel { --rc: #c29a3c; }
 .card.devil { --rc: #a63526; }
 .recipe .ing { color: var(--ink-2); }
-.pick-head h2 { font-family: var(--f-stencil); font-weight: 400; color: #efe8d4; filter: url(#rough); }
+.pick-head h2 { font-family: var(--f-stencil); font-weight: 400; color: #efe8d4; -webkit-mask: var(--rough-mask); mask: var(--rough-mask); }
 
 /* ---------------------------------------------------------------- Einstellungen: Schaltpult mit Kippschaltern */
 .set-row {
@@ -1162,7 +1169,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 }
 .ticker { background: #121210; box-shadow: inset 0 0 0 1px #2c2a22; border-radius: 2px; }
 .ticker > b { background: #b8352a; color: #fff3ec; }
-.brand-top { color: #efe8d4; text-shadow: 0 3px 0 #1c1913, 0 0 18px rgba(0, 0, 0, 0.6); filter: url(#spray); animation: none !important; }
+.brand-top { color: #efe8d4; text-shadow: 0 3px 0 #1c1913, 0 0 18px rgba(0, 0, 0, 0.6); -webkit-mask: var(--spray-mask); mask: var(--spray-mask); animation: none !important; }
 .brand-top .drips { display: none; }
 .brand-bottom { transform: rotate(-1.8deg); }
 .brand-bottom::before { display: none; }
@@ -1215,7 +1222,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
     var(--screw) 9px calc(100% - 9px) / 8px 8px no-repeat, var(--screw) calc(100% - 9px) calc(100% - 9px) / 8px 8px no-repeat,
     var(--metal-tex), linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 46%), linear-gradient(180deg, #ef6a2c, #c9471a);
 }
-.cta > span { filter: url(#rough); }
+.cta > span { -webkit-mask: var(--rough-mask); mask: var(--rough-mask); }
 .cta::after { opacity: 0.35; }
 /* Leiste unten: Werkzeugkiste */
 .dock-btn {
@@ -1296,3 +1303,10 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .brand-top em { font-style: normal; color: #d8322a; text-shadow: 0 3px 0 #1c1913, 0 0 14px rgba(216, 50, 42, 0.45); }
 .brand-bottom span { position: relative; letter-spacing: 0.55em; text-indent: 0.55em; }
 .brand-bottom span::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: -8px; height: 5px; border-radius: 1px; background: linear-gradient(90deg, #111 0 33.3%, #d4161c 33.3% 66.6%, #ffcc00 66.6%); box-shadow: 0 0 0 1.5px rgba(239, 232, 212, 0.7), 0 2px 3px rgba(0, 0, 0, 0.6); }
+
+/* v3.0 Leistung: Stempel- und Sprühkanten als Maske aus einem einmal gerasterten Rauschbild statt live
+   berechneter SVG-Filter (feTurbulence kostete auf Software-Rastern bis zur Hälfte der Bildrate) */
+:root {
+  --rough-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -2.4 2.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url%28%23n%29'/%3E%3C/svg%3E") 0 0 / 160px 160px repeat;
+  --spray-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -3.4 2.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url%28%23n%29'/%3E%3C/svg%3E") 0 0 / 200px 200px repeat;
+}

@@ -266,6 +266,16 @@ window.Render3D = (() => {
   let hemi, moon, fill, flashlight, beam, outlineMat;
   const pool = [];
   const CAM = { elev: 60 * Math.PI / 180, dist: 1200, fov: 34, tx: 0, tz: 0, offY: 0, fx: 0, fz: 0, boss: 0 };
+  // v3.1 Kamera-Perspektiven: „top“ = ganze Arena (Standard), „close“ = folgt dem Helden von schräg oben,
+  // „tp“ = Third Person – hinter und über dem Kopf, Blick nach vorn (Norden, damit die Steuerung gleich bleibt)
+  const CAM_MODES = {
+    close: { eye: 520, back: 330, lookH: 10, ahead: 80, fov: 40, follow: 5 },
+    tp: { eye: 150, back: 170, lookH: 0, ahead: 95, fov: 62, follow: 7 },
+  };
+  let camMode = "top", camOff = null;
+  // ungefähre Höhe der Hindernis-Modelle (für die Kranfahrt der Third-Person-Kamera)
+  const OBS_H = { car: 42, crate: 40, medcrate: 34, labcrate: 34, barrels: 40, barricade: 30, dumpster: 44, bed: 28, cabinet: 70, tank: 80, server: 80, bude: 50, bierbank: 30, fass: 30, maibaum: 150, brunnen: 37, boeller: 30, automat: 44, rebstock: 34, glascontainer: 40, dixi: 70, telefonzelle: 80, weihnachtsbaum: 85, strandkorb: 55, sandsack: 24, bus: 50, bauzaun: 20, feuertonne: 36, container: 58 };
+  const camPos = new T3.Vector3(), camLook = new T3.Vector3();
   // Figuren wirken in 3D kleiner als Sprites → sichtbar größer als ihr Kollisionskreis
   const CHAR_SCALE = 1.45, BOSS_SCALE = 1.12, PLAYER_SCALE = 1.5;
 
@@ -351,7 +361,7 @@ window.Render3D = (() => {
   // Ziehen dreht (menuOrbit), der Bewegungssensor neigt (setTilt), dazu leichtes Handkamera-Wackeln.
   const menuCam = { yaw: 0, drag: false, tiltX: 0, tiltY: 0, t0: -1 };
   function placeMenuCamera(t, w) {
-    if (!menuMode) { menuMode = true; menuCam.t0 = t; camera.fov = 36; camera.setViewOffset(D.W, D.H, 0, D.H * 0.075, D.W, D.H); camera.updateProjectionMatrix(); }
+    if (!menuMode) { menuMode = true; menuCam.t0 = t; camera.fov = 36; camera.setViewOffset(D.W, D.H, 0, D.H * 0.075, D.W, D.H); camera.updateProjectionMatrix(); camOff = null; }
     const k = Math.min(1, (t - menuCam.t0) / 3.4), ease = 1 - Math.pow(1 - k, 3);
     if (!menuCam.drag) menuCam.yaw *= Math.exp(-0.35 * Math.min(0.1, frameDt)); // lässt man los, schwingt sie langsam zurück
     const yaw = Math.PI + 0.42 + Math.sin(t * 0.07) * 0.32 + menuCam.yaw + menuCam.tiltX * 0.3;
@@ -365,26 +375,61 @@ window.Render3D = (() => {
   let frameDt = 0.016;
   // Spielstart: Kamera fliegt aus der Menü-Perspektive in die Spielansicht
   let fly = null;
-  function placeCamera(dist, sx = 0, sz = 0) {
+  function placeCamera(dist, sx = 0, sz = 0, raw = false) {
+    camPos.set(CAM.tx + sx, Math.sin(CAM.elev) * dist, CAM.tz + Math.cos(CAM.elev) * dist + sz);
+    camLook.set(CAM.tx + sx, 0, CAM.tz + sz);
+    if (raw) { camera.position.copy(camPos); camera.lookAt(camLook); camera.updateMatrixWorld(); return; } // nur zum Ausmessen (fitCamera)
+    applyCam(CAM.fov, CAM.offY);
+  }
+  // Nah-/Third-Person-Kamera: folgt dem Helden; Ziel (tx, tz) ist bereits geglättet
+  function placeFollowCamera(P, tx, tz, lift = 0, eye = P.eye) {
+    camPos.set(tx, eye * (1 + lift), tz + P.back * (1 + lift * 0.6));
+    camLook.set(tx, P.lookH, tz - P.ahead);
+    applyCam(P.fov, 0);
+  }
+  function applyCam(fov, offY) {
     if (menuMode) {
       menuMode = false;
-      fly = { t0: performance.now(), pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov };
-      camera.fov = CAM.fov; camera.setViewOffset(D.W, D.H, 0, CAM.offY, D.W, D.H); camera.updateProjectionMatrix();
+      fly = { t0: performance.now(), pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov, off: D.H * 0.075 };
     }
-    camera.position.set(CAM.tx + sx, Math.sin(CAM.elev) * dist, CAM.tz + Math.cos(CAM.elev) * dist + sz);
-    camera.lookAt(CAM.tx + sx, 0, CAM.tz + sz);
+    camera.position.copy(camPos);
+    camera.lookAt(camLook);
     if (fly) {
       // Echtzeit statt Spielzeit: dauert auf jedem Gerät gleich lang
       const x = Math.min(1, (performance.now() - fly.t0) / 1300), k = x * x * (3 - 2 * x);
       camera.position.lerpVectors(fly.pos, camera.position.clone(), k);
       camera.quaternion.slerpQuaternions(fly.quat, camera.quaternion.clone(), k);
-      camera.fov = fly.fov + (CAM.fov - fly.fov) * k;
-      camera.setViewOffset(D.W, D.H, 0, CAM.offY * k, D.W, D.H);
+      camera.fov = fly.fov + (fov - fly.fov) * k;
+      camera.setViewOffset(D.W, D.H, 0, fly.off + (offY - fly.off) * k, D.W, D.H);
       camera.updateProjectionMatrix();
+      camOff = null;
       if (x >= 1) fly = null;
+    } else if (camOff !== offY) {
+      // Moduswechsel: Bildversatz (Arena unter dem HUD) nur in der Übersicht
+      camOff = offY;
+      camera.setViewOffset(D.W, D.H, 0, offY, D.W, D.H);
+      camera.updateProjectionMatrix();
     }
     camera.updateMatrixWorld();
   }
+  // Third Person: Gegner direkt zwischen Kamera und Held werden durchscheinend (Umriss aus), damit der Held sichtbar bleibt
+  function ghostOccluders(P, pl, dt) {
+    for (const [e, M] of models) {
+      if (!M.parts) continue;
+      const dz = e.y - pl.y, hit = camMode === "tp" && !e.dead && dz > 4 && dz < P.back + 40 && Math.abs(e.x - pl.x) < e.r * 1.5 + 16;
+      setGhost(M, (M.ghost || 0) + ((hit ? 1 : 0) - (M.ghost || 0)) * Math.min(1, dt * 8));
+    }
+  }
+  function setGhost(M, g) {
+    if (!M.parts) return;
+    if (g < 0.02) g = 0;
+    if (g === (M.ghost || 0) && g === 0) return;
+    M.ghost = g;
+    const mat = M.parts.body.material;
+    mat.transparent = g > 0; mat.opacity = 1 - 0.68 * g; mat.depthWrite = g === 0;
+    for (const c of M.root.children) if (c.userData.outline) c.visible = g < 0.3;
+  }
+  function setCamMode(m) { camMode = CAM_MODES[m] ? m : "top"; CAM.fol = null; CAM.eye = null; camOff = null; if (camMode !== "tp") for (const [, M] of models) setGhost(M, 0); }
 
   // Kamera so weit zurückziehen, dass die ganze Arena unter das HUD passt
   function fitCamera() {
@@ -398,7 +443,7 @@ window.Render3D = (() => {
     const corners = [[D.L - 14, D.T - 60], [D.R + 14, D.T - 60], [D.L - 14, D.B + 30], [D.R + 14, D.B + 30]];
     let dist = 500, minY = 0, maxY = 0;
     for (; dist < 4000; dist += 10) {
-      placeCamera(dist);
+      placeCamera(dist, 0, 0, true);
       let ok = true;
       minY = 9; maxY = -9;
       for (const [x, z] of corners) {
@@ -413,6 +458,7 @@ window.Render3D = (() => {
     CAM.offY = ((bandMid - mid) / 2) * D.H;
     camera.setViewOffset(D.W, D.H, 0, CAM.offY, D.W, D.H);
     camera.updateProjectionMatrix();
+    camOff = CAM.offY;
     placeCamera(dist);
   }
 
@@ -2165,6 +2211,7 @@ void main() {
   }
   const POOL_MAX = 8; // pro Typ/Variante – mehr gleichzeitige Gegner kommen kaum vor
   function releaseModel(M) {
+    if (M.ghost) setGhost(M, 0); // aus dem Pool wieder deckend herausgeben
     scene.remove(M.root);
     if (!pools.has(M.key)) pools.set(M.key, []);
     const list = pools.get(M.key);
@@ -3890,7 +3937,32 @@ void main() {
     const intro = w.intro || 0;
     frameDt = dt;
     if (w.menuCam) placeMenuCamera(t, w);
-    else {
+    else if (camMode !== "top") {
+      const P = CAM_MODES[camMode], pl = w.player, kf = Math.min(1, dt * P.follow);
+      if (!CAM.fol) CAM.fol = { x: pl.x, z: pl.y };
+      CAM.fol.x += (pl.x - CAM.fol.x) * kf; CAM.fol.z += (pl.y - CAM.fol.z) * kf;
+      const wantFov = P.fov + (punch.fov || 0) * 1.4;
+      if (!fly && Math.abs(camera.fov - wantFov) > 0.04) { camera.fov = wantFov; camera.updateProjectionMatrix(); }
+      // Kranfahrt: steht etwas Großes zwischen Kamera und Held, fährt die Kamera so weit hoch, dass der Kopf sichtbar bleibt
+      let need = P.eye;
+      if (camMode === "tp") {
+        const ph = 62, lineOk = (dz, h) => ph + (h + 8 - ph) * P.back / dz;
+        for (const e of w.enemies) {
+          if (e.dead || e.spawnT > 0 || e.under) continue;
+          const dz = e.y - pl.y;
+          if (dz <= 4 || dz > P.back || Math.abs(e.x - pl.x) > e.r * 1.3 + 14) continue;
+          need = Math.max(need, lineOk(dz, heightOf(e) * 1.25 + 6)); // erhobene Arme ragen über die Modellhöhe
+        }
+        for (const o of w.obstacles) {
+          const h = OBS_H[o.kind] || 40, dz = o.y - pl.y;
+          if (dz <= 4 || dz > P.back || pl.x < o.x - 10 || pl.x > o.x + o.w + 10) continue;
+          need = Math.max(need, lineOk(dz, h));
+        }
+      }
+      CAM.eye = (CAM.eye || P.eye) + (Math.min(need, P.eye * 2.6) - (CAM.eye || P.eye)) * Math.min(1, dt * (need > (CAM.eye || 0) ? 5 : 1.6));
+      ghostOccluders(P, pl, dt);
+      placeFollowCamera(P, CAM.fol.x + sx * 0.7, CAM.fol.z + sz * 0.7, 0.35 * intro * intro + 0.25 * CAM.boss, CAM.eye);
+    } else {
       const wantFov = CAM.fov + (punch.fov || 0);
       if (Math.abs(camera.fov - wantFov) > 0.04) { camera.fov = wantFov; camera.updateProjectionMatrix(); }
       const kk = CAM.kill || 0;
@@ -3920,7 +3992,10 @@ void main() {
 
   // Welt-Position → Bildschirm (logische 540×960-Koordinaten des HUD-Canvas)
   function project(x, y, h = 0) {
-    pv.set(x, h, y).project(camera);
+    // v3.1: Punkte hinter der Kamera (Third Person) liefern „behind“ statt eines gespiegelten Bildpunkts
+    pv.set(x, h, y).applyMatrix4(camera.matrixWorldInverse);
+    if (pv.z > -camera.near) return { x: -9999, y: -9999, behind: true };
+    pv.applyMatrix4(camera.projectionMatrix);
     return { x: ((pv.x + 1) / 2) * D.W, y: ((1 - pv.y) / 2) * D.H };
   }
   function heightOf(e) { const M = models.get(e); return (M ? M.height : e.r * 2.6) * e.scale * (e.def.boss ? BOSS_SCALE : CHAR_SCALE); }
@@ -3942,7 +4017,7 @@ void main() {
   }
 
   return {
-    init, resize, render, project, heightOf, setQuality, setBloom, clear, preview, stopPreview, showcase,
+    init, resize, render, project, heightOf, setQuality, setBloom, setCamMode, get camMode() { return camMode; }, clear, preview, stopPreview, showcase,
     setCinematic(on) { cinematic = on; }, get flash() { return atmo.flash; },
     menuOrbit(d, end = false) { if (end) { menuCam.drag = false; return; } menuCam.drag = true; menuCam.yaw = Math.max(-1.6, Math.min(1.6, menuCam.yaw + d)); },
     setTilt(x, y) { menuCam.tiltX += (x - menuCam.tiltX) * 0.15; menuCam.tiltY += (y - menuCam.tiltY) * 0.15; },

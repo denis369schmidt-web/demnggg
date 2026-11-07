@@ -537,6 +537,12 @@ window.I18N = (() => {
     "Leuchteffekte": "Glow effects",
     "Skill für diesen Einsatz sperren": "Ban this skill for the run",
     "Start in {c} mit einem Start-Skill": "Start in {c} with one starting skill",
+    // v3.1 Kamera-Perspektiven
+    "Kamera": "Camera",
+    "Übersicht": "Overview",
+    "Nah": "Close",
+    "Third Person": "Third person",
+    "(nur 3D)": "(3D only)",
     // v3.0 Mini-Spiele
     "Schießbude": "Shooting gallery",
     "SCHIESSBUDE": "SHOOTING GALLERY",

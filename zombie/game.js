@@ -294,6 +294,8 @@
   const ctx = canvas.getContext("2d");
   const view = $("view");
   const canvas3d = $("game3d");
+  const CAM_ORDER = ["top", "close", "tp"];
+  const CAM_NAMES = { top: "Übersicht", close: "Nah", tp: "Third Person" };
   const ui = {
     menu: $("menu"), armory: $("armory"), talents: $("talents"), skillPick: $("skillPick"),
     pause: $("pause"), over: $("over"), pauseBtn: $("pauseBtn"),
@@ -397,6 +399,7 @@
     if (mode3d) {
       Render3D.setQuality(quality);
       Render3D.setBloom(save.bloom !== false);
+      Render3D.setCamMode(save.cam || "top");
       // 3D-Auflösung bewusst begrenzt: Füllrate ist auf Handys der Engpass, das HUD bleibt trotzdem scharf
       Render3D.resize(W * scale, H * scale, Math.min(window.devicePixelRatio || 1, quality >= 2 ? 1.5 : 1) * RES_STEPS[resStep]);
     }
@@ -1179,7 +1182,7 @@
   window.addEventListener("keydown", (e) => {
     if ((e.key === " " || e.key === "Shift") && !e.repeat) { requestDash(); if (state === "play") e.preventDefault(); }
     const kk = e.key.toLowerCase();
-    if (!e.repeat && state === "play") { if (kk === "q") requestThrow(); else if (kk === "r") cycleThrow(); else if (kk === "e") requestUlt(); }
+    if (!e.repeat && state === "play") { if (kk === "q") requestThrow(); else if (kk === "r") cycleThrow(); else if (kk === "e") requestUlt(); else if (kk === "c" && mode3d) cycleCam(); }
     keys.add(e.key.toLowerCase());
     if (e.key === "Escape" || e.key === "p") togglePause();
   });
@@ -1248,6 +1251,7 @@
       if (edge(5) || edge(7)) requestThrow();
       if (edge(4)) cycleThrow();
       if (edge(3)) requestUlt();
+      if (edge(8) && mode3d) cycleCam();
     } else if (!(state === "mini" && miniLive)) {
       pad.navT -= dt;
       const ax = Math.abs(pad.x) > Math.abs(pad.y) ? pad.x : pad.y;
@@ -4418,6 +4422,7 @@
     if (state === "play") {
       state = "pause";
       joy.active = false;
+      renderSettings(); // Kamera-Knopf im Pausenmenü aktuell halten
       const grid = $("pauseSkills");
       const cell = (icon, tone, name, n, cls = "") => `<div class="sk ${cls}">${medal(icon, tone)}<em>${name}</em>${n > 1 ? `<b>${n}</b>` : ""}</div>`;
       let html = "";
@@ -4896,6 +4901,34 @@
     }
     ctx.restore();
   }
+  // v3.1 Nah-/Third-Person-Kamera: rote Randpfeile für Zombies außerhalb des Bildes (Bosse groß, nahe kräftiger)
+  function drawOffscreen() {
+    if (!mode3d || !window.Render3D || Render3D.camMode === "top") return;
+    const p = player, top = 112, bot = H - 30, pad = 18, list = [];
+    for (const e of enemies) {
+      if (e.dead || e.spawnT > 0 || e.under) continue;
+      const q = scr(e.x, e.y, e.r * 1.6);
+      if (!q.behind && q.x > 0 && q.x < W && q.y > top && q.y < bot) continue;
+      list.push({ e, d: (e.x - p.x) ** 2 + (e.y - p.y) ** 2 });
+    }
+    list.sort((a, b) => a.d - b.d);
+    const c = scr(p.x, p.y, 20), cx = c.behind ? W / 2 : c.x, cy = c.behind ? H * 0.7 : c.y;
+    ctx.save();
+    for (const { e, d } of list.slice(0, 12)) {
+      // Kamera blickt nach Norden: Welt-Richtung = Bildschirm-Richtung
+      const a = Math.atan2(e.y - p.y, e.x - p.x), dx = Math.cos(a), dy = Math.sin(a);
+      const tx = dx > 0 ? (W - pad - cx) / dx : dx < 0 ? (pad - cx) / dx : 1e9, ty = dy > 0 ? (bot - pad - cy) / dy : dy < 0 ? (top + pad - cy) / dy : 1e9;
+      const t = Math.max(0, Math.min(tx, ty)), x = cx + dx * t, y = cy + dy * t;
+      const near = Math.max(0.35, 1 - Math.sqrt(d) / 700), sz = (e.def.boss ? 15 : e.elite ? 11 : 8) * (0.8 + 0.4 * near);
+      ctx.save(); ctx.globalAlpha = 0.45 + 0.55 * near;
+      ctx.translate(x, y); ctx.rotate(a);
+      ctx.fillStyle = e.def.boss ? "#ff3a24" : e.elite ? "#ffb733" : "#e8322a";
+      ctx.strokeStyle = "rgba(0,0,0,0.75)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(sz, 0); ctx.lineTo(-sz * 0.7, -sz * 0.75); ctx.lineTo(-sz * 0.35, 0); ctx.lineTo(-sz * 0.7, sz * 0.75); ctx.closePath(); ctx.stroke(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
   function drawLockOn() {
     const p = player;
     if (state !== "play" || !p || p.moving || !(p.plant > 0.1)) return;
@@ -4931,6 +4964,7 @@
     drawObjectiveHud();
     if (state === "play") drawGateWarnings();
     drawMiniLabel();
+    if (state === "play") drawOffscreen();
     if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); }
     drawCombo();
     // Kinobalken bei Boss-Auftritt und Boss-Tod
@@ -7221,6 +7255,9 @@
     $("shakeBtn").innerHTML = row("explosion", tr("Bildschirmwackeln"), sw(save.shakeFx !== false));
     $("bloomBtn").innerHTML = row("star", tr("Leuchteffekte"), sw(save.bloom !== false));
     $("bloomBtn").classList.toggle("hidden", !init3d());
+    $("camBtn").innerHTML = row("camView", tr("Kamera"), valTxt(tr(CAM_NAMES[save.cam || "top"]) + (quality === 0 ? ` ${tr("(nur 3D)")}` : "")));
+    $("camBtn").classList.toggle("hidden", !init3d());
+    const cp = $("camBtnP"); if (cp) { cp.innerHTML = `${I("camView")}${tr(CAM_NAMES[save.cam || "top"])}`; cp.classList.toggle("hidden", !mode3d); }
     $("privacyOptsBtn").innerHTML = row("privacy", tr("Werbe-Einwilligung ändern"), "");
     $("privacyOptsBtn").classList.toggle("hidden", !Platform.isNative);
     $("privacyLink").innerHTML = row("info", tr("Datenschutzerklärung"), "");
@@ -7398,6 +7435,17 @@
   $("soundBtn2").addEventListener("click", toggleSound);
   $("cineBtn").addEventListener("click", () => { save.cine = save.cine === false; persist(); applyCine(); renderSettings(); });
   $("shakeBtn").addEventListener("click", () => { save.shakeFx = save.shakeFx === false; persist(); renderSettings(); });
+  // v3.1 Kamera-Perspektive: Übersicht → Nah → Third Person (Taste C, Gamepad Select, Einstellungen, Pause)
+  function cycleCam(silent) {
+    const i = CAM_ORDER.indexOf(save.cam || "top");
+    save.cam = CAM_ORDER[(i + 1) % CAM_ORDER.length]; persist();
+    if (webgl && Render3D.setCamMode) Render3D.setCamMode(save.cam);
+    renderSettings();
+    if (!silent) toast(`${tr("Kamera")}: ${tr(CAM_NAMES[save.cam])}`, "camView");
+    if (window.GameAudio) GameAudio.ui("tick");
+  }
+  $("camBtn").addEventListener("click", () => cycleCam(true));
+  $("camBtnP").addEventListener("click", () => cycleCam(true));
   $("bloomBtn").addEventListener("click", () => { save.bloom = save.bloom === false; persist(); if (window.Render3D && Render3D.ready) Render3D.setBloom(save.bloom !== false); renderSettings(); });
   $("motionBtn").addEventListener("click", () => { save.motion = save.motion === false; persist(); renderSettings(); if (!save.motion && webgl && Render3D.setTilt) for (let i = 0; i < 40; i++) Render3D.setTilt(0, 0); });
   // 4D: Handy neigen schwenkt die Menükamera (Ausgangslage wird laufend nachgeführt)

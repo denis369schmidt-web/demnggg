@@ -180,8 +180,15 @@
     minigun: { name: "Minigun", desc: "Läuft im Stand warm – dann ein Bleigewitter.", price: 2600, dmg: 8, rate: 13, speed: 900, pellets: 1, spread: 0, jitter: 0.11, range: 820, pierce: 0, r: 3, color: "#ffd36a", spin: true, flash: "big", casing: 1, kick: 1.2, shake: 0.6, tracer: "255,211,106" },
     laser: { name: "Laserkanone", desc: "Gebündelte Energie durchbohrt jede Reihe und verbrennt Zombies.", price: 3200, dmg: 17, rate: 4.2, speed: 2600, pellets: 1, spread: 0, jitter: 0.015, range: 1300, pierce: 99, r: 2.5, color: "#ff4a4a", kind: "laser", long: true, flash: "laser", casing: 0, kick: 1, shake: 0, tracer: "255,70,70" },
   };
+  // v3.4 Wirtschaft: weniger Münzen, höhere Preise, Freischaltungen an den Fortschritt (erreichte Stadt) gebunden
+  const ECON = { earn: 0.6, price: 1.7 };
+  const econPrice = (v) => Math.round((v * ECON.price) / 10) * 10;
+  for (const w of Object.values(WEAPONS)) w.price = econPrice(w.price);
+  const WEAPON_REQ = { shotgun: 0, smg: 1, crossbow: 1, magnum: 2, flame: 2, rifle: 3, sniper: 3, disc: 4, grenade: 4, cryo: 5, tesla: 5, rocket: 6, minigun: 7, laser: 8 };
+  const reqLocked = (req) => (req || 0) > (save.cityMax || 0);
+  const reqText = (req) => tr("Ab {c}", { c: cityAt(req).name });
   const WEAPON_MAX_LVL = 10;
-  const weaponUpgradeCost = (lvl) => 80 * lvl;
+  const weaponUpgradeCost = (lvl) => econPrice(70 * lvl + 18 * lvl * lvl);
   const weaponLvlMult = (lvl) => 1 + 0.2 * (lvl - 1);
   // Optische Stufe: ab Stufe 5 Goldbeschläge, auf Stufe 10 zusätzlich Edelstein
   const weaponTier = (lvl) => (lvl >= 10 ? 2 : lvl >= 5 ? 1 : 0);
@@ -195,7 +202,7 @@
     speed: { name: "Ausdauer", icon: "run", desc: "+3% Laufgeschwindigkeit pro Stufe", max: 10 },
     greed: { name: "Plünderer", icon: "cash", desc: "+10% Münzen pro Stufe", max: 10 },
   };
-  const talentCost = (lvl) => 60 + 60 * lvl;
+  const talentCost = (lvl) => econPrice(60 + 70 * lvl + 8 * lvl * lvl);
 
   // ============================================================
   // Skills (pro Run, Auswahl bei Level-Up)
@@ -690,7 +697,7 @@
     run.room++;
     if (run.room > ROOMS_PER_CHAPTER) { run.chapter++; run.room = 1; }
     // Neue Stadt: Prämie für die durchbrochene, dann der Fluchtplan (pausiert bis „Weiter“)
-    if (districtIdx() === 0 && cityIdx() > 0) { run.cityBonus = Math.round(60 * cityIdx() * run.greed); run.coins += run.cityBonus; }
+    if (districtIdx() === 0 && cityIdx() > 0) { run.cityBonus = Math.round(60 * cityIdx() * run.greed * ECON.earn); run.coins += run.cityBonus; }
     resetRoomState();
     player.x = W / 2; player.y = B - 70;
     updateCam2D(0, true);
@@ -3912,8 +3919,8 @@
         if (o.type === "xp") addXp(o.val);
         else if (o.type === "heal") { healPlayer(p.maxHp * o.val); fxRing(p.x, p.y, 40, "120,255,140", 0.35); sfx("coin"); if (o.food) addText(p.x, p.y - 52, `${tr(o.food)}!`, "#ffd27a", 17); }
         else if (o.type === "gear") pickGear(o);
-        else if (o.type === "pfand") { run.coins += 2 * run.greed; sfx("coin"); addText(p.x, p.y - 48, tr("PFAND +25 ct"), "#9fe870", 15); track("pfand"); }
-        else { run.coins += o.val * run.greed; sfx("coin"); }
+        else if (o.type === "pfand") { run.coins += 2 * run.greed * ECON.earn; sfx("coin"); addText(p.x, p.y - 48, tr("PFAND +25 ct"), "#9fe870", 15); track("pfand"); }
+        else { run.coins += o.val * run.greed * ECON.earn; sfx("coin"); }
       }
     }
     orbs = orbs.filter((o) => !o.dead);
@@ -4682,10 +4689,10 @@
     charm: { name: "Talisman", icon: "charm", label: "+{v} % Krit-Chance", base: 1.5, names: [["Glückscent", "Kronkorken-Kette"], ["Hufeisen", "Vierblättriges Kleeblatt"], ["Glücksschwein aus Marzipan", "Bernstein-Amulett"], ["Kaiserlicher Glückstaler"]], legend: { desc: "+1 Gratis-Neuwurf, +10 % Münzen", apply: () => { run.freeRerolls = (run.freeRerolls || 0) + 1; run.greed *= 1.1; } } },
   };
   const GEAR_RARITY = [
-    { name: "Gewöhnlich", tone: "steel", mul: 1, scrap: 40, price: 0, rgb: "200,205,210" },
-    { name: "Selten", tone: "ice", mul: 2, scrap: 90, price: 700, rgb: "74,168,255" },
-    { name: "Episch", tone: "violet", mul: 3.2, scrap: 180, price: 1800, rgb: "176,122,255" },
-    { name: "Legendär", tone: "gold", mul: 5, scrap: 400, price: 4800, rgb: "255,194,58" },
+    { name: "Gewöhnlich", tone: "steel", mul: 1, scrap: 25, price: 0, rgb: "200,205,210" },
+    { name: "Selten", tone: "ice", mul: 2, scrap: 55, price: 1200, rgb: "74,168,255" },
+    { name: "Episch", tone: "violet", mul: 3.2, scrap: 110, price: 3100, rgb: "176,122,255" },
+    { name: "Legendär", tone: "gold", mul: 5, scrap: 240, price: 8200, rgb: "255,194,58" },
   ];
   // Zusatz-Eigenschaft: ab „Selten“ möglich, ab „Episch“ immer – Stärke wächst mit der Seltenheit
   const GEAR_AFFIX = {
@@ -4698,7 +4705,7 @@
   };
   const AFFIX_MUL = [0, 1, 1.6, 2.4];
   const GEAR_BAG_MAX = 16;
-  const GEAR_BOX_PRICE = 650, GEAR_REROLL_PRICE = 150;
+  const GEAR_BOX_PRICE = 1100, GEAR_REROLL_PRICE = 260; // v3.4 teurer
   const gearNames = (it) => GEAR_SLOTS[it.s].names[it.r];
   const gearName = (it) => { const n = gearNames(it); return tr(n[(it.n || 0) % n.length]); };
   const gearStat = (it) => tr(GEAR_SLOTS[it.s].label, { v: it.v });
@@ -4795,7 +4802,7 @@
     const slotHtml = Object.entries(GEAR_SLOTS).map(([k, sl]) => {
       const it = g[k];
       const extra = it ? [affixStat(it), gearTrait(it)].filter(Boolean).map((s) => `<i>${s}</i>`).join("") : "";
-      return `<button class="gear-slot gs-${k}${it ? " r" + it.r : ""}" data-slot="${k}">${medal(sl.icon, it ? GEAR_RARITY[it.r].tone : "steel")}<small>${tr(sl.name)}</small><b>${it ? gearName(it) : tr("leer")}</b><em>${it ? gearStat(it) : "–"}</em>${extra}</button>`;
+      return `<button class="gear-slot gs-${k}${it ? " r" + it.r : ""}" data-slot="${k}">${medal(sl.icon, it ? GEAR_RARITY[it.r].tone : "steel")}<small>${tr(sl.name)}</small><b>${it ? softHyphen(gearName(it)) : tr("leer")}</b><em>${it ? gearStat(it) : "–"}</em>${extra}</button>`;
     }).join("");
     $("gearSlots").innerHTML = `<div class="gear-power"><small>${tr("Kampfwert")}</small><b>${power}</b></div>${slotHtml}<button class="gear-dealer" id="gearDealer">${I("dealer")}<span>${tr("Händler")}</span></button>`;
     // angelegtes Teil antippen = ablegen (zurück in die Tasche)
@@ -4842,7 +4849,8 @@
       const keys = Object.keys(GEAR_SLOTS);
       gs.items = [];
       for (let i = 0; i < 4; i++) {
-        const x = rng(), r = x < 0.1 ? 3 : x < 0.45 ? 2 : 1;
+        const x = rng(), cm = save.cityMax || 0; // v3.4: episch erst ab Stuttgart, legendär ab Nürnberg im Angebot
+        const r = x < 0.1 && cm >= 3 ? 3 : x < 0.45 && cm >= 1 ? 2 : 1;
         let slot = keys[Math.floor(rng() * keys.length)];
         while (gs.items.some((q) => q.s === slot)) slot = keys[(keys.indexOf(slot) + 1) % keys.length];
         gs.items.push(makeGear(slot, r, rng));
@@ -4968,7 +4976,7 @@
     joy.active = false;
     clearInterval(reviveTimer);
     const surv = run.mode === "survival";
-    if (won) run.coins += Math.round(300 * run.greed); // Siegprämie im Überlebensmodus
+    if (won) run.coins += Math.round(300 * run.greed * ECON.earn); // Siegprämie im Überlebensmodus
     const coins = Math.round(run.coins);
     run.earned = coins;
     save.coins += coins;
@@ -6948,7 +6956,7 @@
 
   // Patrouille: Münzen sammeln sich offline an (bis 12 h), Ertrag wächst mit dem Rekordkapitel
   const PATROL_MAX_H = 12, QUICK_PATROLS = 2, QUICK_PATROL_H = 2;
-  const patrolRate = () => 40 + 25 * Math.max(1, save.best.chapter); // Münzen pro Stunde
+  const patrolRate = () => 24 + 15 * Math.max(1, save.best.chapter); // Münzen pro Stunde (v3.4 gesenkt)
   function patrolHours() {
     const now = Date.now();
     if (save.patrol.since > now) save.patrol.since = now; // Uhr zurückgestellt
@@ -7059,7 +7067,8 @@
   const ownedWeapons = () => Object.keys(WEAPONS).filter((id) => save.weapons[id] > 0);
   const WORLD_NAME = { street: "Straße", hospital: "Krankenhaus", lab: "Geheimlabor" };
   // Weiche Trennstellen für lange deutsche Komposita (schmale Handys)
-  const softHyphen = (name) => name.replace(/(Maschinen|Scharfschützen|Flammen|Granat|Sägeblatt|Raketen|Sturm|Laser)/g, "$1\u00AD");
+  const softHyphen = (name) => name.replace(/(Maschinen|Scharfschützen|Flammen|Granat|Sägeblatt|Raketen|Sturm|Laser)/g, "$1\u00AD")
+    .replace(/([a-zäöüß])(weste|helm|handschuhe|stiefel|rucksack|medaille|zeichen|schnur|nadel|amulett|taler|kette|beutel|ranzen|schuhe)/g, "$1\u00AD$2"); // v3.4 auch Ausrüstungsnamen
 
   function renderArmory() {
     const list = $("weaponList");
@@ -7069,14 +7078,16 @@
       const row = document.createElement("div");
       row.className = `item weapon${save.equipped === id ? " active" : ""}${lvl ? "" : " dim"}`;
       const dps = Math.round(w.dmg * w.pellets * w.rate * weaponLvlMult(lvl || 1));
-      const tag = save.equipped === id ? `<span class="tag">${tr("Ausgerüstet")}</span>` : !lvl ? `<span class="tag amber">${tr("Nicht im Besitz")}</span>` : "";
+      const lockW = !lvl && reqLocked(WEAPON_REQ[id]);
+      const tag = save.equipped === id ? `<span class="tag">${tr("Ausgerüstet")}</span>` : lockW ? `<span class="tag">${tr("GESPERRT")}</span>` : !lvl ? `<span class="tag amber">${tr("Nicht im Besitz")}</span>` : "";
       row.innerHTML = `<div class="ico"><img src="${Sprites.weaponIcon(id, weaponTier(lvl || 1))}" alt=""></div>
         <div>${tag}<div class="name">${softHyphen(w.name)}</div>
         <div class="meta">${lvl ? pipsHtml(lvl, WEAPON_MAX_LVL, lvl >= 5 ? "gold" : "") : ""}<span>DPS <b class="dps">${dps}</b></span></div>
         <div class="desc">${w.desc}</div></div>
         <div class="acts"></div>`;
       const acts = row.querySelector(".acts");
-      if (!lvl) {
+      if (lockW) acts.appendChild(actionBtn(`${I("lock")}${reqText(WEAPON_REQ[id])}`, false, () => {}));
+      else if (!lvl) {
         acts.appendChild(actionBtn(coinAmt(w.price), save.coins >= w.price, () => { save.coins -= w.price; save.weapons[id] = 1; save.equipped = id; }, "amber"));
       } else {
         if (save.equipped !== id) acts.appendChild(actionBtn(tr("Ausrüsten"), true, () => { save.equipped = id; }, "primary"));
@@ -7485,6 +7496,8 @@
     { id: "gold", icon: "crown", name: tr("Goldener Held"), iap: IDS.goldSkin, desc: tr("Premium-Skin · +10% Münzen") },
     { id: "hunter", icon: "hunter", name: tr("Seuchenjäger"), pass: true, desc: tr("Exklusiv im Premium-Saisonpass") },
   ];
+  for (const q of SKINS) if (q.price) q.price = econPrice(q.price);
+  const SKIN_REQ = { police: 1, firefighter: 2, hazmat: 3, ninja: 4, cyber: 5, plague: 6 }; // v3.4: Held erst ab erreichter Stadt
   // v2.5 Helden: jeder Held spielt sich anders (vorher reine Optik)
   const HERO_PERKS = {
     soldier: { name: "Feldtraining", desc: "+15 % Erfahrung", apply: (p) => { p.xpGain = 1.15; } },
@@ -7519,6 +7532,9 @@
     frost: { name: "Frostgranate", icon: "iceBomb", desc: "Friert Zombies ein – Gefrorene nehmen 30 % mehr Schaden", price: 2200, r: 112, rgb: "130,220,255", col: "#3a8ac8", c3: [0.3, 0.62, 0.9] },
     decoy: { name: "Silvesterböller", icon: "firecracker", desc: "Lockt Zombies 3 s lang an, dann knallt es viermal", price: 2800, r: 66, rgb: "255,90,60", col: "#c8202a", c3: [0.8, 0.1, 0.1] },
   };
+  for (const q of Object.values(THROWABLES)) q.price = econPrice(q.price);
+  // v3.4 Freischaltung erst ab erreichter Stadt (Index in CITIES): Molotow ab Stuttgart … Böller ab Leipzig
+  const THROW_REQ = { molotov: 1, flash: 2, frost: 3, decoy: 4 };
   // v2.6 Heldenstufen: jeder Einsatz bringt dem gewählten Helden Erfahrung (Punkte / 50); je Stufe +2 % Leben und +1 % Schaden
   const HERO_LV_MAX = 10;
   const heroLevel = (id) => Math.min(HERO_LV_MAX, 1 + Math.floor(Math.sqrt(((save.heroXp || {})[id] || 0) / 60)));
@@ -7528,6 +7544,7 @@
     { id: "skill", icon: "gift", name: tr("Startvorteil"), desc: tr("Starte mit einem zusätzlichen Skill"), price: 500 },
     { id: "revive", icon: "angel", name: tr("Schutzengel"), desc: tr("Einmal wiederbeleben im nächsten Einsatz"), price: 800 },
   ];
+  for (const q of BOOSTS) q.price = econPrice(q.price);
   const MYSTERY_PRICE = 1500;
   // Gewinnchancen der Überraschungskiste – eine Quelle für Ziehung UND Anzeige, damit die
   // angezeigten Prozente immer stimmen (Google Play: Zufallsbelohnungen gegen Bezahlung offenlegen).
@@ -7557,7 +7574,7 @@
     if (save.vibration) Platform.vibrate(40);
     toast(msg, icon);
   }
-  const DAILY = [100, 150, 200, 300, 400, 500, 1000];
+  const DAILY = [60, 90, 120, 180, 240, 320, 700]; // v3.4 gesenkt
   const FREE_COINS_PER_DAY = 5;
 
   function localDay(offset = 0) {
@@ -7616,7 +7633,7 @@
     if (save.freeCoins.day !== localDay()) return FREE_COINS_PER_DAY;
     return Math.max(0, FREE_COINS_PER_DAY - save.freeCoins.n);
   }
-  const freeCoinAmount = () => 150 + 50 * save.best.chapter;
+  const freeCoinAmount = () => 100 + 35 * save.best.chapter;
 
   let shopTab = "offers", previewSkin = null;
   function renderShop() {
@@ -7680,7 +7697,10 @@
     for (const [id, q] of Object.entries(THROWABLES)) {
       const owned = !!save.throwOwned[id], active = save.throwSel === id;
       const ic = medal(q.icon, owned ? "toxic" : "steel");
-      const row = owned
+      const lockT = !owned && reqLocked(THROW_REQ[id]);
+      const row = lockT
+        ? shopRow(ic, tr(q.name), `${tr(q.desc)} · ${tr("Erreiche {c}, um das freizuschalten", { c: cityAt(THROW_REQ[id]).name })}`, `<span class="tag">${tr("GESPERRT")}</span>`, `${I("lock")}${reqText(THROW_REQ[id])}`, false, null)
+        : owned
         ? shopRow(ic, tr(q.name), `${tr(q.desc)}${active ? ` · ${tr("Startet im Gürtel")}` : ""}`, active ? `<span class="tag">${tr("Aktiv")}</span>` : "", active ? I("check") : tr("Ausrüsten"), !active, () => { save.throwSel = id; persist(); sfx("coin"); renderShop(); }, active ? "" : "primary")
         : shopRow(ic, tr(q.name), tr(q.desc), "", coinAmt(q.price), save.coins >= q.price, () => {
           if (save.coins < q.price) return;
@@ -7699,6 +7719,7 @@
       if (q.iap && !owned) row = iapRow(ic, q.name, q.desc, `<span class="tag gold">${tr("PREMIUM")}</span>`, q.iap, false);
       else if (q.pass && !owned) row = shopRow(ic, q.name, q.desc, `<span class="tag amber">${tr("SAISONPASS")}</span>`, `${I("pass")}${tr("Zum Pass")}`, true, () => { renderPass(); show(ui.pass); });
       else if (owned) row = shopRow(ic, q.name, `${tr(heroPerk(q.id).name)}: ${tr(heroPerk(q.id).desc)} · ${tr("Spezial")}: ${tr(heroSpecial(q.id).name)}${active ? ` · ${tr("Ausgerüstet")}` : ""}`, active ? `<span class="tag">${tr("Aktiv")}</span>` : "", active ? I("check") : tr("Ausrüsten"), !active, () => { save.skin = q.id; previewSkin = q.id; persist(); sfx("coin"); renderShop(); }, active ? "" : "primary");
+      else if (reqLocked(SKIN_REQ[q.id])) row = shopRow(ic, q.name, `${tr(heroPerk(q.id).name)}: ${tr(heroPerk(q.id).desc)} · ${tr("Erreiche {c}, um das freizuschalten", { c: cityAt(SKIN_REQ[q.id]).name })}`, `<span class="tag">${tr("GESPERRT")}</span>`, `${I("lock")}${reqText(SKIN_REQ[q.id])}`, false, null);
       else row = shopRow(ic, q.name, `${tr(heroPerk(q.id).name)}: ${tr(heroPerk(q.id).desc)} · ${tr("Spezial")}: ${tr(heroSpecial(q.id).name)}`, "", coinAmt(q.price), save.coins >= q.price, () => {
         if (save.coins < q.price) return;
         save.coins -= q.price; save.skins[q.id] = true; save.skin = q.id; previewSkin = q.id;

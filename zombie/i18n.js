@@ -445,6 +445,7 @@ window.I18N = (() => {
     // v3.4 Stadt-Wahrzeichen und neue Objekte
     "Käthchenbrunnen": "Käthchen Fountain", "Stuttgarter Rössle": "Stuttgart Horse", "Bayerischer Löwe": "Bavarian Lion", "Schöner Brunnen": "Beautiful Fountain",
     "Bach-Denkmal": "Bach Monument", "Brandenburger Tor": "Brandenburg Gate", "Riesen-Bembel": "Giant Cider Jug", "Karnevalswagen": "Carnival Float",
+    "Ab {c}": "From {c}", "GESPERRT": "LOCKED", "Erreiche {c}, um das freizuschalten": "Reach {c} to unlock",
     "Leuchtturm": "Lighthouse", "Windmühle": "Windmill", "Eiffelturm": "Eiffel Tower", "Riesenrad": "Ferris Wheel", "Der Golem": "The Golem", "MÜLLABFUHR!": "TRASH DAY!",
     "FUNKMASTEN AKTIVIEREN": "ACTIVATE RADIO MASTS",
     "Halte nacheinander an allen drei Masten die Stellung": "Hold each of the three masts in turn",

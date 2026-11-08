@@ -564,15 +564,18 @@ window.Render3D = (() => {
   }
 
   // Kamera so weit zurückziehen, dass die ganze Arena unter das HUD passt
+  // v3.4: gemessen wird ein Fenster von VIEW_Z Einheiten (die alte Arena) – die Übersicht folgt dem Helden dann längs der Arena
+  const VIEW_Z = 800;
+  const topZ = (y) => Math.max(D.T + VIEW_Z / 2 + 30, Math.min(D.B - VIEW_Z / 2 + 30, y - 100));
   function fitCamera() {
     const hud = 104 / D.H;
     CAM.tx = (D.L + D.R) / 2;
-    CAM.tz = (D.T + D.B) / 2 + 30;
+    CAM.tz = D.T + VIEW_Z / 2 + 30;
     camera.fov = CAM.fov;
     camera.aspect = D.W / D.H;
     camera.clearViewOffset();
     camera.updateProjectionMatrix();
-    const corners = [[D.L - 14, D.T - 60], [D.R + 14, D.T - 60], [D.L - 14, D.B + 30], [D.R + 14, D.B + 30]];
+    const corners = [[D.L - 14, D.T - 60], [D.R + 14, D.T - 60], [D.L - 14, D.T + VIEW_Z + 30], [D.R + 14, D.T + VIEW_Z + 30]];
     let dist = 500, minY = 0, maxY = 0;
     for (; dist < 4000; dist += 10) {
       placeCamera(dist, 0, 0, true);
@@ -1382,9 +1385,10 @@ void main() {
     const floorTex = new T3.CanvasTexture(fc);
     floorTex.colorSpace = T3.SRGBColorSpace;
     floorTex.anisotropy = 8;
-    floorTex.repeat.set(aw / D.W, ah / D.H);
-    floorTex.offset.set(D.L / D.W, 1 - D.B / D.H);
-    const crop = (t) => { t.repeat.set(aw / D.W, ah / D.H); t.offset.set(D.L / D.W, 1 - D.B / D.H); return t; };
+    const WHt = D.WH || D.H; // v3.4: Boden-Leinwand hat Welthöhe (Arena länger als der Bildschirm)
+    floorTex.repeat.set(aw / D.W, ah / WHt);
+    floorTex.offset.set(D.L / D.W, 1 - D.B / WHt);
+    const crop = (t) => { t.repeat.set(aw / D.W, ah / WHt); t.offset.set(D.L / D.W, 1 - D.B / WHt); return t; };
     const floorN = crop(gpuNormalMap(fc, 2.4, 720, T3.ClampToEdgeWrapping, 8));
     const floorMat = new T3.MeshPhongMaterial({ map: floorTex, color: 0xb4b4b4, normalMap: floorN, normalScale: new T3.Vector2(1, 1), specular: 0x4a5058, shininess: 60 });
     const glossTex = fc.gloss ? crop(new T3.CanvasTexture(fc.gloss)) : null; // frisches Blut wird hier nass glänzend eingestempelt
@@ -1394,7 +1398,7 @@ void main() {
     floor.receiveShadow = true;
     g.add(floor);
     // Umgebung außerhalb der Arena (dunkler Boden)
-    const outer = mesh(new T3.PlaneGeometry(D.W * 4, D.H * 4), slam("#0a0d0c"), D.W / 2, -0.5, D.H / 2);
+    const outer = mesh(new T3.PlaneGeometry(D.W * 4, WHt * 4), slam("#0a0d0c"), D.W / 2, -0.5, WHt / 2);
     outer.rotation.x = -Math.PI / 2;
     g.add(outer);
 
@@ -1520,6 +1524,16 @@ void main() {
     builtFloor = fc;
     renderer.shadowMap.needsUpdate = true;
     warmPending = true; // neue Raum-Materialien (Wände, Hindernisse) gleich mit übersetzen
+    if (!w.menuCam && w.player) { CAM.tz = topZ(w.player.y); CAM.fz = 0; } // v3.4: Übersicht startet beim Helden
+  }
+  // v3.4 Mond- und Aufhelllicht folgen dem sichtbaren Ausschnitt (Schattenkarte bleibt so scharf wie in der alten, kurzen Arena);
+  // in 32er-Schritten, damit Schattenkanten nicht bei jeder kleinen Bewegung über das Texel-Raster kriechen
+  function followSun(w) {
+    viewZ = w.menuCam ? w.player.y : camMode === "top" ? CAM.tz : CAM.fol ? CAM.fol.z - 150 : w.player.y;
+    const z = Math.round(viewZ / 32) * 32;
+    if (moon.target.position.z === z) return;
+    moon.target.position.z = z; moon.position.z = z - 520; fill.position.z = z + 1300;
+    moon.target.updateMatrixWorld();
   }
 
   // ------------------------------------------------------------------
@@ -4196,7 +4210,8 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   const OUTDOOR = { street: true, markt: true };
   const CONFETTI = ["255,74,90", "255,210,58", "74,209,255", "125,255,106", "255,122,224", "255,255,255"];
   let cinematic = true; // Blitze & Stromausfälle (Einstellung „Kino-Effekte“)
-  const newDrop = (d, anyY) => { d.x = D.L - 140 + Math.random() * (D.R - D.L + 280); d.z = D.T - 260 + Math.random() * (D.B - D.T + 340); d.y = anyY ? Math.random() * 380 : 320 + Math.random() * 80; d.v = 820 + Math.random() * 280; return d; };
+  let viewZ = 0; // v3.4: Mitte des sichtbaren Bereichs längs der Arena (Regen, Mondschatten)
+  const newDrop = (d, anyY) => { d.x = D.L - 140 + Math.random() * (D.R - D.L + 280); d.z = (viewZ || (D.T + D.B) / 2) - 660 + Math.random() * 1140; d.y = anyY ? Math.random() * 380 : 320 + Math.random() * 80; d.v = 820 + Math.random() * 280; return d; };
   function setupAtmo(theme, weather, fest = "") {
     // Wetter nur draußen (Straße, Altstadt); Nebel überall
     const wx = weather || (theme === "street" ? "rain" : "none");
@@ -4563,7 +4578,8 @@ void main() {
     const sz = (shake ? (Math.random() - 0.5) * shake * 1.6 : 0) + punch.y * 0.95;
     const k = Math.min(1, dt * 3);
     CAM.fx += ((w.player.x - D.W / 2) * 0.025 - CAM.fx) * k;
-    CAM.fz += ((w.player.y - (D.T + D.B) / 2) * 0.06 - CAM.fz) * k;
+    // v3.4 lange Arena: die Übersicht fährt längs mit (beim Raumaufbau springt sie, siehe buildRoom); kleine Nachführung bleibt
+    if (!w.menuCam) { const zt = topZ(w.player.y); CAM.tz += (zt - CAM.tz) * Math.min(1, dt * 3); CAM.fz += ((w.player.y - 100 - CAM.tz) * 0.06 - CAM.fz) * k; }
     // Boss-Auftritt und Boss-Tod: Kamera fährt an den Boss heran
     let bossK = 0, bx = 0, bz = 0;
     for (const e of w.enemies) if (e.def.boss && e.spawnT > 0) { bossK = Math.sin(Math.min(1, 1 - e.spawnT / e.spawnMax) * Math.PI); bx = e.x - CAM.tx; bz = e.y - CAM.tz; }
@@ -4596,6 +4612,7 @@ void main() {
       const kk = CAM.kill || 0;
       placeCamera(CAM.dist * (1 - 0.3 * CAM.boss - 0.2 * kk + 0.22 * intro * intro), sx + CAM.fx + bx * 0.6 * CAM.boss + (CAM.kx || 0) * 0.45 * kk, sz + CAM.fz + bz * 0.6 * CAM.boss + (CAM.kz || 0) * 0.45 * kk - 60 * intro * intro);
     }
+    followSun(w);
     updateAtmo(dt, t);
     syncEnemies(w, t, dt);
     syncSurvivors(w, t);

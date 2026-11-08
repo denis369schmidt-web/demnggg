@@ -2425,6 +2425,12 @@ vec3 surf(vec3 c, vec3 p, float t, float px, float z) {
       c = mix(pc, pc * 0.42, st * 0.85);
       gH += 0.35 + bd * 0.3;
     }
+    if (z < 0.5) {
+      // v3.3 Held: Staubschleier und dunkle Schweiß-/Nässeränder in den Falten (kein Gitter – feine Linien ergeben mit dem Relief helle Striche)
+      float dust = smoothstep(0.58, 0.8, sNoise(p * vec3(0.3, 0.45, 0.3) + 91.0));
+      c = mix(c, c * 0.6 + vec3(0.1, 0.09, 0.07), dust * 0.42);
+      c *= 1.0 - smoothstep(0.7, 0.86, fold) * 0.18;
+    }
     float dr = smoothstep(0.72, 0.86, sNoise(vec3(p.x * 1.1, p.y * 0.07, p.z * 1.1) + 51.0)) * smoothstep(0.4, 0.6, big);
     c = mix(c, mix(c * vec3(0.62, 0.56, 0.48), vec3(0.2, 0.02, 0.03), z), dr * (0.3 + 0.3 * z));
     gSheen = (smoothstep(0.66, 0.82, bl) + dr) * 0.1 * z * aM; gShin = 18.0; // frisches Blut glänzt feucht
@@ -2450,6 +2456,7 @@ vec3 surf(vec3 c, vec3 p, float t, float px, float z) {
     c *= 0.88 + 0.22 * mid;
     c = mix(c, c * 1.5 + vec3(0.035), worn * 0.32); // v3.3 abgewetzte, matte Stellen
     c = mix(c, vec3(0.16, 0.03, 0.025), smoothstep(0.7, 0.85, 1.0 - big) * 0.4 * z); // angetrocknetes Blut
+    c = mix(c, c * 0.55 + vec3(0.12, 0.1, 0.075), smoothstep(0.62, 0.84, 1.0 - big) * 0.45 * (1.0 - z)); // Held: Staub auf Stiefeln und Gurten
     gSheen = 0.22 * aM * (1.0 - worn * 0.7); gShin = 20.0;
     return c;
   }

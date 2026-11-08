@@ -32,6 +32,47 @@ window.Render3D = (() => {
     return g;
   }
   const box = (w, h, d) => geo(`b${r1(w)},${r1(h)},${r1(d)}`, () => new T3.BoxGeometry(w, h, d));
+  // v3.5 gefaster Kasten: 6 Flächen, 12 Kantenstreifen, 8 Eckdreiecke (44 statt 12 Dreiecke, ohne Index).
+  // Die Kanten tragen die Normalen der Nachbarflächen – glatt schattiert wirken sie rund, flach schattiert
+  // fangen sie als schmale Fase das Licht (Kantenlicht macht Kästen plastisch).
+  function chamferBox(w, h, d, k) {
+    const A = [w / 2, h / 2, d / 2], r = Math.min(w, h, d) * k, B = A.map((v) => v - r);
+    const pos = [], nrm = [], ax = (i, s) => { const v = [0, 0, 0]; v[i] = s; return v; };
+    const pt = (vals) => vals; // [x, y, z]
+    const tri = (p, n) => {
+      const ux = p[1][0] - p[0][0], uy = p[1][1] - p[0][1], uz = p[1][2] - p[0][2], vx = p[2][0] - p[0][0], vy = p[2][1] - p[0][1], vz = p[2][2] - p[0][2];
+      const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
+      const out = cx * (n[0][0] + n[1][0] + n[2][0]) + cy * (n[0][1] + n[1][1] + n[2][1]) + cz * (n[0][2] + n[1][2] + n[2][2]);
+      for (const i of out >= 0 ? [0, 1, 2] : [0, 2, 1]) { pos.push(p[i][0], p[i][1], p[i][2]); nrm.push(n[i][0], n[i][1], n[i][2]); }
+    };
+    const quad = (p, n) => { tri([p[0], p[1], p[2]], [n[0], n[1], n[2]]); tri([p[0], p[2], p[3]], [n[0], n[2], n[3]]); };
+    const P = (i, vi, j, vj, k2, vk) => { const v = [0, 0, 0]; v[i] = vi; v[j] = vj; v[k2] = vk; return pt(v); };
+    for (let i = 0; i < 3; i++) {
+      const j = (i + 1) % 3, k2 = (i + 2) % 3;
+      for (const s of [1, -1]) { // Fläche
+        const n = ax(i, s);
+        quad([P(i, s * A[i], j, B[j], k2, B[k2]), P(i, s * A[i], j, -B[j], k2, B[k2]), P(i, s * A[i], j, -B[j], k2, -B[k2]), P(i, s * A[i], j, B[j], k2, -B[k2])], [n, n, n, n]);
+      }
+      for (const si of [1, -1]) for (const sj of [1, -1]) { // Kante zwischen Fläche i und Fläche j, entlang k2
+        const ni = ax(i, si), nj = ax(j, sj);
+        quad([P(i, si * A[i], j, sj * B[j], k2, B[k2]), P(i, si * A[i], j, sj * B[j], k2, -B[k2]), P(i, si * B[i], j, sj * A[j], k2, -B[k2]), P(i, si * B[i], j, sj * A[j], k2, B[k2])], [ni, ni, nj, nj]);
+      }
+    }
+    for (const sx of [1, -1]) for (const sy of [1, -1]) for (const sz of [1, -1]) // Ecke
+      tri([[sx * A[0], sy * B[1], sz * B[2]], [sx * B[0], sy * A[1], sz * B[2]], [sx * B[0], sy * B[1], sz * A[2]]], [ax(0, sx), ax(1, sy), ax(2, sz)]);
+    const g = new T3.BufferGeometry();
+    g.setAttribute("position", new T3.BufferAttribute(new Float32Array(pos), 3));
+    g.setAttribute("normal", new T3.BufferAttribute(new Float32Array(nrm), 3));
+    return g;
+  }
+  // Kastenteil beim Verschmelzen gegen die gefaste Form tauschen (Kleinstteile bleiben scharf und billig)
+  const SOFT_K = 0.22, SOFT_MIN = 1.6;
+  function softGeo(g, k = SOFT_K, min = SOFT_MIN) {
+    if (g.type !== "BoxGeometry") return g;
+    const { width: w, height: h, depth: d } = g.parameters;
+    if (Math.min(w, h, d) < min || g.parameters.widthSegments > 1) return g;
+    return geo(`cb${r1(w)},${r1(h)},${r1(d)},${k}`, () => chamferBox(w, h, d, k));
+  }
   const cap = (r, len) => geo(`c${r1(r)},${r1(len)}`, () => new T3.CapsuleGeometry(r, len, 4, 14)); // v3.3: 14 Segmente – glatt schattiert sollen Rumpf und Köpfe rund wirken
   const ico = (r, d = 1) => geo(`i${r1(r)},${d}`, () => new T3.IcosahedronGeometry(r, d));
   const cyl = (rt, rb, h, seg = 10) => geo(`y${r1(rt)},${r1(rb)},${r1(h)},${seg}`, () => new T3.CylinderGeometry(rt, rb, h, seg));
@@ -2676,12 +2717,13 @@ void main() {
       for (let v = 0; v < step && i + v < n; v++) { const k = (o + i + v) * 3; col[k] = r; col[k + 1] = gg; col[k + 2] = b; }
     }
   }
-  function mergeMeshes(meshes, material, node, look, smooth = false) {
+  function mergeMeshes(meshes, material, node, look, smooth = false, soft = 0) {
     const parts = [];
     let count = 0;
     for (const m of meshes) {
       m.updateMatrix();
-      const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+      const src = soft ? softGeo(m.geometry, soft, soft < SOFT_K ? 3 : SOFT_MIN) : m.geometry; // v3.5 gefaste Kanten
+      const g = src.index ? src.toNonIndexed() : src.clone();
       g.applyMatrix4(m.matrix);
       parts.push([g, m.material.color, m.material.userData.role, texOf(m.material)]);
       count += g.attributes.position.count;
@@ -2705,10 +2747,10 @@ void main() {
     geo.computeBoundingSphere();
     return new T3.Mesh(geo, material);
   }
-  function bakeNode(node, lit, glow, keep, outline = false, look = null, smooth = false) {
+  function bakeNode(node, lit, glow, keep, outline = false, look = null, smooth = false, soft = 0) {
     const litList = [], fineList = [], glowList = [];
     for (const c of node.children) {
-      if (!c.isMesh) { bakeNode(c, lit, glow, keep, outline, look, smooth); continue; }
+      if (!c.isMesh) { bakeNode(c, lit, glow, keep, outline, look, smooth, soft); continue; }
       const m = c.material;
       if (keep.has(c) || c.userData.solo || c.children.length || Array.isArray(m) || m.map || m.transparent) continue;
       (m.isMeshBasicMaterial ? glowList : c.userData.fine ? fineList : litList).push(c);
@@ -2716,7 +2758,7 @@ void main() {
     for (const [list, mat, isFine] of [[litList, lit, false], [fineList, lit, true], [glowList, glow, false]]) {
       if (!list.length) continue;
       for (const c of list) node.remove(c);
-      const merged = mergeMeshes(list, mat, node, mat === lit ? look : null, smooth);
+      const merged = mergeMeshes(list, mat, node, mat === lit ? look : null, smooth, mat === lit && !isFine ? soft : 0);
       node.add(merged);
       if (outline && mat === lit && !isFine) {
         const o = new T3.Mesh(merged.geometry, outlineMat);
@@ -2727,7 +2769,9 @@ void main() {
   }
   const vlit = () => smat("vlit", () => new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   const vglow = () => smat("vglow", () => new T3.MeshBasicMaterial({ vertexColors: true }));
-  function bakeStatic(o, look = { h: 40, seed: 7 }) { o.updateMatrixWorld(true); bakeNode(o, vlit(), vglow(), new Set(), false, look); return o; }
+  // v3.5: Hindernisse mit schmaler Fase – flach schattiert fängt jede Kante einen Lichtstreifen
+  const STATIC_SOFT = 0.12;
+  function bakeStatic(o, look = { h: 40, seed: 7 }) { o.updateMatrixWorld(true); bakeNode(o, vlit(), vglow(), new Set(), false, look, false, STATIC_SOFT); return o; }
   // Starres Skinning im Vertex-Shader: alle Teile einer Figur liegen in EINEM Mesh, jeder Vertex
   // kennt seinen Knoten (Hüfte, Schulter, Kopf …). Pro Frame gehen nur die Knotenmatrizen an den
   // Shader, die Animation bleibt bei den Gruppen. Figur: 2 Draw Calls (Fläche + Umriss) statt ~13.
@@ -2970,7 +3014,8 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     for (const [list, isGlow] of [[lit, 0], [fine, 0], [glow, 1]]) {
       for (const [m, pi] of list) {
         m.updateMatrix();
-        const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+        const src = list === lit ? softGeo(m.geometry) : m.geometry; // v3.5: Grundkörper mit runden Kanten
+        const g = src.index ? src.toNonIndexed() : src.clone();
         g.applyMatrix4(m.matrix);
         parts.push({ g, c: m.material.color, pi, isGlow, role: m.material.userData.role, tex: texOf(m.material) });
         count += g.attributes.position.count;
@@ -3046,7 +3091,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     };
     lit.customProgramCacheKey = () => `boss:v33${quality < 2 ? ":lite" : ""}`;
     const glow = new T3.MeshBasicMaterial({ vertexColors: true });
-    bakeNode(M.root, lit, glow, keep, FIG_OUTLINE, look, true);
+    bakeNode(M.root, lit, glow, keep, FIG_OUTLINE, look, true, SOFT_K);
     M.mats = [lit, ...kept];
   }
 

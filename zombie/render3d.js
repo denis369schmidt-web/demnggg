@@ -2781,6 +2781,9 @@ void main() {
   const ZERO = new T3.Matrix4().makeScale(0, 0, 0);
   // v2.7 Randlicht: kühle Kante an der Silhouette – Figuren heben sich vom dunklen Boden ab (Augen ausgenommen)
   const RIM_GLSL = "float rimK = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);\n\toutgoingLight += vec3(0.36, 0.44, 0.56) * pow(rimK, 2.4) * 0.44";
+  // v3.5 weiche Lichter-Schulter für Figuren: Taschenlampe + Mündungsfeuer + Heldenlicht brannten nahe Zombies weiß aus.
+  // Über 0,62 wird die Helligkeit sanft gestaucht (Farbton bleibt, Grenze ≈ 1,5) – Boden und Lampen bleiben unberührt.
+  const KNEE_GLSL = "\n\tfloat kM = max(outgoingLight.r, max(outgoingLight.g, outgoingLight.b));\n\tif (kM > 0.62) outgoingLight *= (0.62 + (kM - 0.62) / (1.0 + (kM - 0.62) * 1.1)) / kM";
   // v3.2 Oberflächen der Figuren: jede Materialklasse (Attribut „tex“) bekommt ein prozedurales Muster im Fragment-Shader –
   // Albedo-Variation, Relief (Bump über Ableitungen, wie perturbNormalArb in three.js) und echtes Glanzlicht der
   // Richtungslichter. Muster haften im Knotenraum am Körper (laufen mit der Animation mit). Feine Muster blenden aus,
@@ -2947,7 +2950,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       sh.fragmentShader = `uniform float uZombie;\nvarying float vTex;\nvarying vec3 vGrain;\n${glow ? "varying float vGlow;\n" : ""}` + sh.fragmentShader
         .replace("void main() {", `${SURF_LITE_GLSL}\nvoid main() {`)
         .replace("#include <color_fragment>", `#include <color_fragment>\n\tdiffuseColor.rgb = ${glow ? "mix(surfLite(diffuseColor.rgb, vGrain, vTex, uZombie), diffuseColor.rgb, vGlow)" : "surfLite(diffuseColor.rgb, vGrain, vTex, uZombie)"};`)
-        .replace("#include <opaque_fragment>", `${RIM_GLSL}${glow ? " * (1.0 - vGlow)" : ""};\n\t${glow ? "outgoingLight = mix(outgoingLight, diffuseColor.rgb, vGlow);\n\t" : ""}#include <opaque_fragment>`);
+        .replace("#include <opaque_fragment>", `${RIM_GLSL}${glow ? " * (1.0 - vGlow)" : ""};${KNEE_GLSL};\n\t${glow ? "outgoingLight = mix(outgoingLight, diffuseColor.rgb, vGlow);\n\t" : ""}#include <opaque_fragment>`);
       return;
     }
     const g = glow ? " * (1.0 - vGlow)" : "";
@@ -2955,7 +2958,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       .replace("void main() {", `${SURF_GLSL}\nvoid main() {`)
       .replace("#include <color_fragment>", `#include <color_fragment>\n\tfloat sPx = length(fwidth(vGrain));\n\tvec3 sBase = diffuseColor.rgb;\n\tdiffuseColor.rgb = surf(sBase, vGrain, vTex, sPx, uZombie);${glow ? "\n\tdiffuseColor.rgb = mix(diffuseColor.rgb, sBase, vGlow);" : ""}`)
       .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>\n\tnormal = bumpN(normal, gH${g});`)
-      .replace("#include <opaque_fragment>", `${SHEEN_GLSL(g)}${RIM_GLSL}${g};\n\t${glow ? "outgoingLight = mix(outgoingLight, diffuseColor.rgb, vGlow);\n\t" : ""}#include <opaque_fragment>`);
+      .replace("#include <opaque_fragment>", `${SHEEN_GLSL(g)}${RIM_GLSL}${g};${KNEE_GLSL};\n\t${glow ? "outgoingLight = mix(outgoingLight, diffuseColor.rgb, vGlow);\n\t" : ""}#include <opaque_fragment>`);
   }
   function injectParts(sh, uni, kind, zk = 1) {
     sh.uniforms.partMat = uni;
@@ -2968,7 +2971,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   }
   function partMaterial(m, uni, kind, zk = 1) {
     m.onBeforeCompile = (sh) => injectParts(sh, uni, kind, zk);
-    m.customProgramCacheKey = () => `parts${MAXP}:${kind}:v33${kind === "lit" && quality < 2 ? ":lite" : ""}`; // alle Figuren teilen sich ein Programm je Art (und Grafikstufe)
+    m.customProgramCacheKey = () => `parts${MAXP}:${kind}:v35${kind === "lit" && quality < 2 ? ":lite" : ""}`; // alle Figuren teilen sich ein Programm je Art (und Grafikstufe)
     return m;
   }
   // Materialklasse eines Teils: ausdrücklich (userData.tex), über die Rolle (Haut/Hemd/Hose) oder geschätzt aus der Farbe
@@ -3089,7 +3092,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       sh.vertexShader = "attribute float tex;\nvarying float vTex;\nvarying vec3 vGrain;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n  vGrain = position; vTex = tex;");
       surfShader(sh, false, look.grime > 0.5 ? 1 : 0);
     };
-    lit.customProgramCacheKey = () => `boss:v33${quality < 2 ? ":lite" : ""}`;
+    lit.customProgramCacheKey = () => `boss:v35${quality < 2 ? ":lite" : ""}`;
     const glow = new T3.MeshBasicMaterial({ vertexColors: true });
     bakeNode(M.root, lit, glow, keep, FIG_OUTLINE, look, true, SOFT_K);
     M.mats = [lit, ...kept];
@@ -4993,7 +4996,7 @@ void main() {
     // v3.0: Druckwellen verzerren das Bild ringförmig (bis zu 4 gleichzeitig), leichter Farbsaum zum Rand hin,
     // bei Treffern kurz entsättigt und rötlich
     const comp = sm(`uniform sampler2D src; uniform sampler2D glow; uniform float k; uniform float sat; uniform vec3 tint;
-uniform vec4 shock[4]; uniform float aspect; uniform float ca; uniform float hurt; varying vec2 vUv;
+uniform vec4 shock[4]; uniform float aspect; uniform float ca; uniform float hurt; uniform vec2 grade; varying vec2 vUv;
 void main() {
   vec2 off = vec2(0.0);
   for (int i = 0; i < 4; i++) {
@@ -5012,9 +5015,13 @@ void main() {
   c += texture2D(glow, uv).rgb * k;
   float l = dot(c, vec3(0.299, 0.587, 0.114));
   c = mix(vec3(l), c, sat) * tint;
+  // v3.5 Filmlook: sanfte S-Kurve (mehr Tiefe in Schatten und Mitten), kühle Schatten, warme Lichter
+  vec3 cs = clamp(c, 0.0, 1.0);
+  c = mix(c, cs * cs * (3.0 - 2.0 * cs), grade.x);
+  c *= mix(vec3(0.93, 0.99, 1.07), vec3(1.05, 1.0, 0.93), smoothstep(0.12, 0.7, l) * grade.y + (1.0 - grade.y) * 0.5);
   c = mix(c, vec3(l) * vec3(1.25, 0.75, 0.72), hurt * 0.4);
   gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0); // Werte sind schon Bildschirm-sRGB
-}`, { src: { value: null }, glow: { value: null }, k: { value: 0.85 }, sat: { value: 1.06 }, tint: { value: postTint }, shock: { value: shockU }, aspect: { value: 1 }, ca: { value: 0.001 }, hurt: { value: 0 } });
+}`, { src: { value: null }, glow: { value: null }, k: { value: 0.85 }, sat: { value: 1.06 }, tint: { value: postTint }, shock: { value: shockU }, aspect: { value: 1 }, ca: { value: 0.001 }, hurt: { value: 0 }, grade: { value: new T3.Vector2(0.26, 1) } });
     const quad = new T3.Mesh(new T3.PlaneGeometry(2, 2), comp), sc = new T3.Scene();
     quad.frustumCulled = false;
     sc.add(quad);

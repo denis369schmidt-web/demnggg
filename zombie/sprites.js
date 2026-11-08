@@ -1963,6 +1963,68 @@ window.Sprites = (() => {
         g.restore();
       }
     }
+    // v3.3 Spuren der Seuche: Kreide-Umriss, Sprühmarkierungen, Hülsen, Einschläge, Unkraut, Trümmer, Müll, Zeitungen –
+    // dazu je Thema Spritzen/Pillen (Klinik) oder zerbrochene Phiolen (Labor)
+    {
+      const dr = rng(seed + 1337), outdoor = theme === "street" || theme === "markt";
+      const at = (fn, x, y, a = dr() * Math.PI * 2) => { g.save(); g.translate(x, y); g.rotate(a); fn(); g.restore(); };
+      const px = () => L + 20 + dr() * (aw - 40), py = () => T + 40 + dr() * (ah - 80);
+      // Kreide-Umriss eines Opfers
+      if (outdoor && dr() < 0.55) at(() => {
+        g.strokeStyle = "rgba(235,235,225,0.55)"; g.lineWidth = 1.4; g.lineJoin = "round";
+        g.beginPath(); g.arc(0, -22, 6, 0, Math.PI * 2); g.stroke();
+        g.beginPath(); g.moveTo(-5, -15); g.lineTo(-16, -6); g.lineTo(-20, 6); g.moveTo(5, -15); g.lineTo(15, -24); g.lineTo(24, -26);
+        g.moveTo(-6, -15); g.lineTo(-7, 6); g.lineTo(-12, 26); g.moveTo(6, -15); g.lineTo(7, 6); g.lineTo(14, 25); g.moveTo(-7, 6); g.lineTo(7, 6); g.stroke();
+        g.fillStyle = "rgba(90,8,10,0.35)"; g.beginPath(); g.ellipse(2, -6, 10, 7, 0.4, 0, Math.PI * 2); g.fill();
+      }, px(), py());
+      // Sprühmarkierung (Durchsuchungs-X mit Datum und Zahl) und Fluchtpfeil
+      at(() => {
+        g.strokeStyle = "rgba(240,130,30,0.6)"; g.lineWidth = 2.2; g.lineCap = "round";
+        g.beginPath(); g.moveTo(-10, -10); g.lineTo(10, 10); g.moveTo(10, -10); g.lineTo(-10, 10); g.stroke();
+        g.fillStyle = "rgba(240,130,30,0.6)"; g.font = "bold 6px sans-serif"; g.textAlign = "center"; g.fillText("N-17", 0, -12); g.fillText("3†", 13, 2); g.fillText("12/9", -14, 2);
+      }, L + 30 + dr() * 60, T + 60 + dr() * (ah - 120), (dr() - 0.5) * 0.4);
+      at(() => {
+        g.fillStyle = "rgba(230,230,220,0.35)"; g.beginPath(); g.moveTo(0, -16); g.lineTo(9, -4); g.lineTo(3, -4); g.lineTo(3, 14); g.lineTo(-3, 14); g.lineTo(-3, -4); g.lineTo(-9, -4); g.closePath(); g.fill();
+        g.font = "bold 7px sans-serif"; g.textAlign = "center"; g.fillText(theme === "hospital" ? "NOTAUSGANG" : "ARCHE", 0, 24);
+      }, W / 2 + (dr() - 0.5) * 120, T + 70 + dr() * 60, (dr() - 0.5) * 0.2);
+      // Patronenhülsen-Nester
+      for (let c = 0; c < 3; c++) { const cx = px(), cy = py(); for (let i = 0; i < 9; i++) at(() => { g.fillStyle = "rgba(200,160,60,0.85)"; g.fillRect(-2, -0.8, 4, 1.6); g.fillStyle = "rgba(255,240,170,0.6)"; g.fillRect(-2, -0.8, 4, 0.5); g.fillStyle = "rgba(90,60,20,0.8)"; g.fillRect(1.6, -0.8, 0.6, 1.6); }, cx + (dr() - 0.5) * 30, cy + (dr() - 0.5) * 22); }
+      // Einschläge mit Splitterkranz
+      for (let i = 0; i < 6; i++) at(() => {
+        g.fillStyle = "rgba(0,0,0,0.5)"; g.beginPath(); g.arc(0, 0, 2.2 + dr() * 1.5, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 0.6; for (let k = 0; k < 6; k++) { const a = dr() * Math.PI * 2, l = 3 + dr() * 5; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * l, Math.sin(a) * l); g.stroke(); }
+        g.fillStyle = "rgba(255,255,255,0.12)"; g.beginPath(); g.arc(-1, -1, 1, 0, Math.PI * 2); g.fill();
+      }, px(), py());
+      if (outdoor) {
+        // Unkraut in Fugen und am Wandfuß
+        for (let i = 0; i < 26; i++) { const nearWall = dr() < 0.5, x = nearWall ? (dr() < 0.5 ? L + 2 + dr() * 10 : RR - 2 - dr() * 10) : px(), y = py(); for (let k = 0; k < 5; k++) { g.strokeStyle = `rgba(${50 + dr() * 40},${90 + dr() * 50},${30},0.75)`; g.lineWidth = 0.9; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (dr() - 0.5) * 7, y - 2 - dr() * 5); g.stroke(); } }
+        // Ziegel- und Putzbrocken
+        for (let i = 0; i < 12; i++) at(() => { const w2 = 4 + dr() * 5, h2 = 2.5 + dr() * 2.5; g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(-w2 / 2 + 1, -h2 / 2 + 1, w2, h2); g.fillStyle = dr() < 0.6 ? `rgb(${120 + dr() * 30 | 0},${60 + dr() * 20 | 0},${44})` : `rgb(${150 + dr() * 30 | 0},${146 + dr() * 30 | 0},${136})`; g.fillRect(-w2 / 2, -h2 / 2, w2, h2); g.fillStyle = "rgba(255,255,255,0.15)"; g.fillRect(-w2 / 2, -h2 / 2, w2, 0.8); }, dr() < 0.6 ? (dr() < 0.5 ? L + 6 + dr() * 30 : RR - 6 - dr() * 30) : px(), py());
+        // Müllsack und Dosen
+        for (let i = 0; i < 2; i++) at(() => { g.fillStyle = "rgba(0,0,0,0.4)"; g.beginPath(); g.ellipse(2, 2, 9, 7, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = "#16181a"; g.beginPath(); g.ellipse(0, 0, 9, 7, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = "rgba(160,170,180,0.35)"; g.lineWidth = 1; g.beginPath(); g.arc(-2, -2, 5, 3.4, 4.8); g.stroke(); g.fillStyle = "#2a2c2e"; g.fillRect(-1, -9, 2, 3); }, dr() < 0.5 ? L + 14 : RR - 14, py());
+        for (let i = 0; i < 5; i++) at(() => { g.fillStyle = ["#c8302a", "#2a7ad8", "#d8d8d0", "#3a9a3a"][i % 4]; g.fillRect(-3, -1.6, 6, 3.2); g.fillStyle = "rgba(220,225,230,0.8)"; g.fillRect(2.4, -1.6, 0.8, 3.2); g.fillStyle = "rgba(255,255,255,0.3)"; g.fillRect(-3, -1.6, 6, 0.8); }, px(), py());
+      }
+      // Zeitungsseiten mit Schlagzeile
+      for (let i = 0; i < (outdoor ? 3 : 1); i++) at(() => {
+        g.fillStyle = "rgba(0,0,0,0.25)"; g.fillRect(-10, -7, 21, 15);
+        g.fillStyle = "rgba(218,212,196,0.82)"; g.fillRect(-11, -8, 21, 15);
+        g.fillStyle = "rgba(30,30,30,0.75)"; g.font = "bold 3.6px sans-serif"; g.fillText("EXTRABLATT", -10, -4.6);
+        g.fillStyle = "rgba(160,20,20,0.7)"; g.fillRect(-10, -3.6, 19, 1.2);
+        g.fillStyle = "rgba(40,40,40,0.45)"; for (let l = 0; l < 5; l++) { g.fillRect(-10, -1 + l * 1.6, 8, 0.6); g.fillRect(0, -1 + l * 1.6, 8, 0.6); }
+      }, px(), py());
+      if (theme === "hospital") {
+        for (let i = 0; i < 6; i++) at(() => { g.fillStyle = "rgba(230,240,245,0.9)"; g.fillRect(-4, -0.8, 6, 1.6); g.fillStyle = "rgba(255,140,40,0.9)"; g.fillRect(2, -1, 1.6, 2); g.fillStyle = "#c9ced4"; g.fillRect(3.6, -0.3, 3, 0.6); }, px(), py()); // Spritzen
+        for (let c = 0; c < 3; c++) { const cx = px(), cy = py(); for (let i = 0; i < 10; i++) { g.fillStyle = ["#f4f4f0", "#e86a6a", "#6ab0e8", "#f2d24a"][Math.floor(dr() * 4)]; g.beginPath(); g.ellipse(cx + (dr() - 0.5) * 18, cy + (dr() - 0.5) * 12, 1.2, 0.8, dr() * 3, 0, Math.PI * 2); g.fill(); } } // Pillen
+        for (let i = 0; i < 3; i++) at(() => { g.fillStyle = "rgba(236,232,224,0.8)"; g.fillRect(-6, -2, 12, 4); g.fillStyle = "rgba(120,10,14,0.6)"; g.beginPath(); g.ellipse(1, 0, 3, 1.6, 0, 0, Math.PI * 2); g.fill(); }, px(), py()); // blutige Mullbinden
+      } else if (theme === "lab") {
+        for (let i = 0; i < 7; i++) at(() => {
+          const col = ["120,230,210", "180,255,80", "255,90,200"][Math.floor(dr() * 3)];
+          const gr = g.createRadialGradient(0, 0, 0, 0, 0, 9); gr.addColorStop(0, `rgba(${col},0.35)`); gr.addColorStop(1, `rgba(${col},0)`); g.fillStyle = gr; g.fillRect(-9, -9, 18, 18);
+          g.fillStyle = "rgba(220,240,255,0.7)"; g.fillRect(-1.6, -3, 3.2, 5); g.fillStyle = "rgba(220,240,255,0.5)"; for (let k = 0; k < 3; k++) g.fillRect(3 + dr() * 4, -2 + dr() * 4, 1, 1);
+        }, px(), py()); // zerbrochene Phiolen
+        for (let i = 0; i < 6; i++) at(() => { g.fillStyle = "rgba(240,240,232,0.7)"; g.fillRect(-5, -7, 10, 14); g.fillStyle = "rgba(40,40,40,0.4)"; for (let l = 0; l < 6; l++) g.fillRect(-4, -5 + l * 2, 7, 0.6); }, px(), py()); // Akten
+      }
+    }
     if (opts.wet && gc) {
       const pr = rng(seed + 911), gcx = gc.getContext("2d");
       for (let i = 0; i < 6; i++) {

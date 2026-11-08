@@ -32,7 +32,7 @@ window.Render3D = (() => {
     return g;
   }
   const box = (w, h, d) => geo(`b${r1(w)},${r1(h)},${r1(d)}`, () => new T3.BoxGeometry(w, h, d));
-  const cap = (r, len) => geo(`c${r1(r)},${r1(len)}`, () => new T3.CapsuleGeometry(r, len, 3, 10)); // v2.7: 10 statt 7 Segmente – rundere Körper
+  const cap = (r, len) => geo(`c${r1(r)},${r1(len)}`, () => new T3.CapsuleGeometry(r, len, 4, 14)); // v3.3: 14 Segmente – glatt schattiert sollen Rumpf und Köpfe rund wirken
   const ico = (r, d = 1) => geo(`i${r1(r)},${d}`, () => new T3.IcosahedronGeometry(r, d));
   const cyl = (rt, rb, h, seg = 10) => geo(`y${r1(rt)},${r1(rb)},${r1(h)},${seg}`, () => new T3.CylinderGeometry(rt, rb, h, seg));
   const cone = (r, h, seg = 6) => geo(`k${r1(r)},${r1(h)},${seg}`, () => new T3.ConeGeometry(r, h, seg));
@@ -49,7 +49,7 @@ window.Render3D = (() => {
   // v3.2: geteiltes Material mit Oberflächen-Klasse (Haut, Stoff, Leder, Metall, Haare, Knochen – siehe surf im Figuren-Shader)
   const tlam = (c, tex) => smat(`l${tex}:${c}`, () => { const m = lam(c); m.userData.tex = tex; return m; });
   // schlanke Gliedmaßen-Kapsel (weniger Ecken als cap, die Glieder sind dünn)
-  const limb = (r, len) => geo(`L${r1(r)},${r1(len)}`, () => new T3.CapsuleGeometry(r, len, 2, 8));
+  const limb = (r, len) => geo(`L${r1(r)},${r1(len)}`, () => new T3.CapsuleGeometry(r, len, 3, 10));
   // kleines Detailteil: wird ohne Umrisslinie gebacken
   const fine = (o) => { o.userData.fine = true; return o; };
   const strHash = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return (h >>> 0) / 4294967296; };
@@ -103,7 +103,73 @@ window.Render3D = (() => {
     for (let i = 0; i < (wall ? 4 : 2); i++) { let x = R() * w, y = R() * h; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (R() - 0.5) * 10; y += 3 + R() * 7; g.lineTo(x, y); } g.stroke(); } // Risse
     g.strokeStyle = "rgba(255,255,255,0.07)"; g.lineWidth = 0.6;
     for (let i = 0; i < (wall ? 10 : 14); i++) { const x = R() * w, y = R() * h, a = R() * Math.PI; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * (3 + R() * 9), y + Math.sin(a) * (3 + R() * 9)); g.stroke(); } // Kratzer
+    detailPass(g, w, h, key, R);
     g.restore();
+  }
+  // v3.3 Detail-Ebene für alle Wand-, Dach- und Hindernis-Texturen: Geschichten der Seuche an jeder Fläche
+  function handprint(g, x, y, sz, a, R, col = "110,10,14") {
+    g.save(); g.translate(x, y); g.rotate(a); g.fillStyle = `rgba(${col},${0.55 + R() * 0.25})`;
+    g.beginPath(); g.ellipse(0, 0, sz * 0.42, sz * 0.5, 0, 0, TAU); g.fill();
+    for (let k = 0; k < 4; k++) { g.beginPath(); g.ellipse(-sz * 0.3 + k * sz * 0.2, -sz * 0.72 - (k === 1 || k === 2 ? sz * 0.08 : 0), sz * 0.08, sz * 0.24, 0, 0, TAU); g.fill(); }
+    g.beginPath(); g.ellipse(sz * 0.48, -sz * 0.1, sz * 0.09, sz * 0.22, -0.8, 0, TAU); g.fill();
+    for (let k = 0; k < 3; k++) g.fillRect(-sz * 0.3 + R() * sz * 0.6, sz * 0.3, 0.9, sz * (0.4 + R() * 1.2)); // herablaufende Tropfen
+    g.restore();
+  }
+  function poster(g, x, y, pw, ph, R, title, col) {
+    g.save(); g.translate(x, y); g.rotate((R() - 0.5) * 0.12);
+    const paper = `rgb(${212 + R() * 20 | 0},${200 + R() * 18 | 0},${170 + R() * 16 | 0})`;
+    g.fillStyle = "rgba(0,0,0,0.3)"; g.fillRect(1.5, 1.5, pw, ph);
+    g.fillStyle = paper; g.beginPath(); g.moveTo(0, 0); g.lineTo(pw, 0); g.lineTo(pw, ph * 0.7); g.lineTo(pw * 0.72, ph); g.lineTo(0, ph); g.closePath(); g.fill(); // eine Ecke abgerissen
+    g.fillStyle = col; g.fillRect(2, 2, pw - 4, ph * 0.18);
+    g.fillStyle = "#f4efe2"; g.font = `bold ${Math.max(4, ph * 0.13)}px sans-serif`; g.textBaseline = "middle"; g.fillText(title, 4, 2 + ph * 0.09, pw - 8);
+    g.fillStyle = "rgba(60,60,60,0.55)"; g.fillRect(4, ph * 0.26, pw * 0.42, ph * 0.36); // Foto
+    g.fillStyle = "rgba(30,30,30,0.5)"; for (let l = 0; l < 5; l++) g.fillRect(pw * 0.5, ph * 0.28 + l * ph * 0.07, pw * (0.3 + R() * 0.15), 0.9);
+    for (let l = 0; l < 3; l++) g.fillRect(4, ph * 0.7 + l * ph * 0.08, pw * (0.4 + R() * 0.35), 0.9);
+    g.fillStyle = "rgba(230,220,170,0.55)"; g.fillRect(-2, -2, 8, 4); g.fillRect(pw - 6, -2, 8, 4); // Klebeband
+    const st = g.createLinearGradient(0, 0, 0, ph); st.addColorStop(0, "rgba(0,0,0,0)"); st.addColorStop(1, "rgba(60,40,20,0.25)"); g.fillStyle = st; g.fillRect(0, 0, pw, ph); // vergilbt, Regenwasser
+    g.restore();
+  }
+  function stencil(g, txt, x, y, size, col, R) {
+    g.save(); g.font = `900 ${size}px "Arial Black", Impact, sans-serif`; g.textBaseline = "middle";
+    for (let k = 0; k < 40; k++) { g.fillStyle = `rgba(${col},${0.05 + R() * 0.08})`; g.beginPath(); g.arc(x + R() * g.measureText(txt).width, y + (R() - 0.5) * size * 1.4, 0.6 + R() * 1.6, 0, TAU); g.fill(); } // Sprühnebel
+    g.fillStyle = `rgba(${col},0.88)`; g.fillText(txt, x, y);
+    g.fillStyle = "rgba(0,0,0,0.25)"; for (let k = 0; k < txt.length; k++) g.fillRect(x + k * size * 0.62 + size * 0.28, y - size * 0.5, 1, size); // Schablonenstege
+    g.restore();
+  }
+  function detailPass(g, w, h, key, R) {
+    const kind = key.split(":")[1] || "";
+    if (key.startsWith("wall:")) {
+      if (kind !== "lab") poster(g, 18 + R() * (w - 80), 14 + R() * 30, 26 + R() * 8, 34 + R() * 8, R, kind === "hospital" ? "HYGIENE" : R() < 0.5 ? "VERMISST" : "EVAKUIERUNG", R() < 0.5 ? "#a8241c" : "#1f4a8a");
+      if (kind === "street" || kind === "markt") poster(g, w * 0.55 + R() * 40, 18 + R() * 24, 22, 30, R, "N-17", "#2a2a2a");
+      stencil(g, kind === "hospital" ? "QUARANTÄNE" : kind === "lab" ? "BIOGEFAHR N-17" : "SPERRZONE", 12 + R() * (w * 0.35), h * 0.6 + R() * 8, 12, kind === "hospital" ? "170,30,30" : "230,120,30", R);
+      for (let k = 0; k < 3; k++) handprint(g, 20 + R() * (w - 40), 50 + R() * 40, 7 + R() * 3, (R() - 0.5) * 0.9, R);
+      // Salzausblühungen und abgeplatzter Putz
+      if (kind !== "lab") for (let k = 0; k < 3; k++) { const x = R() * w, y = 30 + R() * 50, gr = g.createRadialGradient(x, y, 0, x, y, 10 + R() * 12); gr.addColorStop(0, "rgba(235,235,225,0.22)"); gr.addColorStop(1, "rgba(235,235,225,0)"); g.fillStyle = gr; g.fillRect(x - 24, y - 24, 48, 48); }
+      // Einschuss-Krater: Gruppe mit Abplatzungen
+      const cx = 30 + R() * (w - 60), cy = 30 + R() * 40;
+      for (let k = 0; k < 6; k++) { const x = cx + (R() - 0.5) * 26, y = cy + (R() - 0.5) * 16; g.fillStyle = "rgba(200,190,170,0.3)"; g.beginPath(); g.arc(x, y, 2.6, 0, TAU); g.fill(); g.fillStyle = "rgba(0,0,0,0.8)"; g.beginPath(); g.arc(x, y, 1.2, 0, TAU); g.fill(); g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 0.5; for (let j = 0; j < 4; j++) { const a = R() * TAU; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * 5, y + Math.sin(a) * 5); g.stroke(); } }
+      // Efeu von unten (draußen)
+      if (kind === "street" || kind === "markt") for (let v = 0; v < 3; v++) {
+        let x = R() * w, y = h - 2; g.strokeStyle = "rgba(40,60,26,0.8)"; g.lineWidth = 1.1; g.beginPath(); g.moveTo(x, y);
+        for (let k = 0; k < 9; k++) { x += (R() - 0.5) * 10; y -= 4 + R() * 6; g.lineTo(x, y); g.save(); g.fillStyle = `rgba(${50 + R() * 30},${90 + R() * 40},${36},0.85)`; g.beginPath(); g.ellipse(x + (R() - 0.5) * 6, y, 2.2, 1.4, R() * 3, 0, TAU); g.fill(); g.restore(); }
+        g.stroke();
+      }
+      // Verteilerkasten mit Kabel
+      const bx = R() * (w - 30), by = 20 + R() * 30;
+      g.fillStyle = "#5a6066"; g.fillRect(bx, by, 14, 18); g.fillStyle = "rgba(255,255,255,0.15)"; g.fillRect(bx, by, 14, 1.5); g.fillStyle = "rgba(0,0,0,0.4)"; g.fillRect(bx, by + 16.5, 14, 1.5);
+      g.fillStyle = "#e8c21a"; g.beginPath(); g.moveTo(bx + 7, by + 5); g.lineTo(bx + 10, by + 10); g.lineTo(bx + 4, by + 10); g.closePath(); g.fill();
+      g.strokeStyle = "rgba(20,20,20,0.8)"; g.lineWidth = 1.4; g.beginPath(); g.moveTo(bx + 7, by + 18); g.lineTo(bx + 7, h); g.stroke();
+    } else if (key.startsWith("roof:")) {
+      for (let k = 0; k < 4; k++) { const x = R() * w, y = R() * h, r = 6 + R() * 12; for (let j = 0; j < 30; j++) { g.fillStyle = `rgba(${60 + R() * 30},${84 + R() * 40},${34},${0.18 + R() * 0.2})`; g.beginPath(); g.arc(x + (R() - 0.5) * r * 2, y + (R() - 0.5) * r * 1.4, 0.8 + R() * 2, 0, TAU); g.fill(); } } // Moos
+      for (let k = 0; k < 2; k++) { const x = R() * w, y = R() * h; g.fillStyle = "rgba(10,14,20,0.4)"; g.beginPath(); g.ellipse(x, y, 8 + R() * 10, 4 + R() * 5, R() * 3, 0, TAU); g.fill(); g.strokeStyle = "rgba(200,220,240,0.18)"; g.lineWidth = 0.8; g.beginPath(); g.ellipse(x - 2, y - 1, 5, 2, 0, 3.4, 5.4); g.stroke(); } // Pfützen
+      if (kind !== "markt") { const vx = 20 + R() * (w - 50), vy = 20 + R() * (h - 50); g.fillStyle = "rgba(0,0,0,0.4)"; g.fillRect(vx + 2, vy + 2, 18, 14); g.fillStyle = "#6a7076"; g.fillRect(vx, vy, 18, 14); g.fillStyle = "rgba(0,0,0,0.45)"; for (let k = 0; k < 4; k++) g.fillRect(vx + 2, vy + 2 + k * 3, 14, 1.2); } // Lüftungshaube
+    } else if (key.startsWith("obs:")) {
+      if (R() < 0.7) handprint(g, 20 + R() * 88, 30 + R() * 60, 6 + R() * 3, (R() - 0.5), R);
+      for (let k = 0; k < 2; k++) { g.fillStyle = ["#e8c21a", "#d8d8d0", "#c8302a", "#2a8ad8"][Math.floor(R() * 4)]; g.save(); g.translate(R() * 110, R() * 110); g.rotate((R() - 0.5) * 0.6); g.fillRect(0, 0, 9 + R() * 6, 5 + R() * 4); g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(1.5, 1.5, 6, 0.8); g.fillRect(1.5, 3, 4, 0.8); g.restore(); } // Aufkleber
+      for (let k = 0; k < 3; k++) { const x = R() * 128, y = R() * 128, r = 4 + R() * 6, gr = g.createRadialGradient(x - 1, y - 1, 0, x, y, r); gr.addColorStop(0, "rgba(255,255,255,0.12)"); gr.addColorStop(0.6, "rgba(0,0,0,0.18)"); gr.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); } // Dellen
+      for (let k = 0; k < 18; k++) { g.fillStyle = `rgba(40,30,18,${0.1 + R() * 0.25})`; g.beginPath(); g.arc(R() * 128, 104 + R() * 24, 0.6 + R() * 2.4, 0, TAU); g.fill(); } // Spritzschmutz unten
+      if (R() < 0.6) for (let k = 0; k < 2; k++) { const x = R() * 128, y = R() * 70, len = 12 + R() * 30, gr = g.createLinearGradient(0, y, 0, y + len); gr.addColorStop(0, "rgba(130,62,22,0.4)"); gr.addColorStop(1, "rgba(130,62,22,0)"); g.fillStyle = gr; g.fillRect(x, y, 2 + R() * 3, len); } // Rostläufer
+    }
   }
   const seededR = (seed) => { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; };
   // Gebrauchsspuren: feines Korn, Kratzer, Schmutzflecken und dunklere Kanten
@@ -1554,7 +1620,7 @@ void main() {
     for (const s of [-1, 1]) {
       const hip = group(-0.05 * r, 0.92 * r, s * 0.3 * r * bulk);
       hip.add(mesh(limb(0.21 * r * bulk, 0.26 * r), pants, 0, -0.24 * r, 0));
-      hip.add(mesh(ico(0.175 * r * bulk, 0), pants, 0.035 * r, -0.5 * r, 0));
+      hip.add(mesh(ico(0.175 * r * bulk, 1), pants, 0.035 * r, -0.5 * r, 0));
       hip.add(mesh(limb(0.165 * r * bulk, 0.22 * r), bareShin ? skin : pants, 0, -0.68 * r, 0));
       if (bareShin) for (let k = 0; k < 4; k++) { const fl = fine(mesh(cone(0.07 * r, 0.2 * r, 4), pants, Math.cos(k * 1.6) * 0.17 * r, -0.62 * r, Math.sin(k * 1.6) * 0.17 * r)); fl.rotation.x = Math.PI + Math.sin(k * 1.6) * 0.5; fl.rotation.z = Math.cos(k * 1.6) * 0.5; hip.add(fl); } // zerfetzter Hosensaum
       else hip.add(fine(mesh(cyl(0.185 * r * bulk, 0.19 * r * bulk, 0.08 * r, 10), pants, 0, -0.78 * r, 0))); // Hosenaufschlag
@@ -1564,7 +1630,7 @@ void main() {
         if (rnd(4 + s) < 0.5) hip.add(fine(mesh(box(0.1 * r, 0.05 * r, 0.12 * r), gore, 0.0, -0.84 * r, s * 0.1 * r)));
       } else {
         hip.add(mesh(box(0.4 * r, 0.17 * r, 0.27 * r), shoeM, 0.07 * r, -0.83 * r, 0));
-        const toe = mesh(ico(0.14 * r, 0), shoeM, 0.25 * r, -0.86 * r, 0); toe.scale.set(1, 0.62, 0.98); hip.add(toe);
+        const toe = mesh(ico(0.14 * r, 1), shoeM, 0.25 * r, -0.86 * r, 0); toe.scale.set(1, 0.62, 0.98); hip.add(toe);
         hip.add(mesh(box(0.56 * r, 0.05 * r, 0.31 * r), soleM, 0.1 * r, -0.925 * r, 0));
         for (let k = 0; k < 2; k++) hip.add(fine(mesh(box(0.04 * r, 0.025 * r, 0.2 * r), lace, 0.06 * r + k * 0.09 * r, -0.74 * r, 0)));
       }
@@ -1621,9 +1687,9 @@ void main() {
       const sh = group(0.04 * r, 1.86 * r, s * 0.66 * r * bulk);
       const sleeve = P.armor ? slam("#1b2433") : P.brute || P.bloat || P.claws ? skin : shirt;
       const bare = sleeve === skin || (zomb && !P.armor && (P.torn ? rnd(9 + s) < 0.7 : rnd(11 + s) < 0.3));
-      sh.add(mesh(ico(0.19 * r * bulk, 0), sleeve, 0.02 * r, 0, 0));
+      sh.add(mesh(ico(0.19 * r * bulk, 1), sleeve, 0.02 * r, 0, 0));
       const up = mesh(limb(0.155 * r * bulk, 0.3 * r * la), sleeve, 0.3 * r * la, 0, 0); up.rotation.z = -Math.PI / 2; sh.add(up);
-      sh.add(mesh(ico(0.14 * r * bulk, 0), bare ? skin : sleeve, 0.55 * r * la, 0, 0));
+      sh.add(mesh(ico(0.14 * r * bulk, 1), bare ? skin : sleeve, 0.55 * r * la, 0, 0));
       const fo = mesh(limb(0.13 * r * bulk, 0.3 * r * la), bare ? skin : sleeve, 0.77 * r * la, 0, 0); fo.rotation.z = -Math.PI / 2; sh.add(fo);
       if (bare && sleeve !== skin) { // Ärmel endet zerfetzt am Ellbogen
         for (let k = 0; k < 3; k++) { const fl = fine(mesh(cone(0.06 * r, 0.18 * r, 4), sleeve, 0.56 * r * la, Math.cos(k * 2.1) * 0.12 * r, Math.sin(k * 2.1) * 0.12 * r)); fl.rotation.z = -Math.PI / 2; sh.add(fl); }
@@ -1657,7 +1723,7 @@ void main() {
       for (const s of [-1, 1]) {
         head.add(fine(mesh(ico(0.1 * r, 0), cavity, hr * 0.8, 0.06 * r, s * 0.15 * r)));
         head.add(mesh(ico(0.075 * r, 0), sbasic(P.eye || "#ff3030"), hr * 0.86, 0.06 * r, s * 0.15 * r));
-        if (!P.hood && !P.hazmat) { const ear = mesh(ico(0.1 * r, 0), skin, -0.02 * r, 0.02 * r, s * hr * 0.97); ear.scale.set(0.55, 1, 0.38); head.add(ear); }
+        if (!P.hood && !P.hazmat) { const ear = mesh(ico(0.1 * r, 1), skin, -0.02 * r, 0.02 * r, s * hr * 0.97); ear.scale.set(0.55, 1, 0.38); head.add(ear); }
       }
       const brow = fine(mesh(box(0.1 * r, 0.07 * r, 0.48 * r), skin, hr * 0.84, 0.16 * r, 0)); brow.rotation.z = -0.3; head.add(brow);
       if (!P.nose) {
@@ -1701,10 +1767,35 @@ void main() {
     accessories(M, P, r, head, hr, shirt, skin);
     M.body.add(head);
     M.extra.head = head;
+    if (!P.scooter) realismRig(M, r, { head: P.big || P.brute ? 0.8 : 0.76 }); // v3.3 (E-Scooter: Trittbrett hängt an der Fußhöhe)
     M.body.rotation.z = -(P.lean || 0);
     M.lean = -(P.lean || 0);
-    M.height = 2.9 * r;
+    M.height = 2.75 * r;
     return M;
+  }
+
+  // v3.3 realistische Proportionen: das ursprüngliche Skelett (Hüfte 0,92 r, Schultern 1,86 r, Kopf 2,4 r – Kindchenschema)
+  // wird nachträglich umgerechnet: längere Beine (Hüfte 1,2 r), kürzerer, schmalerer Rumpf, kleinerer Kopf, längere,
+  // schlankere Arme. Alle Ausrüstungsteile am Rumpf wandern über dieselbe Höhenabbildung mit.
+  const RIG_Y = [[0, 0], [0.92, 1.2], [1.86, 2.0], [2.4, 2.3], [4, 3.5]];
+  function rigY(y) {
+    for (let i = 1; i < RIG_Y.length; i++) {
+      const [a0, b0] = RIG_Y[i - 1], [a1, b1] = RIG_Y[i];
+      if (y <= a1 || i === RIG_Y.length - 1) return { y: b0 + (y - a0) * (b1 - b0) / (a1 - a0), k: (b1 - b0) / (a1 - a0) };
+    }
+    return { y, k: 1 };
+  }
+  function realismRig(M, r, o = {}) {
+    const legs = new Set(M.legs.map((q) => q.g)), arms = new Set(M.arms.map((q) => q.g)), head = M.extra.head;
+    for (const c of M.body.children) {
+      const m = rigY(c.position.y / r);
+      if (legs.has(c)) { c.position.y = 1.2 * r; c.scale.y *= 1.3; c.position.z *= 0.9; continue; }
+      if (arms.has(c)) { c.position.y = m.y * r; c.position.z *= 0.88; c.scale.x *= o.armLen || 1.12; c.scale.y *= 0.86; c.scale.z *= 0.86; continue; }
+      if (c === head) { c.position.y = m.y * r; c.scale.multiplyScalar(o.head || 0.76); continue; }
+      c.position.y = m.y * r;
+      const tilted = c.quaternion && (Math.abs(c.quaternion.x) > 0.05 || Math.abs(c.quaternion.z) > 0.05);
+      if (!tilted && !c.isGroup) { c.scale.y *= m.k; c.scale.z *= 0.92; }
+    }
   }
 
   // Kleidung & Ausrüstung je Outfit – macht aus einem Grundmodell viele verschiedene Zombies
@@ -2153,17 +2244,23 @@ void main() {
   const fA = new T3.Vector3(), fB = new T3.Vector3(), fN = new T3.Vector3();
   const tintTo = (rgb, tr, tg, tb, k) => { rgb[0] += (tr - rgb[0]) * k; rgb[1] += (tg - rgb[1]) * k; rgb[2] += (tb - rgb[2]) * k; };
   const RGB = [0, 0, 0];
-  function paintFaces(col, P, n, o, c, toRoot, look, role) {
-    for (let i = 0; i < n; i += 3) {
+  // v3.3: mit Normalen N wird je Vertex statt je Dreieck gemalt – fließende Farbverläufe auf glatt schattierten Figuren
+  function paintFaces(col, P, n, o, c, toRoot, look, role, N = null) {
+    const step = N ? 1 : 3;
+    for (let i = 0; i < n; i += step) {
       let r = c.r, gg = c.g, b = c.b;
       if (look) {
-        // Flächenmittelpunkt in Modell-Koordinaten
-        wp.set((P[i * 3] + P[i * 3 + 3] + P[i * 3 + 6]) / 3, (P[i * 3 + 1] + P[i * 3 + 4] + P[i * 3 + 7]) / 3, (P[i * 3 + 2] + P[i * 3 + 5] + P[i * 3 + 8]) / 3).applyMatrix4(toRoot);
+        // Vertex bzw. Flächenmittelpunkt in Modell-Koordinaten
+        if (N) wp.set(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]).applyMatrix4(toRoot);
+        else wp.set((P[i * 3] + P[i * 3 + 3] + P[i * 3 + 6]) / 3, (P[i * 3 + 1] + P[i * 3 + 4] + P[i * 3 + 7]) / 3, (P[i * 3 + 2] + P[i * 3 + 5] + P[i * 3 + 8]) / 3).applyMatrix4(toRoot);
         if (role) {
-          // v2.7 Körper-Details je Material: Flächennormale (Modellraum, vorn = +x) und Höhe entscheiden
-          fA.set(P[i * 3 + 3] - P[i * 3], P[i * 3 + 4] - P[i * 3 + 1], P[i * 3 + 5] - P[i * 3 + 2]);
-          fB.set(P[i * 3 + 6] - P[i * 3], P[i * 3 + 7] - P[i * 3 + 1], P[i * 3 + 8] - P[i * 3 + 2]);
-          fN.crossVectors(fA, fB).transformDirection(toRoot);
+          // v2.7 Körper-Details je Material: Normale (Modellraum, vorn = +x) und Höhe entscheiden
+          if (N) fN.set(N[i * 3], N[i * 3 + 1], N[i * 3 + 2]).transformDirection(toRoot);
+          else {
+            fA.set(P[i * 3 + 3] - P[i * 3], P[i * 3 + 4] - P[i * 3 + 1], P[i * 3 + 5] - P[i * 3 + 2]);
+            fB.set(P[i * 3 + 6] - P[i * 3], P[i * 3 + 7] - P[i * 3 + 1], P[i * 3 + 8] - P[i * 3 + 2]);
+            fN.crossVectors(fA, fB).transformDirection(toRoot);
+          }
           const h = look.h || 40, yk = wp.y / h, zombie = look.grime > 0.5, sd = look.seed;
           RGB[0] = r; RGB[1] = gg; RGB[2] = b;
           if (role === "skin" && zombie) {
@@ -2186,7 +2283,7 @@ void main() {
           }
           r = RGB[0]; gg = RGB[1]; b = RGB[2];
         }
-        const j = 1 + (hash1(o + i + look.seed) - 0.5) * 0.06; // v3.2: leichter – die Oberflächen-Muster kommen jetzt aus dem Shader
+        const j = N ? 1 + 0.035 * Math.sin(wp.x * 0.7 + look.seed) * Math.sin(wp.z * 0.9 + wp.y * 0.4) : 1 + (hash1(o + i + look.seed) - 0.5) * 0.06; // die Oberflächen-Muster kommen aus dem Shader
         r *= j; gg *= j; b *= j;
         if (look.grime) {
           const f = look.freq, nz = Math.sin(wp.x * f + look.seed) * Math.sin(wp.y * f * 0.8 + look.seed * 1.7) * Math.sin(wp.z * f * 1.3 + look.seed * 0.3);
@@ -2194,10 +2291,10 @@ void main() {
         }
         if (look.h) { const ao = 0.5 + 0.5 * Math.min(1, Math.max(0, wp.y / (look.h * 0.7))); r *= ao; gg *= ao; b *= ao; }
       }
-      for (let v = 0; v < 3 && i + v < n; v++) { const k = (o + i + v) * 3; col[k] = r; col[k + 1] = gg; col[k + 2] = b; }
+      for (let v = 0; v < step && i + v < n; v++) { const k = (o + i + v) * 3; col[k] = r; col[k + 1] = gg; col[k + 2] = b; }
     }
   }
-  function mergeMeshes(meshes, material, node, look) {
+  function mergeMeshes(meshes, material, node, look, smooth = false) {
     const parts = [];
     let count = 0;
     for (const m of meshes) {
@@ -2213,7 +2310,7 @@ void main() {
       const n = g.attributes.position.count, P = g.attributes.position.array;
       pos.set(P, o * 3);
       if (g.attributes.normal) nrm.set(g.attributes.normal.array, o * 3);
-      paintFaces(col, P, n, o, c, node.matrixWorld, look, role);
+      paintFaces(col, P, n, o, c, node.matrixWorld, look, role, smooth && g.attributes.normal ? g.attributes.normal.array : null);
       texA.fill(tex, o, o + n);
       o += n;
       g.dispose();
@@ -2226,10 +2323,10 @@ void main() {
     geo.computeBoundingSphere();
     return new T3.Mesh(geo, material);
   }
-  function bakeNode(node, lit, glow, keep, outline = false, look = null) {
+  function bakeNode(node, lit, glow, keep, outline = false, look = null, smooth = false) {
     const litList = [], fineList = [], glowList = [];
     for (const c of node.children) {
-      if (!c.isMesh) { bakeNode(c, lit, glow, keep, outline, look); continue; }
+      if (!c.isMesh) { bakeNode(c, lit, glow, keep, outline, look, smooth); continue; }
       const m = c.material;
       if (keep.has(c) || c.userData.solo || c.children.length || Array.isArray(m) || m.map || m.transparent) continue;
       (m.isMeshBasicMaterial ? glowList : c.userData.fine ? fineList : litList).push(c);
@@ -2237,7 +2334,7 @@ void main() {
     for (const [list, mat, isFine] of [[litList, lit, false], [fineList, lit, true], [glowList, glow, false]]) {
       if (!list.length) continue;
       for (const c of list) node.remove(c);
-      const merged = mergeMeshes(list, mat, node, mat === lit ? look : null);
+      const merged = mergeMeshes(list, mat, node, mat === lit ? look : null, smooth);
       node.add(merged);
       if (outline && mat === lit && !isFine) {
         const o = new T3.Mesh(merged.geometry, outlineMat);
@@ -2254,6 +2351,7 @@ void main() {
   // Shader, die Animation bleibt bei den Gruppen. Figur: 2 Draw Calls (Fläche + Umriss) statt ~13.
   // Leuchtende Teile (Augen) stecken mit im Mesh und werden im Shader unbeleuchtet ausgegeben.
   const MAXP = 8;
+  const FIG_OUTLINE = false; // v3.3: Cartoon-Umrisse der Figuren aus (realistischer Look)
   const ZERO = new T3.Matrix4().makeScale(0, 0, 0);
   // v2.7 Randlicht: kühle Kante an der Silhouette – Figuren heben sich vom dunklen Boden ab (Augen ausgenommen)
   const RIM_GLSL = "float rimK = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);\n\toutgoingLight += vec3(0.36, 0.44, 0.56) * pow(rimK, 2.4) * 0.44";
@@ -2453,7 +2551,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       const n = g.attributes.position.count, P = g.attributes.position.array;
       pos.set(P, o * 3);
       if (g.attributes.normal) nrm.set(g.attributes.normal.array, o * 3);
-      paintFaces(col, P, n, o, c, bind[pi], isGlow ? null : look, role);
+      paintFaces(col, P, n, o, c, bind[pi], isGlow ? null : look, role, g.attributes.normal ? g.attributes.normal.array : null);
       partA.fill(pi, o, o + n); glowA.fill(isGlow, o, o + n); texA.fill(tex, o, o + n);
       for (let i = 0; i < n; i++) sphere.push(new T3.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]).applyMatrix4(bind[pi]));
       o += n;
@@ -2473,14 +2571,19 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     geo.boundingSphere = bs; og.boundingSphere = bs.clone();
     const uni = { value: nodes.map(() => new T3.Matrix4()) };
     while (uni.value.length < MAXP) uni.value.push(new T3.Matrix4());
-    const body = new T3.Mesh(geo, partMaterial(new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true }), uni, "lit", look && look.grime > 0.5 ? 1 : 0));
-    const outline = new T3.Mesh(og, partMaterial(new T3.MeshBasicMaterial({ color: 0x07090b, side: T3.BackSide, fog: false }), uni, "outline"));
-    outline.userData.outline = true;
+    // v3.3 realistischer: glatt schattiert (Normalen der Grundkörper statt Facetten) und ohne Cartoon-Umriss –
+    // die Silhouette trennt das Randlicht vom Boden; spart nebenbei einen Zeichendurchgang je Figur
+    const body = new T3.Mesh(geo, partMaterial(new T3.MeshLambertMaterial({ vertexColors: true, flatShading: false }), uni, "lit", look && look.grime > 0.5 ? 1 : 0));
     body.customDepthMaterial = partMaterial(new T3.MeshDepthMaterial(), uni, "depth");
     body.userData.parts = true;
     // Matrizen direkt vor dem Zeichnen: three.js hat die Gruppenmatrizen dann schon aktualisiert
-    body.onBeforeRender = outline.onBeforeRender = body.onBeforeShadow = () => updateParts(M);
-    M.root.add(body, outline);
+    body.onBeforeRender = body.onBeforeShadow = () => updateParts(M);
+    M.root.add(body);
+    if (FIG_OUTLINE) {
+      const outline = new T3.Mesh(og, partMaterial(new T3.MeshBasicMaterial({ color: 0x07090b, side: T3.BackSide, fog: false }), uni, "outline"));
+      outline.userData.outline = true; outline.onBeforeRender = () => updateParts(M);
+      M.root.add(outline);
+    }
     // v2.8: Ruhelage jedes Vertex im Modellraum + Originalfarben – Treffer-Wunden malen darauf
     const mpos = new Float32Array(count * 3);
     sphere.forEach((v, i) => { mpos[i * 3] = v.x; mpos[i * 3 + 1] = v.y; mpos[i * 3 + 2] = v.z; });
@@ -2503,14 +2606,14 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     const kept = M.mats.filter((m) => [...keep].some((k) => k.material === m));
     if (bakeParts(M, keep, look)) { M.mats = [M.parts.body.material, ...kept]; return; }
     // Bosse mit sehr vielen Gelenken: je Knoten ein verschmolzenes Mesh
-    const lit = new T3.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    const lit = new T3.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     lit.onBeforeCompile = (sh) => {
       sh.vertexShader = "attribute float tex;\nvarying float vTex;\nvarying vec3 vGrain;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n  vGrain = position; vTex = tex;");
       surfShader(sh, false, look.grime > 0.5 ? 1 : 0);
     };
     lit.customProgramCacheKey = () => `boss:v32${quality < 2 ? ":lite" : ""}`;
     const glow = new T3.MeshBasicMaterial({ vertexColors: true });
-    bakeNode(M.root, lit, glow, keep, true, look);
+    bakeNode(M.root, lit, glow, keep, FIG_OUTLINE, look, true);
     M.mats = [lit, ...kept];
   }
 
@@ -2938,10 +3041,10 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       const hip = group(-0.05 * r, 0.92 * r, s * 0.3 * r);
       hip.add(mesh(limb(0.21 * r, 0.26 * r), pants, 0, -0.24 * r, 0));
       hip.add(mesh(limb(0.17 * r, 0.24 * r), pants, 0, -0.64 * r, 0));
-      const pad = mesh(ico(0.15 * r, 0), C("pads", "plain"), 0.13 * r, -0.48 * r, 0); pad.scale.set(0.6, 1, 0.95); hip.add(pad);
+      const pad = mesh(ico(0.15 * r, 1), C("pads", "plain"), 0.13 * r, -0.48 * r, 0); pad.scale.set(0.6, 1, 0.95); hip.add(pad);
       hip.add(fine(mesh(box(0.05 * r, 0.04 * r, 0.32 * r), strap, 0.06 * r, -0.4 * r, 0)));
       hip.add(mesh(box(0.42 * r, 0.22 * r, 0.3 * r), dark, 0.08 * r, -0.82 * r, 0));
-      const toe = mesh(ico(0.15 * r, 0), dark, 0.27 * r, -0.86 * r, 0); toe.scale.set(1, 0.6, 0.98); hip.add(toe);
+      const toe = mesh(ico(0.15 * r, 1), dark, 0.27 * r, -0.86 * r, 0); toe.scale.set(1, 0.6, 0.98); hip.add(toe);
       hip.add(mesh(box(0.6 * r, 0.06 * r, 0.33 * r), tlam("#0d0c0b", "leather"), 0.1 * r, -0.935 * r, 0));
       for (let k = 0; k < 3; k++) hip.add(fine(mesh(box(0.04 * r, 0.025 * r, 0.22 * r), stitch, 0.04 * r + k * 0.08 * r, -0.7 * r + k * 0.01 * r, 0)));
       hip.add(fine(mesh(cyl(0.18 * r, 0.18 * r, 0.06 * r, 10), dark, 0, -0.69 * r, 0)));
@@ -3018,7 +3121,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       const el = sh.clone().add(tgt).multiplyScalar(0.5).add(new T3.Vector3(-0.08 * r, -0.2 * r, s * 0.16 * r));
       seg(sh, el, 0.145 * r, C("arm"));
       seg(el, tgt, 0.125 * r, C("arm"));
-      const ep = mesh(ico(0.14 * r, 0), C("pads", "plain"), el.x - 0.03 * r, el.y - 0.02 * r, el.z); ep.scale.set(0.8, 0.8, 0.9); M.body.add(ep);
+      const ep = mesh(ico(0.14 * r, 1), C("pads", "plain"), el.x - 0.03 * r, el.y - 0.02 * r, el.z); ep.scale.set(0.8, 0.8, 0.9); M.body.add(ep);
       M.body.add(fine(mesh(ico(0.13 * r, 0), C("arm"), sh.x, sh.y - 0.05 * r, sh.z)));
       const wr = tgt.clone().lerp(el, 0.18);
       M.body.add(fine(mesh(ico(0.13 * r, 0), glove, wr.x, wr.y, wr.z)));
@@ -3063,6 +3166,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       for (const s of [-1, 1]) head.add(mesh(ico(0.07 * r, 0), sbasic(S.visor), 0.32 * r, 0.06 * r, s * 0.14 * r));
     }
     M.body.add(head);
+    M.extra.head = head;
     // Waffe
     const wpn = weaponModel(weaponId, tier);
     wpn.position.copy(grip);
@@ -3072,7 +3176,8 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     M.weaponId = weaponId;
     M.tier = tier;
     M.skin = skinId;
-    M.height = 2.9 * r;
+    realismRig(M, r, { head: 0.8, armLen: 1 }); // v3.3: Arme führen zur Waffe – deren Länge stimmt schon
+    M.height = 2.75 * r;
     bake(M);
     cast(M.root);
     return M;

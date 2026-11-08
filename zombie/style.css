@@ -1270,6 +1270,27 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .gear-slot.r2 { box-shadow: inset 0 -4px 0 #6b5590, 0 2px 0 rgba(0, 0, 0, 0.3); }
 .gear-slot.r3 { box-shadow: inset 0 -4px 0 #c29a3c, 0 2px 0 rgba(0, 0, 0, 0.3); }
 .gear-slot em { color: #4f6a18; }
+/* v3.3 sieben Plätze als Figur: Helm oben, Kampfwert und Händler in den Ecken */
+.gear-slots { grid-template-columns: repeat(3, 1fr); grid-template-areas: "pow helm deal" "gloves vest charm" "pack boots badge"; }
+.gs-helm { grid-area: helm; } .gs-vest { grid-area: vest; } .gs-gloves { grid-area: gloves; } .gs-charm { grid-area: charm; }
+.gs-pack { grid-area: pack; } .gs-boots { grid-area: boots; } .gs-badge { grid-area: badge; }
+.gear-slot { border: 0; cursor: pointer; font: inherit; color: var(--text); }
+.gear-slot:nth-child(3), .gear-slot:nth-child(6) { transform: rotate(-0.8deg); }
+.gear-slot:nth-child(5) { transform: rotate(1.1deg); }
+.gear-slot b { overflow-wrap: break-word; hyphens: auto; font-size: 12.5px; }
+.gear-slot i { display: block; font: 600 10px/1.15 var(--f-ui); font-style: normal; color: #6b4a9a; }
+.gear-slot.r3 i:last-child { color: #8a5a06; }
+.gear-power, .gear-dealer { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 3px; border: 2px dashed rgba(216, 206, 179, 0.35); background: rgba(0, 0, 0, 0.18); color: #efe8d4; }
+.gear-power { grid-area: pow; }
+.gear-power small { font: 700 10px/1 var(--f-ui); letter-spacing: 0.14em; text-transform: uppercase; color: #b7ae94; }
+.gear-power b { font: 800 26px/1 var(--f-display, var(--f-ui)); color: #ffd45c; }
+.gear-dealer { grid-area: deal; cursor: pointer; font: 800 12px/1 var(--f-ui); letter-spacing: 0.1em; text-transform: uppercase; }
+.gear-dealer .ic, .gear-dealer svg { width: 26px; height: 26px; color: var(--amber); }
+.gear-sum { display: block; margin-bottom: 6px; color: #c9e98a; font-weight: 700; }
+.dealer-note { margin: 2px 2px 4px; font: 600 12px/1.3 var(--f-ui); color: var(--text-3); text-align: center; }
+.item.gear-r2 { box-shadow: inset 4px 0 0 #7d4fd0; }
+.item.gear-r3 { box-shadow: inset 4px 0 0 #e7b53a; }
+#shopTabs .tab { font-size: 11.5px; letter-spacing: 0.03em; padding-inline: 2px; }
 .picker.wpn small #menuWeaponLv, .picker .pk-main small span { color: #8a2f0a !important; }
 
 /* ---------------------------------------------------------------- v3.0 Mini-Spiele: Bühne im Klemmbrett */

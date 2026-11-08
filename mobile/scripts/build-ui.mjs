@@ -69,6 +69,8 @@ const ICONS = {
   grenade: "grenade", molotov: "molotov", flashbang: "flash-grenade", iceBomb: "ice-bomb", firecracker: "dynamite",
   airstrike: "bombing-run", chainZap: "chain-lightning", fireRing: "fire-ring", toxCloud: "poison-gas", ninjaStar: "ninja-star",
   missileSwarm: "missile-swarm", healMist: "healing", goldRain: "crown-coin", railShot: "laser-precision",
+  // v3.3 Ausrüstung: weitere Plätze, Beutekiste, Händler
+  helm: "visored-helm", gloves: "gloves", charm: "horseshoe", lootCrate: "wooden-crate", dealer: "price-tag",
 };
 const set = require("@iconify-json/game-icons/icons.json");
 const paths = {};

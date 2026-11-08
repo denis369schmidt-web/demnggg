@@ -622,7 +622,7 @@
     if (run.startCity > 0) run.pendingPicks += Math.min(6, run.startCity);
     // v2.9 Wurfgürtel (3× Start-Wurfwaffe) und Spezial-Energie
     const tsel = save.throwOwned && save.throwOwned[save.throwSel] && THROWABLES[save.throwSel] ? save.throwSel : "frag";
-    run.belt = { [tsel]: 3 }; run.beltSel = tsel; run.throwCd = 0; run.ult = 0; run.ultFx = null; run.blink = null;
+    run.belt = { [tsel]: Math.min(BELT_MAX, 3 + (player.beltBonus || 0)) }; run.beltSel = tsel; run.throwCd = 0; run.ult = 0; run.ultFx = null; run.blink = null;
     if (!save.throwHint) { save.throwHint = true; persist(); setTimeout(() => toast(tr("Neu: Wurfwaffen (Q) und Spezialfähigkeit (E)"), "grenade"), 2600); }
     // Goldener Held: +10 % Münzen
     if (save.skin === "gold") run.greed *= 1.1;
@@ -648,6 +648,7 @@
   // Räume
   // ============================================================
   function resetRoomState() {
+    bankLoot();
     enemies = []; bullets = []; eBullets = []; orbs = []; particles = []; corpses = []; pieces = []; pools = []; hazards = []; zaps = []; lobs = []; beams = []; fireworks = []; parcels = []; volleyQueue.length = 0;
     roomFade = 1;
     run.doorK = 0;
@@ -2258,7 +2259,7 @@
     if (e.elite) track("elites");
     // v2.9 Spezial-Energie und Wurfwaffen-Nachschub (Elites oft, Bosse immer)
     if (run.belt) {
-      run.ult = Math.min(100, (run.ult || 0) + (def.boss ? 100 : e.elite ? 12 : 3.5));
+      run.ult = Math.min(100, (run.ult || 0) + (def.boss ? 100 : e.elite ? 12 : 3.5) * (player.ultGain || 1));
       if (def.boss) addThrow(null, 2, e.x, e.y);
       else if (e.elite && Math.random() < 0.45) addThrow(null, 1, e.x, e.y);
     }
@@ -2305,6 +2306,9 @@
     if (def.split) for (let i = 0; i < def.split; i++) { const q = spawnEnemy("crawler", e.x + rand(-14, 14), e.y + rand(-14, 14)); q.spawnT = 0.12; q.kvx = rand(-260, 260); q.kvy = rand(-260, 260); }
     if (e.type === "burner") { for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU; addHazard(e.x + Math.cos(a) * 26, e.y + Math.sin(a) * 26, 16, 2.6, e.dmg * 0.6); } fxFlash(e.x, e.y, 120, "255,140,40", 0.2); }
     if (e.elite) { for (let i = 0; i < nc * 2 + 3; i++) orbs.push(makeOrb(e.x, e.y, "coin", 1)); fxRing(e.x, e.y, 60, "255,210,90", 0.4); }
+    // v3.3 seltene Beutekisten (Stadt-Bosse in der Kampagne geben ihre Beute weiter direkt beim Raumabschluss)
+    if (!def.boss && e.elite && !e.summoner && Math.random() < 0.07 + 0.01 * (run.threat || 0)) dropGear(e.x, e.y);
+    else if (def.boss && run.mode !== "campaign") dropGear(e.x, e.y, lootLuck() + 0.04);
     if (e.aff && e.aff.includes("volatile")) { fuses.push({ x: e.x, y: e.y, r: 78, t: 0.8, max: 0.8, dmg: e.dmg * 1.3 }); addText(e.x, e.y - 34, tr("ZÜNDET!"), "#ff7a3a", 16); }
     if (e.type === "bloater") {
       // platzt zu einer Giftwolke – nicht in der Nähe erledigen!
@@ -3315,6 +3319,7 @@
       showBanner(tr("KOPFGELD KASSIERT"), o.name, 2);
       rewardObjective(o.reward);
       giveMod(rollMod()); // Kopfgeld-Prämie: ein Waffen-Mod
+      if (Math.random() < 0.4) dropGear(o.target.x, o.target.y, lootLuck() + 0.03); // v3.3: manchmal auch eine Beutekiste
     }
   }
   function updateHold(o, dt) {
@@ -3589,7 +3594,7 @@
     run.throwCd = Math.max(0, run.throwCd - dt);
     if (p.throwT > 0) p.throwT -= dt;
     if (p.ultT > 0) p.ultT -= dt;
-    run.ult = Math.min(100, run.ult + dt * 0.6); // lädt auch langsam von selbst
+    run.ult = Math.min(100, run.ult + dt * 0.6 * (player.ultGain || 1)); // lädt auch langsam von selbst
     if (throwWanted) { throwWanted = false; doThrow(); }
     if (ultWanted) { ultWanted = false; if (run.ult >= 100) activateUlt(); else if (window.GameAudio) GameAudio.ui("tick"); }
     for (const q of throws) {
@@ -3840,6 +3845,7 @@
         o.dead = true;
         if (o.type === "xp") addXp(o.val);
         else if (o.type === "heal") { healPlayer(p.maxHp * o.val); fxRing(p.x, p.y, 40, "120,255,140", 0.35); sfx("coin"); if (o.food) addText(p.x, p.y - 52, `${tr(o.food)}!`, "#ffd27a", 17); }
+        else if (o.type === "gear") pickGear(o);
         else if (o.type === "pfand") { run.coins += 2 * run.greed; sfx("coin"); addText(p.x, p.y - 48, tr("PFAND +25 ct"), "#9fe870", 15); track("pfand"); }
         else { run.coins += o.val * run.greed; sfx("coin"); }
       }
@@ -4552,34 +4558,66 @@
   }
 
   // ============================================================
-  // v2.6 Ausrüstung: drei Plätze, vier Seltenheiten, Beute von Stadt-Bossen
+  // v2.6 Ausrüstung · v3.3: sieben Plätze, Zusatz-Eigenschaften, legendäre Effekte, Beutekisten, Händler
   // ============================================================
+  // names[r] = Namensvarianten je Seltenheit (Index 0 = Name aus v2.6, alte Spielstände ohne it.n bleiben gleich)
   const GEAR_SLOTS = {
-    vest: { name: "Weste", icon: "heartArmor", label: "+{v} % Leben", base: 4, names: ["Stoffweste", "Splitterschutzweste", "Kevlarweste", "Panzerweste Bollwerk"] },
-    boots: { name: "Stiefel", icon: "run", label: "+{v} % Tempo", base: 2, names: ["Turnschuhe", "Arbeitsstiefel", "Springerstiefel", "Siebenmeilenstiefel"] },
-    badge: { name: "Abzeichen", icon: "medal", label: "+{v} % Schaden", base: 3, names: ["Blechmarke", "Schützenschnur", "Feuerwehr-Ehrenzeichen", "Goldene Götz-Medaille"] },
+    helm: { name: "Helm", icon: "helm", label: "−{v} % Schaden erlitten", base: 1.6, names: [["Bauhelm", "Fahrradhelm"], ["Stahlhelm", "Grubenhelm"], ["Einsatzhelm mit Visier", "Feuerwehrhelm"], ["Florians Feuerhelm"]], legend: { desc: "Immun gegen Flammen", apply: (p) => { p.fireproof = true; } } },
+    vest: { name: "Weste", icon: "heartArmor", label: "+{v} % Leben", base: 4, names: [["Stoffweste", "Warnweste", "Anglerweste"], ["Splitterschutzweste", "Polizeiweste"], ["Kevlarweste", "SEK-Einsatzweste"], ["Panzerweste Bollwerk"]], legend: { desc: "+1 Wiederbelebung je Einsatz", apply: (p) => { p.revives += 1; } } },
+    gloves: { name: "Handschuhe", icon: "gloves", label: "+{v} % Feuerrate", base: 2.5, names: [["Arbeitshandschuhe", "Gartenhandschuhe"], ["Lederhandschuhe", "Motorradhandschuhe"], ["Taktische Handschuhe", "Kettenhandschuhe"], ["Götz' eiserne Hand"]], legend: { desc: "+1 Durchschlag", apply: (p) => { p.pierce += 1; } } },
+    badge: { name: "Abzeichen", icon: "medal", label: "+{v} % Schaden", base: 3, names: [["Blechmarke", "Vereinsnadel"], ["Schützenschnur", "Sportabzeichen"], ["Feuerwehr-Ehrenzeichen", "Rettungsmedaille"], ["Goldene Götz-Medaille"]], legend: { desc: "+25 % Schaden gegen Bosse und Elite", apply: (p) => { p.bigGame = (p.bigGame || 1) * 1.25; } } },
+    pack: { name: "Rucksack", icon: "backpack", label: "+{v} % Erfahrung", base: 4, names: [["Turnbeutel", "Jutebeutel"], ["Schulranzen", "Wanderrucksack"], ["Bundeswehr-Rucksack", "Notfallrucksack"], ["Rucksack des Weltenbummlers"]], legend: { desc: "+2 Wurfwaffen zum Start", apply: (p) => { p.beltBonus = (p.beltBonus || 0) + 2; } } },
+    boots: { name: "Stiefel", icon: "run", label: "+{v} % Tempo", base: 2, names: [["Turnschuhe", "Gummistiefel"], ["Arbeitsstiefel", "Wanderschuhe"], ["Springerstiefel", "Kampfstiefel"], ["Siebenmeilenstiefel"]], legend: { desc: "Ausweichrolle mit Druckwelle", apply: (p) => { p.dashBlast = true; } } },
+    charm: { name: "Talisman", icon: "charm", label: "+{v} % Krit-Chance", base: 1.5, names: [["Glückscent", "Kronkorken-Kette"], ["Hufeisen", "Vierblättriges Kleeblatt"], ["Glücksschwein aus Marzipan", "Bernstein-Amulett"], ["Kaiserlicher Glückstaler"]], legend: { desc: "+1 Gratis-Neuwurf, +10 % Münzen", apply: () => { run.freeRerolls = (run.freeRerolls || 0) + 1; run.greed *= 1.1; } } },
   };
   const GEAR_RARITY = [
-    { name: "Gewöhnlich", tone: "steel", mul: 1, scrap: 40 },
-    { name: "Selten", tone: "ice", mul: 2, scrap: 90 },
-    { name: "Episch", tone: "violet", mul: 3.2, scrap: 180 },
-    { name: "Legendär", tone: "gold", mul: 5, scrap: 400 },
+    { name: "Gewöhnlich", tone: "steel", mul: 1, scrap: 40, price: 0, rgb: "200,205,210" },
+    { name: "Selten", tone: "ice", mul: 2, scrap: 90, price: 700, rgb: "74,168,255" },
+    { name: "Episch", tone: "violet", mul: 3.2, scrap: 180, price: 1800, rgb: "176,122,255" },
+    { name: "Legendär", tone: "gold", mul: 5, scrap: 400, price: 4800, rgb: "255,194,58" },
   ];
-  const GEAR_BAG_MAX = 12;
-  const gearName = (it) => tr(GEAR_SLOTS[it.s].names[it.r]);
+  // Zusatz-Eigenschaft: ab „Selten“ möglich, ab „Episch“ immer – Stärke wächst mit der Seltenheit
+  const GEAR_AFFIX = {
+    coin: { label: "+{v} % Münzen", base: 3, apply: (p, v) => { run.greed *= 1 + v / 100; } },
+    dodge: { label: "+{v} % Ausweichen", base: 1.5, apply: (p, v) => { p.dodge += v / 100; } },
+    dash: { label: "−{v} % Abklingzeit Ausweichrolle", base: 4, apply: (p, v) => { p.dashCdMul *= 1 - v / 100; } },
+    ult: { label: "+{v} % Spezial-Energie", base: 5, apply: (p, v) => { p.ultGain = (p.ultGain || 1) * (1 + v / 100); } },
+    critdmg: { label: "+{v} % Krit-Schaden", base: 6, apply: (p, v) => { p.critMul += v / 100; } },
+    heal: { label: "Abschüsse heilen {v} ‰", base: 1, apply: (p, v) => { p.lifesteal += v / 1000; } },
+  };
+  const AFFIX_MUL = [0, 1, 1.6, 2.4];
+  const GEAR_BAG_MAX = 16;
+  const GEAR_BOX_PRICE = 650, GEAR_REROLL_PRICE = 150;
+  const gearNames = (it) => GEAR_SLOTS[it.s].names[it.r];
+  const gearName = (it) => { const n = gearNames(it); return tr(n[(it.n || 0) % n.length]); };
   const gearStat = (it) => tr(GEAR_SLOTS[it.s].label, { v: it.v });
-  function rollGear(luck = 0) {
-    const slot = pick(Object.keys(GEAR_SLOTS)), x = Math.random();
-    const r = x < 0.03 + luck * 0.6 ? 3 : x < 0.15 + luck ? 2 : x < 0.5 + luck ? 1 : 0;
-    const v = Math.round(GEAR_SLOTS[slot].base * GEAR_RARITY[r].mul * rand(0.9, 1.1));
-    return { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), s: slot, r, v };
+  const affixStat = (it) => (it.a && GEAR_AFFIX[it.a.k] ? tr(GEAR_AFFIX[it.a.k].label, { v: it.a.v }) : "");
+  const gearTrait = (it) => (it.r === 3 ? tr(GEAR_SLOTS[it.s].legend.desc) : "");
+  const gearLines = (it) => [gearStat(it), affixStat(it), gearTrait(it)].filter(Boolean);
+  const gearBetter = (it, cur) => !cur || it.r > cur.r || (it.r === cur.r && it.v + (it.a ? 1 : 0) > cur.v + (cur.a ? 1 : 0));
+  const gearPower = (it) => (it ? Math.round(it.v * 10 + (it.a ? it.a.v * 4 : 0) + it.r * 25 + (it.r === 3 ? 60 : 0)) : 0);
+  // feste Würfel für Händler-Angebote (gleiche Ware für den ganzen Tag)
+  function seededRng(seed) { let a = seed | 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function rollRarity(luck, rng) { const x = rng(); return x < 0.03 + luck * 0.6 ? 3 : x < 0.15 + luck ? 2 : x < 0.5 + luck ? 1 : 0; }
+  function makeGear(slot, r, rng = Math.random) {
+    const sl = GEAR_SLOTS[slot];
+    const v = Math.max(1, Math.round(sl.base * GEAR_RARITY[r].mul * (0.9 + rng() * 0.2)));
+    const it = { id: Date.now().toString(36) + Math.floor(rng() * 1e9).toString(36), s: slot, r, v, n: Math.floor(rng() * sl.names[r].length) };
+    if (r >= 2 || (r === 1 && rng() < 0.35)) {
+      const keys = Object.keys(GEAR_AFFIX), k = keys[Math.floor(rng() * keys.length)];
+      it.a = { k, v: Math.max(1, Math.round(GEAR_AFFIX[k].base * AFFIX_MUL[r] * (0.85 + rng() * 0.3))) };
+    }
+    return it;
+  }
+  function rollGear(luck = 0, rng = Math.random) {
+    const keys = Object.keys(GEAR_SLOTS);
+    return makeGear(keys[Math.floor(rng() * keys.length)], rollRarity(luck, rng), rng);
   }
   // Beute kommt in die Tasche; ist sie voll, wird das schwächste Teil automatisch zerlegt
-  function grantGear(luck = 0) {
-    const it = rollGear(luck);
+  function addToBag(it) {
     save.gearBag = (save.gearBag || []).concat(it);
     if (save.gearBag.length > GEAR_BAG_MAX) {
-      const worst = save.gearBag.reduce((a, b) => (b.r * 100 + b.v < a.r * 100 + a.v ? b : a));
+      const worst = save.gearBag.reduce((a, b) => (gearPower(b) < gearPower(a) ? b : a));
       save.gearBag = save.gearBag.filter((q) => q !== worst);
       save.coins += GEAR_RARITY[worst.r].scrap;
     }
@@ -4587,29 +4625,87 @@
     persist();
     return it;
   }
+  const grantGear = (luck = 0) => addToBag(rollGear(luck));
+  // v3.3 seltene Beutekisten: Elite-Gegner (7 % + 1 % je Bedrohung), Kopfgeld-Ziele (40 %), Bosse im Überlebensmodus (immer)
+  const lootLuck = () => 0.012 * (run.threat || 0) + (run.mode === "campaign" ? 0.008 * cityIdx() : 0.004 * Math.floor((run.survT || 0) / 60));
+  function dropGear(x, y, luck = lootLuck()) {
+    const o = makeOrb(x, y, "gear", 1);
+    o.item = rollGear(luck); o.r = 10; o.vx *= 0.5; o.vy *= 0.5;
+    orbs.push(o);
+    fxRing(x, y, 70, GEAR_RARITY[o.item.r].rgb, 0.5);
+    addText(x, y - 40, tr("BEUTEKISTE!"), `rgb(${GEAR_RARITY[o.item.r].rgb})`, 17, true);
+    return o;
+  }
+  // nicht eingesammelte Beutekisten gehen beim Raumwechsel und am Einsatzende nicht verloren
+  function bankLoot() {
+    if (!run || !orbs.some((o) => o.type === "gear" && !o.dead)) return;
+    for (const o of orbs) if (o.type === "gear" && !o.dead) { addToBag(o.item); run.loot = (run.loot || 0) + 1; o.dead = true; }
+    orbs = orbs.filter((o) => !o.dead);
+  }
+  function pickGear(o) {
+    const it = addToBag(o.item);
+    run.loot = (run.loot || 0) + 1;
+    const rgb = GEAR_RARITY[it.r].rgb;
+    fxRing(player.x, player.y, 80, rgb, 0.5);
+    addText(player.x, player.y - 56, `${gearName(it)}`, `rgb(${rgb})`, it.r >= 2 ? 19 : 16, it.r >= 2);
+    sfx(it.r >= 2 ? "level" : "coin"); fx4d(it.r >= 3 ? "level" : "kick");
+    toast(`${tr("Beute")}: ${gearName(it)} · ${tr(GEAR_RARITY[it.r].name)}`, GEAR_SLOTS[it.s].icon);
+  }
   function applyGear(p) {
     const g = save.gear || {};
-    if (g.vest) { p.maxHp = Math.round(p.maxHp * (1 + g.vest.v / 100)); p.hp = p.maxHp; }
-    if (g.boots) p.speed *= 1 + g.boots.v / 100;
-    if (g.badge) p.dmgMul *= 1 + g.badge.v / 100;
+    for (const [k, it] of Object.entries(g)) {
+      if (!it || !GEAR_SLOTS[k]) continue;
+      const f = 1 + it.v / 100;
+      if (k === "vest") { p.maxHp = Math.round(p.maxHp * f); p.hp = p.maxHp; }
+      else if (k === "boots") p.speed *= f;
+      else if (k === "badge") p.dmgMul *= f;
+      else if (k === "helm") p.dmgTaken = (p.dmgTaken || 1) * (1 - it.v / 100);
+      else if (k === "gloves") p.rateMul *= f;
+      else if (k === "pack") p.xpGain = (p.xpGain || 1) * f;
+      else if (k === "charm") p.crit += it.v / 100;
+      if (it.a && GEAR_AFFIX[it.a.k]) GEAR_AFFIX[it.a.k].apply(p, it.a.v);
+      if (it.r === 3) GEAR_SLOTS[k].legend.apply(p);
+    }
+  }
+  // Summe aller angelegten Werte für die Übersicht
+  function gearTotals() {
+    const g = save.gear || {}, out = [];
+    for (const [k, it] of Object.entries(g)) if (it && GEAR_SLOTS[k]) out.push(...gearLines(it));
+    return out;
   }
   function renderGear() {
     const g = save.gear || (save.gear = {});
-    $("gearSlots").innerHTML = Object.entries(GEAR_SLOTS).map(([k, sl]) => {
+    const power = Object.values(g).reduce((a, it) => a + gearPower(it), 0);
+    const slotHtml = Object.entries(GEAR_SLOTS).map(([k, sl]) => {
       const it = g[k];
-      return `<div class="gear-slot${it ? " r" + it.r : ""}">${medal(sl.icon, it ? GEAR_RARITY[it.r].tone : "steel")}<small>${tr(sl.name)}</small><b>${it ? gearName(it) : tr("leer")}</b><em>${it ? gearStat(it) : "–"}</em></div>`;
+      const extra = it ? [affixStat(it), gearTrait(it)].filter(Boolean).map((s) => `<i>${s}</i>`).join("") : "";
+      return `<button class="gear-slot gs-${k}${it ? " r" + it.r : ""}" data-slot="${k}">${medal(sl.icon, it ? GEAR_RARITY[it.r].tone : "steel")}<small>${tr(sl.name)}</small><b>${it ? gearName(it) : tr("leer")}</b><em>${it ? gearStat(it) : "–"}</em>${extra}</button>`;
     }).join("");
-    const bag = (save.gearBag || []).slice().sort((a, b) => b.r - a.r || b.v - a.v);
-    $("gearHint").textContent = bag.length ? tr("Tasche {n}/{m} · Stadt-Bosse lassen Ausrüstung fallen", { n: bag.length, m: GEAR_BAG_MAX }) : tr("Besiege Stadt-Bosse, um Ausrüstung zu erbeuten. Höhere Bedrohung = bessere Beute.");
+    $("gearSlots").innerHTML = `<div class="gear-power"><small>${tr("Kampfwert")}</small><b>${power}</b></div>${slotHtml}<button class="gear-dealer" id="gearDealer">${I("dealer")}<span>${tr("Händler")}</span></button>`;
+    // angelegtes Teil antippen = ablegen (zurück in die Tasche)
+    for (const b of $("gearSlots").querySelectorAll(".gear-slot")) b.addEventListener("click", () => {
+      const k = b.dataset.slot, it = g[k];
+      if (!it) return;
+      if ((save.gearBag || []).length >= GEAR_BAG_MAX) { toast(tr("Tasche voll"), "backpack"); return; }
+      delete g[k]; save.gearBag = (save.gearBag || []).concat(it); persist(); sfx("coin"); renderGear();
+    });
+    $("gearDealer").addEventListener("click", () => { shopTab = "gear"; renderShop(); show(ui.shop); });
+    const tot = gearTotals();
+    const bag = (save.gearBag || []).slice().sort((a, b) => b.r - a.r || gearPower(b) - gearPower(a));
+    $("gearHint").innerHTML = (tot.length ? `<span class="gear-sum">${tot.join(" · ")}</span>` : "") + (bag.length
+      ? tr("Tasche {n}/{m} · Beute von Bossen, Elite-Gegnern und Kopfgeld-Zielen", { n: bag.length, m: GEAR_BAG_MAX })
+      : tr("Bosse, Elite-Gegner und Kopfgeld-Ziele lassen Beutekisten fallen. Höhere Bedrohung = bessere Beute."));
     const list = $("gearBag");
     list.innerHTML = "";
     for (const it of bag) {
-      const cur = g[it.s], better = !cur || it.v > cur.v;
-      const row = shopRow(medal(GEAR_SLOTS[it.s].icon, GEAR_RARITY[it.r].tone), gearName(it), `${tr(GEAR_RARITY[it.r].name)} · ${tr(GEAR_SLOTS[it.s].name)} · ${gearStat(it)}${cur ? ` (${tr("jetzt")} +${cur.v} %)` : ""}`, better ? `<span class="tag">${tr("BESSER")}</span>` : "", tr("Anlegen"), true, () => {
+      const cur = g[it.s], better = gearBetter(it, cur);
+      const desc = `${tr(GEAR_RARITY[it.r].name)} · ${tr(GEAR_SLOTS[it.s].name)} · ${gearLines(it).join(" · ")}${cur ? ` (${tr("jetzt")}: ${gearStat(cur)})` : ""}`;
+      const row = shopRow(medal(GEAR_SLOTS[it.s].icon, GEAR_RARITY[it.r].tone), gearName(it), desc, better ? `<span class="tag">${tr("BESSER")}</span>` : "", tr("Anlegen"), true, () => {
         save.gearBag = save.gearBag.filter((q) => q.id !== it.id);
         if (cur) save.gearBag.push(cur);
         g[it.s] = it; persist(); sfx("level"); toast(`${gearName(it)}: ${gearStat(it)}`, GEAR_SLOTS[it.s].icon); renderGear();
       }, better ? "primary" : "");
+      row.classList.add("gear-r" + it.r);
       const scrap = document.createElement("button");
       scrap.className = "btn ghost";
       scrap.innerHTML = `${tr("Zerlegen")} ${coinAmt(GEAR_RARITY[it.r].scrap, "+")}`;
@@ -4618,6 +4714,57 @@
       list.appendChild(row);
     }
     for (const el of document.querySelectorAll(".coinsVal")) el.textContent = num(save.coins);
+  }
+  // Händler: vier Angebote pro Tag (keine gewöhnlichen Teile), Preis nach Seltenheit; dazu eine Zufallskiste und neue Ware
+  const gearOfferPrice = (it) => Math.round(GEAR_RARITY[it.r].price * (it.a ? 1.2 : 1) / 10) * 10;
+  function dealerStock() {
+    const day = dayNo();
+    if (!save.gearShop || save.gearShop.day !== day) save.gearShop = { day, roll: 0, items: null };
+    const gs = save.gearShop;
+    if (!gs.items) {
+      const rng = seededRng(day * 977 + gs.roll * 131 + 7);
+      const keys = Object.keys(GEAR_SLOTS);
+      gs.items = [];
+      for (let i = 0; i < 4; i++) {
+        const x = rng(), r = x < 0.1 ? 3 : x < 0.45 ? 2 : 1;
+        let slot = keys[Math.floor(rng() * keys.length)];
+        while (gs.items.some((q) => q.s === slot)) slot = keys[(keys.indexOf(slot) + 1) % keys.length];
+        gs.items.push(makeGear(slot, r, rng));
+      }
+      persist();
+    }
+    return gs;
+  }
+  function renderGearShop(list) {
+    const gs = dealerStock(), g = save.gear || {};
+    const head = document.createElement("p");
+    head.className = "dealer-note";
+    head.textContent = tr("Neue Ware jeden Tag · Tasche {n}/{m}", { n: (save.gearBag || []).length, m: GEAR_BAG_MAX });
+    list.appendChild(head);
+    for (const it of gs.items) {
+      const price = gearOfferPrice(it), sold = !!it.sold, cur = g[it.s];
+      const desc = `${tr(GEAR_RARITY[it.r].name)} · ${tr(GEAR_SLOTS[it.s].name)} · ${gearLines(it).join(" · ")}${cur ? ` (${tr("jetzt")}: ${gearStat(cur)})` : ""}`;
+      const tag = sold ? `<span class="tag">${tr("VERKAUFT")}</span>` : gearBetter(it, cur) ? `<span class="tag">${tr("BESSER")}</span>` : "";
+      const row = shopRow(medal(GEAR_SLOTS[it.s].icon, GEAR_RARITY[it.r].tone), gearName(it), desc, tag, sold ? I("check") : coinAmt(price), !sold && save.coins >= price, () => {
+        if (sold || save.coins < price) return;
+        save.coins -= price; it.sold = true;
+        const { sold: _s, ...copy } = it;
+        addToBag({ ...copy, id: copy.id + "b" });
+        persist(); sfx("level"); toast(`${gearName(it)}!`, GEAR_SLOTS[it.s].icon); renderShop();
+      }, "amber");
+      row.classList.add("gear-r" + it.r);
+      list.appendChild(row);
+    }
+    list.appendChild(shopRow(medal("lootCrate", "amber"), tr("Ausrüstungskiste"), tr("Zufälliges Teil – mit Glück episch oder legendär"), "", coinAmt(GEAR_BOX_PRICE), save.coins >= GEAR_BOX_PRICE, () => {
+      if (save.coins < GEAR_BOX_PRICE) return;
+      save.coins -= GEAR_BOX_PRICE;
+      const it = addToBag(rollGear(0.05));
+      sfx(it.r >= 2 ? "level" : "coin"); toast(`${gearName(it)} · ${tr(GEAR_RARITY[it.r].name)}`, GEAR_SLOTS[it.s].icon); renderShop();
+    }, "amber"));
+    list.appendChild(shopRow(medal("dealer", "steel"), tr("Neue Ware"), tr("Tauscht alle vier Angebote aus"), "", coinAmt(GEAR_REROLL_PRICE), save.coins >= GEAR_REROLL_PRICE, () => {
+      if (save.coins < GEAR_REROLL_PRICE) return;
+      save.coins -= GEAR_REROLL_PRICE; gs.roll++; gs.items = null; persist(); sfx("coin"); renderShop();
+    }));
   }
 
   // ============================================================
@@ -4700,6 +4847,7 @@
   let lastScore = null;
   function gameOver(quit, won = false) {
     state = "over";
+    bankLoot();
     if (window.GameAudio && !quit) GameAudio.stinger(won ? "victory" : "death");
     joy.active = false;
     clearInterval(reviveTimer);
@@ -5473,6 +5621,16 @@
       } else if (o.type === "heal") {
         ctx.fillStyle = "#f2f2ec"; roundRect(o.x - 8, o.y - 7, 16, 14, 3); ctx.fill();
         ctx.fillStyle = "#e5383b"; ctx.fillRect(o.x - 1.8, o.y - 5, 3.6, 10); ctx.fillRect(o.x - 5, o.y - 1.8, 10, 3.6);
+      } else if (o.type === "gear") {
+        // v3.3 Beutekiste: Holzkiste mit Lichtschein in der Seltenheitsfarbe
+        const rgb = GEAR_RARITY[o.item.r].rgb, bob = Math.sin(o.t * 4) * 1.5;
+        glowAt(rgb, o.x, o.y, 34 + 6 * Math.sin(o.t * 5), 0.5);
+        ctx.save(); ctx.translate(o.x, o.y + bob);
+        ctx.fillStyle = "#6e4622"; roundRect(-9, -7, 18, 14, 2); ctx.fill();
+        ctx.fillStyle = "#8f5e30"; ctx.fillRect(-9, -7, 18, 3); ctx.fillRect(-9, 4, 18, 3);
+        ctx.strokeStyle = "#3a2410"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-8, -6); ctx.lineTo(8, 6); ctx.moveTo(8, -6); ctx.lineTo(-8, 6); ctx.stroke();
+        ctx.fillStyle = `rgb(${rgb})`; ctx.fillRect(-2.5, -3, 5, 6);
+        ctx.restore();
       } else if (o.type === "pfand") {
         ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(0.6 + o.t * 2);
         ctx.fillStyle = "#2f7a3a"; roundRect(-3.5, -7, 7, 12, 2.5); ctx.fill(); ctx.fillRect(-1.6, -10, 3.2, 4);
@@ -6711,7 +6869,7 @@
     $("survivalBest").textContent = `${tr("Tagesbefehl")}: ${tr(todaysOrder().name)}`;
     renderThreat();
     $("missionsBadge").classList.toggle("hidden", !missionsClaimable());
-    $("gearBadge").classList.toggle("hidden", !(save.gearBag || []).some((it) => !(save.gear || {})[it.s] || it.v > save.gear[it.s].v));
+    $("gearBadge").classList.toggle("hidden", !(save.gearBag || []).some((it) => GEAR_SLOTS[it.s] && gearBetter(it, (save.gear || {})[it.s])));
     $("passBadge").classList.toggle("hidden", !passClaimable());
     const pc = patrolCoins();
     $("patrolBadge").classList.toggle("hidden", patrolHours() < 1);
@@ -7294,6 +7452,7 @@
     if (shopTab === "skins") renderSkinList(list);
     else if (shopTab === "boosts") renderBoostList(list);
     else if (shopTab === "throw") renderThrowList(list);
+    else if (shopTab === "gear") renderGearShop(list);
     else renderOffers(list);
     const iapReady = Platform.iap.available;
     $("shopNote").textContent = Platform.isNative
@@ -7726,5 +7885,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

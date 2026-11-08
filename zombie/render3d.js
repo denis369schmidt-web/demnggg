@@ -225,6 +225,9 @@ window.Render3D = (() => {
   // ------------------------------------------------------------------
   // Partikel & Leuchteffekte: Quads in zwei Batches (additiv / normal)
   // ------------------------------------------------------------------
+  // v3.3 Seltenheitsfarben der Beutekisten (gewöhnlich, selten, episch, legendär)
+  const LOOT_CSS = ["200,205,210", "74,168,255", "176,122,255", "255,194,58"];
+  const LOOT_RGB = LOOT_CSS.map((c) => c.split(",").map((v) => v / 255));
   const CELL = { glow: 0, smoke: 1, streak: 2, ring: 3, star: 4, blob: 5, chevron: 6, band: 7, gib: 8, casing: 9, bolt: 10 };
   function makeAtlas() {
     return canvasTex(512, 512, (g) => {
@@ -3301,7 +3304,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   // ------------------------------------------------------------------
   // Instanzen: Schatten, Münzen, Projektile
   // ------------------------------------------------------------------
-  let barrelIM, anchorIM, boxIM, ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, headIM, limbIM, rocketIM, discIM, pillar, doorBeam;
+  let barrelIM, anchorIM, boxIM, ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, headIM, limbIM, rocketIM, discIM, pillar, doorBeam, lootIM, lootBandIM;
   const booms = [];
   const dummy = new T3.Object3D();
   function setupInstanced() {
@@ -3333,6 +3336,18 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     // Brezel (Essen aus Marktbuden) und grüne Pfandflasche
     foodIM = new T3.InstancedMesh(new T3.TorusGeometry(6.5, 2.4, 6, 14), new T3.MeshLambertMaterial({ color: 0xa8642a, emissive: 0x2a1404 }), 20);
     pfandIM = new T3.InstancedMesh(new T3.CylinderGeometry(2.4, 2.4, 10, 8), new T3.MeshLambertMaterial({ color: 0x2f8a3a, emissive: 0x0a2a10 }), 40);
+    // v3.3 Beutekiste: Holzkiste mit Querstreben, Band in der Seltenheitsfarbe
+    const crateTex = tex("lootcrate", 64, 64, (g) => {
+      g.fillStyle = "#7a4c24"; g.fillRect(0, 0, 64, 64);
+      for (let i = 0; i < 4; i++) { g.fillStyle = i % 2 ? "#86562a" : "#704420"; g.fillRect(0, i * 16, 64, 15); g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(0, i * 16 + 15, 64, 1); }
+      g.strokeStyle = "#4a2c12"; g.lineWidth = 6; g.strokeRect(3, 3, 58, 58);
+      g.beginPath(); g.moveTo(6, 6); g.lineTo(58, 58); g.moveTo(58, 6); g.lineTo(6, 58); g.stroke();
+      g.fillStyle = "#c9b48a"; for (const [x, y] of [[6, 6], [58, 6], [6, 58], [58, 58]]) { g.beginPath(); g.arc(x, y, 2, 0, Math.PI * 2); g.fill(); }
+    });
+    lootIM = new T3.InstancedMesh(new T3.BoxGeometry(15, 12, 13), new T3.MeshLambertMaterial({ map: crateTex, emissive: 0x1a0e04 }), 12);
+    lootBandIM = new T3.InstancedMesh(new T3.BoxGeometry(15.6, 2.6, 13.6), new T3.MeshBasicMaterial({ color: 0xffffff }), 12);
+    lootBandIM.setColorAt(0, tmpColor.setRGB(1, 1, 1));
+    lootIM.castShadow = true;
     // Rakete (Körper + rote Spitze als ein Mesh) und Sägeblatt
     const rb = new T3.CylinderGeometry(2.6, 2.6, 16, 8).toNonIndexed(); rb.rotateZ(-Math.PI / 2);
     const rt = new T3.ConeGeometry(2.6, 6, 8).toNonIndexed(); rt.rotateZ(-Math.PI / 2); rt.translate(11, 0, 0);
@@ -3362,7 +3377,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     boxIM = new T3.InstancedMesh(new T3.BoxGeometry(1, 1, 1), new T3.MeshLambertMaterial({ flatShading: true }), 60);
     boxIM.setColorAt(0, tmpColor.setRGB(1, 1, 1));
     for (const im of [barrelIM, anchorIM, boxIM]) { im.castShadow = true; im.frustumCulled = false; im.count = 0; scene.add(im); }
-    for (const im of [ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, rocketIM, discIM]) { im.frustumCulled = false; im.count = 0; scene.add(im); }
+    for (const im of [ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, rocketIM, discIM, lootIM, lootBandIM]) { im.frustumCulled = false; im.count = 0; scene.add(im); }
     healIM.castShadow = true;
     // abgetrennte Köpfe und Gliedmaßen
     headIM = new T3.InstancedMesh(new T3.IcosahedronGeometry(1, 1), new T3.MeshLambertMaterial({ flatShading: true }), 100);
@@ -3760,13 +3775,22 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     for (const im of [acidIM, pinkIM, grenadeIM, boltIM, rocketIM, discIM]) im.instanceMatrix.needsUpdate = true;
     // Medikits
     let hk = 0;
-    let fk = 0, pk2 = 0;
+    let fk = 0, pk2 = 0, lk = 0;
     for (const o of w.orbs) {
       const y = 7 + Math.sin(t * 4 + o.x) * 2;
       if (o.type === "heal" && o.food && fk < 20) inst(foodIM, fk++, o.x, y + 2, o.y, t * 1.5, 1.2);
       else if (o.type === "heal" && hk < 20) { inst(healIM, hk, o.x, y, o.y, t * 1.5); inst(healCrossIM, hk++, o.x, y, o.y, t * 1.5); }
       else if (o.type === "pfand" && pk2 < 40) inst(pfandIM, pk2++, o.x, 6, o.y, 0, 1.2 + Math.sin(t * 3 + o.x) * 0.3);
+      else if (o.type === "gear" && lk < 12) {
+        const ly = 8 + Math.sin(t * 3 + o.x) * 1.5, rot = t * 0.8 + o.x;
+        inst(lootIM, lk, o.x, ly, o.y, rot); inst(lootBandIM, lk, o.x, ly, o.y, rot);
+        const [lr, lg, lb] = LOOT_RGB[(o.item && o.item.r) || 0];
+        lootBandIM.setColorAt(lk++, tmpColor.setRGB(lr, lg, lb));
+      }
     }
+    lootIM.count = lootBandIM.count = lk; lootIM.instanceMatrix.needsUpdate = true; lootBandIM.instanceMatrix.needsUpdate = true;
+    if (lk && lootBandIM.instanceColor) lootBandIM.instanceColor.needsUpdate = true;
+    lootIM.visible = lootBandIM.visible = lk > 0;
     healIM.count = healCrossIM.count = hk; healIM.instanceMatrix.needsUpdate = true; healCrossIM.instanceMatrix.needsUpdate = true;
     foodIM.count = fk; pfandIM.count = pk2; foodIM.instanceMatrix.needsUpdate = true; pfandIM.instanceMatrix.needsUpdate = true;
     // Brocken, Trümmer, Hülsen
@@ -4000,6 +4024,16 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       bill(addB, b.x, 18, b.y, b.r * 3.2, CELL.glow, b.rgb, 0.7);
     }
     for (const o of w.orbs) if (o.type === "heal") { bill(addB, o.x, 9, o.y, 20 + Math.sin(t * 6) * 3, CELL.glow, "120,255,140", 0.55); flat(floorB, o.x, 0.9, o.y, 0, 16, 16, CELL.ring, "120,255,140", 0.6); }
+    // v3.3 Beutekiste: Lichtsäule (senkrechtes, zur Kamera gedrehtes Quad), Schein und Ring in der Seltenheitsfarbe
+    for (const o of w.orbs) if (o.type === "gear") {
+      const rgb = LOOT_CSS[(o.item && o.item.r) || 0], pulse = 0.75 + 0.25 * Math.sin(t * 5 + o.x);
+      const hl = Math.hypot(camR.x, camR.z) || 1, rr = (o.item && o.item.r) || 0, bh = 80 + 40 * rr;
+      const [lr, lg, lb] = lin(rgb), ux = camR.x / hl, uz = camR.z / hl;
+      addB.add(o.x, bh * 0.42, o.y, ux * 15, 0, uz * 15, 0, bh * 0.5, 0, CELL.glow, lr, lg, lb, 0.7 * pulse); // breiter Schein
+      addB.add(o.x, bh * 0.42, o.y, ux * 5, 0, uz * 5, 0, bh * 0.5, 0, CELL.glow, 1, 1, 1, 0.35 * pulse); // heller Kern
+      bill(addB, o.x, 10, o.y, 24 * pulse, CELL.glow, rgb, 0.6);
+      flat(floorB, o.x, 0.9, o.y, t * 0.6, 20, 20, CELL.ring, rgb, 0.7 * pulse);
+    }
     for (const o of w.orbs) if (o.type === "xp") { const y = 12 + Math.sin(t * 6 + o.x) * 2; bill(addB, o.x, y, o.y, 11, CELL.glow, "90,200,255", 0.85); bill(addB, o.x, y, o.y, 4, CELL.glow, "220,250,255", 1); }
     for (const e of w.enemies) {
       if (e.spawnT > 0) continue;
@@ -4291,6 +4325,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     for (const z of w.zaps) lightCands.push([z.x2, 30, z.y2, "127,231,255", 2.2 * (z.life / z.max), 200, 8]);
     for (const q of w.gates || []) if (q.warn > 0) lightCands.push([q.side < 0 ? D.L + 12 : D.R - 12, 46, q.y, "255,40,24", 3.4 * (0.45 + 0.55 * Math.abs(Math.sin(t * 9))), 320, 10]); // v3.0 Horden-Warnlicht
     for (const q of w.decoys || []) lightCands.push([q.x, 20, q.y, "255,180,80", 1.2 + Math.random() * 1.2, 150, 6]); // v2.9 Böller knistert
+    for (const o of w.orbs) if (o.type === "gear") lightCands.push([o.x, 46, o.y, LOOT_CSS[(o.item && o.item.r) || 0], 1.2, 170, 7]); // v3.3 Beutekiste (schwach, sonst überstrahlt die Kiste)
     for (const e of w.enemies) {
       if (e.burnT > 0 || e.type === "burner") lightCands.push([e.x, 26, e.y, "255,140,40", 1.4, 150, 4]);
       if (e.mode === "zap") lightCands.push([e.x, 40, e.y, "127,231,255", 2.2, 200, 7]);

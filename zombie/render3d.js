@@ -122,7 +122,7 @@ window.Render3D = (() => {
   const TEX_SCALE = 2;
   const tex = (key, w, h, draw, repeat) => { let t = texCache.get(key); if (!t) { t = canvasTex(w, h, /^(wall|roof|obs):/.test(key) ? (g, ww, hh) => { draw(g, ww, hh); weather(g, ww, hh, key); } : draw, repeat, TEX_SCALE); texCache.set(key, t); } return t; };
   // v2.7 Verwitterung: Regenschlieren, Schmutz am Fuß, Moos, Risse und Kratzer – einmal je Textur, danach aus dem Cache
-  function weather(g, w, h, key) {
+  function weather(g, w, h, key, noDetail = false) {
     let s = 0;
     for (const ch of key) s = (s * 31 + ch.charCodeAt(0)) >>> 0;
     const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
@@ -144,7 +144,7 @@ window.Render3D = (() => {
     for (let i = 0; i < (wall ? 4 : 2); i++) { let x = R() * w, y = R() * h; g.beginPath(); g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (R() - 0.5) * 10; y += 3 + R() * 7; g.lineTo(x, y); } g.stroke(); } // Risse
     g.strokeStyle = "rgba(255,255,255,0.07)"; g.lineWidth = 0.6;
     for (let i = 0; i < (wall ? 10 : 14); i++) { const x = R() * w, y = R() * h, a = R() * Math.PI; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * (3 + R() * 9), y + Math.sin(a) * (3 + R() * 9)); g.stroke(); } // Kratzer
-    detailPass(g, w, h, key, R);
+    if (!noDetail) detailPass(g, w, h, key, R); // v3.5: Fassaden haben eigene Details (Läden statt Plakate/Schablonen)
     g.restore();
   }
   // v3.3 Detail-Ebene für alle Wand-, Dach- und Hindernis-Texturen: Geschichten der Seuche an jeder Fläche
@@ -911,6 +911,187 @@ void main() {
       g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 1; for (let y = 0; y < 128; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke(); }
       g.strokeStyle = "rgba(255,255,255,0.06)"; g.lineWidth = 0.5; for (let y = 1; y < 128; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke(); }
     }, true);
+  }
+
+  // ------------------------------------------------------------------
+  // v3.5 Stadtkulisse: Häuserfassaden zur Arena hin – Läden mit Leuchtreklame, Fenster (teils erleuchtet,
+  // zerbrochen, vernagelt), SOS-Laken, Fallrohre. Eine Farb- und eine Leucht-Karte aus demselben Zeichendurchgang.
+  // Ein Streifen: 512×256 logische Pixel = FAC_W Welteinheiten breit, volle Blockhöhe hoch.
+  // ------------------------------------------------------------------
+  const FAC_W = 256;
+  const SHOPS = {
+    street: [["APOTHEKE", "60,230,120", 1], ["DÖNER", "255,170,60"], ["KIOSK", "255,220,90"], ["SPÄTI", "120,200,255"], ["FRISEUR", "255,110,190"], ["BÄCKEREI", "255,200,120"], ["SPIELHALLE", "255,70,210"], ["IMBISS", "255,140,60"], ["HANDYSHOP", "90,200,255"], ["SPARKASSE", "255,60,50"], ["TABAK", "255,210,120"], ["PIZZA", "255,120,70"]],
+    markt: [["WEINSTUBE", "255,190,110"], ["METZGEREI", "255,130,110"], ["CAFÉ", "255,215,150"], ["GASTHAUS", "255,180,90"], ["BÜCHER", "255,220,170"], ["APOTHEKE", "60,230,120", 1], ["BRAUHAUS", "255,190,80"], ["KONDITOREI", "255,170,200"]],
+    hospital: [["NOTAUFNAHME", "255,60,50"], ["RADIOLOGIE", "120,200,255"], ["APOTHEKE", "60,230,120", 1], ["STATION 3", "200,230,255"], ["LABOR", "120,255,200"], ["CAFETERIA", "255,210,140"]],
+    lab: [["SPERRZONE", "255,70,40"], ["BIO-LABOR 2", "120,255,160"], ["DEKON", "255,220,60"], ["KÜHLRAUM", "120,220,255"], ["SERVER", "90,160,255"], ["ZUTRITT VERBOTEN", "255,60,60"]],
+  };
+  const PLASTER = { street: ["#b8a98e", "#9c8e7a", "#a89272", "#8f9a8a", "#b07a5e", "#8a8f96", "#c2b49a", "#7e7466"], markt: ["#e6dcc6", "#eadfca", "#dccfb4", "#e8d8bc"], hospital: ["#d8dcda", "#cfd6d4", "#e2e4e0"], lab: ["#6e767a", "#5e666a", "#7a8084"] };
+  function facadeTextures(theme) {
+    const key = `fac:${theme}`;
+    if (texCache.has(key)) return { map: texCache.get(key), emi: texCache.get(`facE:${theme}`) };
+    let s = 0; for (const ch of theme) s = (s * 31 + ch.charCodeAt(0)) >>> 0;
+    s = (s + 4243) >>> 0;
+    const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    const pick = (a) => a[Math.floor(R() * a.length) % a.length];
+    const W = 512, H = 256, lights = []; // Leucht-Ebene: Zeichenbefehle für die zweite Leinwand
+    const glow = (fn) => lights.push(fn);
+    const shops = SHOPS[theme] || SHOPS.street, plaster = PLASTER[theme] || PLASTER.street;
+    // Fenster: Rahmen, Glas mit Spiegelung, Sims; Zustand: dunkel, erleuchtet, Fernseher, zerbrochen, vernagelt, Vorhang
+    const win = (g, x, y, w, h, frame, state, cross = 0) => {
+      g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(x - 2, y - 2, w + 4, h + 5); // Laibung
+      g.fillStyle = frame; g.fillRect(x - 1.5, y - 1.5, w + 3, h + 3);
+      if (state === "lit" || state === "tv") {
+        const warm = state === "lit", gr = g.createLinearGradient(0, y, 0, y + h);
+        gr.addColorStop(0, warm ? "#e8b860" : "#6a9ad8"); gr.addColorStop(1, warm ? "#a8682a" : "#2a4a88");
+        g.fillStyle = gr; g.fillRect(x, y, w, h);
+        g.fillStyle = "rgba(40,20,10,0.55)"; g.fillRect(x + w * 0.1, y + h * 0.55, w * (0.3 + R() * 0.3), h * 0.45); // Möbel-Silhouette
+        if (R() < 0.25) { g.fillStyle = "rgba(20,10,6,0.8)"; g.beginPath(); g.ellipse(x + w * (0.3 + R() * 0.4), y + h * 0.42, w * 0.13, h * 0.2, 0, 0, TAU); g.fill(); g.fillRect(x + w * 0.25, y + h * 0.55, w * 0.32, h * 0.45); } // Gestalt am Fenster
+        const k = 0.45 + R() * 0.45;
+        glow((e) => { const eg = e.createLinearGradient(0, y, 0, y + h); eg.addColorStop(0, warm ? `rgba(255,190,100,${k})` : `rgba(110,160,255,${k})`); eg.addColorStop(1, warm ? `rgba(200,110,40,${k * 0.7})` : `rgba(50,90,200,${k * 0.7})`); e.fillStyle = eg; e.fillRect(x, y, w, h); });
+      } else if (state === "broken") {
+        g.fillStyle = "#07090b"; g.fillRect(x, y, w, h);
+        g.fillStyle = "rgba(170,190,200,0.5)";
+        for (let k = 0; k < 4; k++) { const cx = x + (k % 2 ? w : 0), cy = y + (k < 2 ? 0 : h); g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + (k % 2 ? -1 : 1) * w * (0.2 + R() * 0.4), cy); g.lineTo(cx, cy + (k < 2 ? 1 : -1) * h * (0.2 + R() * 0.4)); g.fill(); } // Scherben in den Ecken
+      } else if (state === "boarded") {
+        g.fillStyle = "#0c0e10"; g.fillRect(x, y, w, h);
+        for (let k = 0; k < 3; k++) { g.save(); g.translate(x + w / 2, y + h * (0.22 + k * 0.28)); g.rotate((R() - 0.5) * 0.5); g.fillStyle = `rgb(${110 + R() * 30 | 0},${80 + R() * 20 | 0},${50 + R() * 14 | 0})`; g.fillRect(-w * 0.62, -3, w * 1.24, 6); g.fillStyle = "#333"; g.fillRect(-w * 0.5, -1, 1.5, 1.5); g.fillRect(w * 0.45, -1, 1.5, 1.5); g.restore(); }
+      } else {
+        const gr = g.createLinearGradient(x, y, x + w, y + h);
+        gr.addColorStop(0, "#1c2630"); gr.addColorStop(0.45, "#0d1318"); gr.addColorStop(1, "#151d24");
+        g.fillStyle = gr; g.fillRect(x, y, w, h);
+        g.fillStyle = "rgba(160,190,220,0.14)"; g.beginPath(); g.moveTo(x + w * 0.15, y); g.lineTo(x + w * 0.45, y); g.lineTo(x + w * 0.05, y + h * 0.7); g.lineTo(x, y + h * 0.5); g.fill(); // Spiegelung
+        if (state === "curtain") { g.fillStyle = pick(["rgba(150,60,50,0.8)", "rgba(200,190,160,0.75)", "rgba(70,90,120,0.8)"]); g.fillRect(x, y, w * 0.3, h); g.fillRect(x + w * 0.7, y, w * 0.3, h); }
+      }
+      if (cross) { g.fillStyle = frame; g.fillRect(x + w / 2 - 1, y, 2, h); g.fillRect(x, y + h * 0.38, w, 2); } // Sprossen
+      g.fillStyle = "rgba(255,255,255,0.18)"; g.fillRect(x - 3, y + h + 1, w + 6, 2.5); // Sims
+      g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(x - 3, y + h + 3.5, w + 6, 1.5);
+    };
+    const winState = () => { const r = R(); return r < 0.16 ? "lit" : r < 0.2 ? "tv" : r < 0.3 ? "broken" : r < 0.38 ? "boarded" : r < 0.5 ? "curtain" : "dark"; };
+    // Leuchtschrift: farbiges Schild, auf der Leucht-Ebene als Neon (teils kaputt = dunkel)
+    const sign = (g, x, y, w, h, [txt, rgb, cross], lit, bg = "#15181c") => {
+      g.fillStyle = bg; g.fillRect(x, y, w, h);
+      g.fillStyle = "rgba(255,255,255,0.12)"; g.fillRect(x, y, w, 1.2);
+      const fs = Math.min(h * 0.72, (w - (cross ? h + 6 : 6)) / (txt.length * 0.62));
+      const tx = x + (cross ? h + 4 : 3) + Math.max(0, (w - (cross ? h + 6 : 6) - txt.length * fs * 0.62) / 2);
+      const font = `900 ${fs}px "Arial Black", Impact, sans-serif`;
+      g.font = font; g.textBaseline = "middle"; g.fillStyle = lit ? `rgb(${rgb})` : `rgba(${rgb},0.45)`; g.fillText(txt, tx, y + h / 2 + 0.5);
+      const crossAt = (c, col) => { c.fillStyle = col; const cx = x + 2 + h / 2, cy = y + h / 2, a = h * 0.36, b = h * 0.12; c.fillRect(cx - a, cy - b, a * 2, b * 2); c.fillRect(cx - b, cy - a, b * 2, a * 2); };
+      if (cross) crossAt(g, `rgb(${rgb})`);
+      if (lit) glow((e) => { e.font = font; e.textBaseline = "middle"; e.shadowColor = `rgb(${rgb})`; e.shadowBlur = 6; e.fillStyle = `rgb(${rgb})`; e.fillText(txt, tx, y + h / 2 + 0.5); if (cross) crossAt(e, `rgb(${rgb})`); e.shadowBlur = 0; });
+    };
+    const map = canvasTex(W, H, (g) => {
+      g.fillStyle = "#2a2622"; g.fillRect(0, 0, W, H);
+      let x = 0;
+      while (x < W) {
+        const bw = Math.min(W - x, 110 + Math.floor(R() * 70)), last = W - x - bw < 90;
+        const w2 = last ? W - x : bw, col = pick(plaster);
+        g.fillStyle = col; g.fillRect(x, 0, w2, H);
+        // Putz-/Plattenstruktur
+        for (let k = 0; k < 70; k++) { g.fillStyle = `rgba(${R() < 0.5 ? "0,0,0" : "255,255,255"},${0.03 + R() * 0.05})`; g.fillRect(x + R() * w2, R() * H, 2 + R() * 10, 1 + R() * 4); }
+        const groundY = 150; // Erdgeschoss ab hier (≈ 53 Welteinheiten hoch)
+        if (theme === "markt") {
+          // Fachwerk: dunkle Balken in den Obergeschossen, Sandstein-Erdgeschoss
+          const beam = "#3a2416";
+          g.fillStyle = "#b79a74"; g.fillRect(x, groundY, w2, H - groundY);
+          for (let yy = groundY + 10; yy < H; yy += 12) { g.fillStyle = "rgba(0,0,0,0.18)"; g.fillRect(x, yy, w2, 1); }
+          g.fillStyle = beam;
+          for (const yy of [14, 80, groundY - 6]) g.fillRect(x, yy, w2, 6);
+          for (let px = x + 4; px < x + w2 - 4; px += 34) { g.fillRect(px, 14, 5, groundY - 14); }
+          for (let px = x + 4; px < x + w2 - 38; px += 34) for (const [y0, y1] of [[20, 80], [86, groundY - 6]]) { g.save(); g.strokeStyle = beam; g.lineWidth = 4; g.beginPath(); if (R() < 0.5) { g.moveTo(px + 5, y1); g.lineTo(px + 34, y0); } else { g.moveTo(px + 5, y0); g.lineTo(px + 18, (y0 + y1) / 2); g.lineTo(px + 34, y0); } g.stroke(); g.restore(); }
+          for (const wy of [30, 96]) for (let px = x + 12; px < x + w2 - 24; px += 34) {
+            const st = winState(); win(g, px, wy, 16, 30, "#e8e0d0", st, 1);
+            if (st !== "broken" && R() < 0.55) { g.fillStyle = pick(["#2f5a2a", "#6a1e18", "#264a6a"]); g.fillRect(px - 7, wy, 5, 30); g.fillRect(px + 18, wy, 5, 30); } // Fensterläden
+            if (R() < 0.4) { g.fillStyle = "#4a3020"; g.fillRect(px - 2, wy + 31, 20, 4); for (let f = 0; f < 5; f++) { g.fillStyle = pick(["#d02830", "#e8d040", "#e070a0", "#3a7a2a"]); g.beginPath(); g.arc(px + 1 + f * 3.6, wy + 31, 2, 0, TAU); g.fill(); } } // Blumenkasten
+          }
+        } else if (theme === "hospital") {
+          g.fillStyle = "rgba(0,0,0,0.12)"; for (let yy = 0; yy < H; yy += 32) g.fillRect(x, yy, w2, 1); for (let px = x; px < x + w2; px += 40) g.fillRect(px, 0, 1, groundY);
+          g.fillStyle = "#2a62a8"; g.fillRect(x, groundY - 12, w2, 6); // blaues Band
+          for (const wy of [22, 84]) for (let px = x + 8; px < x + w2 - 28; px += 40) {
+            const st = winState(); win(g, px, wy, 30, 34, "#9aa4a8", st === "tv" ? "lit" : st);
+            if (st === "dark" || st === "curtain") { g.fillStyle = "rgba(220,225,220,0.35)"; for (let l = 0; l < 7; l++) g.fillRect(px, wy + 2 + l * 4.6, 30, 1.6); } // Jalousie
+          }
+        } else if (theme === "lab") {
+          g.fillStyle = "rgba(0,0,0,0.25)"; for (let yy = 0; yy < H; yy += 42) g.fillRect(x, yy, w2, 1.5); for (let px = x; px < x + w2; px += 56) g.fillRect(px, 0, 1.5, H);
+          for (let k = 0; k < 14; k++) { g.fillStyle = "rgba(255,255,255,0.05)"; g.beginPath(); g.arc(x + R() * w2, R() * groundY, 1.2, 0, TAU); g.fill(); } // Ankerlöcher
+          for (const wy of [30, 92]) { // Fensterbänder
+            const lit = R() < 0.5, gr = g.createLinearGradient(0, wy, 0, wy + 22);
+            gr.addColorStop(0, lit ? "#7ad8b8" : "#141c20"); gr.addColorStop(1, lit ? "#2a7a6a" : "#0a1014");
+            g.fillStyle = "#30383c"; g.fillRect(x + 6, wy - 2, w2 - 12, 26);
+            g.fillStyle = gr; g.fillRect(x + 8, wy, w2 - 16, 22);
+            g.fillStyle = "#30383c"; for (let px = x + 8; px < x + w2 - 8; px += 24) g.fillRect(px, wy, 2, 22);
+            if (lit) { const k = 0.4 + R() * 0.4; glow((e) => { e.fillStyle = `rgba(110,255,200,${k})`; e.fillRect(x + 8, wy, w2 - 16, 22); }); }
+          }
+          g.save(); g.translate(x + 4, groundY - 10); for (let k = 0; k < w2 / 10; k++) { g.fillStyle = k % 2 ? "#1a1a1a" : "#e8b818"; g.beginPath(); g.moveTo(k * 10, 0); g.lineTo(k * 10 + 6, 0); g.lineTo(k * 10 + 2, 7); g.lineTo(k * 10 - 4, 7); g.fill(); } g.restore(); // Warnstreifen
+        } else {
+          // Straße: Gründerzeit-Putz mit Gesimsen, Fenster in zwei Obergeschossen, Balkon, Fallrohr
+          g.fillStyle = "rgba(255,255,255,0.14)"; g.fillRect(x, 10, w2, 4); g.fillRect(x, 76, w2, 3);
+          g.fillStyle = "rgba(0,0,0,0.25)"; g.fillRect(x, 14, w2, 2); g.fillRect(x, 79, w2, 2);
+          const n = Math.max(2, Math.floor(w2 / 38)), gap = w2 / n;
+          for (const wy of [26, 90]) for (let k = 0; k < n; k++) {
+            const px = x + gap * k + gap / 2 - 10, st = winState();
+            win(g, px, wy, 20, 36, pick(["#e8e4dc", "#d8d0c0", "#4a3a2a"]), st, R() < 0.5 ? 1 : 0);
+            if (wy === 26) { g.fillStyle = "rgba(255,255,255,0.16)"; g.fillRect(px - 4, wy - 7, 28, 3); } // Verdachung
+          }
+          if (R() < 0.6) { const bx = x + gap * Math.floor(R() * n) + gap / 2 - 18; g.fillStyle = "#1c1e20"; g.fillRect(bx, 126, 36, 3); for (let k = 0; k <= 9; k++) g.fillRect(bx + k * 4, 114, 1.2, 12); g.fillRect(bx, 113, 36, 1.6); } // Balkongitter
+          if (R() < 0.35) { const ax = x + 10 + R() * (w2 - 40); g.fillStyle = "#8a9094"; g.fillRect(ax, 62, 18, 11); g.fillStyle = "#5a6064"; g.beginPath(); g.arc(ax + 9, 67.5, 4, 0, TAU); g.fill(); } // Klimagerät
+        }
+        // SOS-Laken aus einem Fenster (Überlebende haben um Hilfe gerufen)
+        if (theme !== "lab" && R() < 0.42) {
+          const sx = x + 14 + R() * (w2 - 60), sy = 38 + R() * 20, sw = 30 + R() * 12, sh = 40 + R() * 16;
+          g.save(); g.translate(sx, sy); g.rotate((R() - 0.5) * 0.08);
+          g.fillStyle = "#e4e0d6"; g.beginPath(); g.moveTo(0, 0); g.lineTo(sw, 0); g.lineTo(sw - 2, sh); g.lineTo(sw * 0.6, sh - 4); g.lineTo(sw * 0.3, sh + 2); g.lineTo(2, sh - 3); g.closePath(); g.fill();
+          g.fillStyle = "rgba(0,0,0,0.12)"; for (let k = 1; k < 4; k++) g.fillRect(sw * k / 4, 0, 1.2, sh);
+          g.fillStyle = "#a8141a"; g.font = `900 ${sw * 0.36}px "Arial Black", Impact, sans-serif`; g.textBaseline = "middle"; g.fillText(pick(["SOS", "HILFE", "LEBEN!", "3 HIER"]), 3, sh * 0.45, sw - 6);
+          g.restore();
+        }
+        // Erdgeschoss: Laden mit Schaufenster, Tür, Schild – oder heruntergelassener Rollladen mit Graffiti
+        if (theme !== "markt") { g.fillStyle = theme === "lab" ? "#454c50" : theme === "hospital" ? "#b8bebc" : "#5a524a"; g.fillRect(x, groundY, w2, H - groundY); }
+        g.fillStyle = "rgba(0,0,0,0.3)"; g.fillRect(x, groundY, w2, 3);
+        const shop = pick(shops), lit = R() < 0.62, open = R() < 0.6;
+        const sx0 = x + 8, sw0 = w2 - 16, signY = groundY + 8;
+        sign(g, sx0, signY, sw0, 16, shop, lit, theme === "markt" ? "#2a1c12" : "#15181c");
+        const wy0 = groundY + 32, wh0 = H - wy0 - 14, doorW = 26, dx = x + (R() < 0.5 ? 10 : w2 - 10 - doorW);
+        if (open) {
+          const glassX = dx > x + w2 / 2 ? x + 10 : dx + doorW + 6, glassW = w2 - doorW - 26;
+          const inLit = R() < 0.55;
+          const gr = g.createLinearGradient(0, wy0, 0, wy0 + wh0);
+          gr.addColorStop(0, inLit ? "#c89850" : "#182028"); gr.addColorStop(1, inLit ? "#6a4422" : "#0a0e12");
+          g.fillStyle = "#202428"; g.fillRect(glassX - 2, wy0 - 2, glassW + 4, wh0 + 4);
+          g.fillStyle = gr; g.fillRect(glassX, wy0, glassW, wh0);
+          if (inLit) { for (let k = 0; k < 4; k++) { g.fillStyle = "rgba(40,20,10,0.5)"; g.fillRect(glassX + 4 + k * glassW / 4, wy0 + wh0 * 0.5, glassW / 5, wh0 * 0.5); } const k = 0.35 + R() * 0.3; glow((e) => { e.fillStyle = `rgba(255,180,100,${k})`; e.fillRect(glassX, wy0, glassW, wh0); }); }
+          if (R() < 0.45) { // eingeschlagen
+            g.fillStyle = "#06080a"; g.beginPath(); g.moveTo(glassX + glassW * 0.3, wy0 + wh0); g.lineTo(glassX + glassW * 0.45, wy0 + wh0 * 0.2); g.lineTo(glassX + glassW * 0.62, wy0 + wh0 * 0.55); g.lineTo(glassX + glassW * 0.8, wy0 + wh0); g.fill();
+            g.strokeStyle = "rgba(200,220,230,0.45)"; g.lineWidth = 0.7; for (let k = 0; k < 6; k++) { g.beginPath(); g.moveTo(glassX + glassW * 0.5, wy0 + wh0 * 0.5); g.lineTo(glassX + R() * glassW, wy0 + R() * wh0); g.stroke(); }
+          }
+          g.fillStyle = "rgba(255,255,255,0.12)"; g.fillRect(glassX, wy0, glassW, 2);
+        } else {
+          g.fillStyle = "#6a6c6e"; g.fillRect(x + 6, wy0 - 4, w2 - 12, wh0 + 4); // Rollladen
+          for (let yy = wy0 - 4; yy < wy0 + wh0; yy += 4) { g.fillStyle = "rgba(0,0,0,0.25)"; g.fillRect(x + 6, yy, w2 - 12, 1); g.fillStyle = "rgba(255,255,255,0.08)"; g.fillRect(x + 6, yy + 1, w2 - 12, 1); }
+          g.save(); g.font = `900 ${14 + R() * 6}px Impact, "Arial Black", sans-serif`; g.textBaseline = "middle"; g.lineWidth = 3; g.strokeStyle = "#0a0a0c";
+          const tag = pick(["RAUS!", "NICHT ÖFFNEN", "TOT", "KING", "HN 07", "WIR LEBEN", "EVAC→"]), tc = pick(["#e83a2a", "#3ad8e8", "#e8d83a", "#d83ae8", "#f0f0f0"]);
+          g.translate(x + 14, wy0 + wh0 * 0.5); g.rotate((R() - 0.5) * 0.15); g.strokeText(tag, 0, 0, w2 - 30); g.fillStyle = tc; g.fillText(tag, 0, 0, w2 - 30); g.restore();
+        }
+        // Tür
+        g.fillStyle = "#121416"; g.fillRect(dx - 2, wy0 - 6, doorW + 4, H - wy0 - 8);
+        g.fillStyle = open ? "#2a3238" : "#3a2a20"; g.fillRect(dx, wy0 - 4, doorW, H - wy0 - 12);
+        g.fillStyle = "rgba(160,190,210,0.25)"; g.fillRect(dx + 4, wy0, doorW - 8, (H - wy0) * 0.45);
+        g.fillStyle = "#c8b070"; g.fillRect(dx + doorW - 6, wy0 + (H - wy0) * 0.5, 3, 2);
+        g.fillStyle = "#e8e8e0"; g.fillRect(dx + doorW / 2 - 5, wy0 - 12, 10, 6); g.fillStyle = "#2a4a8a"; g.font = "bold 5px sans-serif"; g.fillText(String(2 + Math.floor(R() * 60)), dx + doorW / 2 - 3, wy0 - 9); // Hausnummer
+        if (R() < 0.4) handprint(g, x + 20 + R() * (w2 - 40), wy0 + 10 + R() * 30, 9, (R() - 0.5) * 0.8, R);
+        // Sockel, Dreck, Fallrohr zum Nachbarhaus
+        g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(x, H - 10, w2, 10);
+        const gb = g.createLinearGradient(0, H, 0, H - 40); gb.addColorStop(0, "rgba(20,16,12,0.5)"); gb.addColorStop(1, "rgba(20,16,12,0)"); g.fillStyle = gb; g.fillRect(x, H - 40, w2, 40);
+        g.fillStyle = "#3c4044"; g.fillRect(x + w2 - 5, 0, 4, H - 8); g.fillStyle = "rgba(255,255,255,0.12)"; g.fillRect(x + w2 - 5, 0, 1, H - 8);
+        for (let yy = 20; yy < H - 20; yy += 46) { g.fillStyle = "#2a2e32"; g.fillRect(x + w2 - 7, yy, 8, 2); }
+        // Dachkante
+        g.fillStyle = "rgba(0,0,0,0.45)"; g.fillRect(x, 0, w2, 6);
+        x += w2;
+      }
+      weather(g, W, H, `wall:fac-${theme}`, true); // Regenschlieren, Moos, Risse wie bei allen Wänden
+    }, true, TEX_SCALE);
+    const emi = canvasTex(W, H, (e) => { e.fillStyle = "#000"; e.fillRect(0, 0, W, H); for (const L of lights) L(e); }, true, 1);
+    texCache.set(key, map); texCache.set(`facE:${theme}`, emi);
+    return { map, emi };
   }
 
   function obstacleTexture(kind) {
@@ -1743,6 +1924,133 @@ void main() {
     });
   }
 
+  // ------------------------------------------------------------------
+  // v3.5 Himmel & Skyline hinter den Häuserblöcken (Schulter-/Nahkamera, Menü): Nachthimmel mit Mond und
+  // angeleuchteten Wolken, zwei Häuserreihen mit Fenstern, brennende Viertel mit Feuerschein,
+  // animierte Rauchsäulen und kreisende Suchscheinwerfer. Ein Bild je Stadt, danach aus dem Cache.
+  // ------------------------------------------------------------------
+  const SKY_W = 3400, SKY_H = 700, SKY_BACK = 320, SKY_Y0 = -60; // Welteinheiten; sichtbar ist (Schulterkamera) das Band ≈ 70–530 über dem Boden
+  function skylineTexture(id) {
+    const fires = [];
+    const t = tex(`sky:${id}`, 1024, 210, (g, W, H) => {
+      let s = Math.floor(strHash(`sky|${id}`) * 4294967296) >>> 0;
+      const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const py = (wy) => H - (wy - SKY_Y0) / SKY_H * H; // Welthöhe → Bildzeile
+      const sky = g.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, "#060a14"); sky.addColorStop(0.45, "#101828"); sky.addColorStop(0.72, "#2a2430"); sky.addColorStop(0.9, "#4a2c24"); sky.addColorStop(1, "#5a3220");
+      g.fillStyle = sky; g.fillRect(0, 0, W, H);
+      for (let k = 0; k < 60; k++) { g.fillStyle = `rgba(220,230,255,${0.1 + R() * 0.35})`; g.fillRect(R() * W, R() * py(420), 0.7, 0.7); } // Sterne
+      // Mond mit Hof (tief, damit er im Bild ist)
+      const mx = W * (0.6 + R() * 0.25), my = py(450 + R() * 40);
+      const halo = g.createRadialGradient(mx, my, 0, mx, my, 46); halo.addColorStop(0, "rgba(200,215,255,0.4)"); halo.addColorStop(1, "rgba(200,215,255,0)");
+      g.fillStyle = halo; g.fillRect(mx - 46, my - 46, 92, 92);
+      g.fillStyle = "#e2e8f4"; g.beginPath(); g.arc(mx, my, 7, 0, TAU); g.fill();
+      g.fillStyle = "rgba(120,130,150,0.35)"; for (const [dx, dy, r] of [[-2, -2, 2], [2, 2, 1.4], [3, -3, 1.1]]) { g.beginPath(); g.arc(mx + dx, my + dy, r, 0, TAU); g.fill(); }
+      // Wolkenbänder: dunkel, von unten orange angestrahlt (Brände)
+      for (let k = 0; k < 30; k++) {
+        const cx = R() * W, cy = py(300 + R() * 260), rx = 30 + R() * 90, ry = 5 + R() * 10;
+        const cg = g.createRadialGradient(cx, cy + ry * 0.7, 0, cx, cy, rx);
+        cg.addColorStop(0, `rgba(${110 + R() * 50 | 0},${55 + R() * 25 | 0},40,0.4)`); cg.addColorStop(0.5, "rgba(26,26,34,0.55)"); cg.addColorStop(1, "rgba(16,18,24,0)");
+        g.fillStyle = cg; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, TAU); g.fill();
+      }
+      // Häuserreihen: hinten heller (Dunst), vorn dunkel; Fenster, Türme, Kräne, Funkmasten
+      const row = (minH, maxH, col, winA, step) => {
+        let x = -10;
+        const base = py(0);
+        while (x < W + 10) {
+          const bw = step * (0.6 + R() * 1.1), top = py(minH + R() * (maxH - minH)), bh = base - top;
+          g.fillStyle = col; g.fillRect(x, top, bw, bh);
+          const kind = R();
+          if (kind < 0.08) { g.beginPath(); g.moveTo(x, top); g.lineTo(x + bw / 2, top - bh * 0.45); g.lineTo(x + bw, top); g.fill(); } // Kirchturmspitze
+          else if (kind < 0.14) { g.fillRect(x + bw * 0.45, top - bh * 0.5, 1.4, bh * 0.5); g.fillStyle = "rgba(255,40,30,0.95)"; g.fillRect(x + bw * 0.45 - 0.6, top - bh * 0.5 - 1.6, 2.6, 2.6); g.fillStyle = col; } // Funkmast mit Warnlicht
+          else if (kind < 0.18) { g.fillRect(x + bw * 0.2, top - 26, 2, 26); g.fillRect(x + bw * 0.2 - 18, top - 26, 44, 1.8); g.fillRect(x + bw * 0.2 + 20, top - 25, 0.8, 14); } // Baukran
+          else if (kind < 0.32) { g.beginPath(); g.moveTo(x - 1, top); g.lineTo(x + bw / 2, top - 6); g.lineTo(x + bw + 1, top); g.fill(); } // Satteldach
+          for (let wy = top + 3; wy < base - 3; wy += 4.2) for (let wx = x + 2; wx < x + bw - 2; wx += 3.6) {
+            const r = R();
+            if (r < winA) { g.fillStyle = r < winA * 0.25 ? "rgba(150,190,255,0.8)" : `rgba(255,${190 + R() * 40 | 0},${110 + R() * 30 | 0},${0.55 + R() * 0.4})`; g.fillRect(wx, wy, 1.4, 2); }
+          }
+          x += bw + R() * 2;
+        }
+      };
+      row(150, 420, "#222a3a", 0.06, 26);
+      { const hz = g.createLinearGradient(0, py(0), 0, py(260)); hz.addColorStop(0, "rgba(120,62,40,0.5)"); hz.addColorStop(1, "rgba(120,62,40,0)"); g.fillStyle = hz; g.fillRect(0, py(260), W, py(0) - py(260)); } // Dunst vom Feuerschein
+      // Brände: Glut über den Dächern der vorderen Reihe
+      for (let k = 0; k < 3; k++) {
+        const fx = W * (0.1 + k * 0.33 + R() * 0.12), fy = py(150 + R() * 40);
+        fires.push([fx / W, 150]);
+        const fg = g.createRadialGradient(fx, fy, 0, fx, fy, 60); fg.addColorStop(0, "rgba(255,150,60,0.6)"); fg.addColorStop(0.4, "rgba(220,80,30,0.28)"); fg.addColorStop(1, "rgba(120,30,10,0)");
+        g.fillStyle = fg; g.fillRect(fx - 60, fy - 60, 120, 120);
+      }
+      row(90, 220, "#0c1018", 0.09, 20);
+      for (const [u] of fires) { // Flammen auf den vorderen Dächern
+        const fx = u * W;
+        for (let f = 0; f < 10; f++) { g.fillStyle = `rgba(255,${120 + R() * 110 | 0},40,${0.65 + R() * 0.3})`; const w2 = 2 + R() * 4, h2 = 5 + R() * 14, x0 = fx - 16 + R() * 32, y0 = py(170 + R() * 40); g.beginPath(); g.moveTo(x0 - w2, y0); g.quadraticCurveTo(x0, y0 - h2, x0 + w2, y0); g.fill(); }
+      }
+      g.fillStyle = "#06080b"; g.fillRect(0, py(0), W, H - py(0));
+    }, false);
+    t.userData.fires = t.userData.fires || fires;
+    return t;
+  }
+  function smokeTexture() {
+    return tex("fx:smokecol", 64, 256, (g, W, H) => {
+      let s = 9137; const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      for (let k = 0; k < 70; k++) {
+        const y = R() * H, x = W / 2 + (R() - 0.5) * W * 0.5 * (0.4 + y / H), r = 10 + R() * 16;
+        for (const yy of [y, y - H, y + H]) { // nahtlos nach oben kachelbar
+          const gr = g.createRadialGradient(x, yy, 0, x, yy, r); const a = 0.22 + R() * 0.2, v = 96 + R() * 60 | 0;
+          gr.addColorStop(0, `rgba(${v},${v - 4},${v - 6},${a})`); gr.addColorStop(1, `rgba(${v},${v},${v},0)`);
+          g.fillStyle = gr; g.fillRect(x - r, yy - r, r * 2, r * 2);
+        }
+      }
+      // seitlich ausblenden
+      g.globalCompositeOperation = "destination-in";
+      const fade = g.createLinearGradient(0, 0, W, 0); fade.addColorStop(0, "rgba(0,0,0,0)"); fade.addColorStop(0.3, "rgba(0,0,0,1)"); fade.addColorStop(0.7, "rgba(0,0,0,1)"); fade.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = fade; g.fillRect(0, 0, W, H);
+      g.globalCompositeOperation = "source-over";
+    }, true);
+  }
+  function addSkyline(g, w) {
+    const id = w.cityId || w.theme || "street";
+    const t = skylineTexture(id);
+    const z = D.T - 260 - SKY_BACK, cx = D.W / 2;
+    const back = mesh(new T3.PlaneGeometry(SKY_W, SKY_H), new T3.MeshBasicMaterial({ map: t, fog: false, depthWrite: false }), cx, SKY_Y0 + SKY_H / 2, z);
+    back.renderOrder = -5;
+    g.add(back);
+    const sky = { back, smokes: [], beams: [], glows: [] };
+    // Rauchsäulen über den Bränden (Textur läuft nach oben, Säule neigt sich im Wind), Feuerschein flackert
+    const smoke = smokeTexture();
+    const blob = tex("fx:glowblob", 64, 64, (gg) => { const gr = gg.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.35, "rgba(255,255,255,0.45)"); gr.addColorStop(1, "rgba(255,255,255,0)"); gg.fillStyle = gr; gg.fillRect(0, 0, 64, 64); });
+    for (const [u, fy] of t.userData.fires || []) {
+      const sx = cx + (u - 0.5) * SKY_W;
+      const m = new T3.MeshBasicMaterial({ map: smoke.clone(), transparent: true, depthWrite: false, fog: false, color: 0x8a7c74, opacity: 0.9 });
+      m.map.needsUpdate = true; m.map.repeat.set(1, 0.65);
+      const col = mesh(new T3.PlaneGeometry(240, 760), m, sx + 60, fy + 360, z + 30);
+      col.rotation.z = -0.16; col.renderOrder = -4;
+      g.add(col); sky.smokes.push(col);
+      const gm = new T3.MeshBasicMaterial({ map: blob, color: 0xff7a30, transparent: true, opacity: 0.5, blending: T3.AdditiveBlending, depthWrite: false, fog: false });
+      const glowM = mesh(new T3.PlaneGeometry(380, 240), gm, sx, fy + 30, z + 34);
+      glowM.renderOrder = -3; g.add(glowM); sky.glows.push(glowM);
+    }
+    // Suchscheinwerfer: lange, weiche Lichtkegel, die langsam über den Himmel streichen
+    const beamTex = tex("fx:searchbeam", 8, 128, (gg) => { const gr = gg.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, "rgba(255,255,255,0.9)"); gr.addColorStop(0.5, "rgba(255,255,255,0.3)"); gr.addColorStop(1, "rgba(255,255,255,0)"); gg.fillStyle = gr; gg.fillRect(0, 0, 8, 128); });
+    for (const [bx, ph] of [[-620, 0], [760, 2.1]]) {
+      const geo2 = new T3.ConeGeometry(90, 1100, 16, 1, true); geo2.translate(0, -550, 0); geo2.rotateX(Math.PI); // Spitze unten
+      const bm = new T3.MeshBasicMaterial({ map: beamTex, color: 0xcfe0ff, transparent: true, opacity: 0.34, blending: T3.AdditiveBlending, depthWrite: false, side: T3.DoubleSide, fog: false });
+      const b = mesh(geo2, bm, cx + bx, 90, z + 60);
+      b.renderOrder = -2; b.userData.ph = ph; g.add(b); sky.beams.push(b);
+    }
+    return sky;
+  }
+  function updateSkyline(t, w) {
+    const sk = room && room.sky;
+    if (!sk) return;
+    const vis = camMode !== "top" || !!(w && w.menuCam);
+    sk.back.visible = vis;
+    for (const c of sk.smokes) { c.visible = vis; c.material.map.offset.y = -t * 0.035; }
+    for (let i = 0; i < sk.glows.length; i++) { const gm = sk.glows[i]; gm.visible = vis; gm.material.opacity = 0.38 + 0.14 * Math.sin(t * 5.3 + i * 2) + 0.06 * Math.sin(t * 13 + i); }
+    for (const b of sk.beams) { b.visible = vis; const ph = b.userData.ph; b.rotation.z = Math.sin(t * 0.22 + ph) * 0.55; b.rotation.x = -0.35 + Math.sin(t * 0.17 + ph * 1.7) * 0.12; }
+  }
+
   function buildRoom(w) {
     for (const [, d] of dying) releaseModel(d.M);
     dying.clear();
@@ -1810,22 +2118,40 @@ void main() {
     // Wände: massive Blöcke (Seiten mit Textur, dunkles Dach, heller Mauerrand zur Arena)
     const wt = wallTexture(th.wall), wn = normalTexFor(`wall:${th.wall}`, 4), rt = roofTexture(th.wall);
     const edgeMat = slam(EDGE[w.theme] || EDGE.street);
-    const wall = (x0, z0, x1, z1, h, edge) => {
+    // v3.5 Häuserfassaden zur Arena (Innenseite der Blöcke): Läden, Fenster, Leuchtreklame
+    const fac = facadeTextures(th.wall), facN = normalTexFor(`fac:${th.wall}`, 2.2);
+    let fs = Math.floor(strHash(`${w.cityId}|${w.district}|${w.theme}`) * 4294967296) >>> 0;
+    const FR = () => { fs = (fs * 1664525 + 1013904223) >>> 0; return fs / 4294967296; };
+    const wall = (x0, z0, x1, z1, h, edge, inner = -1) => {
       const len = edge === "x" ? z1 - z0 : x1 - x0;
       const rep2 = (src, rx, ry) => { const t = src.clone(); t.needsUpdate = true; t.repeat.set(rx, ry); return t; };
       const side = new T3.MeshLambertMaterial({ map: rep2(wt, len / 128, h / 64), normalMap: rep2(wn, len / 128, h / 64) });
       const roof = new T3.MeshLambertMaterial({ map: rep2(rt, (x1 - x0) / 96, (z1 - z0) / 96) });
-      const m = mesh(box(x1 - x0, h, z1 - z0), [side, side, roof, side, side, side], (x0 + x1) / 2, h / 2, (z0 + z1) / 2);
+      const mats = [side, side, roof, side, side, side];
+      if (inner >= 0) {
+        const rx = len / FAC_W, off = Math.floor(FR() * 8) / 8, fm = rep2(fac.map, rx, 1), fe = rep2(fac.emi, rx, 1), fnm = rep2(facN, rx, 1);
+        fm.offset.x = fe.offset.x = fnm.offset.x = off;
+        mats[inner] = new T3.MeshLambertMaterial({ map: fm, emissiveMap: fe, emissive: 0xffffff, emissiveIntensity: 1.2, normalMap: fnm });
+      }
+      const m = mesh(box(x1 - x0, h, z1 - z0), mats, (x0 + x1) / 2, h / 2, (z0 + z1) / 2);
       m.castShadow = true; m.receiveShadow = true;
       g.add(m);
       // Mauerrand an der Innenkante
       if (edge === "x") { const ex = x1 <= D.L + 1 ? x1 - 4 : x0 + 4; deco.add(mesh(box(8, 3, z1 - z0), edgeMat, ex, h + 1.5, (z0 + z1) / 2)); }
       else { const ez = z1 <= D.T + 1 ? z1 - 4 : z0 + 4; deco.add(mesh(box(x1 - x0, 3, 8), edgeMat, (x0 + x1) / 2, h + 1.5, ez)); }
     };
-    const WH = 64, dl = D.W / 2 - D.DOOR_W / 2, dr = D.W / 2 + D.DOOR_W / 2;
+    // v3.5 Häuserblöcke höher (zwei Obergeschosse über dem Laden); Tor und Durchgänge bleiben auf WH
+    const WH = 64, SH = 128, BH = 112, dl = D.W / 2 - D.DOOR_W / 2, dr = D.W / 2 + D.DOOR_W / 2;
     const BACK = 260, SIDE = 240;
-    wall(-SIDE, D.T - BACK, dl, D.T, WH, "z");
-    wall(dr, D.T - BACK, D.W + SIDE, D.T, WH, "z");
+    wall(-SIDE, D.T - BACK, dl, D.T, BH, "z", 4);
+    wall(dr, D.T - BACK, D.W + SIDE, D.T, BH, "z", 4);
+    { // Haus über dem Torbogen, zur Arena mit Obergeschoss-Fassade
+      const bw = D.DOOR_W + 24, bh = BH - WH, fm = fac.map.clone(), fe = fac.emi.clone();
+      for (const t of [fm, fe]) { t.needsUpdate = true; t.repeat.set(bw / FAC_W, bh / BH * 0.55); t.offset.set(0.5, 1 - bh / BH * 0.55); }
+      const dark = slam("#2a2622"), front = new T3.MeshLambertMaterial({ map: fm, emissiveMap: fe, emissive: 0xffffff, emissiveIntensity: 1.2 });
+      const gb = mesh(box(bw, bh, 30), [dark, dark, dark, dark, front, dark], D.W / 2, WH + bh / 2, D.T - 15);
+      gb.castShadow = true; g.add(gb);
+    }
     // v3.0 Seitenwände mit Öffnungen für die Horden-Gänge
     const gts = w.gates || [];
     for (const left of [true, false]) {
@@ -1833,13 +2159,13 @@ void main() {
       const cuts = gts.filter((q) => (q.side < 0) === left).map((q) => [q.y - q.h / 2, q.y + q.h / 2]).sort((a, b) => a[0] - b[0]);
       let z = D.T;
       for (const [a, b] of cuts) {
-        if (a > z) wall(x0, z, x1, a, WH, "x");
+        if (a > z) wall(x0, z, x1, a, SH, "x", left ? 0 : 1);
         z = b;
         deco.add(mesh(box(x1 - x0, 1, b - a), slam("#141210"), (x0 + x1) / 2, 0.45, (a + b) / 2)); // Gangboden
-        for (const zz of [a - 3, b + 3]) deco.add(mesh(box(x1 - x0, 2, 5), slam("#c8901a"), (x0 + x1) / 2, WH + 1.2, zz)); // Warnkante oben
-        deco.add(mesh(box(8, 7, 12), sbasic("#ff3a24"), left ? D.L - 6 : D.R + 6, WH + 4, a - 8)); // Warnlampe
+        for (const zz of [a - 3, b + 3]) deco.add(mesh(box(x1 - x0, 2, 5), slam("#c8901a"), (x0 + x1) / 2, SH + 1.2, zz)); // Warnkante oben
+        deco.add(mesh(box(8, 7, 12), sbasic("#ff3a24"), left ? D.L - 6 : D.R + 6, SH + 4, a - 8)); // Warnlampe
       }
-      wall(x0, z, x1, D.B + 60, WH, "x");
+      wall(x0, z, x1, D.B + 60, SH, "x", left ? 0 : 1);
     }
     wall(D.L, D.B, D.R, D.B + 60, 14, "z");
     // Gang hinter der Tür
@@ -1853,10 +2179,10 @@ void main() {
       const x = left ? -SIDE + 40 + R2() * (SIDE - 20) : D.R + 30 + R2() * (SIDE - 60);
       const z = D.T + 60 + R2() * (D.B - D.T - 120);
       const bw = 22 + R2() * 26, bd = 26 + R2() * 40, bh = 10 + R2() * 14;
-      deco.add(mesh(box(bw, bh, bd), propMat, Math.min(x, left ? D.L - bw / 2 - 14 : 9e9), WH + bh / 2, z));
+      deco.add(mesh(box(bw, bh, bd), propMat, Math.min(x, left ? D.L - bw / 2 - 14 : 9e9), SH + bh / 2, z));
     }
     for (const x of [D.L + 40 + R2() * 60, D.R - 100 - R2() * 60]) {
-      const pipe = mesh(cyl(4, 4, BACK - 30, 8), propMat, x, WH + 4, D.T - BACK / 2 - 10);
+      const pipe = mesh(cyl(4, 4, BACK - 30, 8), propMat, x, BH + 4, D.T - BACK / 2 - 10);
       pipe.rotation.x = Math.PI / 2;
       deco.add(pipe);
     }
@@ -1917,8 +2243,8 @@ void main() {
     for (const [bx, bz] of beacons) { deco.add(mesh(cyl(6, 7, 6, 10), slam("#2a2a2a"), bx, 64, bz)); deco.add(mesh(cyl(5, 5, 8, 10), sbasic("#ff3020"), bx, 71, bz)); }
     addProps(deco, w);
     addClutter(deco, w);
-    const clock = w.cityId === "heilbronn" ? addHeilbronn(deco, w, WH) : null;
-    addCityMark(deco, w, WH);
+    const clock = w.cityId === "heilbronn" ? addHeilbronn(deco, w, BH) : null;
+    addCityMark(deco, w, BH);
 
     bakeStatic(deco);
     deco.traverse((c) => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
@@ -1926,7 +2252,8 @@ void main() {
     if (clock) g.add(clock.face);
     uncached = false;
 
-    room = { group: g, floorTex, glossTex, door, lamps, lampRgb, obs, cones, beacons, baseHemi, baseMoon, clock };
+    const sky = addSkyline(g, w); // v3.5 Himmel, Skyline, Rauch, Suchscheinwerfer
+    room = { group: g, floorTex, glossTex, door, lamps, lampRgb, obs, cones, beacons, baseHemi, baseMoon, clock, sky };
     builtFloor = fc;
     renderer.shadowMap.needsUpdate = true;
     warmPending = true; // neue Raum-Materialien (Wände, Hindernisse) gleich mit übersetzen
@@ -5149,6 +5476,7 @@ void main() {
     syncPlayer(w, t);
     syncDoor(w);
     syncObstacles(t);
+    updateSkyline(t, w);
     syncSupply(w);
     syncMini(w);
     syncHeli(w, t);

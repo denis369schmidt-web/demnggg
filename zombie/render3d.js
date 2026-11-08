@@ -1341,6 +1341,64 @@ void main() {
     l.add(mesh(box(1, 9, 7), slam("#1e64c8"), 13, 8, 0)); // Wappenschild zwischen den Pranken
     return l;
   }
+  // v3.5 Prisma aus einem konvexen Seitenprofil (x, y, gegen den Uhrzeigersinn), entlang z extrudiert
+  function prism(pts, depth) {
+    const pos = [], h = depth / 2, n = pts.length;
+    for (let i = 1; i < n - 1; i++) {
+      pos.push(pts[0][0], pts[0][1], h, pts[i][0], pts[i][1], h, pts[i + 1][0], pts[i + 1][1], h);
+      pos.push(pts[0][0], pts[0][1], -h, pts[i + 1][0], pts[i + 1][1], -h, pts[i][0], pts[i][1], -h);
+    }
+    for (let i = 0; i < n; i++) {
+      const a = pts[i], b = pts[(i + 1) % n];
+      pos.push(a[0], a[1], h, a[0], a[1], -h, b[0], b[1], -h, a[0], a[1], h, b[0], b[1], -h, b[0], b[1], h);
+    }
+    const g = new T3.BufferGeometry();
+    g.setAttribute("position", new T3.BufferAttribute(new Float32Array(pos), 3));
+    g.computeVertexNormals();
+    return g;
+  }
+  // v3.5 Auto mit echter Silhouette: Karosserie (Motorhaube, Heck), schräge Scheiben, Dach, Säulen, Räder mit Felgen,
+  // Stoßstangen, Scheinwerfer, Kennzeichen mit EU-Band, Spiegel, Türfugen. Varianten: ausgebrannt, Blut auf der Haube.
+  // Lokal: +x = vorn, Länge len, Breite wid; liefert die Dachhöhe (für Blaulichtbalken).
+  function carBody(c, add, len, wid, paintCol, R, opts = {}) {
+    const burnt = !opts.police && R() < 0.18;
+    const paint = burnt ? slam("#2c2622") : lam(paintCol);
+    const L = len, Wd = wid;
+    const body = add(mesh(prism([[-L / 2 + 3, 6], [L / 2 - 3, 6], [L / 2, 11], [L / 2 - 1, 19.5], [L * 0.2, 23], [-L * 0.3, 24], [-L / 2 + 1, 22.5], [-L / 2, 12]], Wd), paint));
+    c.add(body);
+    const glass = burnt ? slam("#0b0c0d") : smat("carglass", () => new T3.MeshLambertMaterial({ color: 0x1c2a36, emissive: 0x0a1218 }));
+    c.add(add(mesh(prism([[-L * 0.31, 23.4], [L * 0.2, 22.8], [L * 0.03, 36.5], [-L * 0.23, 37]], Wd * 0.82), glass)));
+    c.add(add(mesh(box(L * 0.27, 2.2, Wd * 0.8), paint, -L * 0.1, 37.6, 0))); // Dach
+    for (const sz of [-1, 1]) c.add(mesh(box(2.6, 13, 1.4), paint, -L * 0.07, 30, sz * Wd * 0.405)); // B-Säule
+    // Räder: Reifen + Felge, leicht nach außen
+    const tire = slam("#141414"), rim = slam(burnt ? "#3a3430" : "#5e666c");
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const wx = sx * L * 0.31, wz = sz * (Wd / 2 - 3);
+      const t1 = mesh(cyl(7.6, 7.6, 5.4, 14), tire, wx, 7.6, wz); t1.rotation.x = Math.PI / 2; c.add(t1);
+      const r1 = mesh(cyl(3.8, 3.8, 5.6, 10), rim, wx, 7.6, wz + sz * 0.1); r1.rotation.x = Math.PI / 2; c.add(r1);
+      c.add(mesh(box(17, 3, 1.2), slam("#1a1a1a"), wx, 15.5, sz * (Wd / 2 + 0.2))); // Radlauf
+    }
+    // Stoßstangen, Lichter, Kennzeichen
+    const trim = slam("#2a2c2e");
+    for (const sx of [-1, 1]) c.add(mesh(box(3, 5, Wd * 0.96), trim, sx * (L / 2 + 0.5), 10, 0));
+    if (!burnt) for (const sz of [-1, 1]) {
+      c.add(mesh(box(1.6, 3.6, Wd * 0.22), sbasic("#ffefc0"), L / 2 - 0.4, 17, sz * Wd * 0.31));
+      c.add(mesh(box(1.6, 3.6, Wd * 0.2), sbasic("#c01e18"), -L / 2 + 0.2, 18, sz * Wd * 0.32));
+    }
+    for (const sx of [-1, 1]) {
+      c.add(mesh(box(0.8, 3.6, 11), slam("#e8e8e2"), sx * (L / 2 + 2.1), 10.5, 0));
+      c.add(mesh(box(0.9, 3.6, 1.8), slam("#1e3a9a"), sx * (L / 2 + 2.15), 10.5, sx * 4.6));
+    }
+    for (const sz of [-1, 1]) {
+      c.add(mesh(box(3, 2.4, 3), paint, L * 0.16, 26, sz * (Wd * 0.41 + 1.6))); // Spiegel
+      for (const fx of [L * 0.04, -L * 0.2]) c.add(mesh(box(0.6, 12, 0.4), slam("#151515"), fx, 16, sz * (Wd / 2 + 0.05))); // Türfugen
+      c.add(mesh(box(3, 0.8, 0.5), slam("#5a5e62"), -L * 0.02, 19.5, sz * (Wd / 2 + 0.25))); // Griff
+    }
+    if (burnt) { // Rost- und Rußflecken, Glut
+      for (let k = 0; k < 4; k++) c.add(mesh(box(6 + R() * 10, 0.6, 6 + R() * 8), slam(R() < 0.5 ? "#5a3018" : "#141210"), (R() - 0.5) * L * 0.7, 23.2 + R() * 0.5, (R() - 0.5) * Wd * 0.6));
+    } else if (R() < 0.3) c.add(mesh(box(L * 0.18, 0.5, Wd * 0.3), slam("#4a0c0e"), L * 0.32, 21.4, (R() - 0.5) * Wd * 0.3)); // Blut auf der Haube
+    return 38.7;
+  }
   function obstacleModel(o, theme) {
     const g = group(o.x + o.w / 2, 0, o.y + o.h / 2);
     const W = o.w, Hd = o.h;
@@ -1351,18 +1409,7 @@ void main() {
         const len = o.vert ? Hd : W, wid = o.vert ? W : Hd;
         const c = group(); if (o.vert) c.rotation.y = Math.PI / 2;
         const col = ["#8a2f2f", "#2f4f8a", "#6b6b6b", "#c9b48a", "#2f6f4a", "#d8d8d0"][Math.floor(R() * 6)];
-        const paint = lam(col);
-        const body = add(mesh(box(len, 20, wid), paint, 0, 16, 0)); c.add(body);
-        const glass = smat("glass", () => new T3.MeshLambertMaterial({ color: 0x1b2733, emissive: 0x0a1018 }));
-        const cabin = add(mesh(box(len * 0.5, 15, wid * 0.86), glass, -len * 0.04, 33, 0)); c.add(cabin);
-        const roof = add(mesh(box(len * 0.36, 3, wid * 0.8), paint, -len * 0.06, 41.5, 0)); c.add(roof);
-        for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-          const wh = mesh(cyl(8, 8, 6, 10), slam("#151515"), sx * len * 0.3, 8, sz * (wid / 2 - 2)); wh.rotation.x = Math.PI / 2; c.add(wh);
-        }
-        for (const sz of [-1, 1]) {
-          c.add(mesh(box(2, 4, 8), sbasic("#ffe9a8"), len / 2, 18, sz * wid * 0.32));
-          c.add(mesh(box(2, 4, 8), sbasic("#b3261e"), -len / 2, 18, sz * wid * 0.32));
-        }
+        carBody(c, add, len, wid, col, R);
         g.add(c);
         break;
       }
@@ -1372,13 +1419,24 @@ void main() {
         break;
       }
       case "barrels": {
+        // v3.5 Fässer mit Sicken, Deckel, Spund und Warnetikett; manchmal eins umgekippt mit leuchtender Giftlache
         const br = Math.min(W, Hd) * 0.25;
-        const paintCol = theme === "lab" ? "#2f6a8a" : "#3d6b2a";
-        for (const [px, pz] of [[-0.22, -0.2], [0.22, -0.2], [0, 0.22]]) {
-          add(mesh(cyl(br, br, 38, 12), slam(paintCol), px * W, 19, pz * Hd));
-          g.add(mesh(cyl(br * 0.75, br * 0.75, 1, 12), sbasic("#9eff3a"), px * W, 38.6, pz * Hd));
-          for (const ry of [8, 30]) g.add(mesh(cyl(br * 1.03, br * 1.03, 2, 12), slam("#22301a"), px * W, ry, pz * Hd));
-        }
+        const paintCol = theme === "lab" ? "#2f6a8a" : "#3d6b2a", ribCol = theme === "lab" ? "#1a3a4a" : "#22301a";
+        const tipped = R() < 0.35 ? Math.floor(R() * 3) : -1;
+        [[-0.22, -0.2], [0.22, -0.2], [0, 0.22]].forEach(([px, pz], i) => {
+          const b = group(px * W, 0, pz * Hd); g.add(b);
+          if (i === tipped) { b.rotation.y = R() * TAU; b.rotation.z = Math.PI / 2; b.position.y = br; b.position.x += Math.cos(b.rotation.y) * 14; b.position.z -= Math.sin(b.rotation.y) * 14; } // Mitte bleibt etwa am alten Platz
+          else { b.rotation.x = (R() - 0.5) * 0.07; b.rotation.z = (R() - 0.5) * 0.07; }
+          b.add(add(mesh(cyl(br, br, 38, 16), slam(paintCol), 0, 19, 0)));
+          for (const ry of [2.5, 13, 25, 35.5]) b.add(mesh(cyl(br * 1.045, br * 1.045, 1.6, 16), slam(ribCol), 0, ry, 0)); // Sicken
+          b.add(mesh(cyl(br * 0.97, br * 0.97, 0.8, 16), slam(ribCol), 0, 38.2, 0));
+          b.add(mesh(cyl(br * 0.15, br * 0.15, 1.8, 8), slam("#8a9088"), br * 0.52, 38.8, br * 0.2)); // Spund
+          const lab = group(); lab.rotation.y = R() * TAU; b.add(lab);
+          lab.add(mesh(box(0.8, 9, br * 1.05), slam("#e8c21a"), br * 0.99, 19, 0)); // Warnetikett
+          lab.add(mesh(box(0.9, 4.2, br * 0.42), slam("#151515"), br * 1.0, 19.5, 0));
+          if (i !== tipped) b.add(mesh(cyl(br * 0.72, br * 0.72, 1, 12), sbasic(theme === "lab" ? "#5ad8ff" : "#9eff3a"), 0, 38.7, 0));
+          else { const ang = b.rotation.y, d = 42; g.add(mesh(cyl(br * 1.7, br * 1.4, 0.6, 16), sbasic(theme === "lab" ? "#3ab8e8" : "#6ad82a"), b.position.x - Math.cos(ang) * d, 0.5, b.position.z + Math.sin(ang) * d)); } // Lache an der Öffnung (Deckel zeigt nach −x, gedreht)
+        });
         break;
       }
       case "bretter": {
@@ -1401,10 +1459,21 @@ void main() {
       case "barricade":
         add(mesh(box(W, 30, Hd), new T3.MeshLambertMaterial({ map: obstacleTexture("barricade"), normalMap: obsNormal("barricade") }), 0, 15, 0));
         break;
-      case "dumpster":
-        add(mesh(box(W, 40, Hd), new T3.MeshLambertMaterial({ map: obstacleTexture("dumpster"), normalMap: obsNormal("dumpster") }), 0, 20, 0));
-        add(mesh(box(W + 2, 3, Hd + 2), slam("#244a2e"), 0, 41.5, 0));
+      case "dumpster": {
+        // v3.5 Müllcontainer auf Rollen: Griffe, angehobener Deckel, Müllsäcke quellen heraus und liegen daneben
+        add(mesh(box(W, 36, Hd), new T3.MeshLambertMaterial({ map: obstacleTexture("dumpster"), normalMap: obsNormal("dumpster") }), 0, 22, 0));
+        const dk = slam("#1a2a1e"), steel = slam("#4a5048");
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const wh = mesh(cyl(3, 3, 2.6, 10), slam("#121212"), sx * (W / 2 - 6), 3, sz * (Hd / 2 - 5)); wh.rotation.x = Math.PI / 2; g.add(wh); g.add(mesh(box(4, 3, 4), steel, sx * (W / 2 - 6), 5.5, sz * (Hd / 2 - 5))); }
+        for (const sx of [-1, 1]) g.add(mesh(box(2, 2, Hd * 0.6), steel, sx * (W / 2 + 1.5), 30, 0)); // Griffe
+        g.add(mesh(box(W + 3, 2, 3), steel, 0, 40, -Hd / 2)); // Scharnierleiste
+        const lid = group(0, 41, -Hd / 2); lid.rotation.x = -(0.25 + R() * 0.35); g.add(lid);
+        lid.add(add(mesh(box(W + 2, 2.6, Hd + 2), slam("#244a2e"), 0, 0, Hd / 2 + 1)));
+        const bagM = slam("#101214"), bag2 = slam("#2a2e30");
+        for (let k = 0; k < 4; k++) g.add(mesh(ico(6 + R() * 3, 1), k % 2 ? bagM : bag2, (R() - 0.5) * W * 0.7, 38 + R() * 4, (R() - 0.3) * Hd * 0.5)); // Säcke im Container
+        const side = R() < 0.5 ? -1 : 1;
+        for (let k = 0; k < 2; k++) { const b2 = mesh(ico(6.5 + R() * 2.5, 1), k ? bagM : bag2, side * (W / 2 + 8 + k * 6), 5.5, (R() - 0.5) * Hd * 0.6); b2.scale.y = 0.75; g.add(b2); } // Säcke am Boden
         break;
+      }
       case "bed": {
         const len = o.vert ? Hd : W, wid = o.vert ? W : Hd;
         const c = group(); if (o.vert) c.rotation.y = Math.PI / 2;
@@ -1680,14 +1749,10 @@ void main() {
       case "polizeiauto": {
         // Streifenwagen: silber-blau, Blaulichtbalken auf dem Dach (blinkt, siehe moving)
         const len = o.vert ? Hd : W, wid = o.vert ? W : Hd, c = group(); if (o.vert) c.rotation.y = Math.PI / 2; g.add(c);
-        const paint = slam("#d8dde2"), blue = slam("#1e4aa8");
-        c.add(add(mesh(box(len, 20, wid), paint, 0, 16, 0)));
-        for (const sz of [-1, 1]) c.add(mesh(box(len * 0.9, 5, 0.8), blue, 0, 15, sz * (wid / 2 + 0.3)));
-        const glass = smat("glass", () => new T3.MeshLambertMaterial({ color: 0x1b2733, emissive: 0x0a1018 }));
-        c.add(add(mesh(box(len * 0.5, 15, wid * 0.86), glass, -len * 0.04, 33, 0)));
-        c.add(add(mesh(box(len * 0.36, 3, wid * 0.8), paint, -len * 0.06, 41.5, 0)));
-        for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const wh = mesh(cyl(8, 8, 6, 10), slam("#151515"), sx * len * 0.3, 8, sz * (wid / 2 - 2)); wh.rotation.x = Math.PI / 2; c.add(wh); }
-        const bar = group(-len * 0.06, 45, 0); c.add(bar);
+        const blue = slam("#1e4aa8");
+        const roofY = carBody(c, add, len, wid, "#d8dde2", R, { police: true });
+        for (const sz of [-1, 1]) { c.add(mesh(box(len * 0.86, 4.5, 0.8), blue, 0, 15, sz * (wid / 2 + 0.3))); c.add(mesh(box(len * 0.3, 2.4, 0.8), slam("#3ac84a"), len * 0.12, 20.4, sz * (wid / 2 + 0.1))); } // blaues Band, grüner Zierstreifen
+        const bar = group(-len * 0.1, roofY + 1, 0); c.add(bar);
         bar.add(mesh(box(6, 3, wid * 0.7), slam("#2a2a2a"), 0, -1, 0));
         const bl = mesh(box(5, 4, wid * 0.3), sbasic("#3a7aff"), 0, 1.5, -wid * 0.17), rd = mesh(box(5, 4, wid * 0.3), sbasic("#ff2a2a"), 0, 1.5, wid * 0.17);
         bar.add(bl, rd);

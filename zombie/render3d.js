@@ -3854,7 +3854,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     lootIM.castShadow = true;
     // v3.4 Krähen: Körper (Rumpf, Kopf, Schnabel, Schwanz als ein Mesh) und V-förmiges Flügelpaar – der Flügelschlag
     // entsteht über die Höhen-Skalierung der Instanz (positiv = V nach oben, negativ = nach unten)
-    const mergeGeo = (parts) => { const pos = []; for (const g0 of parts) pos.push(...g0.toNonIndexed().attributes.position.array); const g1 = new T3.BufferGeometry(); g1.setAttribute("position", new T3.BufferAttribute(new Float32Array(pos), 3)); g1.computeVertexNormals(); return g1; };
+    const mergeGeo = (parts) => { const pos = []; for (const g0 of parts) pos.push(...(g0.index ? g0.toNonIndexed() : g0).attributes.position.array); const g1 = new T3.BufferGeometry(); g1.setAttribute("position", new T3.BufferAttribute(new Float32Array(pos), 3)); g1.computeVertexNormals(); return g1; };
     const bBody = new T3.IcosahedronGeometry(1, 1); bBody.scale(5.5, 3, 3);
     const bHead = new T3.IcosahedronGeometry(2.2, 0); bHead.translate(5.5, 1.6, 0);
     const bBeak = new T3.ConeGeometry(0.9, 3, 4); bBeak.rotateZ(-Math.PI / 2); bBeak.translate(8.5, 1.4, 0);

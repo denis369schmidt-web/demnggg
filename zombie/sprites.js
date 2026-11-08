@@ -99,6 +99,7 @@ window.Sprites = (() => {
   }
 
   // Zeichnet fn mit dunkler Umrisslinie (bessere Lesbarkeit auf dunklem Boden)
+  let rimLight = true; // v3.5
   function outlined(fn, ol = 1.2, color = "rgba(6,8,6,0.92)", res) {
     return (g, w, h) => {
       const t = canvas(w, h, res || RES); fn(t.g, w, h);
@@ -107,6 +108,18 @@ window.Sprites = (() => {
       const vg = t.g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.5);
       vg.addColorStop(0, "rgba(255,248,230,0.1)"); vg.addColorStop(0.5, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.32)");
       t.g.fillStyle = vg; t.g.fillRect(0, 0, w, h); t.g.restore();
+      // v3.5 Randlicht: schmaler kühler Saum innen an der Silhouette (Mondlicht, drehunabhängig) – Figuren lösen sich vom Boden
+      if (rimLight) {
+        const er = canvas(w, h, res || RES), d = Math.max(0.9, ol * 0.85);
+        er.g.drawImage(t.c, 0, 0, w, h);
+        er.g.globalCompositeOperation = "destination-in";
+        for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU; er.g.drawImage(t.c, Math.cos(a) * d, Math.sin(a) * d, w, h); }
+        const ed = canvas(w, h, res || RES);
+        ed.g.drawImage(t.c, 0, 0, w, h);
+        ed.g.globalCompositeOperation = "destination-out"; ed.g.drawImage(er.c, 0, 0, w, h);
+        ed.g.globalCompositeOperation = "source-in"; ed.g.fillStyle = "rgba(190,212,245,0.34)"; ed.g.fillRect(0, 0, w, h);
+        t.g.save(); t.g.globalCompositeOperation = "source-atop"; t.g.drawImage(ed.c, 0, 0, w, h); t.g.restore();
+      }
       const sil = canvas(w, h, res || RES);
       sil.g.drawImage(t.c, 0, 0, w, h);
       sil.g.globalCompositeOperation = "source-in";
@@ -1149,13 +1162,44 @@ window.Sprites = (() => {
     });
   }
 
+  // v3.5 Rauch: blumenkohlartige Wolke aus vielen Ballen, oben heller, unten schattig
   function smoke() {
     return get("smoke", 48, 48, (g) => {
       const R = rng(7);
-      for (let i = 0; i < 6; i++) {
-        const x = 24 + (R() - 0.5) * 16, y = 24 + (R() - 0.5) * 16, r = 9 + R() * 8;
-        const gr = g.createRadialGradient(x, y, 0, x, y, r);
-        gr.addColorStop(0, "rgba(120,120,115,0.35)"); gr.addColorStop(1, "rgba(120,120,115,0)");
+      for (let i = 0; i < 26; i++) {
+        const a = R() * TAU, d = Math.sqrt(R()) * 12, x = 24 + Math.cos(a) * d, y = 25 + Math.sin(a) * d * 0.85;
+        const r = Math.min(22 - Math.hypot(x - 24, y - 24), 4 + R() * 7);
+        if (r < 1.5) continue;
+        const v = Math.round(150 - (y - 14) * 2.6), v2 = Math.round(v * 0.7);
+        const gr = g.createRadialGradient(x - r * 0.3, y - r * 0.35, 0, x, y, r);
+        gr.addColorStop(0, `rgba(${v},${v},${v - 4},0.42)`); gr.addColorStop(0.65, `rgba(${v2},${v2},${v2},0.24)`); gr.addColorStop(1, `rgba(${v2},${v2},${v2},0)`);
+        g.fillStyle = gr; circ(g, x, y, r); g.fill();
+      }
+    });
+  }
+  // v3.5 Flammenzunge (2D-Feuer, additiv): heißer Kern unten, drei Zungen nach oben
+  function flame(rgb) {
+    return get(`flame:${rgb}`, 32, 48, (g, w, h) => {
+      const tongue = (cx, tw, th, a) => {
+        const gr = g.createLinearGradient(0, h - 3, 0, h - 3 - th);
+        gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(0.55, `rgba(${rgb},${a * 0.6})`); gr.addColorStop(1, `rgba(${rgb},0)`);
+        g.fillStyle = gr; g.beginPath(); g.moveTo(cx - tw, h - 3);
+        g.bezierCurveTo(cx - tw * 1.15, h - 3 - th * 0.35, cx - tw * 0.25, h - 3 - th * 0.62, cx + tw * 0.1, h - 3 - th);
+        g.bezierCurveTo(cx + tw * 0.35, h - 3 - th * 0.6, cx + tw * 1.15, h - 3 - th * 0.3, cx + tw, h - 3); g.closePath(); g.fill();
+      };
+      tongue(16, 8, 42, 0.55); tongue(10.5, 4, 28, 0.5); tongue(21.5, 4.5, 33, 0.5); tongue(16, 4.5, 24, 0.9);
+      const gr = g.createRadialGradient(16, h - 9, 0, 16, h - 9, 9); gr.addColorStop(0, "rgba(255,250,230,0.95)"); gr.addColorStop(1, `rgba(${rgb},0)`);
+      g.fillStyle = gr; g.fillRect(4, h - 20, 24, 18);
+    });
+  }
+  // v3.5 Feuerball (2D-Explosion, additiv): brodelnde, ungleichmäßig helle Kugel
+  function fireball(rgb) {
+    return get(`fball:${rgb}`, 64, 64, (g) => {
+      const R = rng(4242);
+      for (let i = 0; i < 36; i++) {
+        const a = R() * TAU, d = Math.sqrt(R()) * 18, x = 32 + Math.cos(a) * d, y = 32 + Math.sin(a) * d, r = Math.min(30 - Math.hypot(x - 32, y - 32), 5 + R() * 9);
+        if (r < 2) continue;
+        const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${rgb},${0.3 + 0.35 * (1 - d / 20)})`); gr.addColorStop(1, `rgba(${rgb},0)`);
         g.fillStyle = gr; circ(g, x, y, r); g.fill();
       }
     });
@@ -2212,7 +2256,7 @@ window.Sprites = (() => {
   return {
     FRAMES, setRes, get res() { return RES; }, draw, glow, light, shadow, vignette,
     zombie, zombieFx, registerRadius, variants, playerBody, weapon, weaponIcon, WPN,
-    streak, muzzleFlash, bolt, grenadeShell, acidGlob, casing, gib, splat, scorch, smoke, crack, saw, drone, coin, supplyCrate, fallenPole,
+    streak, muzzleFlash, bolt, grenadeShell, acidGlob, casing, gib, splat, scorch, smoke, flame, fireball, crack, saw, drone, coin, supplyCrate, fallenPole,
     obstacle, floor, themeDark, OBS_Z,
   };
 })();

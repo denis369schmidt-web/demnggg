@@ -6042,10 +6042,25 @@
     ctx.globalAlpha = 1;
   }
 
+  // v3.5 2D: Licht aus Schaufenstern und Leuchtreklamen fällt an den Häuserkanten auf den Boden (je Raum ausgewürfelt)
+  let wallGlows = [], wallGlowsFor = null;
+  const WALL_NEON = { street: ["255,180,90", "255,200,120", "120,200,255", "255,110,190", "60,230,120", "255,90,60"], markt: ["255,190,110", "255,210,150", "255,170,90"], hospital: ["200,230,255", "255,60,50", "120,200,255"], lab: ["110,255,200", "120,220,255", "255,80,60"] };
+  function syncWallGlows() {
+    if (wallGlowsFor === floorCanvas) return;
+    wallGlowsFor = floorCanvas; wallGlows = [];
+    const pal = WALL_NEON[theme()] || WALL_NEON.street;
+    for (const side of [-1, 1]) for (let y = T + 50; y < B - 30; y += 70 + Math.random() * 70) {
+      if (Math.random() < 0.42 || gates.some((g2) => Math.abs(g2.y - y) < g2.h)) continue;
+      wallGlows.push({ x: side < 0 ? L + 4 : R - 4, y, rgb: pick(pal), r: 34 + Math.random() * 26, ph: Math.random() * TAU, flick: Math.random() < 0.15 });
+    }
+  }
+  const wallGlowK = (gl, t) => (gl.flick && Math.sin(t * 17 + gl.ph) * Math.sin(t * 5.3 + gl.ph * 2) > 0.55 ? 0.15 : 1);
   function collectLights() {
     lights.length = 0;
     const p = player, t = run.time;
     lights.push([p.x, p.y, 175, 1]);
+    syncWallGlows();
+    for (const gl of wallGlows) lights.push([gl.x, gl.y, gl.r * 1.5, 0.42 * wallGlowK(gl, t)]);
     if (p.muzzle > 0) { const m = muzzlePoint(p); lights.push([m.x, m.y, p.weapon.kind === "flame" ? 110 : 170, 0.9]); }
     for (const l of roomLights) lights.push([l.x, l.y, l.r, 0.75 + 0.15 * Math.sin(t * 3 + l.x)]);
     if (run.doorK > 0) lights.push([W / 2, T + 10, 130, run.doorK * 0.8]);
@@ -6194,12 +6209,31 @@
     }
     for (const z of zaps) drawZap(z);
     for (const b of eBullets) glowAt(b.rgb, b.x, b.y, b.r * 3.2, 0.7);
+    if (!mode3d) for (const gl of wallGlows) glowAt(gl.rgb, gl.x, gl.y, gl.r, 0.3 * wallGlowK(gl, run.time)); // v3.5 Schaufenster-Licht
     // Partikel
     for (const q of particles) {
       const k = Math.max(0, q.life / q.max);
       switch (q.t) {
         case "spark": ctx.globalAlpha = k; drawStreak(q.rgb, q.x, q.y, Math.atan2(q.vy, q.vx), Math.min(18, Math.hypot(q.vx, q.vy) * 0.05 + 3), q.w); break;
-        case "fire": glowAt(fireRgb(k), q.x, q.y - (q.z || 0) * 0.55, q.size * (1.5 - k * 0.5), 0.9 * k); break;
+        case "fire": { // v3.5 Flammenzunge über weichem Glutschein
+          const fy = q.y - (q.z || 0) * 0.55, fs = q.size * (1.5 - k * 0.5), fl = 1 + 0.18 * Math.sin(run.time * 23 + q.x * 0.7);
+          glowAt(fireRgb(k), q.x, fy, fs * 0.9, 0.5 * k);
+          const fsp = Sprites.flame(k > 0.5 ? "255,190,90" : "255,120,40"), fw = fs * 1.1 * fl, fh = fs * 1.7 / fl;
+          ctx.globalAlpha = Math.min(1, k * 1.6) * 0.95; ctx.drawImage(fsp.c, q.x - fw / 2, fy - fh * 0.85, fw, fh);
+          break;
+        }
+        case "boom": { // v3.5 2D-Explosion: Blitz + brodelnde Feuerball-Ballen (vorher nur in 3D)
+          const e = 1 - k, r = q.r, sd = q.fxs || (q.fxs = 1 + Math.random() * 1000);
+          if (e < 0.25) glowAt("255,236,200", q.x, q.y, r * (1.3 + e * 2), (1 - e / 0.25) * 0.75);
+          for (let i = 0; i < 7; i++) {
+            const life = Math.max(0, 1 - e * (1.25 + (i % 3) * 0.22));
+            if (life <= 0) continue;
+            const a = sd + i * 0.9, d = r * (0.12 + 0.4 * Math.sqrt(e)) * (0.5 + ((i * 37) % 10) / 20), s2 = r * (0.42 + 0.42 * Math.sqrt(e));
+            const fb = Sprites.fireball(life > 0.75 ? "255,226,170" : life > 0.45 ? "255,160,60" : "220,84,28");
+            ctx.globalAlpha = Math.min(0.85, life * 1.1); ctx.drawImage(fb.c, q.x + Math.cos(a) * d - s2, q.y + Math.sin(a) * d * 0.8 - s2 - e * r * 0.25, s2 * 2, s2 * 2);
+          }
+          break;
+        }
         case "ember": glowAt("255,160,60", q.x, q.y - (q.z || 0) * 0.55, q.size, k); break;
         case "flash": glowAt(q.rgb, q.x, q.y, q.r * 0.6, k * 0.9); break;
         case "ring":

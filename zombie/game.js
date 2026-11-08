@@ -672,8 +672,9 @@
     const isSupply = SUPPLY_ROOMS.includes(run.room);
     const objKind = isBoss || isSupply ? null : objectiveFor();
     makeGates(!!isBoss || isSupply);
-    const barrier = !isBoss && !isSupply && run.room > 1 && Math.random() < 0.38 ? genBarrier() : [];
+    const barrier = !isBoss && !isSupply && run.room > 1 && objKind !== "gauntlet" && Math.random() < 0.38 ? genBarrier() : [];
     obstacles = clearGates(isSupply ? [] : genObstacles(isBoss ? randi(0, 2) : randi(barrier.length ? 1 : 2, barrier.length ? 4 : 5), barrier));
+    run.gauntStages = objKind === "gauntlet" ? genGauntlet() : null; // ersetzt Gänge und Hindernisse
     floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     initAmbient();
@@ -692,11 +693,11 @@
       if (window.GameAudio) GameAudio.stinger("boss");
       fx4d("boss", 1100);
     } else {
-      spawnWave(objKind === "hold" ? 0.45 : objKind === "bounty" ? 0.75 : 1);
+      spawnWave(objKind === "hold" ? 0.45 : objKind === "bounty" ? 0.75 : objKind === "gauntlet" ? 0.5 : 1);
       if (objKind) setupObjective(objKind);
-      else if (run.mode === "campaign" && districtIdx() > 0 && cityIdx() > 0 && Math.random() < 0.45) run.event = { kind: pick(gates.length ? ["ambush", "horde", "pack", "massive", "massive"] : ["ambush", "horde", "pack"]), at: Math.max(1, Math.ceil(enemies.length * 0.45)), fired: false };
+      else if (run.mode === "campaign" && districtIdx() > 0 && cityIdx() > 0 && Math.random() < 0.6) run.event = { kind: pick(gates.length ? ["ambush", "horde", "pack", "massive", "massive"] : ["ambush", "horde", "pack"]), at: Math.max(1, Math.ceil(enemies.length * 0.45)), fired: false };
       // Heilbronn: ab Bezirk 4 gelegentlich eine kleine Horde durch den Gang, damit man es kennenlernt
-      else if (run.mode === "campaign" && gates.length && districtIdx() >= 3 && Math.random() < 0.3) run.event = { kind: "massive", at: Math.max(1, Math.ceil(enemies.length * 0.4)), fired: false };
+      else if (run.mode === "campaign" && gates.length && districtIdx() >= 2 && Math.random() < 0.5) run.event = { kind: "massive", at: Math.max(1, Math.ceil(enemies.length * 0.4)), fired: false };
       else if (!banner) showBanner(dName.toUpperCase(), `${city.name} · ${tr("Bezirk {n}/10", { n: districtIdx() + 1 })}`, 1.4);
     }
     // Funkspruch beim Stadtwechsel; beim Einsatzstart nur bis der Prolog einmal gesehen wurde (kein Extra-Tippen bei jeder Runde)
@@ -809,7 +810,7 @@
   }
   function updateSurvival(dt) {
     run.survT += dt;
-    if (run.survT > 30 && (run.hordeT = (run.hordeT ?? 45) - dt) <= 0) { run.hordeT = 45; startHorde(14 + Math.floor(run.survT / 12)); }
+    if (run.survT > 30 && (run.hordeT = (run.hordeT ?? 40) - dt) <= 0) { run.hordeT = 40; startHorde(Math.min(70, 22 + Math.floor(run.survT / 8))); }
     // Leben & Schaden wachsen wie in späteren Räumen (spawnEnemy rechnet mit run.room)
     run.room = 1 + Math.floor(run.survT / 15);
     if (run.survT >= SURVIVAL_TIME) { gameOver(false, true); return; }
@@ -883,6 +884,75 @@
     }
     return out;
   }
+
+  // v3.3 Sperrkorridor: drei Container-Mauern teilen den Bezirk in vier Gänge, die im Zickzack zur Tür führen.
+  // Seitlich enden Horden-Gänge an vernagelten Bretter-Barrikaden (kind "bretter", außerhalb der Arena im Gang).
+  // Betritt der Held einen neuen Gang, rückt dort eine Horde an, hämmert die Barrikade auf und stürmt herein.
+  const GAUNT = { wallH: 46, gap: 116, rows: [200, 400, 600], barHp: 100 };
+  function genGauntlet() {
+    const obs = [], gts = [], stages = [], fest = curCity().fest;
+    const walls = GAUNT.rows.map((dy, i) => ({ y: B - dy, gapRight: i % 2 === 0 }));
+    walls.forEach((wl, i) => {
+      const x0 = wl.gapRight ? L : L + GAUNT.gap, x1 = wl.gapRight ? R - GAUNT.gap : R, len = x1 - x0, n = Math.ceil(len / 172), seg = len / n;
+      for (let k = 0; k < n; k++) {
+        const bus = theme() === "street" && k === n - 1 && i === 1;
+        obs.push({ kind: bus ? "bus" : "container", x: Math.round(x0 + k * seg), y: wl.y, w: Math.round(seg + (k < n - 1 ? 1 : 0)), h: GAUNT.wallH, vert: false, seed: randi(1, 1e9), fest, wall: true });
+      }
+      // Sandsäcke als Deckung im Gang darunter, mit Abstand zum Durchlass
+      const sx = wl.gapRight ? R - GAUNT.gap - 150 : L + GAUNT.gap + 50;
+      obs.push({ kind: "sandsack", x: sx, y: wl.y + GAUNT.wallH + 56, w: 100, h: 26, vert: false, seed: randi(1, 1e9), fest });
+    });
+    // Gänge (unten → oben): Barrikade immer am fernen Ende des Gangs, im letzten Gang (mit der Tür) beidseitig
+    const mk = (side, y) => { const g = { side, y: Math.round(y), h: GATE_H, warn: 0 }; gts.push(g); return g; };
+    for (let i = 1; i <= 3; i++) {
+      const top = i < 3 ? walls[i].y + GAUNT.wallH : T, bot = walls[i - 1].y, mid = (top + bot) / 2;
+      const entryRight = walls[i - 1].gapRight; // durch diesen Durchlass kommt der Held herein
+      const sides = i === 3 ? [-1, 1] : [entryRight ? -1 : 1];
+      const list = sides.map((sd) => mk(sd, i === 3 ? mid + 10 : mid));
+      stages.push({ y: bot + GAUNT.wallH - 14, gates: list, fired: false, n: Math.min(40, (i === 3 ? 10 : 12 + 2 * i) + (4 + i) * cityIdx()) });
+    }
+    for (const g of gts) {
+      const o = { kind: "bretter", x: g.side < 0 ? L - 30 : R, y: g.y - g.h / 2 - 5, w: 30, h: g.h + 10, vert: true, seed: randi(1, 1e9), fest, gateBar: true, hp: GAUNT.barHp, maxHp: GAUNT.barHp, shakeT: 0, stage: 0 };
+      g.bar = o; obs.push(o);
+    }
+    gates = gts;
+    obstacles = obs;
+    return stages;
+  }
+  // Zombies am Brett: jeder drückende Zombie reißt mit; ein Brute deutlich mehr. Gibt sie nach, ist der Weg frei.
+  function bashBarricade(e, o, dt) {
+    if (o.dead) return;
+    o.hp -= dt * (e.def.cost >= 3 ? 16 : 7.5) * (e.elite ? 1.5 : 1);
+    o.shakeT = 0.22; o.bashed = true;
+    const st = o.hp > o.maxHp * 0.66 ? 0 : o.hp > o.maxHp * 0.33 ? 1 : 2;
+    if (st !== o.stage) { o.stage = st; o.spr = null; fxDebris(o.x + o.w / 2, o.y + o.h / 2, o.x < L ? 0 : Math.PI, 1.2, 8, "#7a5a34"); sfx("hit"); shake = Math.max(shake, 2.5); }
+    if ((o.sndT = (o.sndT || 0) - dt) <= 0) { o.sndT = 0.32 + Math.random() * 0.2; sfx("hit"); if (Math.random() < 0.5) fxDebris(o.x + o.w / 2, o.y + Math.random() * o.h, o.x < L ? 0 : Math.PI, 1, 2, "#8a6a3a"); }
+    if (o.hp <= 0) {
+      o.hp = 0; destroyObstacle(o);
+      showBanner(tr("DURCHBRUCH!"), tr("Sie sind durch die Barrikade!"), 1.3);
+      slowMo = Math.max(slowMo, 0.22); shake = Math.max(shake, 9); fx4d("boss", 500); sfx("boom");
+      if (window.GameAudio) GameAudio.stinger("horde");
+      track("breaches");
+    }
+  }
+  function updateGauntlet(o, dt) {
+    if (o.done) return;
+    const p = player;
+    o.band = p.y > GAUNT_Y(0) ? 0 : p.y > GAUNT_Y(1) ? 1 : p.y > GAUNT_Y(2) ? 2 : 3;
+    for (const st of o.stages) {
+      if (st.fired || p.y > st.y) continue;
+      st.fired = true;
+      startHorde(st.n, st.gates, { title: tr("SIE HÄMMERN AN DER BARRIKADE!"), sub: st.gates.length > 1 ? tr("Von beiden Seiten – gleich sind sie durch") : tr("Gleich sind sie durch – such Deckung!") });
+    }
+    o.bash = gates.some((g) => g.bar && !g.bar.dead && g.bar.bashed);
+    for (const g of gates) if (g.bar) { g.bar.bashed = false; if (g.bar.shakeT > 0) g.bar.shakeT -= dt; }
+    if (o.stages.every((st) => st.fired) && !hordeQ.length && !enemies.some((e) => !e.dead)) {
+      o.done = true;
+      showBanner(tr("KORRIDOR GESICHERT"), tr("Die Tür ist frei"), 1.8);
+      rewardObjective(30 + 20 * cityIdx());
+    }
+  }
+  const GAUNT_Y = (i) => B - GAUNT.rows[i] + GAUNT.wallH; // Unterkante der Mauer i
 
   function makeFloor() {
     const city = run && run.mode === "campaign" && run.room > 0 ? curCity() : null;
@@ -973,9 +1043,10 @@
 
   function spawnWave(scale = 1) {
     const ch = run.chapter, room = run.room;
-    let budget = (4 + room * 1.1 + (ch - 1) * 4) * scale * (1 + 0.1 * (run.threat || 0));
+    // v3.3: rund 30 % mehr Gegner je Welle, Obergrenze höher – die Meute soll sich stauen
+    let budget = (5 + room * 1.45 + (ch - 1) * 5) * scale * (1 + 0.1 * (run.threat || 0));
     const pool = wavePool();
-    const maxCount = 14 + ch * 2;
+    const maxCount = 18 + ch * 3;
     let count = 0;
     while (budget > 0.5 && count < maxCount) {
       const type = pick(pool);
@@ -1034,15 +1105,19 @@
     return { x: W / 2, y: yMin + 20 };
   }
 
+  // v3.3 Schwierigkeit: Zombies halten mehr aus, treffen härter und sind etwas flinker – je Stadt (bzw. je 90 s im
+  // Überlebensmodus) kommen noch einmal 5 % Leben dazu. Bosse nur moderat, sonst ziehen sich die Kämpfe.
+  const HARD = { hp: 1.35, hpStep: 0.05, boss: 1.15, dmg: 1.15, speed: 1.06 };
+  const hardHp = (boss) => boss ? HARD.boss : HARD.hp + HARD.hpStep * Math.min(8, run.mode === "campaign" ? cityIdx() : Math.floor((run.survT || 0) / 90));
   function spawnEnemy(type, x, y) {
     const def = ZOMBIES[type];
     const ch = run.chapter, room = run.room;
     const th = run.threat || 0, ord = runOrder();
-    const hpMul = (1 + (room - 1) * 0.07) * Math.pow(1.6, ch - 1) * threatHp(th) * (ord.foeHp || 1);
-    const dmgMul = (1 + (room - 1) * 0.03) * Math.pow(1.3, ch - 1) * threatDmg(th);
+    const hpMul = (1 + (room - 1) * 0.07) * Math.pow(1.6, ch - 1) * threatHp(th) * (ord.foeHp || 1) * hardHp(def.boss);
+    const dmgMul = (1 + (room - 1) * 0.03) * Math.pow(1.3, ch - 1) * threatDmg(th) * HARD.dmg;
     const e = {
       type, def, x: clamp(x, L + def.r, R - def.r), y: clamp(y, T + def.r, B - def.r), r: def.r,
-      hp: def.hp * hpMul, maxHp: def.hp * hpMul, dmg: def.dmg * dmgMul, speed: def.speed * rand(0.9, 1.1),
+      hp: def.hp * hpMul, maxHp: def.hp * hpMul, dmg: def.dmg * dmgMul, speed: def.speed * rand(0.9, 1.1) * (def.boss ? 1 : HARD.speed),
       spawnT: def.boss ? 1.8 : rand(0.4, 0.8), hitT: 0, dead: false,
       burnT: 0, burnDps: 0, poisonDps: 0, slowT: 0,
       aiT: rand(1, 2.5), mode: "walk", cd: rand(1, 2.2), dirX: 0, dirY: 0,
@@ -1284,13 +1359,23 @@
   // Spieler-Logik
   // ============================================================
   function nearestEnemy(from, exclude) {
-    let best = null, bd = Infinity;
+    let best = null, bd = Infinity, hidden = null, hd = Infinity;
     for (const e of enemies) {
       if (e.dead || e.spawnT > 0 || (exclude && exclude.has(e)) || e.x < L - 4 || e.x > R + 4) continue;
       const d = dist2(from, e);
+      // v3.3 Sperrkorridor: Gegner hinter einer Container-Mauer nur, wenn sonst niemand in Sicht ist
+      if (run.gauntStages && d < bd && obstacles.some((o) => o.wall && segHitsRect(from.x, from.y, e.x, e.y, o, 2))) { if (d < hd) { hd = d; hidden = e; } continue; }
       if (d < bd) { bd = d; best = e; }
     }
-    return best;
+    return best || hidden;
+  }
+  // v3.3 Wegführung im Sperrkorridor: liegt eine Mauer zwischen Zombie und Ziel, geht es zuerst zum Durchlass
+  const gauntBand = (y) => { for (let i = 0; i < 3; i++) if (y > B - GAUNT.rows[i] + GAUNT.wallH / 2) return i; return 3; };
+  function gauntWay(ey, ty) {
+    const a = gauntBand(ey), b = gauntBand(ty);
+    if (a === b) return null;
+    const i = a > b ? a - 1 : a, mid = B - GAUNT.rows[i] + GAUNT.wallH / 2;
+    return { x: i % 2 === 0 ? R - GAUNT.gap / 2 : L + GAUNT.gap / 2, y: mid + (a > b ? 34 : -34) };
   }
 
   // Schwächungen durch deutsche Gegner: „Verspätung" (Feuerrate) und „Ausgebremst" (Tempo)
@@ -1873,7 +1958,7 @@
     hazards = hazards.filter((h) => h.life > 0);
   }
   function hitObstacle(o, dmg) {
-    if (!o.hp || o.dead) return;
+    if (!o.hp || o.dead || o.gateBar) return; // Gang-Barrikaden brechen nur die Zombies auf
     o.hp -= dmg;
     if (o.hp <= 0) destroyObstacle(o);
   }
@@ -1882,6 +1967,12 @@
     obstacles = obstacles.filter((q) => q !== o);
     roomLights = roomLights.filter((l) => l.src !== o);
     const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+    if (o.kind === "bretter") {
+      const dir = o.x < L ? 0 : Math.PI;
+      fxDebris(cx, cy, dir, 1.4, 26, "#7a5a34"); fxDebris(cx, cy, dir, 1.6, 10, "#4e3820"); fxDust(cx, cy, 6, 1.4);
+      for (let i = 0; i < 4; i++) stamp(Sprites.crack(), clamp(cx + (o.x < L ? 30 : -30) + rand(-20, 20), L + 8, R - 8), cy + rand(-30, 30), rand(0, TAU), 0.8, 0.5);
+      return;
+    }
     if (o.kind === "barrels") {
       splatter(cx, cy, rand(0, TAU), 1.6, GREEN);
       for (let i = 0; i < 6; i++) fxBubble(cx + rand(-20, 20), cy + rand(-20, 20));
@@ -3005,6 +3096,12 @@
         }
       }
 
+      // v3.3 Horde im Seitengang: geradewegs auf die Arena (bzw. die Barrikade) zu, nicht schräg an der Gangwand entlang
+      if (e.horde && (e.x < L || e.x > R) && e.mode === "walk") { const gt = gates.find((g) => Math.abs(e.y - g.y) < g.h); mx = e.x < L ? 1 : -1; my = gt ? clamp((gt.y - e.y) * 0.03, -0.4, 0.4) : 0; }
+      else if (run.gauntStages && e.mode === "walk" && !e.def.boss) {
+        const way = gauntWay(e.y, p.y);
+        if (way) { const wx = way.x - e.x, wy = way.y - e.y, wd = Math.hypot(wx, wy) || 1; mx = wx / wd; my = wy / wd; e.wp = null; }
+      }
       // v2.9 Böller-Köder: Gehende Zombies laufen auf den knisternden Böller zu
       if (decoys.length && !e.def.boss && e.mode === "walk") {
         const q = nearestDecoy(e);
@@ -3034,7 +3131,8 @@
       e.face += dFace * Math.min(1, dt * (e.def.boss ? 4 : 9));
       e.anim += dt * (sp / (e.def.boss ? 30 : 55)) * 7;
       e.hitRect = null;
-      if (collideWorld(e)) {
+      if (collideWorld(e) && e.hitRect && e.hitRect.gateBar) bashBarricade(e, e.hitRect, dt); // v3.3: Barrikade aufbrechen
+      else if (e.hitRect) {
         if (!e.wp && e.hitRect && e.mode === "walk" && !e.def.boss) {
           const tg = e.prey && e.prey.state === "wait" && d > 150 ? e.prey : p;
           const wp = detour(e, e.hitRect, tg.x, tg.y);
@@ -3117,15 +3215,19 @@
     rescue: { icon: "dove", title: "ÜBERLEBENDE RETTEN", sub: "Lauf zu den Überlebenden, bevor die Zombies sie erwischen" },
     bounty: { icon: "bossSkull", title: "KOPFGELD", sub: "" },
     relay: { icon: "storm", title: "FUNKMASTEN AKTIVIEREN", sub: "Halte nacheinander an allen drei Masten die Stellung" },
+    gauntlet: { icon: "wall", title: "SPERRKORRIDOR", sub: "Kämpf dich zur Tür – die Barrikaden brechen" },
   };
   const BOUNTY_NAMES = ["Der Schlächter", "Die Bestie", "Der Unkaputtbare", "Der Nachtwächter", "Die Hyäne", "Der Metzger"];
   const SURVIVOR_LINES = ["Danke!", "Endlich!", "Ich dachte, das war's!", "Nix wie weg!", "Du bist ein Engel!"];
   // Diese Gegner wittern Überlebende und laufen zu ihnen, solange der Held weit weg ist
   const NO_SURVIVORS = [];
   const MELEE_PREY = new Set(["walker", "runner", "crawler", "dog", "rat", "wengerter", "wiesn", "zwerg"]);
+  // v3.3 Sperrkorridor: Bezirk 4 und 8 jeder Stadt (Heilbronn nur Bezirk 8 – der Einstieg soll ruhig bleiben)
+  const GAUNTLET_SLOTS = [3, 7];
   function objectiveFor() {
     if (!run || run.mode !== "campaign") return null;
     if (districtIdx() === RELAY_SLOT) return "relay"; // v2.6: Bezirk 6 = Funkmasten
+    if (GAUNTLET_SLOTS.includes(districtIdx()) && (cityIdx() > 0 || districtIdx() === 7)) return "gauntlet";
     const slot = OBJ_SLOTS.indexOf(districtIdx());
     return slot < 0 ? null : OBJ_ORDER[(slot + cityIdx()) % OBJ_ORDER.length];
   }
@@ -3151,6 +3253,8 @@
       const pts = [[L + (R - L) * 0.25, T + (B - T) * 0.3], [L + (R - L) * 0.75, T + (B - T) * 0.42], [L + (R - L) * 0.4, T + (B - T) * 0.6]].map(([x, y]) => ({ x: x + rand(-20, 20), y: y + rand(-16, 16) }));
       Object.assign(o, { pts, idx: 0, x: pts[0].x, y: pts[0].y, r: 52, prog: 0, need: 3.5 + Math.min(2, ci * 0.25), spawnCd: 1.6, inside: false, strikes: [] });
       clearObstacles(pts.map((q) => ({ x: q.x, y: q.y, r: 64 })));
+    } else if (kind === "gauntlet") {
+      o.stages = run.gauntStages || []; o.band = 0; o.bash = false;
     } else if (kind === "bounty") {
       const pool = ci === 0 ? ["walker", "runner", "brute"] : ["brute", "runner", "walker", ...(curCity().foes || [])];
       const type = pick(pool.filter((t) => ZOMBIES[t] && !ZOMBIES[t].pack));
@@ -3185,6 +3289,7 @@
     if (o.kind === "hold") return !o.done || o.strikes.length > 0;
     if (o.kind === "relay") return !o.done;
     if (o.kind === "rescue") return !o.done;
+    if (o.kind === "gauntlet") return !o.done;
     return false;
   }
   function rewardObjective(amount) {
@@ -3204,6 +3309,7 @@
     if (o.kind === "hold") updateHold(o, dt);
     else if (o.kind === "relay") updateRelay(o, dt);
     else if (o.kind === "rescue") updateRescue(o, dt);
+    else if (o.kind === "gauntlet") updateGauntlet(o, dt);
     else if (o.kind === "bounty" && !o.done && o.target.dead) {
       o.done = true;
       showBanner(tr("KOPFGELD KASSIERT"), o.name, 2);
@@ -3219,7 +3325,7 @@
       // Nachschub aus allen Richtungen, solange die Stellung gehalten wird
       if ((o.spawnCd -= dt) <= 0) {
         o.spawnCd = Math.max(1.1, 2.3 - cityIdx() * 0.12) * rand(0.85, 1.15);
-        if (enemies.filter((e) => !e.dead).length < 9 + run.chapter * 2) {
+        if (enemies.filter((e) => !e.dead).length < 12 + run.chapter * 3) {
           const pool = wavePool().filter((t) => t !== "nest");
           for (let k = randi(1, 2); k > 0; k--) {
             const type = pick(pool), def = ZOMBIES[type];
@@ -3256,7 +3362,7 @@
     o.prog = o.inside ? Math.min(o.need, o.prog + dt) : Math.max(0, o.prog - dt * 0.5);
     if ((o.spawnCd -= dt) <= 0) {
       o.spawnCd = Math.max(1.3, 2.6 - cityIdx() * 0.12) * rand(0.85, 1.15);
-      if (enemies.filter((e) => !e.dead).length < 8 + run.chapter * 2) {
+      if (enemies.filter((e) => !e.dead).length < 11 + run.chapter * 3) {
         const pool = wavePool().filter((t) => t !== "nest"), type = pick(pool), def = ZOMBIES[type], pos = freeSpot(T + 40, T + 120);
         for (let i = 0; i < (def.pack || 1); i++) spawnEnemy(type, pos.x + rand(-16, 16), pos.y + rand(-16, 16));
       }
@@ -3320,16 +3426,17 @@
     }
   }
   // v3.0 Massen-Horde durch die Gänge: 2,6 s Warnlicht und Grollen, dann strömen sie im Gänsemarsch herein
+  const HORDE_CAP = 85;
   const hordePool = () => {
     const base = ["walker", "walker", "runner", "runner", "crawler"];
     const ci = run.mode === "campaign" ? cityIdx() : Math.floor((run.survT || 0) / 60);
     return ci >= 3 ? base.concat(["dog", "brute", "runner"]) : ci >= 1 ? base.concat(["dog"]) : base;
   };
-  function startHorde(n, list = gates) {
+  function startHorde(n, list = gates, say = null) {
     if (!list.length) return false;
     for (const g of list) g.warn = 2.6;
     hordeQ.push({ n, gates: list.slice(), t: 2.6, cd: 0, spawned: 0 });
-    showBanner(tr("HORDE IM ANMARSCH!"), list.length > 1 ? tr("Aus beiden Gängen!") : list[0].side < 0 ? tr("Linker Gang!") : tr("Rechter Gang!"), 1.6);
+    showBanner(say ? say.title : tr("HORDE IM ANMARSCH!"), say ? say.sub : list.length > 1 ? tr("Aus beiden Gängen!") : list[0].side < 0 ? tr("Linker Gang!") : tr("Rechter Gang!"), 1.6);
     shake = Math.max(shake, 5); fx4d("boss", 600); track("hordes");
     if (window.GameAudio) GameAudio.stinger("horde");
     return true;
@@ -3339,7 +3446,8 @@
     for (const h of hordeQ) {
       if (h.t > 0) { h.t -= dt; continue; }
       if ((h.cd -= dt) > 0) continue;
-      h.cd = 0.11;
+      h.cd = h.gates.length > 1 ? 0.06 : 0.085;
+      if (enemies.length >= HORDE_CAP) continue; // v3.3: nicht mehr als HORDE_CAP gleichzeitig – der Rest wartet im Gang
       const g = h.gates[h.spawned % h.gates.length];
       quietSpawn = true;
       const gx = g.side < 0 ? L - rand(110, 210) : R + rand(110, 210), gy = g.y + rand(-g.h / 2 + 18, g.h / 2 - 18);
@@ -3371,17 +3479,17 @@
     ev.fired = true;
     const pool = wavePool().filter((t) => t !== "nest" && !ZOMBIES[t].pack), sp = (t, x, y) => { const e = spawnEnemy(t, x, y); e.spawnT = 0.35; return e; };
     if (ev.kind === "ambush") {
-      for (let i = 0; i < 6; i++) sp(pick(pool), i % 2 ? R - 36 : L + 36, rand(T + 80, B - 120));
+      for (let i = 0; i < 8 + Math.min(6, cityIdx()); i++) sp(pick(pool), i % 2 ? R - 36 : L + 36, rand(T + 80, B - 120));
       showBanner(tr("HINTERHALT!"), tr("Von beiden Seiten!"), 1.4);
     } else if (ev.kind === "massive" && gates.length) {
-      startHorde(Math.min(30, 12 + 4 * (run.mode === "campaign" ? cityIdx() : 2)));
+      startHorde(Math.min(60, 22 + 6 * (run.mode === "campaign" ? cityIdx() : 2))); // v3.3: doppelt so große Massen-Horden
       return;
     } else if (ev.kind === "horde" && gates.length) {
-      startHorde(Math.min(24, 10 + 3 * cityIdx()));
+      startHorde(Math.min(45, 16 + 5 * cityIdx()));
       return;
     } else if (ev.kind === "horde") {
       const fast = ["runner", "crawler", "dog"].filter((t) => ZOMBIES[t]);
-      for (let i = 0; i < 9; i++) sp(pick(fast), rand(L + 40, R - 40), T + rand(30, 90));
+      for (let i = 0; i < 14 + Math.min(10, 2 * cityIdx()); i++) sp(pick(fast), rand(L + 40, R - 40), T + rand(30, 90));
       showBanner(tr("HORDE!"), tr("Sie stürmen von oben"), 1.4);
     } else {
       for (let i = 0; i < 2; i++) makeElite(sp(pick(pool), rand(L + 60, R - 60), T + rand(60, 140)), 1);
@@ -5085,6 +5193,25 @@
   }
   function drawObjectiveMarks() {
     const o = run.obj, t = run.time;
+    if (o && o.kind === "gauntlet" && !o.done) {
+      // Pfeil am Durchlass zum nächsten Gang
+      if (o.band < 3) {
+        const gapRight = o.band % 2 === 0, x = gapRight ? R - GAUNT.gap / 2 : L + GAUNT.gap / 2, y = B - GAUNT.rows[o.band] + GAUNT.wallH / 2;
+        const q = scr(x, y, mode3d ? 64 : 0), bob = Math.sin(t * 5) * 4;
+        ctx.save(); ctx.globalAlpha = 0.6 + 0.3 * Math.sin(t * 5);
+        ctx.fillStyle = "#a8ff3e"; ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = 2;
+        for (const dy of [0, 11]) { ctx.beginPath(); ctx.moveTo(q.x, q.y - 14 + dy + bob); ctx.lineTo(q.x + 13, q.y + dy + bob); ctx.lineTo(q.x + 7, q.y + dy + bob); ctx.lineTo(q.x, q.y - 7 + dy + bob); ctx.lineTo(q.x - 7, q.y + dy + bob); ctx.lineTo(q.x - 13, q.y + dy + bob); ctx.closePath(); ctx.stroke(); ctx.fill(); }
+        ctx.restore();
+      }
+      // Zustand der Barrikaden, sobald daran gehämmert wird
+      for (const g of gates) {
+        const b = g.bar;
+        if (!b || b.dead || b.hp >= b.maxHp) continue;
+        const q = scr(g.side < 0 ? L + 18 : R - 18, g.y, mode3d ? 70 : 0), w = 46, k = b.hp / b.maxHp;
+        ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(q.x - w / 2 - 1, q.y - 24, w + 2, 7);
+        ctx.fillStyle = k > 0.5 ? "#d8a01a" : `rgba(255,70,50,${0.7 + 0.3 * Math.sin(t * 18)})`; ctx.fillRect(q.x - w / 2, q.y - 23, w * k, 5);
+      }
+    }
     if (o && (o.kind === "hold" || o.kind === "relay") && !o.done && mode3d) drawZone(o, groundEllipse(o.x, o.y, o.r));
     if (o && o.kind === "relay" && !o.done) for (let i = o.idx + 1; i < o.pts.length; i++) { const q = scr(o.pts[i].x, o.pts[i].y, 0); drawIcon(ctx, "storm", q.x, q.y, 18, "rgba(255,183,51,0.55)"); }
     if (o && o.kind === "rescue") {
@@ -5148,8 +5275,13 @@
     if (o.kind === "hold") { k = o.prog / o.need; line = o.done ? tr("Luftschlag!") : o.inside ? tr("Halten … noch {s} s", { s: Math.ceil(o.need - o.prog) }) : tr("Zurück in die Zone!"); }
     else if (o.kind === "relay") { k = (o.idx + o.prog / o.need) / o.pts.length; line = o.done ? tr("Funknetz steht") : o.inside ? tr("Mast {n}/3 · noch {s} s", { n: o.idx + 1, s: Math.ceil(o.need - o.prog) }) : tr("Zum Mast {n}/3!", { n: o.idx + 1 }); }
     else if (o.kind === "rescue") { k = o.saved / o.total; line = tr("Gerettet {n}/{m}", { n: o.saved, m: o.total }) + (o.lost ? `  ·  ${tr("{n} verloren", { n: o.lost })}` : ""); }
+    else if (o.kind === "gauntlet") {
+      const alive = enemies.filter((e) => !e.dead).length;
+      k = o.done ? 1 : (o.band + (o.stages.every((st) => st.fired) && !alive ? 1 : 0)) / 4;
+      line = o.done ? tr("Korridor gesichert") : o.bash ? tr("Barrikade bricht!") : alive ? tr("Gang {n}/4 · {m} Zombies", { n: o.band + 1, m: alive }) : tr("Gang {n}/4 – weiter zur Tür", { n: o.band + 1 });
+    }
     else { k = o.done ? 1 : 1 - Math.max(0, o.target.hp) / o.target.maxHp; line = o.done ? tr("Kopfgeld kassiert") : o.name; }
-    const warn = (o.kind === "hold" || o.kind === "relay") && !o.done && !o.inside;
+    const warn = ((o.kind === "hold" || o.kind === "relay") && !o.done && !o.inside) || (o.kind === "gauntlet" && o.bash);
     ctx.save();
     ctx.globalAlpha = o.done ? Math.max(0, 1 - (o.doneT - 1.8) / 0.7) : 1;
     ctx.fillStyle = "rgba(6,9,8,0.8)"; roundRect(x, y, w, h, 6); ctx.fill();
@@ -5276,7 +5408,8 @@
 
   function drawObstacle(o) {
     if (!o.spr || o.sprRes !== Sprites.res) { o.spr = Sprites.obstacle(o, theme()); o.sprRes = Sprites.res; }
-    ctx.drawImage(o.spr.c, o.x + o.spr.ox, o.y + o.spr.oy, o.spr.w, o.spr.h);
+    const jx = o.shakeT > 0 ? Math.sin(run.time * 90) * 1.6 : 0; // v3.3: Barrikade wackelt unter den Schlägen
+    ctx.drawImage(o.spr.c, o.x + o.spr.ox + jx, o.y + o.spr.oy, o.spr.w, o.spr.h);
   }
 
   function roundRect(x, y, w, h, r, g = ctx) {

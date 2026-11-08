@@ -806,6 +806,26 @@ void main() {
       const rivets = (pts, col = "#9aa3a8") => { for (const [x, y] of pts) { g.fillStyle = "rgba(0,0,0,0.5)"; g.beginPath(); g.arc(x + 0.6, y + 0.6, 2, 0, TAU); g.fill(); g.fillStyle = col; g.beginPath(); g.arc(x, y, 1.8, 0, TAU); g.fill(); g.fillStyle = "rgba(255,255,255,0.5)"; g.fillRect(x - 0.9, y - 0.9, 0.8, 0.8); } };
       const corners = (m) => [[m, m], [128 - m, m], [m, 128 - m], [128 - m, 128 - m]];
       switch (kind) {
+        case "planken": {
+          // v3.3 rohe Bretter: vier Planken mit Maserung, Astlöchern, Nagelreihen, verwittert
+          for (let y = 0; y < 128; y += 32) {
+            const v = Math.floor(R() * 26) - 13;
+            g.fillStyle = `rgb(${118 + v},${84 + v * 0.8},${50 + v * 0.5})`; g.fillRect(0, y, 128, 32);
+            g.lineWidth = 0.6;
+            for (let k = 0; k < 11; k++) {
+              const yy = y + 2 + R() * 28, ph = R() * TAU, amp = 0.5 + R() * 1.6;
+              g.strokeStyle = `rgba(56,32,14,${0.18 + R() * 0.28})`; g.beginPath(); g.moveTo(0, yy);
+              for (let x = 6; x <= 128; x += 6) g.lineTo(x, yy + Math.sin(x * 0.07 + ph) * amp);
+              g.stroke();
+            }
+            for (let k = 0; k < 2; k++) { const kx = 10 + R() * 108, ky = y + 8 + R() * 16; g.fillStyle = "rgba(56,30,12,0.65)"; g.beginPath(); g.ellipse(kx, ky, 2.5 + R() * 2, 1.4 + R(), 0, 0, TAU); g.fill(); }
+            g.fillStyle = "rgba(20,12,6,0.8)"; g.fillRect(0, y, 128, 1.6);
+            g.fillStyle = "rgba(255,225,180,0.12)"; g.fillRect(0, y + 1.6, 128, 1);
+            for (const nx of [6, 122]) for (const ny of [8, 24]) { g.fillStyle = "rgba(0,0,0,0.5)"; g.beginPath(); g.arc(nx + 0.6, y + ny + 0.6, 1.8, 0, TAU); g.fill(); g.fillStyle = "#8a8f94"; g.beginPath(); g.arc(nx, y + ny, 1.5, 0, TAU); g.fill(); }
+          }
+          grunge(g, 128, 128, R, { grain: 0.07, scratches: 14, dirt: 6, edge: 0.2 });
+          break;
+        }
         case "crate": {
           // Bretter mit eigener Tönung, Maserung und Astlöchern; Rahmen und Strebe mit Nägeln
           for (let y = 0, i = 0; y < 128; y += 32, i++) {
@@ -972,6 +992,23 @@ void main() {
           g.add(mesh(cyl(br * 0.75, br * 0.75, 1, 12), sbasic("#9eff3a"), px * W, 38.6, pz * Hd));
           for (const ry of [8, 30]) g.add(mesh(cyl(br * 1.03, br * 1.03, 2, 12), slam("#22301a"), px * W, ry, pz * Hd));
         }
+        break;
+      }
+      case "bretter": {
+        // v3.3 vernagelte Gang-Barrikade: zwei Pfosten, sechs schräg genagelte Bretter quer über die Öffnung, Warn-X.
+        // Nicht verschmolzen (bakeStatic), damit syncObstacles bei Schaden einzelne Bretter fallen lassen kann.
+        const wood = new T3.MeshLambertMaterial({ map: obstacleTexture("planken"), normalMap: obsNormal("planken") });
+        const post = slam("#3a2816"), len = Hd;
+        for (const z of [-len / 2 + 5, len / 2 - 5]) add(mesh(box(8, 64, 8), post, 0, 32, z));
+        const planks = [];
+        for (let i = 0; i < 6; i++) {
+          const pl = add(mesh(box(4, 9, len + 6), wood, (i % 2 ? 2.5 : -2.5), 8 + i * 9.2, (R() - 0.5) * 4));
+          pl.rotation.x = (R() - 0.5) * 0.35;
+          planks.push(pl);
+        }
+        const red = slam("#b81e18");
+        for (const s2 of [-1, 1]) { const x2 = add(mesh(box(5, 3.5, len * 0.9), red, -3.4 * Math.sign(o.x - 270) || -3.4, 32, 0)); x2.rotation.x = s2 * 0.62; }
+        g.userData.planks = planks; g.userData.baseX = g.position.x;
         break;
       }
       case "barricade":
@@ -1367,7 +1404,7 @@ void main() {
     // Hindernisse
     const obs = new Map();
     for (const o of w.obstacles) {
-      const om = bakeStatic(obstacleModel(o, w.theme));
+      const om = o.kind === "bretter" ? obstacleModel(o, w.theme) : bakeStatic(obstacleModel(o, w.theme));
       obs.set(o, om);
       om.traverse((c) => { if (c.isMesh && !c.material.transparent) { c.castShadow = true; c.receiveShadow = true; } });
       g.add(om);
@@ -3486,6 +3523,12 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   function syncObstacles() {
     if (!room) return;
     for (const [o, grp] of room.obs) {
+      if (o.gateBar && !o.dead && grp.userData.planks) {
+        // v3.3 Barrikade unter Beschuss: wackelt, Bretter fallen mit dem Schaden
+        const k = o.hp / o.maxHp, n = grp.userData.planks.length;
+        grp.userData.planks.forEach((pl, i) => { pl.visible = i < Math.ceil(k * n + 0.01) || i % 3 === 1 && k > 0.2; });
+        grp.position.x = grp.userData.baseX + (o.shakeT > 0 ? Math.sin(performance.now() * 0.09) * 1.8 : 0);
+      }
       if (!o.dead) continue;
       room.group.remove(grp);
       disposeTree(grp);

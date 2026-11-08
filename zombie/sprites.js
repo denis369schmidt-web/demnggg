@@ -1223,7 +1223,7 @@ window.Sprites = (() => {
   // ------------------------------------------------------------------
   // Hindernisse (je Kapitel-Thema)
   // ------------------------------------------------------------------
-  const OBS_Z = { car: 0, crate: 12, barrels: 0, barricade: 14, dumpster: 16, bed: 6, cabinet: 18, medcrate: 12, tank: 0, server: 18, labcrate: 12, bude: 16, bierbank: 4, fass: 0, maibaum: 0, brunnen: 6, boeller: 10, automat: 14, rebstock: 18, glascontainer: 16, dixi: 26, telefonzelle: 30, weihnachtsbaum: 0, strandkorb: 18, sandsack: 12, bus: 22, bauzaun: 30, feuertonne: 14, container: 24 };
+  const OBS_Z = { bretter: 16, car: 0, crate: 12, barrels: 0, barricade: 14, dumpster: 16, bed: 6, cabinet: 18, medcrate: 12, tank: 0, server: 18, labcrate: 12, bude: 16, bierbank: 4, fass: 0, maibaum: 0, brunnen: 6, boeller: 10, automat: 14, rebstock: 18, glascontainer: 16, dixi: 26, telefonzelle: 30, weihnachtsbaum: 0, strandkorb: 18, sandsack: 12, bus: 22, bauzaun: 30, feuertonne: 14, container: 24 };
   const CAR_COLORS = ["#7a2f2f", "#2f4f7a", "#6b6b6b", "#c9b48a", "#2f5f4a", "#d8d8d0"];
 
   const clamp2 = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1299,6 +1299,26 @@ window.Sprites = (() => {
             gr.addColorStop(0, "#f2ffb0"); gr.addColorStop(0.5, "#9eff3a"); gr.addColorStop(1, "#2d5a10");
             gg.fillStyle = gr; circ(gg, bx, by, br * 0.6); gg.fill();
           }
+          break;
+        }
+        case "bretter": {
+          // v3.3 vernagelte Gang-Barrikade (senkrecht in der Wandöffnung): Pfosten, quer genagelte Bretter, rotes Warn-X.
+          // Schadensstufe o.stage 0–2: Bretter fehlen, Splitter, Lücken
+          const st = o.stage || 0, n = 6 - st * 2;
+          gg.fillStyle = "#3a2a1a"; gg.fillRect(x + o.w * 0.3, y, o.w * 0.4, o.h + z);
+          for (const py of [y + 2, y + o.h - 8]) box3d(gg, x + o.w * 0.25, py, o.w * 0.5, 7, z, "#5a4028", "#3a2816", "#2a1c10");
+          for (let i = 0; i < 6; i++) {
+            if (i >= n && (i * 7 + st) % 3) continue; // fehlende Bretter
+            const by = y + 6 + (i / 6) * (o.h - 12), tilt = (R() - 0.5) * 0.5, v = Math.floor(R() * 30) - 15;
+            gg.save(); gg.translate(x + o.w / 2, by + 5); gg.rotate(Math.PI / 2 * 0 + tilt);
+            gg.fillStyle = `rgb(${128 + v},${92 + v * 0.8},${54 + v * 0.5})`; gg.fillRect(-o.w / 2 - 2, -4, o.w + 4, 8);
+            gg.fillStyle = "rgba(255,230,190,0.18)"; gg.fillRect(-o.w / 2 - 2, -4, o.w + 4, 1.4);
+            gg.fillStyle = "rgba(0,0,0,0.35)"; gg.fillRect(-o.w / 2 - 2, 3, o.w + 4, 1.2);
+            gg.fillStyle = "#c9ced4"; for (const nx of [-o.w / 2 + 3, o.w / 2 - 3]) { gg.beginPath(); gg.arc(nx, 0, 1.3, 0, TAU); gg.fill(); }
+            gg.restore();
+          }
+          if (st < 2) { gg.strokeStyle = "rgba(200,30,24,0.75)"; gg.lineWidth = 3; gg.beginPath(); gg.moveTo(x + 4, y + o.h * 0.25); gg.lineTo(x + o.w - 4, y + o.h * 0.75); gg.moveTo(x + o.w - 4, y + o.h * 0.25); gg.lineTo(x + 4, y + o.h * 0.75); gg.stroke(); }
+          gg.fillStyle = "rgba(240,220,180,0.7)"; for (let i = 0; i < st * 6; i++) gg.fillRect(x + R() * o.w, y + R() * o.h, 2 + R() * 3, 1); // Splitter
           break;
         }
         case "barricade": {

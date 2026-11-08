@@ -22,11 +22,12 @@
   // Jedes Kapitel spielt in einer anderen Umgebung (Straße → Krankenhaus → Labor → …)
   const THEME_ORDER = ["street", "hospital", "lab"];
   const OBSTACLE_POOL = {
-    street: ["car", "car", "crate", "barrels", "barricade", "dumpster", "automat", "glascontainer", "telefonzelle", "sandsack", "bauzaun", "feuertonne", "bus", "container"],
-    hospital: ["bed", "bed", "cabinet", "medcrate", "medcrate", "barrels", "sandsack"],
-    lab: ["tank", "tank", "server", "labcrate", "barrels", "sandsack"],
+    street: ["car", "car", "crate", "barrels", "barricade", "dumpster", "automat", "glascontainer", "telefonzelle", "sandsack", "bauzaun", "feuertonne", "bus", "container",
+      "litfass", "tonnen", "tonnen", "parkbank", "polizeiauto", "bushalte"], // v3.4 Alltagsobjekte
+    hospital: ["bed", "bed", "cabinet", "medcrate", "medcrate", "barrels", "sandsack", "rollstuhl", "rollstuhl", "infusion", "infusion"],
+    lab: ["tank", "tank", "server", "labcrate", "barrels", "sandsack", "zentrifuge", "zentrifuge"],
     // Altstadt: Marktbuden, Bierbänke, Bierfässer, Brunnen, Böllerkisten und (höchstens einer) Maibaum
-    markt: ["bude", "bude", "bierbank", "fass", "brunnen", "boeller", "maibaum", "crate", "telefonzelle", "glascontainer", "feuertonne", "bauzaun"],
+    markt: ["bude", "bude", "bierbank", "fass", "brunnen", "boeller", "maibaum", "crate", "telefonzelle", "glascontainer", "feuertonne", "bauzaun", "litfass", "parkbank", "parkbank", "tonnen"],
   };
   // Feste verschieben die Mischung: mehr Bierbänke & Fässer auf der Wiesn, mehr Buden am Weihnachtsmarkt …
   const FEST_OBS = { wein: ["fass", "fass", "bude", "rebstock", "rebstock"], wiesn: ["bierbank", "bierbank", "fass", "fass", "maibaum", "dixi"], weihnachten: ["bude", "bude", "bude", "weihnachtsbaum", "weihnachtsbaum"], karneval: ["boeller", "boeller", "bude", "dixi"], imbiss: ["bude", "glascontainer"], bahn: ["automat"], hafen: ["crate", "fass", "strandkorb", "strandkorb", "container", "container"], apfelwein: ["bierbank", "fass"], werk: ["maibaum", "boeller"] };
@@ -38,15 +39,31 @@
     rebstock: [86, 100, 20, 24], glascontainer: [66, 74, 40, 44], dixi: [40, 40, 40, 40], telefonzelle: [34, 34, 34, 34], weihnachtsbaum: [46, 46, 46, 46], strandkorb: [50, 54, 38, 40],
     // v3.0 Sandsack-Stellung, Buswrack, Bauzaun, Feuertonne, Schiffscontainer
     sandsack: [96, 128, 26, 30], bus: [176, 200, 58, 62], bauzaun: [116, 150, 10, 12], feuertonne: [26, 26, 26, 26], container: [150, 166, 56, 60],
+    // v3.4 Alltagsobjekte
+    litfass: [44, 44, 44, 44], tonnen: [78, 86, 26, 28], parkbank: [70, 80, 22, 24], polizeiauto: [100, 112, 48, 52], bushalte: [104, 116, 34, 38],
+    rollstuhl: [30, 34, 30, 34], infusion: [20, 20, 20, 20], zentrifuge: [46, 46, 46, 46],
+    // v3.4 Stadt-Wahrzeichen (feste Größe, siehe LANDMARKS)
+    kaethchen: [104, 104, 104, 104], roessle: [100, 100, 60, 60], loewe: [112, 112, 60, 60], schoenbrunnen: [112, 112, 112, 112], bach: [70, 70, 70, 70],
+    tor: [212, 212, 44, 44], bembel: [96, 96, 80, 80], narrenwagen: [124, 124, 64, 64], leuchtturm: [72, 72, 72, 72], windmuehle: [84, 84, 84, 84],
+    eiffel: [96, 96, 96, 96], riesenrad: [150, 150, 40, 40], golem: [84, 84, 72, 72],
   };
-  const ROTATABLE = { car: true, bed: true, bierbank: true, glascontainer: true, rebstock: true, sandsack: true, bus: true, bauzaun: true, container: true };
-  const GLOWING = { barrels: "150,255,60", tank: "120,255,80", bude: "255,196,120", telefonzelle: "255,236,170", weihnachtsbaum: "255,200,120", feuertonne: "255,138,48" };
-  const OBS_ONCE = { maibaum: 1, brunnen: 1, telefonzelle: 1, bus: 1, container: 1, weihnachtsbaum: 2, feuertonne: 2 };
+  const ROTATABLE = { car: true, bed: true, bierbank: true, glascontainer: true, rebstock: true, sandsack: true, bus: true, bauzaun: true, container: true, parkbank: true, polizeiauto: true };
+  const GLOWING = { barrels: "150,255,60", tank: "120,255,80", bude: "255,196,120", telefonzelle: "255,236,170", weihnachtsbaum: "255,200,120", feuertonne: "255,138,48", zentrifuge: "120,255,150", bushalte: "220,236,255", leuchtturm: "255,236,170" };
+  const OBS_ONCE = { maibaum: 1, brunnen: 1, telefonzelle: 1, bus: 1, container: 1, weihnachtsbaum: 2, feuertonne: 2, litfass: 1, polizeiauto: 1, bushalte: 1 };
+  // v3.4 Hingucker: je Stadt ein Wahrzeichen bzw. ein Stück Tradition mitten in der (langen) Arena – unzerstörbar, gibt Deckung
+  const LANDMARKS = {
+    heilbronn: { kind: "kaethchen", name: "Käthchenbrunnen" }, stuttgart: { kind: "roessle", name: "Stuttgarter Rössle" }, muenchen: { kind: "loewe", name: "Bayerischer Löwe" },
+    nuernberg: { kind: "schoenbrunnen", name: "Schöner Brunnen" }, leipzig: { kind: "bach", name: "Bach-Denkmal" }, berlin: { kind: "tor", name: "Brandenburger Tor" },
+    frankfurt: { kind: "bembel", name: "Riesen-Bembel" }, koeln: { kind: "narrenwagen", name: "Karnevalswagen" }, hamburg: { kind: "leuchtturm", name: "Leuchtturm" },
+    amsterdam: { kind: "windmuehle", name: "Windmühle" }, paris: { kind: "eiffel", name: "Eiffelturm" }, wien: { kind: "riesenrad", name: "Riesenrad" }, prag: { kind: "golem", name: "Der Golem" },
+  };
+  const LANDMARK_DISTRICTS = [0, 1, 8, 9]; // Stadteingang, zweiter Bezirk, vorletzter Bezirk und die Boss-Arena
   // Walker-Outfits je Welt (Index in die Paletten von sprites.js/render3d.js):
   // 0–2 Zivil, 3 Polizist, 4 Bauarbeiter, 5 Anzug, 6 Patient, 7 Ärztin, 8 Pfleger, 9 Forscher, 10 Soldat, 11 Schutzanzug
   const WALKER_LOOKS = { street: [0, 1, 2, 3, 4, 5, 0, 3], hospital: [6, 6, 7, 8, 0, 2], lab: [9, 9, 10, 11, 1, 10], markt: [0, 1, 2, 5, 0, 1, 3, 2] };
   // Zerstörbar: Giftfässer explodieren (Kettenreaktion!), Kisten zersplittern und lassen Beute fallen
-  const DESTRUCT = { barrels: 70, crate: 45, medcrate: 45, labcrate: 60, bude: 90, bierbank: 50, fass: 40, maibaum: 110, boeller: 30, automat: 40, glascontainer: 60, dixi: 45, weihnachtsbaum: 120, strandkorb: 60, rebstock: 35, bauzaun: 40, feuertonne: 50 };
+  const DESTRUCT = { barrels: 70, crate: 45, medcrate: 45, labcrate: 60, bude: 90, bierbank: 50, fass: 40, maibaum: 110, boeller: 30, automat: 40, glascontainer: 60, dixi: 45, weihnachtsbaum: 120, strandkorb: 60, rebstock: 35, bauzaun: 40, feuertonne: 50,
+    tonnen: 45, parkbank: 40, rollstuhl: 30, infusion: 16, bushalte: 70 }; // v3.4
   const TAU = Math.PI * 2;
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -682,6 +699,7 @@
     const barrier = !isBoss && !isSupply && run.room > 1 && objKind !== "gauntlet" && Math.random() < 0.38 ? genBarrier() : [];
     obstacles = clearGates(isSupply ? [] : genObstacles(Math.round((isBoss ? randi(0, 2) : randi(barrier.length ? 1 : 2, barrier.length ? 4 : 5)) * AREA_K + (isBoss ? 0 : 1)), barrier));
     run.gauntStages = objKind === "gauntlet" ? genGauntlet() : null; // ersetzt Gänge und Hindernisse
+    if (run.mode === "campaign" && !isSupply && objKind !== "gauntlet" && LANDMARK_DISTRICTS.includes(districtIdx())) placeLandmark(LANDMARKS[curCity().id]);
     floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     initAmbient();
@@ -801,8 +819,11 @@
     run.room = 1;
     resetRoomState();
     player.x = W / 2; player.y = (T + B) / 2 + 140;
+    updateCam2D(0, true);
     makeGates(false);
-    obstacles = clearGates(genObstacles(3));
+    obstacles = clearGates(genObstacles(Math.round(3 * AREA_K) + 1));
+    const lmk = Object.values(LANDMARKS);
+    placeLandmark(lmk[dayNo() % lmk.length], 0.3); // v3.4: Wahrzeichen des Tages
     floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     initAmbient();
@@ -868,6 +889,23 @@
     }
     return obs;
   }
+  // v3.4 Wahrzeichen setzen: mittig in der langen Arena (Höhe nach Wahl, Straßensperren werden umgangen),
+  // andere Hindernisse in der Nähe weichen – so bleibt Platz zum Umlaufen und der Hingucker steht frei
+  function placeLandmark(lm, prefer = 0.55) {
+    if (!lm || !OBSTACLE_SIZE[lm.kind]) return null;
+    const [w, , h] = OBSTACLE_SIZE[lm.kind];
+    const fest = run && run.mode === "campaign" && run.room > 0 ? curCity().fest : "";
+    const o = { kind: lm.kind, w, h, vert: false, seed: randi(1, 1e9), fest, landmark: true, name: lm.name };
+    o.x = Math.round(clamp(W / 2 - w / 2 + rand(-36, 36), L + 40, R - 40 - w));
+    const near = (q, m) => o.x < q.x + q.w + m && o.x + o.w + m > q.x && o.y < q.y + q.h + m && o.y + o.h + m > q.y;
+    for (const k of [prefer, 0.42, 0.66, 0.32, 0.75]) {
+      o.y = Math.round(T + ARENA.h * k - h / 2 + rand(-30, 30));
+      if (!obstacles.some((q) => q.barrier && near(q, 70))) break;
+    }
+    obstacles = obstacles.filter((q) => q.barrier || q.gateBar || !near(q, 64)).concat(o);
+    return o;
+  }
+
   // v3.0 Straßensperre: eine Linie quer durch den Bezirk mit zwei Durchlässen – Engpässe, an denen sich die Meute staut
   const BARRIER_KINDS = { street: ["sandsack", "barricade", "bauzaun"], markt: ["bauzaun", "sandsack"], hospital: ["sandsack"], lab: ["sandsack", "barricade"] };
   function genBarrier() {
@@ -2047,6 +2085,20 @@
       fxDebris(cx, cy, 0, Math.PI, 18, "#1e5a2a"); fxDebris(cx, cy, 0, Math.PI, 6, "#5a3a1e");
       addText(cx, cy - 26, tr("O TANNENBAUM!"), "#7fff9a", 20, true);
       sfx("glass"); shake = Math.max(shake, 5);
+    } else if (o.kind === "tonnen") {
+      // v3.4 Mülltonnen: der Inhalt fliegt – Müllsäcke, Papier, Bioabfall
+      for (const col of ["#e8c21a", "#2a5ab0", "#6a4a2a", "#d8d8d0"]) fxDebris(cx, cy, 0, Math.PI, 8, col);
+      for (let i = 0; i < 8; i++) fxGas(cx + rand(-30, 30), cy + rand(-20, 20), 1, "120,110,70", 1.2);
+      addText(cx, cy - 20, tr("MÜLLABFUHR!"), "#e8c21a", 17, true);
+      sfx("hit"); shake = Math.max(shake, 3);
+    } else if (o.kind === "bushalte") {
+      for (let i = 0; i < 3; i++) addHazard(cx + rand(-40, 40), cy + rand(-20, 20), 30, 6, player.power * 1.4, "shards");
+      fxDebris(cx, cy, 0, Math.PI, 12, "#5a6066"); fxSparks(cx, cy, 0, Math.PI, 16, "220,240,255", 280);
+      sfx("glass"); shake = Math.max(shake, 4);
+    } else if (o.kind === "parkbank" || o.kind === "rollstuhl" || o.kind === "infusion") {
+      fxDebris(cx, cy, 0, Math.PI, 12, o.kind === "parkbank" ? "#7a5230" : "#9aa3ad"); fxDebris(cx, cy, 0, Math.PI, 5, "#1e2224");
+      if (o.kind === "infusion") splatter(cx, cy, rand(0, TAU), 0.5, "#d8eef4");
+      sfx("kill"); shake = Math.max(shake, 2);
     } else if (o.kind === "boeller") {
       // Böllerkiste: Silvester-Feuerwerk – Raketen schlagen rundherum ein
       for (let i = 0; i < 7; i++) fireworks.push({ x: cx + rand(-120, 120), y: cy + rand(-120, 120), t: 0.15 + i * 0.12, rgb: pick(["255,80,80", "255,210,60", "90,200,255", "140,255,120", "255,120,230"]) });
@@ -5195,8 +5247,7 @@
       ctx.fillStyle = "rgba(255,236,190,0.1)"; ctx.fill();
       ctx.strokeStyle = "rgba(255,236,190,0.38)"; ctx.lineWidth = 1; ctx.stroke();
     }
-    ctx.fillStyle = "rgba(186,176,152,0.55)";
-    for (const o of obstacles) if (o.w) ctx.fillRect(x0 + (o.x - L) * k, y0 + (o.y - T) * k, Math.max(1.5, o.w * k), Math.max(1.5, o.h * k));
+    for (const o of obstacles) if (o.w) { ctx.fillStyle = o.landmark ? "rgba(232,198,74,0.95)" : "rgba(186,176,152,0.55)"; ctx.fillRect(x0 + (o.x - L) * k, y0 + (o.y - T) * k, Math.max(1.5, o.w * k), Math.max(1.5, o.h * k)); }
     // Mauern: Seiten mit Lücken für die Horden-Gänge (warnende Gänge blinken rot), oben die Tür
     ctx.lineWidth = 2;
     for (const side of [-1, 1]) {
@@ -5306,6 +5357,7 @@
     drawObjectiveHud();
     if (state === "play") drawGateWarnings();
     drawMiniLabel();
+    drawLandmarkLabel();
     if (state === "play") { drawOffscreen(); drawMinimap(); }
     if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); }
     drawCombo();
@@ -5577,7 +5629,48 @@
     if (!o.spr || o.sprRes !== Sprites.res) { o.spr = Sprites.obstacle(o, theme()); o.sprRes = Sprites.res; }
     const jx = o.shakeT > 0 ? Math.sin(run.time * 90) * 1.6 : 0; // v3.3: Barrikade wackelt unter den Schlägen
     ctx.drawImage(o.spr.c, o.x + o.spr.ox + jx, o.y + o.spr.oy, o.spr.w, o.spr.h);
+    if (ANIM_OBS[o.kind]) ANIM_OBS[o.kind](o, run.time, o.x + o.w / 2, o.y + o.h / 2);
   }
+  // v3.4 bewegte Teile in 2D (in 3D übernimmt das render3d.js): Blaulicht, Lichtstrahl, Mühlenflügel, Wasserspiele, Rotor
+  const ANIM_OBS = {
+    polizeiauto: (o, t, cx, cy) => { const on = Math.sin(t * 15) > 0; glowAt(on ? "70,120,255" : "255,50,40", cx, cy, 44, 0.75); },
+    leuchtturm: (o, t, cx, cy) => {
+      const a = t * 1.3; ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = "rgba(255,240,180,0.16)";
+      for (const s of [0, Math.PI]) { ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 230, a + s - 0.13, a + s + 0.13); ctx.closePath(); ctx.fill(); }
+      ctx.restore(); glowAt("255,236,170", cx, cy, 20, 0.9);
+    },
+    windmuehle: (o, t, cx, cy) => {
+      ctx.save(); ctx.translate(cx, cy + 6); ctx.rotate(t * 0.9);
+      for (let k = 0; k < 4; k++) { ctx.rotate(Math.PI / 2); ctx.fillStyle = "#4a3a2a"; ctx.fillRect(-1.5, 0, 3, 44); ctx.fillStyle = "rgba(232,226,208,0.92)"; ctx.fillRect(2, 10, 9, 32); }
+      ctx.restore();
+    },
+    zentrifuge: (o, t, cx, cy) => { ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 9); for (let k = 0; k < 6; k++) { ctx.rotate(Math.PI / 3); ctx.fillStyle = k % 2 ? "#7aff6a" : "#ff6ad5"; ctx.fillRect(9, -2, 4, 4); } ctx.restore(); },
+    kaethchen: (o, t, cx, cy) => fountainSparkle(o, t, cx, cy, 18),
+    schoenbrunnen: (o, t, cx, cy) => fountainSparkle(o, t, cx, cy, 24),
+    narrenwagen: (o, t, cx, cy) => { if (Math.sin(t * 2.6) > 0.96) for (let i = 0; i < 2; i++) fxSparks(o.x + o.w * 0.42, o.y + o.h / 2 - 10, -Math.PI / 2, 1.4, 1, pick(KAMELLE), rand(90, 160)); },
+  };
+  function fountainSparkle(o, t, cx, cy, r) {
+    ctx.fillStyle = "rgba(200,236,255,0.8)";
+    for (let k = 0; k < 10; k++) { const a = k * 0.63 + t * 0.7, rr = r * (0.4 + 0.6 * ((t * 1.7 + k * 0.37) % 1)); ctx.fillRect(cx + Math.cos(a) * rr - 1, cy + Math.sin(a) * rr * 0.8 - 1, 2, 2); }
+  }
+  // Namensschild des Wahrzeichens, solange der Held in der Nähe ist
+  function drawLandmarkLabel() {
+    if (state !== "play") return;
+    const o = obstacles.find((q) => q.landmark);
+    if (!o) return;
+    const cx = o.x + o.w / 2, d = Math.hypot(player.x - cx, player.y - (o.y + o.h / 2)), a = clamp((380 - d) / 140, 0, 1);
+    if (a <= 0) return;
+    const q = scr(cx, o.y, mode3d ? LANDMARK_H[o.kind] || 70 : 0);
+    if (q.behind) return;
+    const txt = tr(o.name).toUpperCase();
+    ctx.save(); ctx.globalAlpha = a; ctx.font = FONT_UI(12, 800);
+    const w = ctx.measureText(txt).width + 22, y = q.y - 16;
+    ctx.fillStyle = "rgba(20,16,10,0.82)"; ctx.fillRect(q.x - w / 2, y - 11, w, 20);
+    ctx.fillStyle = "#e8c64a"; ctx.fillRect(q.x - w / 2, y - 11, 3, 20); ctx.fillRect(q.x + w / 2 - 3, y - 11, 3, 20);
+    ctx.textAlign = "center"; ctx.fillStyle = "#ffe2a3"; ctx.fillText(txt, q.x, y + 4);
+    ctx.restore();
+  }
+  const LANDMARK_H = { kaethchen: 128, roessle: 104, loewe: 118, schoenbrunnen: 170, bach: 124, tor: 110, bembel: 90, narrenwagen: 96, leuchtturm: 160, windmuehle: 130, eiffel: 150, riesenrad: 130, golem: 112 };
 
   function roundRect(x, y, w, h, r, g = ctx) {
     r = Math.min(r, w / 2, h / 2);

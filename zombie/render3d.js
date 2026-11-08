@@ -1026,6 +1026,45 @@ void main() {
   }
 
   const obsNormal = (kind) => { obstacleTexture(kind); return normalTexFor(`obs:${kind}`, 3); };
+  // v3.4 Denkmal-Figuren aus Grundkörpern (einfarbig Bronze/Stein/Kupfer). Vorderseite +x wie bei allen Figuren;
+  // stehende Figuren werden zur Kamera (+z) gedreht, Pferd und Löwe zeigen ihr Profil.
+  function statue(g, m, x, y, z, s, kind = "coat") {
+    const f = group(x, y, z); f.scale.setScalar(s); f.rotation.y = -Math.PI / 2; g.add(f);
+    if (kind === "dress") f.add(mesh(cone(7, 18, 8), m, 0, 9, 0));
+    else { for (const sz of [-1.8, 1.8]) f.add(mesh(cyl(1.6, 1.8, 10, 6), m, 0, 5, sz)); f.add(mesh(cyl(4.6, 6, 12, 8), m, 0, 14, 0)); }
+    f.add(mesh(cyl(3.6, 4.4, 9, 8), m, 0, 22, 0));
+    for (const sz of [-1, 1]) { const a = mesh(cyl(1.2, 1.4, 10, 6), m, 0.6, 21, sz * 5); a.rotation.x = sz * 0.25; f.add(a); }
+    f.add(mesh(ico(3.2, 1), m, 0, 30, 0));
+    if (kind === "coat") { f.add(mesh(ico(3.7, 1), m, -0.8, 30.8, 0)); f.add(mesh(box(2, 1.6, 6), m, 3.4, 23, 3.4)); } // Perücke, Notenrolle
+    else f.add(mesh(cone(3.9, 4.2, 8), m, -0.2, 32.6, 0)); // Kopftuch
+    return f;
+  }
+  function horse(g, m, x, y, z, s, rearing) {
+    const h = group(x, y, z); h.scale.setScalar(s); g.add(h);
+    const body = mesh(box(22, 9, 8), m, 0, 16, 0); if (rearing) body.rotation.z = 0.45; h.add(body);
+    const nx = rearing ? 9 : 11, ny = rearing ? 27 : 22;
+    const neck = mesh(box(4, 12, 5), m, nx, ny, 0); neck.rotation.z = -0.5; h.add(neck);
+    const head = mesh(box(9, 4.5, 4), m, nx + 5, ny + 6, 0); head.rotation.z = -0.4; h.add(head);
+    h.add(mesh(box(5, 2, 1.2), m, nx - 1.5, ny + 7, 0));
+    for (const [lx, lz, front] of [[-8, -2.6, false], [-8, 2.6, false], [8, -2.6, true], [8, 2.6, true]]) {
+      const up = rearing && front, leg = mesh(box(2.4, 12, 2.4), m, lx + (up ? 4 : 0), up ? 21 : 6, lz);
+      if (up) leg.rotation.z = lz > 0 ? 1.15 : 0.7;
+      h.add(leg);
+    }
+    const tail = mesh(box(2, 10, 2), m, -12, 14, 0); tail.rotation.z = 0.6; h.add(tail);
+    return h;
+  }
+  function lion(g, m, x, y, z, s) {
+    const l = group(x, y, z); l.scale.setScalar(s); g.add(l);
+    l.add(mesh(box(22, 9, 9), m, -2, 10, 0));
+    l.add(mesh(ico(7, 1), m, 9, 16, 0));
+    l.add(mesh(box(6, 5, 5), m, 14, 15, 0));
+    for (const [lx, lz] of [[-10, -3], [-10, 3], [8, -3], [8, 3]]) l.add(mesh(box(3, 8, 3), m, lx, 4, lz));
+    const tail = mesh(box(12, 1.6, 1.6), m, -16, 12, 0); tail.rotation.z = 0.5; l.add(tail);
+    l.add(mesh(ico(1.8, 0), m, -21, 15, 0));
+    l.add(mesh(box(1, 9, 7), slam("#1e64c8"), 13, 8, 0)); // Wappenschild zwischen den Pranken
+    return l;
+  }
   function obstacleModel(o, theme) {
     const g = group(o.x + o.w / 2, 0, o.y + o.h / 2);
     const W = o.w, Hd = o.h;
@@ -1318,6 +1357,301 @@ void main() {
         for (const zz of [-0.32, -0.12, 0.12, 0.32]) c.add(mesh(box(1.4, 50, 1.4), slam("#9aa0a4"), len / 2 + 1.1, 29, zz * wid));
         break;
       }
+      // ---------------------------------------------------------------- v3.4 Alltagsobjekte
+      case "litfass": {
+        // Litfaßsäule: Plakate rundum, grüner Ring und Kuppel
+        const r0 = Math.min(W, Hd) / 2 - 1;
+        const posters = tex("obs:litfass", 192, 64, (gg) => {
+          gg.fillStyle = "#d8d0bc"; gg.fillRect(0, 0, 192, 64);
+          const cols = ["#c8301e", "#1e4a8a", "#e8b81a", "#2a7a3a", "#7a2a6a", "#e86a1a"];
+          for (let i = 0; i < 6; i++) {
+            const x = i * 32 + 1, h = 26 + (i % 3) * 8;
+            gg.fillStyle = cols[i]; gg.fillRect(x, 4, 30, h);
+            gg.fillStyle = "rgba(255,255,255,0.85)"; gg.fillRect(x + 4, 8, 22, 4); gg.fillRect(x + 4, 15, 16, 3);
+            gg.fillStyle = "rgba(0,0,0,0.5)"; gg.fillRect(x + 3, h - 6, 24, 2);
+            gg.fillStyle = cols[(i + 2) % 6]; gg.fillRect(x, h + 7, 30, 56 - h);
+            gg.fillStyle = "rgba(255,255,255,0.7)"; gg.fillRect(x + 5, h + 12, 20, 3);
+          }
+        });
+        add(mesh(cyl(r0, r0, 58, 16), new T3.MeshLambertMaterial({ map: posters }), 0, 33, 0));
+        add(mesh(cyl(r0 + 2, r0 + 2.5, 4, 16), slam("#2a4a32"), 0, 2, 0));
+        add(mesh(cyl(r0 + 2.5, r0 + 2, 5, 16), slam("#2a4a32"), 0, 64, 0));
+        const dome = mesh(ico(r0 + 1, 1), slam("#2a4a32"), 0, 66, 0); dome.scale.y = 0.45; add(dome);
+        g.add(mesh(ico(3, 0), slam("#c8a84a"), 0, 72, 0));
+        break;
+      }
+      case "tonnen": {
+        // Mülltonnen-Reihe: Gelber Sack, Altpapier, Bio, Restmüll
+        const n = 3, cw = W / n, cols = [["#e8c21a", "#b89410"], ["#2a5ab0", "#1a3a78"], ["#6a4a2a", "#4a3218"]];
+        for (let i = 0; i < n; i++) {
+          const [c0, c1] = cols[(i + Math.floor(R() * 3)) % 3], x = -W / 2 + cw * (i + 0.5);
+          add(mesh(box(cw - 3, 32, Hd - 2), slam(c0), x, 16, 0));
+          const lid = add(mesh(box(cw - 1, 3, Hd), slam(c1), x, 33.5, R() < 0.3 ? -2 : 0));
+          if (R() < 0.25) { lid.rotation.x = -0.5; lid.position.y = 36; }
+          g.add(mesh(box(cw * 0.4, 2, 1), slam("#222"), x, 30, Hd / 2));
+          for (const sx of [-1, 1]) { const wh = mesh(cyl(3, 3, 2, 8), slam("#151515"), x + sx * (cw / 2 - 5), 3, -Hd / 2 + 2); wh.rotation.z = Math.PI / 2; g.add(wh); }
+        }
+        break;
+      }
+      case "parkbank": {
+        const len = o.vert ? Hd : W, wid = o.vert ? W : Hd, c = group(); if (o.vert) c.rotation.y = Math.PI / 2; g.add(c);
+        const wood = slam("#7a5230"), iron = slam("#1e2224");
+        for (let k = 0; k < 3; k++) c.add(add(mesh(box(len, 2, wid * 0.22), wood, 0, 14, -wid * 0.28 + k * wid * 0.26)));
+        for (let k = 0; k < 2; k++) { const b = add(mesh(box(len, 4, 2), wood, 0, 21 + k * 6, -wid * 0.42)); c.add(b); }
+        for (const sx of [-1, 1]) { c.add(add(mesh(box(3, 14, wid * 0.8), iron, sx * (len / 2 - 6), 7, 0))); c.add(mesh(box(3, 18, 2.4), iron, sx * (len / 2 - 6), 20, -wid * 0.42)); }
+        break;
+      }
+      case "polizeiauto": {
+        // Streifenwagen: silber-blau, Blaulichtbalken auf dem Dach (blinkt, siehe moving)
+        const len = o.vert ? Hd : W, wid = o.vert ? W : Hd, c = group(); if (o.vert) c.rotation.y = Math.PI / 2; g.add(c);
+        const paint = slam("#d8dde2"), blue = slam("#1e4aa8");
+        c.add(add(mesh(box(len, 20, wid), paint, 0, 16, 0)));
+        for (const sz of [-1, 1]) c.add(mesh(box(len * 0.9, 5, 0.8), blue, 0, 15, sz * (wid / 2 + 0.3)));
+        const glass = smat("glass", () => new T3.MeshLambertMaterial({ color: 0x1b2733, emissive: 0x0a1018 }));
+        c.add(add(mesh(box(len * 0.5, 15, wid * 0.86), glass, -len * 0.04, 33, 0)));
+        c.add(add(mesh(box(len * 0.36, 3, wid * 0.8), paint, -len * 0.06, 41.5, 0)));
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const wh = mesh(cyl(8, 8, 6, 10), slam("#151515"), sx * len * 0.3, 8, sz * (wid / 2 - 2)); wh.rotation.x = Math.PI / 2; c.add(wh); }
+        const bar = group(-len * 0.06, 45, 0); c.add(bar);
+        bar.add(mesh(box(6, 3, wid * 0.7), slam("#2a2a2a"), 0, -1, 0));
+        const bl = mesh(box(5, 4, wid * 0.3), sbasic("#3a7aff"), 0, 1.5, -wid * 0.17), rd = mesh(box(5, 4, wid * 0.3), sbasic("#ff2a2a"), 0, 1.5, wid * 0.17);
+        bar.add(bl, rd);
+        g.userData.moving = [{ obj: bar, fn: (b, t) => { const on = Math.sin(t * 15) > 0; bl.visible = on; rd.visible = !on; } }];
+        break;
+      }
+      case "bushalte": {
+        // Bushaltestelle: Wartehäuschen mit Glasrückwand, Dach, Bank, Haltestellenschild (grünes H auf gelbem Kreis)
+        const glass = smat("boothglass", () => new T3.MeshLambertMaterial({ color: 0x8fc8de, emissive: 0x1a3440 })), frame = slam("#5a6066");
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(mesh(box(2.5, 52, 2.5), frame, sx * (W / 2 - 2), 26, sz * (Hd / 2 - 2)));
+        g.add(mesh(box(W - 4, 44, 1), glass, 0, 26, -Hd / 2 + 2));
+        for (const sx of [-1, 1]) g.add(mesh(box(1, 44, Hd - 6), glass, sx * (W / 2 - 2), 26, 0));
+        add(mesh(box(W + 6, 3, Hd + 6), slam("#3a4046"), 0, 53.5, 0));
+        add(mesh(box(W * 0.6, 3, Hd * 0.3), slam("#7a5230"), 0, 14, -Hd * 0.2));
+        g.add(mesh(box(W * 0.25, 9, 1.2), sbasic("#e8f0f4"), -W * 0.25, 40, -Hd / 2 + 2.8));
+        const pole = group(W / 2 + 6, 0, Hd / 2 - 2); g.add(pole);
+        pole.add(mesh(cyl(1.2, 1.2, 60, 6), slam("#9aa0a4"), 0, 30, 0));
+        const sign = mesh(cyl(7, 7, 1.4, 14), slam("#f2d21a"), 0, 60, 0); sign.rotation.x = Math.PI / 2; pole.add(sign);
+        pole.add(mesh(box(6, 7, 1.6), slam("#1e7a3a"), 0, 60, 0.4));
+        break;
+      }
+      case "rollstuhl": {
+        const silver = slam("#9aa3ad"), black = slam("#1a1a1a");
+        for (const sz of [-1, 1]) { const wh = mesh(ring(10, 1.4), black, 0, 11, sz * (Hd / 2 - 2)); add(wh); g.add(mesh(ring(8, 0.6), silver, 0, 11, sz * (Hd / 2 - 0.6))); }
+        add(mesh(box(W * 0.7, 3, Hd - 8), slam("#2a3a5a"), 0, 15, 0));
+        add(mesh(box(2.5, 16, Hd - 8), slam("#2a3a5a"), -W * 0.32, 24, 0));
+        for (const sz of [-1, 1]) { g.add(mesh(box(W * 0.6, 1.6, 1.6), silver, 0, 21, sz * (Hd / 2 - 5))); g.add(mesh(cyl(2.4, 2.4, 2, 8), black, W * 0.32, 2.4, sz * (Hd / 2 - 6)).rotateX(Math.PI / 2)); }
+        break;
+      }
+      case "infusion": {
+        const silver = slam("#b8c0c8");
+        add(mesh(cyl(1, 1, 60, 6), silver, 0, 30, 0));
+        for (let k = 0; k < 4; k++) { const leg = mesh(box(12, 1.6, 2), silver, 0, 1.5, 0); leg.rotation.y = k * Math.PI / 2; leg.translateX(6); g.add(leg); }
+        g.add(mesh(box(12, 1.2, 1.2), silver, 0, 60, 0));
+        add(mesh(box(5, 9, 2.4), slam("#d8eef4"), 4.5, 53, 0));
+        g.add(mesh(box(3.6, 5, 2.6), slam("#b8202a"), -4.5, 54, 0));
+        g.add(mesh(cyl(0.3, 0.3, 30, 4), slam("#e8f0f4"), 4.5, 34, 0));
+        break;
+      }
+      case "zentrifuge": {
+        // Labor-Zentrifuge: Gehäuse, Glasdeckel, darunter der rotierende Rotor mit leuchtenden Proben
+        const r0 = Math.min(W, Hd) / 2 - 2;
+        add(mesh(box(W - 2, 26, Hd - 2), slam("#c8ced4"), 0, 13, 0));
+        g.add(mesh(box(W * 0.5, 5, 1), sbasic("#3aff8a"), 0, 16, Hd / 2 - 0.6));
+        const rotor = group(0, 30, 0); g.add(rotor);
+        rotor.add(mesh(cyl(r0 * 0.85, r0 * 0.85, 3, 12), slam("#5a646c"), 0, 0, 0));
+        for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; rotor.add(mesh(cyl(2.2, 2.2, 7, 6), sbasic(k % 2 ? "#7aff6a" : "#ff6ad5"), Math.cos(a) * r0 * 0.6, 3, Math.sin(a) * r0 * 0.6)); }
+        g.add(mesh(cyl(r0, r0, 1, 14), smat("boothglass", () => new T3.MeshLambertMaterial({ color: 0x8fc8de, emissive: 0x1a3440 })), 0, 38, 0));
+        g.userData.moving = [{ obj: rotor, fn: (r, t) => { r.rotation.y = t * 9; } }];
+        break;
+      }
+      // ---------------------------------------------------------------- v3.4 Stadt-Wahrzeichen (Hingucker)
+      case "kaethchen": {
+        // Heilbronn: Käthchenbrunnen – Brunnenschale, Säule, Bronze-Mädchen mit Kopftuch, sprudelndes Wasser
+        const stone = slam("#7e725c"), stoneD = slam("#665c4a"), bronze = slam("#7a643a"), r0 = Math.min(W, Hd) / 2;
+        add(mesh(cyl(r0, r0 + 2, 14, 16), stone, 0, 7, 0));
+        g.add(mesh(cyl(r0 + 2.5, r0 + 2.5, 3, 16), stoneD, 0, 14, 0));
+        g.add(mesh(cyl(r0 - 4, r0 - 4, 1, 16), smat("water", () => new T3.MeshLambertMaterial({ color: 0x2a5a72, emissive: 0x061a24 })), 0, 13, 0));
+        add(mesh(cyl(9, 12, 40, 8), stone, 0, 32, 0));
+        add(mesh(cyl(16, 14, 6, 10), stoneD, 0, 54, 0));
+        statue(g, bronze, 0, 57, 0, 1.9, "dress");
+        const jets = group(0, 0, 0); g.add(jets);
+        for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 + 0.4, j = mesh(cone(2, 14, 5), sbasic("#7ab8d8"), Math.cos(a) * 13, 46, Math.sin(a) * 13); j.rotation.z = Math.PI; jets.add(j); }
+        g.userData.moving = [{ obj: jets, fn: (j, t) => { j.children.forEach((c, i) => { c.scale.y = 0.8 + 0.25 * Math.sin(t * 9 + i * 1.7); }); } }];
+        break;
+      }
+      case "roessle": {
+        // Stuttgart: das Rössle aus dem Stadtwappen – schwarzes Pferd, steigend, auf gelbem Sockel
+        const plinth = slam("#a8882a"), black = slam("#1e1a16");
+        add(mesh(box(W, 34, Hd), slam("#6e6450"), 0, 17, 0));
+        add(mesh(box(W + 6, 4, Hd + 6), slam("#5a5242"), 0, 2, 0));
+        add(mesh(box(W - 10, 6, Hd - 10), plinth, 0, 37, 0));
+        g.add(mesh(box(W * 0.5, 10, 1), plinth, 0, 18, Hd / 2 + 0.6));
+        horse(g, black, 0, 40, 0, 1.9, true);
+        break;
+      }
+      case "loewe": {
+        // München: Bayerischer Löwe auf dem Sockel, daneben die weiß-blaue Rautenfahne (weht)
+        const stone = slam("#76705e"), bronze = slam("#8a7040");
+        add(mesh(box(W * 0.72, 30, Hd), stone, -W * 0.12, 15, 0));
+        add(mesh(box(W * 0.72 + 6, 4, Hd + 6), slam("#5e5a4a"), -W * 0.12, 30, 0));
+        lion(g, bronze, -W * 0.12, 32, 0, 1.8);
+        const pole = group(W / 2 - 6, 0, 0); g.add(pole);
+        pole.add(mesh(cyl(1.4, 1.8, 110, 6), slam("#b8b8b0"), 0, 55, 0));
+        const raute = tex("obs:raute", 64, 40, (gg) => { gg.fillStyle = "#f4f4f0"; gg.fillRect(0, 0, 64, 40); gg.fillStyle = "#1e64c8"; for (let y = 0; y < 5; y++) for (let x = 0; x < 9; x++) if ((x + y) % 2 === 0) { gg.beginPath(); gg.moveTo(x * 8, y * 8 + 4); gg.lineTo(x * 8 + 4, y * 8); gg.lineTo(x * 8 + 8, y * 8 + 4); gg.lineTo(x * 8 + 4, y * 8 + 8); gg.fill(); } });
+        const flag = group(0, 96, 0); pole.add(flag);
+        flag.add(mesh(box(1, 24, 38), new T3.MeshLambertMaterial({ map: raute }), 0, 0, -19));
+        g.userData.moving = [{ obj: flag, fn: (f, t) => { f.rotation.y = 0.35 + Math.sin(t * 2.2) * 0.25; f.rotation.x = Math.sin(t * 3.1) * 0.05; } }];
+        break;
+      }
+      case "schoenbrunnen": {
+        // Nürnberg: Schöner Brunnen – achteckiges Becken, gotische Turmspitze in Gold und Farbe, kleine Figuren
+        const stone = slam("#7a766e"), gold = slam("#b8862a"), red = slam("#8a2018"), r0 = Math.min(W, Hd) / 2;
+        add(mesh(cyl(r0, r0 + 2, 12, 8), stone, 0, 6, 0));
+        g.add(mesh(cyl(r0 - 4, r0 - 4, 1, 8), smat("water", () => new T3.MeshLambertMaterial({ color: 0x3a7a9a, emissive: 0x0a2a3a })), 0, 11, 0));
+        let y = 12;
+        [[20, 30, stone], [16, 28, gold], [12, 26, red], [8.5, 24, gold], [5.5, 22, stone]].forEach(([rr, h, m], i) => {
+          add(mesh(cyl(rr * 0.8, rr, h, 8), m, 0, y + h / 2, 0));
+          for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4 + i * 0.2; g.add(mesh(cone(1.4, 7, 4), gold, Math.cos(a) * rr, y + h + 2, Math.sin(a) * rr)); if (i < 3 && k % 2 === 0) g.add(mesh(ico(1.6, 0), slam(i % 2 ? "#e8d8b8" : "#3a5a8a"), Math.cos(a) * (rr + 1.5), y + h * 0.5, Math.sin(a) * (rr + 1.5))); }
+          y += h;
+        });
+        add(mesh(cone(5, 28, 8), gold, 0, y + 14, 0));
+        g.add(mesh(ico(2.6, 0), gold, 0, y + 30, 0));
+        // der goldene Ring im Gitter (Glücksbringer)
+        g.add(mesh(ring(3, 0.6), gold, r0 - 2, 14, 0));
+        break;
+      }
+      case "bach": {
+        // Leipzig: Bach-Denkmal – Bronzefigur mit Perücke und Gehrock auf Sockel, Notenrolle in der Hand
+        const stone = slam("#625e56"), bronze = slam("#56684e");
+        add(mesh(box(W, 12, Hd), stone, 0, 6, 0));
+        add(mesh(box(W * 0.7, 40, Hd * 0.7), stone, 0, 32, 0));
+        add(mesh(box(W * 0.78, 4, Hd * 0.78), slam("#524e46"), 0, 52, 0));
+        g.add(mesh(box(W * 0.4, 8, 1), slam("#a8985a"), 0, 32, Hd * 0.35 + 0.6));
+        statue(g, bronze, 0, 54, 0, 2.0, "coat");
+        break;
+      }
+      case "tor": {
+        // Berlin: Brandenburger Tor – Sockel, sechs dorische Säulen, Gebälk, Attika und Quadriga (Kupfergrün)
+        const sand = slam("#d8c8a0"), sandD = slam("#b8a880"), copper = slam("#4a8a6a");
+        add(mesh(box(W, 6, Hd), sandD, 0, 3, 0));
+        for (let k = 0; k < 6; k++) { const x = -W / 2 + 10 + k * ((W - 20) / 5); add(mesh(cyl(4.2, 4.6, 52, 10), sand, x, 32, 0)); add(mesh(box(11, 3, 11), sandD, x, 7, 0)); }
+        add(mesh(box(W + 4, 10, Hd + 4), sand, 0, 63, 0));
+        add(mesh(box(W * 0.55, 12, Hd * 0.7), sandD, 0, 74, 0));
+        for (const sx of [-1, 1]) add(mesh(box(W * 0.12, 26, Hd), sand, sx * (W / 2 - W * 0.06), 32, 0));
+        const q = group(0, 80, 0); g.add(q);
+        for (let k = 0; k < 4; k++) horse(q, copper, -9 + k * 6, 0, 2, 0.42, false);
+        q.add(mesh(box(8, 6, 10), copper, 0, 4, -4));
+        statue(q, copper, 0, 6, -5, 0.55, "dress");
+        q.add(mesh(cyl(0.5, 0.5, 18, 4), copper, 3, 18, -5));
+        q.add(mesh(ring(2.6, 0.5), copper, 3, 27, -5));
+        break;
+      }
+      case "bembel": {
+        // Frankfurt: Riesen-Bembel (Apfelweinkrug) – grauer Steinzeug-Bauch mit blauen Ranken, Henkel, Holztisch mit Gerippten
+        const r0 = Math.min(W, Hd) / 2 - 6;
+        const glaze = tex("obs:bembel", 128, 64, (gg) => {
+          gg.fillStyle = "#a8acb0"; gg.fillRect(0, 0, 128, 64);
+          gg.strokeStyle = "#1e3a8a"; gg.lineWidth = 3;
+          for (const y of [8, 56]) { gg.beginPath(); gg.moveTo(0, y); gg.lineTo(128, y); gg.stroke(); }
+          gg.lineWidth = 2.2;
+          for (let x = 0; x < 128; x += 32) { gg.beginPath(); gg.moveTo(x, 32); gg.bezierCurveTo(x + 8, 14, x + 24, 50, x + 32, 32); gg.stroke(); gg.beginPath(); gg.arc(x + 16, 26, 4, 0, Math.PI * 2); gg.stroke(); }
+        });
+        const body = mesh(ico(r0, 2), new T3.MeshLambertMaterial({ map: glaze }), 0, r0 + 2, 0); body.scale.y = 1.15; add(body);
+        add(mesh(cyl(r0 * 0.45, r0 * 0.55, 14, 12), slam("#a8acb0"), 0, r0 * 2.3 + 6, 0));
+        g.add(mesh(ring(r0 * 0.5, 2), slam("#1e3a8a"), 0, r0 * 2.3 + 13, 0));
+        const handle = mesh(torus(r0 * 0.5, 2.6, Math.PI), slam("#a8acb0"), -r0 * 0.95, r0 * 1.4, 0); handle.rotation.z = Math.PI / 2; g.add(handle);
+        g.add(mesh(cone(3, 9, 6), slam("#a8acb0"), r0 * 0.55, r0 * 2.3 + 10, 0).rotateZ(-0.9));
+        for (const [x, z] of [[r0 + 6, r0 * 0.5], [r0 + 9, -r0 * 0.4]]) g.add(mesh(cyl(2.6, 2.2, 8, 8), smat("gerippt", () => new T3.MeshLambertMaterial({ color: 0xd8e0c0, emissive: 0x2a2a10 })), x, 4, z));
+        break;
+      }
+      case "narrenwagen": {
+        // Köln: Karnevalswagen – Wagen in Rot-Weiß, Riesenkopf eines Jecken mit Narrenkappe (nickt), Kamelle-Kisten
+        const len = W, wid = Hd;
+        add(mesh(box(len, 16, wid), slam("#c81e1e"), 0, 14, 0));
+        for (let k = 0; k < 6; k++) g.add(mesh(box(len / 6 - 2, 5, wid + 0.6), slam(k % 2 ? "#f4f0e8" : "#c81e1e"), -len / 2 + (k + 0.5) * (len / 6), 9, 0));
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const wh = mesh(cyl(6, 6, 4, 10), slam("#1a1a1a"), sx * len * 0.34, 6, sz * (wid / 2 - 1)); wh.rotation.x = Math.PI / 2; g.add(wh); }
+        const headG = group(-len * 0.08, 24, 0); g.add(headG);
+        headG.add(mesh(ico(17, 2), slam("#f0c8a0"), 0, 17, 0));
+        headG.add(mesh(ico(4, 1), slam("#d8302a"), 15, 16, 0));
+        for (const sz of [-6, 6]) headG.add(mesh(ico(2.4, 1), slam("#1a1a1a"), 13, 23, sz));
+        headG.add(mesh(box(2, 3, 14), slam("#a8201e"), 14, 9, 0));
+        const capCols = ["#2a8a3a", "#e8c21a", "#c81e1e"];
+        for (let k = 0; k < 3; k++) { const cn = mesh(cone(6, 22, 6), slam(capCols[k]), 0, 36, (k - 1) * 9); cn.rotation.x = (k - 1) * 0.6; headG.add(cn); headG.add(mesh(ico(2.2, 0), sbasic("#ffe24a"), 0, 47, (k - 1) * 18)); }
+        for (const z of [-wid * 0.3, wid * 0.3]) add(mesh(box(12, 8, 10), slam("#c8a46a"), len * 0.32, 26, z));
+        g.userData.moving = [{ obj: headG, fn: (h, t) => { h.rotation.z = Math.sin(t * 2.6) * 0.18; h.rotation.x = Math.sin(t * 1.7) * 0.08; } }];
+        break;
+      }
+      case "leuchtturm": {
+        // Hamburg: Leuchtturm rot-weiß, Galerie, Laterne mit kreisendem Lichtstrahl
+        const r0 = Math.min(W, Hd) / 2 - 4;
+        const stripes = tex("obs:leuchtturm", 32, 64, (gg) => { for (let k = 0; k < 6; k++) { gg.fillStyle = k % 2 ? "#f2eee6" : "#c81e1e"; gg.fillRect(0, k * 64 / 6, 32, 64 / 6 + 1); } });
+        add(mesh(cyl(r0 + 6, r0 + 8, 10, 12), slam("#6a6a64"), 0, 5, 0));
+        add(mesh(cyl(r0 * 0.62, r0, 118, 14), new T3.MeshLambertMaterial({ map: stripes }), 0, 69, 0));
+        add(mesh(cyl(r0 * 0.9, r0 * 0.9, 3, 14), slam("#2a2a2a"), 0, 129, 0));
+        g.add(mesh(ring(r0 * 0.88, 0.8), slam("#2a2a2a"), 0, 134, 0));
+        g.add(mesh(cyl(r0 * 0.5, r0 * 0.5, 12, 12), sbasic("#fff2b0"), 0, 137, 0));
+        add(mesh(cone(r0 * 0.62, 12, 12), slam("#c81e1e"), 0, 149, 0));
+        const beam = group(0, 137, 0); g.add(beam);
+        const bm = smat("beam:light", () => new T3.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.22, blending: T3.AdditiveBlending, depthWrite: false }));
+        for (const s of [1, -1]) { const b = mesh(cyl(1.5, 14, 170, 8, true), bm, s * 88, 0, 0); b.rotation.z = Math.PI / 2; beam.add(b); }
+        g.userData.moving = [{ obj: beam, fn: (b, t) => { b.rotation.y = t * 1.3; } }];
+        break;
+      }
+      case "windmuehle": {
+        // Amsterdam: Windmühle – achteckiger Turm, Galerie, Kappe, vier Flügel mit Gitter (drehen sich)
+        const r0 = Math.min(W, Hd) / 2 - 4;
+        add(mesh(cyl(r0 * 0.6, r0 * 0.85, 70, 8), slam("#5a6a4a"), 0, 35, 0));
+        add(mesh(cyl(r0 * 0.95, r0 * 0.95, 3, 8), slam("#3a2a1a"), 0, 38, 0));
+        add(mesh(cone(r0 * 0.66, 22, 8), slam("#3a2a22"), 0, 81, 0));
+        g.add(mesh(box(8, 10, 1), slam("#e8e0c8"), 0, 20, r0 * 0.8));
+        const hub = group(0, 76, r0 * 0.65); g.add(hub);
+        hub.add(mesh(cyl(3, 3, 6, 8), slam("#2a2a2a"), 0, 0, 0).rotateX(Math.PI / 2));
+        const sail = slam("#e8e2d0"), lath = slam("#4a3a2a");
+        for (let k = 0; k < 4; k++) {
+          const arm = group(); arm.rotation.z = k * Math.PI / 2; hub.add(arm);
+          arm.add(mesh(box(2, 62, 1.6), lath, 0, 31, 2));
+          arm.add(mesh(box(12, 46, 0.8), sail, 7, 38, 2.6));
+        }
+        g.userData.moving = [{ obj: hub, fn: (h, t) => { h.rotation.z = t * 0.9; } }];
+        break;
+      }
+      case "eiffel": {
+        // Paris: Eiffelturm in klein – vier geneigte Gitterbeine, zwei Plattformen, schlanke Spitze
+        const iron = slam("#6a4a32"), s = Math.min(W, Hd) / 2 - 6;
+        for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const leg = mesh(box(5, 48, 5), iron, sx * s * 0.62, 22, sz * s * 0.62); leg.rotation.z = -sx * 0.32; leg.rotation.x = sz * 0.32; add(leg); }
+        for (let k = 0; k < 4; k++) { const a = mesh(torus(s * 0.5, 1.4, Math.PI), iron, 0, 6, 0); a.rotation.y = k * Math.PI / 2; a.translateZ(s * 0.62); g.add(a); }
+        add(mesh(box(s * 1.2, 4, s * 1.2), iron, 0, 46, 0));
+        add(mesh(cyl(s * 0.18, s * 0.42, 44, 4), iron, 0, 70, 0).rotateY(Math.PI / 4));
+        add(mesh(box(s * 0.55, 3, s * 0.55), iron, 0, 92, 0));
+        add(mesh(cyl(1.2, s * 0.18, 46, 4), iron, 0, 116, 0).rotateY(Math.PI / 4));
+        g.add(mesh(ico(1.6, 0), sbasic("#ffd27a"), 0, 140, 0));
+        break;
+      }
+      case "riesenrad": {
+        // Wien: Riesenrad (Prater) – zwei Stützen, Rad mit Speichen und roten Gondeln (dreht langsam)
+        const red = slam("#a8201e"), steel = slam("#4a4e52"), R0 = 52;
+        for (const sz of [-1, 1]) for (const sx of [-1, 1]) { const st = mesh(box(3, 70, 3), steel, sx * 18, 33, sz * (Hd / 2 - 4)); st.rotation.z = sx * 0.28; add(st); }
+        add(mesh(box(W, 4, Hd), slam("#5a5a54"), 0, 2, 0));
+        const wheel = group(0, 66, 0); g.add(wheel);
+        for (const sz of [-1, 1]) wheel.add(mesh(ring(R0, 1.4), steel, 0, 0, sz * 6));
+        for (let k = 0; k < 8; k++) { const sp = mesh(box(1, R0 * 2, 1), steel, 0, 0, 0); sp.rotation.z = k * Math.PI / 8; wheel.add(sp); }
+        for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5; wheel.add(mesh(box(8, 7, 9), red, Math.cos(a) * R0, Math.sin(a) * R0 - 5, 0)); }
+        wheel.add(mesh(cyl(3, 3, 16, 8), steel, 0, 0, 0).rotateX(Math.PI / 2));
+        g.userData.moving = [{ obj: wheel, fn: (wh, t) => { wh.rotation.z = t * 0.25; } }];
+        break;
+      }
+      case "golem": {
+        // Prag: der Golem aus Lehm – massiger Körper, schwere Arme, Schriftzeichen auf der Stirn
+        const clay = slam("#7a4e32"), clayD = slam("#5a3a22");
+        g.scale.setScalar(1.25);
+        add(mesh(box(W * 0.8, 12, Hd * 0.8), slam("#5a5a54"), 0, 6, 0));
+        for (const sz of [-1, 1]) add(mesh(cyl(6, 7, 26, 8), clayD, 0, 25, sz * 8));
+        add(mesh(box(22, 30, 30), clay, 0, 52, 0));
+        for (const sz of [-1, 1]) { add(mesh(cyl(5, 6, 30, 8), clayD, 0, 46, sz * 20)); g.add(mesh(ico(6, 1), clay, 0, 30, sz * 20)); }
+        add(mesh(ico(10, 1), clay, 0, 74, 0));
+        g.add(mesh(box(1, 3, 8), sbasic("#ffd27a"), 9.4, 78, 0));
+        for (const sz of [-3.5, 3.5]) g.add(mesh(ico(1.4, 0), sbasic("#ff8a3a"), 9, 73, sz));
+        break;
+      }
       default:
         add(mesh(box(W, 30, Hd), slam("#555555"), 0, 15, 0));
     }
@@ -1477,7 +1811,11 @@ void main() {
     // Hindernisse
     const obs = new Map();
     for (const o of w.obstacles) {
-      const om = o.kind === "bretter" ? obstacleModel(o, w.theme) : bakeStatic(obstacleModel(o, w.theme));
+      const raw = obstacleModel(o, w.theme), mv = raw.userData.moving;
+      // v3.4: bewegte Teile (Blaulicht, Rotor, Fahne, Flügel …) vor dem Verschmelzen abnehmen und danach wieder anhängen
+      if (mv) for (const m of mv) raw.remove(m.obj);
+      const om = o.kind === "bretter" ? raw : bakeStatic(raw);
+      if (mv) { for (const m of mv) om.add(m.obj); om.userData.moving = mv; }
       obs.set(o, om);
       om.traverse((c) => { if (c.isMesh && !c.material.transparent) { c.castShadow = true; c.receiveShadow = true; } });
       g.add(om);
@@ -3705,9 +4043,10 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     });
   }
 
-  function syncObstacles() {
+  function syncObstacles(t = 0) {
     if (!room) return;
     for (const [o, grp] of room.obs) {
+      if (grp.userData.moving && !o.dead) for (const m of grp.userData.moving) m.fn(m.obj, t);
       if (o.gateBar && !o.dead && grp.userData.planks) {
         // v3.3 Barrikade unter Beschuss: wackelt, Bretter fallen mit dem Schaden
         const k = o.hp / o.maxHp, n = grp.userData.planks.length;
@@ -4391,6 +4730,12 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     for (const z of w.zaps) lightCands.push([z.x2, 30, z.y2, "127,231,255", 2.2 * (z.life / z.max), 200, 8]);
     for (const q of w.gates || []) if (q.warn > 0) lightCands.push([q.side < 0 ? D.L + 12 : D.R - 12, 46, q.y, "255,40,24", 3.4 * (0.45 + 0.55 * Math.abs(Math.sin(t * 9))), 320, 10]); // v3.0 Horden-Warnlicht
     for (const q of w.decoys || []) lightCands.push([q.x, 20, q.y, "255,180,80", 1.2 + Math.random() * 1.2, 150, 6]); // v2.9 Böller knistert
+    for (const o of w.obstacles) {
+      if (o.dead) continue;
+      if (o.kind === "polizeiauto") lightCands.push([o.x + o.w / 2, 48, o.y + o.h / 2, Math.sin(t * 15) > 0 ? "70,120,255" : "255,50,40", 2.4, 230, 6]);
+      else if (o.kind === "leuchtturm") lightCands.push([o.x + o.w / 2 + Math.cos(t * 1.3) * 120, 60, o.y + o.h / 2 - Math.sin(t * 1.3) * 120, "255,236,170", 2.2, 260, 6]);
+      else if (o.kind === "zentrifuge") lightCands.push([o.x + o.w / 2, 40, o.y + o.h / 2, "120,255,150", 1.2, 120, 4]);
+    }
     for (const o of w.orbs) if (o.type === "gear") lightCands.push([o.x, 46, o.y, LOOT_CSS[(o.item && o.item.r) || 0], 1.2, 170, 7]); // v3.3 Beutekiste (schwach, sonst überstrahlt die Kiste)
     for (const e of w.enemies) {
       if (e.burnT > 0 || e.type === "burner") lightCands.push([e.x, 26, e.y, "255,140,40", 1.4, 150, 4]);
@@ -4618,7 +4963,7 @@ void main() {
     syncSurvivors(w, t);
     syncPlayer(w, t);
     syncDoor(w);
-    syncObstacles();
+    syncObstacles(t);
     syncSupply(w);
     syncMini(w);
     syncHeli(w, t);

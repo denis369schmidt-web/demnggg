@@ -1223,7 +1223,10 @@ window.Sprites = (() => {
   // ------------------------------------------------------------------
   // Hindernisse (je Kapitel-Thema)
   // ------------------------------------------------------------------
-  const OBS_Z = { bretter: 16, car: 0, crate: 12, barrels: 0, barricade: 14, dumpster: 16, bed: 6, cabinet: 18, medcrate: 12, tank: 0, server: 18, labcrate: 12, bude: 16, bierbank: 4, fass: 0, maibaum: 0, brunnen: 6, boeller: 10, automat: 14, rebstock: 18, glascontainer: 16, dixi: 26, telefonzelle: 30, weihnachtsbaum: 0, strandkorb: 18, sandsack: 12, bus: 22, bauzaun: 30, feuertonne: 14, container: 24 };
+  const OBS_Z = { bretter: 16, car: 0, crate: 12, barrels: 0, barricade: 14, dumpster: 16, bed: 6, cabinet: 18, medcrate: 12, tank: 0, server: 18, labcrate: 12, bude: 16, bierbank: 4, fass: 0, maibaum: 0, brunnen: 6, boeller: 10, automat: 14, rebstock: 18, glascontainer: 16, dixi: 26, telefonzelle: 30, weihnachtsbaum: 0, strandkorb: 18, sandsack: 12, bus: 22, bauzaun: 30, feuertonne: 14, container: 24,
+    // v3.4 Alltagsobjekte und Stadt-Wahrzeichen
+    litfass: 30, tonnen: 18, parkbank: 6, polizeiauto: 0, bushalte: 30, rollstuhl: 8, infusion: 0, zentrifuge: 16,
+    kaethchen: 8, schoenbrunnen: 8, roessle: 14, loewe: 14, bach: 18, golem: 14, tor: 30, bembel: 0, narrenwagen: 14, leuchtturm: 0, windmuehle: 0, eiffel: 0, riesenrad: 30 };
   const CAR_COLORS = ["#7a2f2f", "#2f4f7a", "#6b6b6b", "#c9b48a", "#2f5f4a", "#d8d8d0"];
 
   const clamp2 = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1588,6 +1591,164 @@ window.Sprites = (() => {
           for (let i = 0; i < 6; i++) { gg.fillStyle = "rgba(120,60,20,0.45)"; blob(gg, R() * L2, R() * D2, 2 + R() * 5, R); gg.fill(); }
           gg.fillStyle = "rgba(255,255,255,0.75)"; gg.font = "bold 7px monospace"; gg.fillText("OGXU 204811", 8, D2 / 2 + 2.5);
           gg.restore();
+          break;
+        }
+        // ---------------------------------------------------------------- v3.4 Alltagsobjekte
+        case "litfass": {
+          const cx = x + o.w / 2, cy = y + o.h / 2, r0 = o.w / 2;
+          const cols = ["#c8301e", "#1e4a8a", "#e8b81a", "#2a7a3a", "#7a2a6a"];
+          for (let i = 0; i < 5; i++) { gg.fillStyle = cols[i]; gg.fillRect(x + (i * o.w) / 5, cy, o.w / 5 + 0.5, z); }
+          gg.fillStyle = "rgba(255,255,255,0.6)"; for (let i = 0; i < 5; i++) gg.fillRect(x + (i * o.w) / 5 + 2, cy + z * 0.3, o.w / 5 - 4, 2);
+          const sg = gg.createLinearGradient(x, 0, x + o.w, 0); sg.addColorStop(0, "rgba(0,0,0,0.45)"); sg.addColorStop(0.45, "rgba(255,255,255,0.12)"); sg.addColorStop(1, "rgba(0,0,0,0.5)"); gg.fillStyle = sg; gg.fillRect(x, cy, o.w, z);
+          gg.fillStyle = "#2a4a32"; gg.beginPath(); gg.ellipse(cx, cy + z, r0, r0 * 0.4, 0, 0, Math.PI); gg.fill();
+          gg.fillStyle = vol(gg, cx, cy, r0, "#2f5438", 0.25, -0.35); circ(gg, cx, cy, r0); gg.fill();
+          gg.fillStyle = "#c8a84a"; circ(gg, cx, cy, 3); gg.fill();
+          break;
+        }
+        case "tonnen": {
+          const cols = [["#e8c21a", "#b89410"], ["#2a5ab0", "#1a3a78"], ["#6a4a2a", "#4a3218"]], cw = o.w / 3;
+          for (let i = 0; i < 3; i++) {
+            const [c0, c1] = cols[(i + Math.floor(R() * 3)) % 3], bx = x + i * cw + 1;
+            box3d(gg, bx, y, cw - 2, o.h, z, c1, c0, "rgba(0,0,0,0.35)");
+            gg.fillStyle = "rgba(255,255,255,0.14)"; gg.fillRect(bx + 2, y + 2, cw - 6, 3);
+            gg.fillStyle = "#151515"; gg.fillRect(bx + cw * 0.3, y + o.h - 3, cw * 0.4 - 2, 2);
+          }
+          break;
+        }
+        case "parkbank": {
+          const wood = ["#8a5a32", "#7a4e2a", "#94643a"];
+          if (o.vert) { for (let k = 0; k < 4; k++) { gg.fillStyle = wood[k % 3]; gg.fillRect(x + 2 + k * (o.w - 4) / 4, y, (o.w - 4) / 4 - 1.5, o.h); } gg.fillStyle = "#1e2224"; for (const yy of [y + 5, y + o.h - 8]) gg.fillRect(x, yy, o.w, 3); }
+          else { for (let k = 0; k < 4; k++) { gg.fillStyle = wood[k % 3]; gg.fillRect(x, y + 2 + k * (o.h - 4) / 4, o.w, (o.h - 4) / 4 - 1.5); } gg.fillStyle = "#1e2224"; for (const xx of [x + 5, x + o.w - 8]) gg.fillRect(xx, y, 3, o.h + z); }
+          break;
+        }
+        case "polizeiauto": {
+          gg.save(); gg.translate(x, y + z);
+          const w2 = o.vert ? o.h : o.w, h2 = o.vert ? o.w : o.h;
+          if (o.vert) { gg.translate(o.w, 0); gg.rotate(Math.PI / 2); }
+          gg.fillStyle = vol(gg, w2 / 2, h2 / 2, w2 * 0.6, "#d8dde2", 0.2, -0.35); rr(gg, 2, 3, w2 - 4, h2 - 6, 12); gg.fill();
+          gg.fillStyle = "#1e4aa8"; gg.fillRect(4, 4, w2 - 8, 3); gg.fillRect(4, h2 - 7, w2 - 8, 3);
+          gg.fillStyle = "#1b2733"; rr(gg, w2 * 0.28, 8, w2 * 0.44, h2 - 16, 5); gg.fill();
+          gg.fillStyle = "#d8dde2"; rr(gg, w2 * 0.36, 11, w2 * 0.24, h2 - 22, 3); gg.fill();
+          gg.fillStyle = "#3a7aff"; gg.fillRect(w2 * 0.44, 12, 5, (h2 - 24) / 2); gg.fillStyle = "#ff2a2a"; gg.fillRect(w2 * 0.44, h2 / 2, 5, (h2 - 24) / 2);
+          gg.fillStyle = "#ffe9a8"; gg.fillRect(w2 - 5, 7, 3, 7); gg.fillRect(w2 - 5, h2 - 14, 3, 7);
+          gg.restore();
+          break;
+        }
+        case "bushalte": {
+          box3d(gg, x, y, o.w, o.h, z, "#3a4046", "rgba(150,200,222,0.55)", "rgba(0,0,0,0.4)");
+          gg.fillStyle = "rgba(255,255,255,0.12)"; gg.fillRect(x + 3, y + 3, o.w - 6, 3);
+          gg.strokeStyle = "#5a6066"; gg.lineWidth = 2; for (const xx of [x + 1, x + o.w - 1]) { gg.beginPath(); gg.moveTo(xx, y + o.h); gg.lineTo(xx, y + o.h + z); gg.stroke(); }
+          gg.fillStyle = "#7a5230"; gg.fillRect(x + o.w * 0.2, y + o.h + z * 0.55, o.w * 0.6, 4);
+          gg.fillStyle = "#f2d21a"; circ(gg, x + o.w - 6, y + 6, 6); gg.fill(); gg.fillStyle = "#1e7a3a"; gg.font = "bold 9px sans-serif"; gg.textAlign = "center"; gg.fillText("H", x + o.w - 6, y + 9.5);
+          break;
+        }
+        case "rollstuhl": {
+          gg.fillStyle = "#1a1a1a"; gg.fillRect(x + 2, y, o.w - 4, 4); gg.fillRect(x + 2, y + o.h - 4, o.w - 4, 4);
+          gg.fillStyle = "#2a3a5a"; rr(gg, x + 5, y + 5, o.w - 10, o.h - 10, 3); gg.fill();
+          gg.fillStyle = "#3a4e72"; gg.fillRect(x + 4, y + 5, 4, o.h - 10);
+          gg.fillStyle = "#9aa3ad"; gg.fillRect(x + o.w - 7, y + 6, 3, o.h - 12);
+          break;
+        }
+        case "infusion": {
+          const cx = x + o.w / 2, cy = y + o.h / 2;
+          gg.strokeStyle = "#b8c0c8"; gg.lineWidth = 1.6; gg.beginPath(); gg.moveTo(cx - 8, cy); gg.lineTo(cx + 8, cy); gg.moveTo(cx, cy - 8); gg.lineTo(cx, cy + 8); gg.stroke();
+          gg.fillStyle = "#d8eef4"; rr(gg, cx - 4, cy - 6, 8, 7, 2); gg.fill(); gg.fillStyle = "#b8202a"; gg.fillRect(cx - 2, cy + 1, 4, 3);
+          break;
+        }
+        case "zentrifuge": {
+          box3d(gg, x, y, o.w, o.h, z, "#c8ced4", "#9aa2aa", "rgba(0,0,0,0.3)");
+          const cx = x + o.w / 2, cy = y + o.h / 2;
+          gg.fillStyle = "#5a646c"; circ(gg, cx, cy, o.w * 0.36); gg.fill();
+          gg.fillStyle = "rgba(143,200,222,0.45)"; circ(gg, cx, cy, o.w * 0.42); gg.fill();
+          gg.fillStyle = "#3aff8a"; gg.fillRect(x + o.w * 0.3, y + o.h + z * 0.4, o.w * 0.4, 3);
+          break;
+        }
+        // ---------------------------------------------------------------- v3.4 Stadt-Wahrzeichen
+        case "kaethchen": case "schoenbrunnen": {
+          const cx = x + o.w / 2, cy = y + o.h / 2, r0 = o.w / 2, oct = o.kind === "schoenbrunnen";
+          const poly = (r) => { gg.beginPath(); for (let k = 0; k < (oct ? 8 : 24); k++) { const a = (k / (oct ? 8 : 24)) * TAU + (oct ? Math.PI / 8 : 0); gg.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } gg.closePath(); };
+          gg.fillStyle = "#8a8070"; gg.fillRect(x, cy, o.w, z); poly(r0); gg.fillStyle = "#b8a888"; gg.fill();
+          poly(r0 - 5); const wg = gg.createRadialGradient(cx - r0 * 0.3, cy - r0 * 0.3, 2, cx, cy, r0); wg.addColorStop(0, "#7ac8e8"); wg.addColorStop(1, "#1e5a7a"); gg.fillStyle = wg; gg.fill();
+          if (oct) {
+            for (const [rr2, c] of [[18, "#a8a29a"], [14, "#d8a82a"], [10, "#a8281e"], [6.5, "#d8a82a"], [3.5, "#f2d27a"]]) { gg.fillStyle = c; circ(gg, cx, cy - (18 - rr2) * 0.6, rr2); gg.fill(); }
+            gg.fillStyle = "#d8a82a"; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; circ(gg, cx + Math.cos(a) * 15, cy + Math.sin(a) * 15 - 2, 1.6); gg.fill(); }
+          } else {
+            gg.fillStyle = "#9a8a6a"; circ(gg, cx, cy, 10); gg.fill();
+            gg.fillStyle = vol(gg, cx, cy - 4, 8, "#7a6a3a", 0.3, -0.3); circ(gg, cx, cy - 4, 7); gg.fill();
+            gg.fillStyle = "#5a4a2a"; circ(gg, cx, cy - 9, 3.6); gg.fill();
+          }
+          break;
+        }
+        case "roessle": case "loewe": case "bach": case "golem": {
+          const cx = x + o.w / 2, cy = y + o.h / 2;
+          const pw = o.kind === "loewe" ? o.w * 0.72 : o.w;
+          box3d(gg, x, y, pw, o.h, z, "#a89a7a", "#8a7c5e", "rgba(0,0,0,0.35)");
+          if (o.kind === "roessle") { gg.fillStyle = "#d8b83a"; gg.fillRect(x + 5, y + 5, o.w - 10, o.h - 10); }
+          const fig = { roessle: "#1e1a16", loewe: "#6a5a32", bach: "#3e4a3a", golem: "#8a5a3a" }[o.kind], bx = o.kind === "loewe" ? x + pw / 2 : cx;
+          gg.fillStyle = vol(gg, bx, cy, o.h * 0.4, fig, 0.3, -0.3);
+          if (o.kind === "roessle") { gg.beginPath(); gg.ellipse(bx - 3, cy, o.w * 0.3, 6, 0, 0, TAU); gg.fill(); gg.beginPath(); gg.ellipse(bx + o.w * 0.28, cy - 4, 7, 3.6, -0.5, 0, TAU); gg.fill(); gg.fillRect(bx - o.w * 0.34, cy - 1.5, 8, 3); }
+          else if (o.kind === "loewe") { gg.beginPath(); gg.ellipse(bx - 2, cy, pw * 0.32, 7, 0, 0, TAU); gg.fill(); circ(gg, bx + pw * 0.26, cy - 2, 7.5); gg.fill(); gg.fillStyle = "#1e64c8"; gg.fillRect(bx + pw * 0.34, cy - 3, 3, 8); }
+          else if (o.kind === "golem") { circ(gg, bx, cy, o.h * 0.32); gg.fill(); gg.fillStyle = "#6a4228"; for (const s of [-1, 1]) { circ(gg, bx + s * o.h * 0.36, cy, 6); gg.fill(); } gg.fillStyle = "#ffd27a"; gg.fillRect(bx - 4, cy - 2, 8, 2); }
+          else { circ(gg, bx, cy, o.h * 0.28); gg.fill(); gg.fillStyle = "#4e5a48"; circ(gg, bx, cy - 3, 5); gg.fill(); }
+          if (o.kind === "loewe") {
+            const px = x + o.w - 6; gg.fillStyle = "#d8d8d0"; circ(gg, px, cy, 2); gg.fill();
+            for (let yy = 0; yy < 3; yy++) for (let xx = 0; xx < 4; xx++) { gg.fillStyle = (xx + yy) % 2 ? "#f4f4f0" : "#1e64c8"; gg.fillRect(px - 16 + xx * 4, cy - 16 + yy * 4, 4, 4); }
+          }
+          break;
+        }
+        case "tor": {
+          gg.fillStyle = "#b8a880"; gg.fillRect(x, y + o.h * 0.25, o.w, o.h * 0.75 + z);
+          gg.fillStyle = "#d8c8a0"; gg.fillRect(x, y, o.w, o.h * 0.75);
+          gg.fillStyle = "#c8b890"; gg.fillRect(x + o.w * 0.22, y + o.h * 0.12, o.w * 0.56, o.h * 0.5);
+          gg.fillStyle = "rgba(0,0,0,0.35)"; for (let k = 1; k < 5; k++) gg.fillRect(x + 10 + k * ((o.w - 20) / 5) - ((o.w - 20) / 10) + 4, y + o.h * 0.75, (o.w - 20) / 5 - 12, z);
+          gg.fillStyle = "#e8dcb8"; for (let k = 0; k < 6; k++) { gg.fillRect(x + 10 + k * ((o.w - 20) / 5) - 3.5, y + o.h * 0.75, 7, z); }
+          gg.fillStyle = vol(gg, x + o.w / 2, y + o.h * 0.35, 16, "#4a8a6a", 0.3, -0.3); gg.beginPath(); gg.ellipse(x + o.w / 2, y + o.h * 0.36, 16, 6, 0, 0, TAU); gg.fill();
+          break;
+        }
+        case "bembel": {
+          const r0 = Math.min(o.w, o.h) / 2 - 6, cx = x + o.w / 2 - 3, cy = y + o.h / 2;
+          gg.fillStyle = "#7a5230"; rr(gg, x + o.w - 22, y + o.h * 0.2, 20, o.h * 0.6, 3); gg.fill();
+          for (const [dx, dy] of [[0.86, 0.32], [0.9, 0.62]]) { gg.fillStyle = "rgba(216,224,192,0.85)"; circ(gg, x + o.w * dx, y + o.h * dy, 3); gg.fill(); }
+          gg.fillStyle = vol(gg, cx, cy, r0, "#a8acb0", 0.3, -0.35); circ(gg, cx, cy, r0); gg.fill();
+          gg.strokeStyle = "#1e3a8a"; gg.lineWidth = 2; circ(gg, cx, cy, r0 - 3); gg.stroke(); circ(gg, cx, cy, r0 * 0.5); gg.stroke();
+          for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; gg.beginPath(); gg.arc(cx + Math.cos(a) * r0 * 0.75, cy + Math.sin(a) * r0 * 0.75, 3, 0, TAU); gg.stroke(); }
+          gg.strokeStyle = "#a8acb0"; gg.lineWidth = 4; gg.beginPath(); gg.arc(cx - r0, cy, 8, Math.PI * 0.5, Math.PI * 1.5); gg.stroke();
+          break;
+        }
+        case "narrenwagen": {
+          box3d(gg, x, y, o.w, o.h, z, "#c81e1e", "#a8181a", "rgba(0,0,0,0.35)");
+          gg.fillStyle = "#f4f0e8"; for (let k = 0; k < 6; k += 2) gg.fillRect(x + (k * o.w) / 6, y + o.h, o.w / 6, z);
+          const hx = x + o.w * 0.42, hy = y + o.h / 2;
+          gg.fillStyle = vol(gg, hx, hy, 18, "#f0c8a0", 0.3, -0.3); circ(gg, hx, hy, 17); gg.fill();
+          gg.fillStyle = "#d8302a"; circ(gg, hx + 12, hy, 4); gg.fill();
+          ["#2a8a3a", "#e8c21a", "#c81e1e"].forEach((c, k) => { gg.fillStyle = c; gg.beginPath(); gg.moveTo(hx - 6, hy - 6 + k * 6); gg.lineTo(hx - 26, hy - 18 + k * 18); gg.lineTo(hx - 4, hy + k * 6 - 2); gg.fill(); gg.fillStyle = "#ffe24a"; circ(gg, hx - 26, hy - 18 + k * 18, 2.4); gg.fill(); });
+          gg.fillStyle = "#c8a46a"; gg.fillRect(x + o.w * 0.75, y + 6, 12, 10); gg.fillRect(x + o.w * 0.75, y + o.h - 16, 12, 10);
+          break;
+        }
+        case "leuchtturm": case "windmuehle": case "eiffel": {
+          const cx = x + o.w / 2, cy = y + o.h / 2, r0 = o.w / 2 - 4;
+          gg.fillStyle = "rgba(0,0,0,0.3)"; circ(gg, cx + 4, cy + 4, r0 + 4); gg.fill();
+          if (o.kind === "leuchtturm") {
+            gg.fillStyle = "#6a6a64"; circ(gg, cx, cy, r0 + 6); gg.fill();
+            for (let k = 0; k < 5; k++) { gg.fillStyle = k % 2 ? "#f2eee6" : "#c81e1e"; circ(gg, cx, cy, r0 * (1 - k * 0.17)); gg.fill(); }
+            gg.fillStyle = "#fff2b0"; circ(gg, cx, cy, r0 * 0.22); gg.fill();
+          } else if (o.kind === "windmuehle") {
+            gg.fillStyle = "#5a6a4a"; gg.beginPath(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4 + Math.PI / 8; gg.lineTo(cx + Math.cos(a) * r0 * 0.85, cy + Math.sin(a) * r0 * 0.85); } gg.closePath(); gg.fill();
+            gg.fillStyle = "#3a2a22"; circ(gg, cx, cy, r0 * 0.55); gg.fill();
+          } else {
+            gg.strokeStyle = "#6a4a32"; gg.lineWidth = 3;
+            for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { gg.beginPath(); gg.moveTo(cx + sx * r0, cy + sy * r0); gg.lineTo(cx, cy); gg.stroke(); }
+            gg.lineWidth = 1.2; for (const k of [0.75, 0.45, 0.2]) gg.strokeRect(cx - r0 * k, cy - r0 * k, r0 * k * 2, r0 * k * 2);
+            gg.fillStyle = "#ffd27a"; circ(gg, cx, cy, 2.5); gg.fill();
+          }
+          break;
+        }
+        case "riesenrad": {
+          const cx = x + o.w / 2, cy = y + o.h / 2;
+          gg.fillStyle = "#5a5a54"; gg.fillRect(x, y + o.h * 0.3, o.w, o.h * 0.4);
+          gg.strokeStyle = "#4a4e52"; gg.lineWidth = 2; gg.beginPath(); gg.ellipse(cx, cy + z * 0.3, o.w * 0.45, o.h * 0.45 + z * 0.5, 0, 0, TAU); gg.stroke();
+          gg.fillStyle = "#a8201e"; for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5; gg.fillRect(cx + Math.cos(a) * o.w * 0.45 - 3, cy + z * 0.3 + Math.sin(a) * (o.h * 0.45 + z * 0.5) - 2.5, 6, 5); }
+          gg.fillStyle = "#4a4e52"; circ(gg, cx, cy + z * 0.3, 3); gg.fill();
           break;
         }
         default:

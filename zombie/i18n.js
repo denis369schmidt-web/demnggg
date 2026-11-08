@@ -442,6 +442,10 @@ window.I18N = (() => {
     "Neue Ware jeden Tag · Tasche {n}/{m}": "New stock every day · bag {n}/{m}",
     "Ausrüstungskiste": "Gear crate", "Zufälliges Teil – mit Glück episch oder legendär": "Random item – epic or legendary if you're lucky",
     "Neue Ware": "New stock", "Tauscht alle vier Angebote aus": "Replaces all four offers",
+    // v3.4 Stadt-Wahrzeichen und neue Objekte
+    "Käthchenbrunnen": "Käthchen Fountain", "Stuttgarter Rössle": "Stuttgart Horse", "Bayerischer Löwe": "Bavarian Lion", "Schöner Brunnen": "Beautiful Fountain",
+    "Bach-Denkmal": "Bach Monument", "Brandenburger Tor": "Brandenburg Gate", "Riesen-Bembel": "Giant Cider Jug", "Karnevalswagen": "Carnival Float",
+    "Leuchtturm": "Lighthouse", "Windmühle": "Windmill", "Eiffelturm": "Eiffel Tower", "Riesenrad": "Ferris Wheel", "Der Golem": "The Golem", "MÜLLABFUHR!": "TRASH DAY!",
     "FUNKMASTEN AKTIVIEREN": "ACTIVATE RADIO MASTS",
     "Halte nacheinander an allen drei Masten die Stellung": "Hold each of the three masts in turn",
     "MAST {n}/3 ONLINE": "MAST {n}/3 ONLINE",

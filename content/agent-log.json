@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-11-08T12:01:01.363Z",
+    "edition": "2026-11-08",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 20,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Straßenträume“, Double-Time Drill @ 138 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Flip the Beat“ (12 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-11-08 veröffentlicht (Hash 978c659d)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-11-07T11:43:54.682Z",
     "edition": "2026-11-07",
     "attempt": 3,
@@ -1851,51 +1886,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-09-18 veröffentlicht (Hash fe76a8a9)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-09-17T10:00:03.300Z",
-    "edition": "2026-09-17",
-    "attempt": 2,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 25,
-    "stages": [
-      {
-        "name": "Editor",
-        "ok": false,
-        "summary": "Versuch 1 abgelehnt (Frische)."
-      },
-      {
-        "name": "Editor",
-        "ok": false,
-        "summary": "Versuch 2 abgelehnt (Frische)."
-      },
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Eiszeit“, Uptempo Battle @ 113 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Silben-Sprint“ (8 Bars), Versuch 3."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-09-17 veröffentlicht (Hash b2e979d4)."
       }
     ]
   }

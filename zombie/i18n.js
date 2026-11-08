@@ -445,6 +445,13 @@ window.I18N = (() => {
     // v3.4 Stadt-Wahrzeichen und neue Objekte
     "Käthchenbrunnen": "Käthchen Fountain", "Stuttgarter Rössle": "Stuttgart Horse", "Bayerischer Löwe": "Bavarian Lion", "Schöner Brunnen": "Beautiful Fountain",
     "Bach-Denkmal": "Bach Monument", "Brandenburger Tor": "Brandenburg Gate", "Riesen-Bembel": "Giant Cider Jug", "Karnevalswagen": "Carnival Float",
+    "Hingehen: Segen": "Walk up: blessing", "Käthchens Segen": "Käthchen's Blessing", "+30 % Leben": "+30% health", "Rössle-Kraft": "Horse Power",
+    "+6 % Tempo für den Einsatz": "+6% speed for this run", "Löwenmut": "Lion's Courage", "+8 % Schaden für den Einsatz": "+8% damage for this run",
+    "Am Ring gedreht": "Turned the Ring", "+1 Gratis-Neuwurf, +5 % Krit-Chance": "+1 free reroll, +5% crit chance", "Toccata": "Toccata", "Spezial-Energie voll": "Special energy full",
+    "Freiheit": "Freedom", "+2 Wurfwaffen": "+2 throwables", "Ebbelwoi": "Apple Wine", "+20 % Leben und Adrenalin": "+20% health and adrenaline",
+    "Kamelle!": "Sweets!", "Süßes Konfetti und Münzen": "Sweet confetti and coins", "Leuchtfeuer": "Beacon", "Zombies ringsum geblendet": "Nearby zombies blinded",
+    "Rückenwind": "Tailwind", "Vue sur Paris": "Vue sur Paris", "+12 % Krit-Schaden": "+12% crit damage", "Überblick": "Overview", "+60 Spezial-Energie": "+60 special energy",
+    "Schutz des Golem": "Golem's Protection", "−10 % erlittener Schaden": "−10% damage taken",
     "Ab {c}": "From {c}", "GESPERRT": "LOCKED", "Erreiche {c}, um das freizuschalten": "Reach {c} to unlock",
     "Leuchtturm": "Lighthouse", "Windmühle": "Windmill", "Eiffelturm": "Eiffel Tower", "Riesenrad": "Ferris Wheel", "Der Golem": "The Golem", "MÜLLABFUHR!": "TRASH DAY!",
     "FUNKMASTEN AKTIVIEREN": "ACTIVATE RADIO MASTS",

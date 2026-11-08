@@ -1021,7 +1021,34 @@
     floorCtx.setTransform(res, 0, 0, res, 0, 0);
     glossCtx = c.gloss ? c.gloss.getContext("2d") : null;
     if (glossCtx) { const gr = c.gloss.width / W; glossCtx.setTransform(gr, 0, 0, gr, 0, 0); glossCtx.fillStyle = BLOOD_GLOSS; glossCtx.globalCompositeOperation = "lighten"; }
+    for (const o of obstacles) if (o.landmark) paintPlaza(floorCtx, o);
+    paintWallAO(floorCtx);
     return c;
+  }
+  // v3.4 weiche Verschattung am Mauerfuß (Umgebungsverdeckung) – Boden wirkt in 2D und 3D plastischer
+  function paintWallAO(g) {
+    const strip = (x0, y0, x1, y1, rx, ry, rw, rh) => { const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, "rgba(0,0,0,0.42)"); gr.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gr; g.fillRect(rx, ry, rw, rh); };
+    strip(L, 0, L + 30, 0, L, T, 30, B - T);
+    strip(R, 0, R - 30, 0, R - 30, T, 30, B - T);
+    strip(0, T, 0, T + 34, L, T, R - L, 34);
+    strip(0, B, 0, B - 18, L, B - 18, R - L, 18);
+  }
+  // v3.4 Platz um das Wahrzeichen: Pflaster im Kreis (bzw. Rechteck beim Tor), Randsteine, zwei Blumenbeete
+  function paintPlaza(g, o) {
+    const cx = o.x + o.w / 2, cy = o.y + o.h / 2, round = o.w / o.h < 1.6, rx = o.w / 2 + 34, ry = round ? o.h / 2 + 34 : o.h / 2 + 30;
+    g.save();
+    g.beginPath(); if (round) g.ellipse(cx, cy, rx, ry, 0, 0, TAU); else g.rect(cx - rx, cy - ry, rx * 2, ry * 2);
+    g.fillStyle = "#4a463e"; g.fill(); g.clip();
+    for (let k = 0; k < 9; k++) { const rr = (k / 9) * Math.max(rx, ry); g.strokeStyle = "rgba(0,0,0,0.28)"; g.lineWidth = 1; g.beginPath(); if (round) g.ellipse(cx, cy, rr, rr * (ry / rx), 0, 0, TAU); else g.rect(cx - rr, cy - rr * (ry / rx), rr * 2, rr * 2 * (ry / rx)); g.stroke(); }
+    for (let k = 0; k < 24; k++) { const a = (k / 24) * TAU; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * rx * 1.2, cy + Math.sin(a) * ry * 1.2); g.stroke(); }
+    for (let k = 0; k < 220; k++) { g.fillStyle = Math.random() < 0.5 ? "rgba(255,240,210,0.05)" : "rgba(0,0,0,0.12)"; g.fillRect(cx + (Math.random() - 0.5) * rx * 2, cy + (Math.random() - 0.5) * ry * 2, 4, 3); }
+    g.restore();
+    g.strokeStyle = "#6e665a"; g.lineWidth = 4; g.beginPath(); if (round) g.ellipse(cx, cy, rx, ry, 0, 0, TAU); else g.rect(cx - rx, cy - ry, rx * 2, ry * 2); g.stroke();
+    for (const s of [-1, 1]) {
+      const bx = cx + s * (rx + 18), by = cy + 6;
+      g.fillStyle = "#3a2a1a"; g.fillRect(bx - 9, by - 14, 18, 28);
+      for (let k = 0; k < 9; k++) { g.fillStyle = ["#d8302a", "#f2c21a", "#f4f0e8", "#8a4ad8", "#3a8a3a"][k % 5]; g.beginPath(); g.arc(bx - 5 + (k % 3) * 5, by - 9 + Math.floor(k / 3) * 9, 2.4, 0, TAU); g.fill(); }
+    }
   }
 
   // Dauerhafte Spuren auf dem Boden (Blut, Hülsen, Brandflecken …)
@@ -4616,6 +4643,7 @@
       stampDot(e.x + rand(-5, 5), e.y + rand(-5, 5), rand(0.9, 2) * (e.def.boss ? 2 : 1), e.def.blood);
     }
     updateObjective(dt);
+    updateLandmark();
     updateEvent();
     updateFuses(dt);
     updateHazards(dt);
@@ -5718,6 +5746,36 @@
     ctx.fillStyle = "rgba(200,236,255,0.8)";
     for (let k = 0; k < 10; k++) { const a = k * 0.63 + t * 0.7, rr = r * (0.4 + 0.6 * ((t * 1.7 + k * 0.37) % 1)); ctx.fillRect(cx + Math.cos(a) * rr - 1, cy + Math.sin(a) * rr * 0.8 - 1, 2, 2); }
   }
+  // v3.4 Segen des Wahrzeichens: einmal je Stadt und Einsatz – der Held geht hin und bekommt einen kleinen Vorteil, der zur Stadt passt
+  const LANDMARK_BLESS = {
+    kaethchen: ["Käthchens Segen", "+30 % Leben", () => healPlayer(player.maxHp * 0.3)],
+    roessle: ["Rössle-Kraft", "+6 % Tempo für den Einsatz", () => { player.speed *= 1.06; }],
+    loewe: ["Löwenmut", "+8 % Schaden für den Einsatz", () => { player.dmgMul *= 1.08; }],
+    schoenbrunnen: ["Am Ring gedreht", "+1 Gratis-Neuwurf, +5 % Krit-Chance", () => { run.freeRerolls = (run.freeRerolls || 0) + 1; player.crit += 0.05; }],
+    bach: ["Toccata", "Spezial-Energie voll", () => { run.ult = 100; }],
+    tor: ["Freiheit", "+2 Wurfwaffen", () => addThrow(null, 2, player.x, player.y)],
+    bembel: ["Ebbelwoi", "+20 % Leben und Adrenalin", () => { healPlayer(player.maxHp * 0.2); run.rage = Math.max(run.rage || 0, 6); }],
+    narrenwagen: ["Kamelle!", "Süßes Konfetti und Münzen", (o) => { for (let i = 0; i < 12; i++) orbs.push(makeOrb(o.x + o.w / 2, o.y + o.h / 2, "coin", 1)); for (let i = 0; i < 14; i++) fxSparks(o.x + o.w / 2, o.y, -Math.PI / 2, 1.6, 1, pick(KAMELLE), rand(120, 260)); }],
+    leuchtturm: ["Leuchtfeuer", "Zombies ringsum geblendet", () => { for (const e of enemies) if (!e.dead && !e.def.boss && (e.x - player.x) ** 2 + (e.y - player.y) ** 2 < 320 * 320) e.stunT = Math.max(e.stunT || 0, 2.5); fxFlash(player.x, player.y, 320, "255,240,190", 0.5); }],
+    windmuehle: ["Rückenwind", "+6 % Tempo für den Einsatz", () => { player.speed *= 1.06; }],
+    eiffel: ["Vue sur Paris", "+12 % Krit-Schaden", () => { player.critMul += 0.12; }],
+    riesenrad: ["Überblick", "+60 Spezial-Energie", () => { run.ult = Math.min(100, (run.ult || 0) + 60); }],
+    golem: ["Schutz des Golem", "−10 % erlittener Schaden", () => { player.dmgTaken = (player.dmgTaken || 1) * 0.9; }],
+  };
+  function updateLandmark() {
+    const o = obstacles.find((q) => q.landmark && !q.blessed);
+    if (!o) return;
+    if (run.blessed && run.blessed[o.kind]) { o.blessed = true; return; }
+    if (!circleRectOverlap({ x: player.x, y: player.y, r: player.r + 34 }, o)) return;
+    o.blessed = true; (run.blessed || (run.blessed = {}))[o.kind] = true;
+    const b = LANDMARK_BLESS[o.kind];
+    if (!b) return;
+    b[2](o);
+    track("blessings");
+    fxRing(o.x + o.w / 2, o.y + o.h / 2, Math.max(o.w, o.h) * 0.9, "255,214,120", 0.7); fxRing(player.x, player.y, 70, "255,214,120", 0.5);
+    showBanner(tr(b[0]).toUpperCase(), `${tr(o.name)}: ${tr(b[1])}`, 2.2);
+    sfx("level"); fx4d("level");
+  }
   // Namensschild des Wahrzeichens, solange der Held in der Nähe ist
   function drawLandmarkLabel() {
     if (state !== "play") return;
@@ -5727,12 +5785,13 @@
     if (a <= 0) return;
     const q = scr(cx, o.y, mode3d ? LANDMARK_H[o.kind] || 70 : 0);
     if (q.behind) return;
-    const txt = tr(o.name).toUpperCase();
+    const txt = tr(o.name).toUpperCase(), hint = !o.blessed && !(run.blessed && run.blessed[o.kind]) ? tr("Hingehen: Segen") : "";
     ctx.save(); ctx.globalAlpha = a; ctx.font = FONT_UI(12, 800);
-    const w = ctx.measureText(txt).width + 22, y = q.y - 16;
-    ctx.fillStyle = "rgba(20,16,10,0.82)"; ctx.fillRect(q.x - w / 2, y - 11, w, 20);
-    ctx.fillStyle = "#e8c64a"; ctx.fillRect(q.x - w / 2, y - 11, 3, 20); ctx.fillRect(q.x + w / 2 - 3, y - 11, 3, 20);
+    const w = Math.max(ctx.measureText(txt).width, hint ? ctx.measureText(hint).width * 0.85 : 0) + 22, y = q.y - 16, hh = hint ? 32 : 20;
+    ctx.fillStyle = "rgba(20,16,10,0.82)"; ctx.fillRect(q.x - w / 2, y - 11, w, hh);
+    ctx.fillStyle = "#e8c64a"; ctx.fillRect(q.x - w / 2, y - 11, 3, hh); ctx.fillRect(q.x + w / 2 - 3, y - 11, 3, hh);
     ctx.textAlign = "center"; ctx.fillStyle = "#ffe2a3"; ctx.fillText(txt, q.x, y + 4);
+    if (hint) { ctx.font = FONT_UI(10, 700); ctx.fillStyle = `rgba(168,255,62,${0.65 + 0.35 * Math.sin(run.time * 5)})`; ctx.fillText(hint, q.x, y + 16); }
     ctx.restore();
   }
   const LANDMARK_H = { kaethchen: 128, roessle: 104, loewe: 118, schoenbrunnen: 170, bach: 124, tor: 110, bembel: 90, narrenwagen: 96, leuchtturm: 160, windmuehle: 130, eiffel: 150, riesenrad: 130, golem: 112 };

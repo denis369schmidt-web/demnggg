@@ -1485,6 +1485,9 @@ void main() {
         add(mesh(box(W + 6, 4, Hd + 6), slam("#5a5242"), 0, 2, 0));
         add(mesh(box(W - 10, 6, Hd - 10), plinth, 0, 37, 0));
         g.add(mesh(box(W * 0.5, 10, 1), plinth, 0, 18, Hd / 2 + 0.6));
+        // Wappenschild vorn am Sockel: gelb mit schwarzem Pferd
+        g.add(mesh(box(16, 20, 1.4), slam("#d8b83a"), 0, 20, Hd / 2 + 1.4));
+        horse(g, black, 0, 12, Hd / 2 + 2.4, 0.42, true);
         horse(g, black, 0, 40, 0, 1.9, true);
         break;
       }
@@ -1527,6 +1530,8 @@ void main() {
         add(mesh(box(W * 0.78, 4, Hd * 0.78), slam("#524e46"), 0, 52, 0));
         g.add(mesh(box(W * 0.4, 8, 1), slam("#a8985a"), 0, 32, Hd * 0.35 + 0.6));
         statue(g, bronze, 0, 54, 0, 2.0, "coat");
+        // Orgelpfeifen hinter dem Denkmal (Thomaskirche)
+        for (let k = 0; k < 9; k++) { const h = 40 + (4 - Math.abs(k - 4)) * 9, px = -W * 0.4 + k * (W * 0.1); g.add(mesh(cyl(2.2, 2.2, h, 8), slam("#b8bcc0"), px, h / 2 + 6, -Hd * 0.44)); g.add(mesh(box(2.6, 2, 0.6), slam("#1e1e1e"), px, 6 + h * 0.22, -Hd * 0.44 + 2.2)); }
         break;
       }
       case "tor": {
@@ -1590,6 +1595,9 @@ void main() {
         g.add(mesh(ring(r0 * 0.88, 0.8), slam("#2a2a2a"), 0, 134, 0));
         g.add(mesh(cyl(r0 * 0.5, r0 * 0.5, 12, 12), sbasic("#fff2b0"), 0, 137, 0));
         add(mesh(cone(r0 * 0.62, 12, 12), slam("#c81e1e"), 0, 149, 0));
+        for (let k = 0; k < 7; k++) { const a = k * 0.9 + 0.3, rk = mesh(ico(6 + (k % 3) * 2, 0), slam("#4a4a46"), Math.cos(a) * (r0 + 9), 4, Math.sin(a) * (r0 + 9)); rk.scale.y = 0.6; g.add(rk); }
+        const lr = mesh(torus(6, 1.8), slam("#e8e4dc"), r0 * 0.75, 36, r0 * 0.68); lr.rotation.y = 0.7; g.add(lr);
+        for (let k = 0; k < 4; k++) { const seg = mesh(torus(6, 1.9, Math.PI / 4), slam("#c81e1e"), r0 * 0.75, 36, r0 * 0.68); seg.rotation.set(0, 0.7, k * Math.PI / 2); g.add(seg); }
         const beam = group(0, 137, 0); g.add(beam);
         const bm = smat("beam:light", () => new T3.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.22, blending: T3.AdditiveBlending, depthWrite: false }));
         for (const s of [1, -1]) { const b = mesh(cyl(1.5, 14, 170, 8, true), bm, s * 88, 0, 0); b.rotation.z = Math.PI / 2; beam.add(b); }
@@ -1624,6 +1632,7 @@ void main() {
         add(mesh(box(s * 0.55, 3, s * 0.55), iron, 0, 92, 0));
         add(mesh(cyl(1.2, s * 0.18, 46, 4), iron, 0, 116, 0).rotateY(Math.PI / 4));
         g.add(mesh(ico(1.6, 0), sbasic("#ffd27a"), 0, 140, 0));
+        for (let k = 0; k < 14; k++) { const y = 12 + k * 9, sp = s * 0.62 * Math.max(0.08, 1 - y / 130); g.add(mesh(ico(0.9, 0), sbasic("#fff0c0"), (k % 2 ? 1 : -1) * sp, y, (k % 4 < 2 ? 1 : -1) * sp)); }
         break;
       }
       case "riesenrad": {
@@ -1636,6 +1645,7 @@ void main() {
         for (let k = 0; k < 8; k++) { const sp = mesh(box(1, R0 * 2, 1), steel, 0, 0, 0); sp.rotation.z = k * Math.PI / 8; wheel.add(sp); }
         for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5; wheel.add(mesh(box(8, 7, 9), red, Math.cos(a) * R0, Math.sin(a) * R0 - 5, 0)); }
         wheel.add(mesh(cyl(3, 3, 16, 8), steel, 0, 0, 0).rotateX(Math.PI / 2));
+        for (let k = 0; k < 20; k++) { const a = k * Math.PI / 10 + 0.15; wheel.add(mesh(ico(1.3, 0), sbasic(k % 2 ? "#ffe2a0" : "#ff8a6a"), Math.cos(a) * R0, Math.sin(a) * R0, 7)); }
         g.userData.moving = [{ obj: wheel, fn: (wh, t) => { wh.rotation.z = t * 0.25; } }];
         break;
       }
@@ -1655,7 +1665,24 @@ void main() {
       default:
         add(mesh(box(W, 30, Hd), slam("#555555"), 0, 15, 0));
     }
+    if (o.landmark) plazaDeco(g, W, Hd);
     return g;
+  }
+  // v3.4 Platz-Ausstattung der Wahrzeichen: vier Laternen (Licht als Lichtinsel in fillBatches) und zwei Blumenbeete
+  function plazaDeco(g, W, Hd) {
+    const round = W / Hd < 1.6, ex = W / 2 + 30, ez = round ? Hd / 2 + 30 : Hd / 2 + 26, iron = slam("#1e2224");
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const x = sx * ex * (round ? 0.72 : 1), z = sz * ez * (round ? 0.72 : 1);
+      g.add(mesh(cyl(1.3, 2, 40, 6), iron, x, 20, z));
+      g.add(mesh(box(5, 7, 5), sbasic("#ffe0a0"), x, 43, z));
+      g.add(mesh(cone(4.4, 4, 4), iron, x, 48.5, z).rotateY(Math.PI / 4));
+    }
+    const cols = ["#d8302a", "#f2c21a", "#f4f0e8", "#8a4ad8", "#3a8a3a"];
+    for (const s of [-1, 1]) {
+      const bx = s * (ex + 18), bed = group(bx, 0, 6); g.add(bed);
+      bed.add(mesh(box(18, 5, 28), slam("#3a2a1a"), 0, 2.5, 0));
+      for (let k = 0; k < 9; k++) bed.add(mesh(ico(2.4, 0), slam(cols[k % 5]), -5 + (k % 3) * 5, 6, -9 + Math.floor(k / 3) * 9));
+    }
   }
   const mix3 = (hex, k) => { const c = new T3.Color(hex); if (k < 0) c.multiplyScalar(1 + k); else c.lerp(new T3.Color(1, 1, 1), k); return `#${c.getHexString()}`; };
 
@@ -4526,6 +4553,11 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       bill(addB, b.x, 18, b.y, b.r * 3.2, CELL.glow, b.rgb, 0.7);
     }
     for (const o of w.orbs) if (o.type === "heal") { bill(addB, o.x, 9, o.y, 20 + Math.sin(t * 6) * 3, CELL.glow, "120,255,140", 0.55); flat(floorB, o.x, 0.9, o.y, 0, 16, 16, CELL.ring, "120,255,140", 0.6); }
+    // v3.4 Laternen am Wahrzeichen: warme Lichtinseln am Boden
+    for (const o of w.obstacles) if (o.landmark && !o.dead) {
+      const round = o.w / o.h < 1.6, ex = (o.w / 2 + 30) * (round ? 0.72 : 1), ez = (round ? o.h / 2 + 30 : o.h / 2 + 26) * (round ? 0.72 : 1), cx = o.x + o.w / 2, cz = o.y + o.h / 2;
+      for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { flat(floorB, cx + sx * ex, 0.8, cz + sz * ez, 0, 34, 34, CELL.glow, "255,214,150", 0.32); bill(addB, cx + sx * ex, 43, cz + sz * ez, 10, CELL.glow, "255,224,160", 0.5); }
+    }
     // v3.4 weicher Kontaktschatten unter Hindernissen, wenn keine Schattenkarte läuft (Grafikstufe 1), und unter fliegenden Krähen
     if (quality < 2) for (const o of w.obstacles) if (!o.dead && !o.gateBar) flat(normB, o.x + o.w / 2 + 6, 0.5, o.y + o.h / 2 + 8, 0, o.w / 2 + 14, o.h / 2 + 14, CELL.blob, "0,0,0", 0.42);
     for (const b of w.birds || []) if (b.fly) flat(normB, b.x, 0.6, b.y, 0, 6, 4, CELL.blob, "0,0,0", Math.max(0, 0.35 - b.z / 600));

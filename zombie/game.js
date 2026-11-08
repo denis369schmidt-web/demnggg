@@ -709,7 +709,8 @@
     const barrier = !isBoss && !isSupply && run.room > 1 && objKind !== "gauntlet" && Math.random() < 0.38 ? genBarrier() : [];
     obstacles = clearGates(isSupply ? [] : genObstacles(Math.round((isBoss ? randi(0, 2) : randi(barrier.length ? 1 : 2, barrier.length ? 4 : 5)) * AREA_K + (isBoss ? 0 : 1)), barrier));
     run.gauntStages = objKind === "gauntlet" ? genGauntlet() : null; // ersetzt Gänge und Hindernisse
-    if (run.mode === "campaign" && !isSupply && objKind !== "gauntlet" && LANDMARK_DISTRICTS.includes(districtIdx())) placeLandmark(LANDMARKS[curCity().id]);
+    // Wahrzeichen nicht in Bezirken mit eigener Kulisse (Heilbronner Wartberg = Weinberg)
+    if (run.mode === "campaign" && !isSupply && objKind !== "gauntlet" && LANDMARK_DISTRICTS.includes(districtIdx()) && curDistrict()[0] !== "Wartberg") placeLandmark(LANDMARKS[curCity().id]);
     floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     initAmbient();

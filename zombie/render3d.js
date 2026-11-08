@@ -2386,6 +2386,26 @@ vec3 surf(vec3 c, vec3 p, float t, float px, float z) {
     c = mix(c, c * vec3(0.5, 0.42, 0.62), vein * (0.12 + 0.32 * z));
     c = mix(c, vec3(0.28, 0.035, 0.04), smoothstep(0.7, 0.86, 1.0 - mid) * smoothstep(0.55, 0.75, big) * 0.55 * z);
     gH = big * 1.4; gSheen = (0.05 + 0.07 * z) * aM; gShin = 16.0;
+    if (z > 0.5) {
+      // v3.3 Verwesung: graugrüne Nekrose-Flächen, Hautrisse, offene Wunden mit Eiterrand, vernähte Narben
+      float nec = sNoise(p * 0.32 + 3.3), lum = dot(c, vec3(0.3, 0.59, 0.11));
+      c = mix(c, vec3(lum * 0.8, lum * 0.95, lum * 0.66), smoothstep(0.55, 0.78, nec) * 0.55);
+      float crk = sLine(sNoise(p * 0.7 + 31.0), 0.03) * smoothstep(0.56, 0.72, nec) * aM;
+      c = mix(c, c * vec3(0.3, 0.2, 0.18), crk * 0.8);
+      float so = sNoise(p * 0.5 + 23.0) * smoothstep(0.45, 0.72, big); // wenige, größere Wunden
+      float core = smoothstep(0.6, 0.66, so), rim = smoothstep(0.52, 0.6, so) - core;
+      c = mix(c, vec3(0.5, 0.44, 0.2) * (0.7 + 0.6 * lum), rim * 0.45);
+      c = mix(c, vec3(0.13, 0.01, 0.018), core * 0.9);
+      float sc = sNoise(p * vec3(0.2, 0.09, 0.2) + 41.0), reg = smoothstep(0.6, 0.72, nec * 0.6 + mid * 0.4 + 0.08);
+      float scar = sLine(sc, 0.016) * reg * aM, stitch = sLine(sc, 0.05) * reg * step(0.72, fract((p.x + p.y + p.z) * 1.15)) * aF;
+      c = mix(c, vec3(0.82, 0.62, 0.6) * (0.55 + lum), scar * 0.55);
+      c = mix(c, vec3(0.1, 0.07, 0.05), stitch * 0.85);
+      gH += rim * 0.5 + scar * 0.7 + stitch * 0.5 - crk * 0.5 - core * 0.9;
+      gSheen += core * 0.16 * aM; // nasse Wunde
+    } else {
+      // Held/Überlebende: Sommersprossen und Poren, nur aus der Nähe
+      c *= 1.0 - smoothstep(0.74, 0.8, sNoise(p * 2.4 + 17.0)) * 0.12 * aF;
+    }
     return c;
   }
   if (t < 2.5) { // Stoff: Gewebe, Falten, Schmutz, Blut, Risse
@@ -2396,6 +2416,18 @@ vec3 surf(vec3 c, vec3 p, float t, float px, float z) {
     c = mix(c, vec3(0.22, 0.025, 0.03), smoothstep(0.66, 0.82, bl) * 0.6 * z);
     c = mix(c, vec3(0.06, 0.03, 0.025), smoothstep(0.84, 0.88, fold * 0.5 + (1.0 - bl) * 0.5 + big * 0.15) * 0.9 * z); // Risse
     gH = fold * 1.6;
+    // v3.3 Flicken mit Ziernaht (Zellraster ~8 Einheiten, beim Zombie häufiger) und Blut- bzw. Schmutz-Rinnsale
+    vec3 cq = p * vec3(0.12, 0.14, 0.12), ci = floor(cq), cf = abs(fract(cq) - 0.5);
+    float pd = 0.33 - max(max(cf.x, cf.y), cf.z);
+    if (sHash(ci + 5.0) > 0.86 - 0.08 * z && pd > 0.0) {
+      vec3 pc = c * (0.7 + 0.45 * sHash(ci + 9.0)) * vec3(1.0 + 0.2 * (sHash(ci + 2.0) - 0.5), 1.0, 1.0 - 0.18 * (sHash(ci + 4.0) - 0.5));
+      float bd = 1.0 - smoothstep(0.0, 0.035, pd), st = bd * step(0.5, fract((p.x + p.y + p.z) * 1.6)) * aF;
+      c = mix(pc, pc * 0.42, st * 0.85);
+      gH += 0.35 + bd * 0.3;
+    }
+    float dr = smoothstep(0.72, 0.86, sNoise(vec3(p.x * 1.1, p.y * 0.07, p.z * 1.1) + 51.0)) * smoothstep(0.4, 0.6, big);
+    c = mix(c, mix(c * vec3(0.62, 0.56, 0.48), vec3(0.2, 0.02, 0.03), z), dr * (0.3 + 0.3 * z));
+    gSheen = (smoothstep(0.66, 0.82, bl) + dr) * 0.1 * z * aM; gShin = 18.0; // frisches Blut glänzt feucht
     return c;
   }
   if (t < 3.5) { // Köper (Hose): schräge Rippen, verwaschene Stellen, Blut
@@ -2405,12 +2437,20 @@ vec3 surf(vec3 c, vec3 p, float t, float px, float z) {
     c = mix(c, c * vec3(0.55, 0.47, 0.38), smoothstep(0.66, 0.84, 1.0 - big) * 0.4);
     c = mix(c, vec3(0.22, 0.025, 0.03), smoothstep(0.7, 0.86, fold * 0.6 + big * 0.4) * 0.5 * z);
     gH = fold * 1.4;
+    // v3.3 verschlissene helle Stellen (Knie, Sitz) und Schlammspritzer
+    float wr = sNoise(p * vec3(0.35, 0.5, 0.35) + 61.0);
+    c = mix(c, c * 1.4 + vec3(0.03), smoothstep(0.62, 0.84, wr) * 0.38);
+    float mud = smoothstep(0.7, 0.8, sNoise(p * vec3(0.42, 0.3, 0.42) + 67.0)) * smoothstep(0.3, 0.6, 1.0 - wr);
+    c = mix(c, vec3(0.11, 0.085, 0.06), mud * (0.45 + 0.3 * z));
+    gH += mud * 0.6;
     return c;
   }
   if (t < 4.5) { // Leder/Gummi: weiche Abnutzung + Glanz (feine Linien würden auf Gürteln wie Schrift aussehen)
-    float mid = sNoise(p * 0.75 + 7.1);
+    float mid = sNoise(p * 0.75 + 7.1), worn = smoothstep(0.66, 0.86, mid);
     c *= 0.88 + 0.22 * mid;
-    gSheen = 0.22 * aM; gShin = 20.0;
+    c = mix(c, c * 1.5 + vec3(0.035), worn * 0.32); // v3.3 abgewetzte, matte Stellen
+    c = mix(c, vec3(0.16, 0.03, 0.025), smoothstep(0.7, 0.85, 1.0 - big) * 0.4 * z); // angetrocknetes Blut
+    gSheen = 0.22 * aM * (1.0 - worn * 0.7); gShin = 20.0;
     return c;
   }
   if (t < 5.5) { // Metall: gebürstet, Rost, Glanz
@@ -2418,7 +2458,10 @@ vec3 surf(vec3 c, vec3 p, float t, float px, float z) {
     float rust = smoothstep(0.66, 0.84, big) * (0.25 + 0.6 * z);
     c *= 0.9 + 0.16 * br;
     c = mix(c, vec3(0.28, 0.12, 0.055) * (0.75 + 0.5 * mid), rust * 0.7);
-    gSheen = 0.42 * (1.0 - rust) * aM; gShin = 24.0;
+    // v3.3 Kratzer (blank, nur aus der Nähe) und Schmutz in Vertiefungen
+    float scr = sLine(sNoise(vec3(p.x * 2.6 + p.y * 0.4, p.y * 0.3, p.z * 2.6) + 81.0), 0.03) * aF * (1.0 - rust);
+    c = c * (1.0 - smoothstep(0.66, 0.9, 1.0 - mid) * 0.28) + vec3(0.17) * scr;
+    gSheen = (0.42 * (1.0 - rust) + scr * 0.12) * aM; gShin = 24.0; gH = big * 0.5 + mid * 0.3;
     return c;
   }
   if (t < 6.5) { // Haare/Fell: Strähnen mit Glanzband
@@ -2464,6 +2507,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   float n = sNoise(p * 0.22);
   c *= 0.88 + 0.24 * n;
   if (t > 0.5 && t < 3.5) c = mix(c, vec3(0.24, 0.03, 0.035), smoothstep(0.72, 0.86, n) * 0.5 * z);
+  if (t > 0.5 && t < 1.5) { float l = dot(c, vec3(0.3, 0.59, 0.11)); c = mix(c, vec3(l * 0.8, l * 0.95, l * 0.66), smoothstep(0.36, 0.16, n) * 0.5 * z); } // v3.3 Nekrose
   return c;
 }
 `;
@@ -2494,7 +2538,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   }
   function partMaterial(m, uni, kind, zk = 1) {
     m.onBeforeCompile = (sh) => injectParts(sh, uni, kind, zk);
-    m.customProgramCacheKey = () => `parts${MAXP}:${kind}:v32${kind === "lit" && quality < 2 ? ":lite" : ""}`; // alle Figuren teilen sich ein Programm je Art (und Grafikstufe)
+    m.customProgramCacheKey = () => `parts${MAXP}:${kind}:v33${kind === "lit" && quality < 2 ? ":lite" : ""}`; // alle Figuren teilen sich ein Programm je Art (und Grafikstufe)
     return m;
   }
   // Materialklasse eines Teils: ausdrücklich (userData.tex), über die Rolle (Haut/Hemd/Hose) oder geschätzt aus der Farbe
@@ -2614,7 +2658,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       sh.vertexShader = "attribute float tex;\nvarying float vTex;\nvarying vec3 vGrain;\n" + sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n  vGrain = position; vTex = tex;");
       surfShader(sh, false, look.grime > 0.5 ? 1 : 0);
     };
-    lit.customProgramCacheKey = () => `boss:v32${quality < 2 ? ":lite" : ""}`;
+    lit.customProgramCacheKey = () => `boss:v33${quality < 2 ? ":lite" : ""}`;
     const glow = new T3.MeshBasicMaterial({ vertexColors: true });
     bakeNode(M.root, lit, glow, keep, FIG_OUTLINE, look, true);
     M.mats = [lit, ...kept];

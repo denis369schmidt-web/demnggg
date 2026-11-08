@@ -3443,7 +3443,71 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     scene.add(M.root);
     return M;
   }
-  function buildPlayerModel(skinId, weaponId, tier, tanks = false) {
+  // v3.4 Angelegte Ausrüstung am Helden sichtbar: je Platz ein Bauteil, Seltenheit an Farbe (Stahl, Blau, Violett, Gold),
+  // ab „Episch“ leuchtende Akzente, legendäre Teile mit eigener Form. gearLook = { helm: r, vest: r, … } (r = 0…3)
+  let gearLook = {};
+  const GEAR_TRIM = ["#8a9096", "#3a86d0", "#8a5ad8", "#e0b040"], GEAR_BASE = ["#4a4c42", "#2c3a48", "#3a2c4a", "#2e2a22"];
+  const gearKey = (g) => ["helm", "vest", "gloves", "badge", "pack", "boots", "charm"].map((k) => (g[k] === undefined ? "-" : g[k])).join("");
+  function addGearLook(M, r, S, head, gear) {
+    const trim = (k) => tlam(GEAR_TRIM[k], "metal"), base = (k, tex = "cloth") => tlam(GEAR_BASE[k], tex), glowC = (k) => sbasic(k >= 3 ? "#ffd86a" : "#c08aff");
+    const B = M.body;
+    if (gear.helm !== undefined) {
+      const k = gear.helm;
+      if (S.hat || S.beak) head.add(mesh(cyl(0.4 * r, 0.4 * r, 0.08 * r, 14), trim(k), 0, 0.44 * r, 0)); // Hutband statt Helm
+      else {
+        const shell = mesh(ico(0.5 * r, 2), base(k, "metal"), -0.04 * r, 0.14 * r, 0); shell.scale.set(1.02, 0.78, 1.04); head.add(shell);
+        head.add(mesh(ring(0.49 * r, 0.035 * r), trim(k), -0.04 * r, 0.1 * r, 0).rotateX(Math.PI / 2));
+        if (k >= 1) for (const z of [-1, 1]) head.add(mesh(box(0.3 * r, 0.06 * r, 0.04 * r), trim(k), 0, 0.2 * r, z * 0.47 * r)); // Seitenschienen
+        if (k >= 2) head.add(mesh(box(0.08 * r, 0.1 * r, 0.62 * r), glowC(k), 0.42 * r, 0.02 * r, 0)); // Visierband
+        if (k >= 3) { const crest = mesh(box(0.7 * r, 0.16 * r, 0.05 * r), trim(k), -0.06 * r, 0.5 * r, 0); crest.rotation.z = 0.1; head.add(crest); }
+      }
+    }
+    if (gear.vest !== undefined) {
+      const k = gear.vest;
+      B.add(mesh(box(0.14 * r, 0.72 * r, 0.82 * r), base(k), 0.37 * r, 1.58 * r, 0)); // Frontplatte
+      B.add(mesh(box(0.12 * r, 0.7 * r, 0.8 * r), base(k), -0.36 * r, 1.58 * r, 0)); // Rückenplatte
+      for (const y of [1.28, 1.88]) B.add(mesh(box(0.16 * r, 0.05 * r, 0.84 * r), trim(k), 0.38 * r, y * r, 0));
+      for (const z of [-1, 1]) B.add(mesh(box(0.74 * r, 0.32 * r, 0.06 * r), base(k), 0, 1.5 * r, z * 0.45 * r)); // Seitenteile
+      if (k >= 2) for (const z of [-1, 1]) { const sp = mesh(ico(0.3 * r, 1), trim(k), 0, 1.96 * r, z * 0.66 * r); sp.scale.set(1.05, 0.62, 1); B.add(sp); }
+      if (k >= 3) B.add(mesh(cyl(0.075 * r, 0.075 * r, 0.04 * r, 10), glowC(k), 0.45 * r, 1.62 * r, 0.1 * r).rotateZ(Math.PI / 2)); // Bollwerk-Emblem
+    }
+    if (gear.pack !== undefined && !S.tank) {
+      const k = gear.pack;
+      B.add(mesh(box(0.52 * r, 1.04 * r, 0.9 * r), base(k), -0.64 * r, 1.56 * r, 0));
+      B.add(mesh(box(0.56 * r, 0.24 * r, 0.94 * r), trim(k), -0.64 * r, 2.02 * r, 0)); // Deckelklappe
+      B.add(mesh(cyl(0.11 * r, 0.11 * r, 0.42 * r, 8), tlam("#5a7a8a", "metal"), -0.64 * r, 1.36 * r, 0.52 * r)); // Trinkflasche
+      if (k >= 2) for (const z of [-0.3, 0.3]) B.add(mesh(box(0.2 * r, 0.36 * r, 0.24 * r), base(k), -0.94 * r, 1.4 * r, z * r));
+      if (k >= 3) B.add(mesh(ico(0.07 * r, 0), glowC(k), -0.92 * r, 1.98 * r, 0));
+    }
+    if (gear.badge !== undefined) {
+      const k = gear.badge;
+      B.add(mesh(box(0.04 * r, 0.12 * r, 0.12 * r), tlam(["#8a2a2a", "#2a5a9a", "#5a2a8a", "#b8202a"][k], "cloth"), 0.46 * r, 1.88 * r, -0.24 * r)); // Ordensband
+      B.add(mesh(cyl(0.065 * r, 0.065 * r, 0.03 * r, 10), k >= 2 ? glowC(k) : trim(k), 0.47 * r, 1.76 * r, -0.24 * r).rotateZ(Math.PI / 2));
+    }
+    if (gear.charm !== undefined) {
+      const k = gear.charm, ch = mesh(torus(0.08 * r, 0.025 * r, Math.PI * 1.4), k >= 2 ? glowC(k) : trim(k), 0.34 * r, 0.96 * r, 0.3 * r);
+      ch.rotation.y = Math.PI / 2; B.add(ch);
+      B.add(mesh(box(0.02 * r, 0.14 * r, 0.02 * r), trim(k), 0.34 * r, 1.06 * r, 0.3 * r));
+    }
+    if (gear.boots !== undefined) {
+      const k = gear.boots;
+      for (const L of M.legs) {
+        L.g.add(mesh(box(0.16 * r, 0.3 * r, 0.3 * r), base(k, "leather"), 0.16 * r, -0.66 * r, 0)); // Schienbeinschutz
+        L.g.add(mesh(box(0.62 * r, 0.04 * r, 0.35 * r), trim(k), 0.1 * r, -0.9 * r, 0)); // Sohlenstreifen
+        if (k >= 3) L.g.add(mesh(box(0.06 * r, 0.06 * r, 0.3 * r), glowC(k), 0.36 * r, -0.82 * r, 0));
+      }
+    }
+    if (gear.gloves !== undefined) {
+      const k = gear.gloves;
+      const hands = []; M.body.traverse((c) => { if (c.userData.hand) hands.push(c); });
+      for (const c of hands) { // Knöchelschutz als Geschwister (Meshes mit Kindern würden beim Verschmelzen übersprungen)
+        const kb = mesh(box(0.14 * r, 0.12 * r, 0.24 * r), k >= 3 ? tlam("#b8c0c8", "metal") : trim(k), c.position.x + 0.06 * r, c.position.y + 0.06 * r, c.position.z);
+        c.parent.add(kb);
+        if (k >= 3) { c.scale.setScalar(1.35); kb.scale.setScalar(1.3); } // Götz' eiserne Hand: Panzerhandschuh
+      }
+    }
+  }
+  function buildPlayerModel(skinId, weaponId, tier, tanks = false, gear = gearLook) {
     const r = 16, S = SKINS[skinId] || SKINS.soldier;
     const M = makeModel("player");
     // v3.2: jede Ausrüstungs-Farbe mit Oberflächen-Klasse (Stoff, Leder, Metall …); Gold-Skin glänzt metallisch
@@ -3539,7 +3603,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       M.body.add(fine(mesh(ico(0.13 * r, 0), C("arm"), sh.x, sh.y - 0.05 * r, sh.z)));
       const wr = tgt.clone().lerp(el, 0.18);
       M.body.add(fine(mesh(ico(0.13 * r, 0), glove, wr.x, wr.y, wr.z)));
-      M.body.add(mesh(ico(0.15 * r, 1), glove, tgt.x, tgt.y, tgt.z));
+      const hand = mesh(ico(0.15 * r, 1), glove, tgt.x, tgt.y, tgt.z); hand.userData.hand = true; M.body.add(hand);
       for (let k = 0; k < 4; k++) { const fg = fine(mesh(box(0.15 * r, 0.05 * r, 0.048 * r), glove, tgt.x + 0.08 * r, tgt.y - 0.06 * r, tgt.z + (k - 1.5) * 0.055 * r)); fg.rotation.z = -1.0; M.body.add(fg); }
     }
     // Kopf: Helm/Kapuze/Hut je Skin
@@ -3590,6 +3654,8 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     M.weaponId = weaponId;
     M.tier = tier;
     M.skin = skinId;
+    addGearLook(M, r, S, head, gear || {});
+    M.gearKey = gearKey(gear || {});
     realismRig(M, r, { head: 0.8, armLen: 1 }); // v3.3: Arme führen zur Waffe – deren Länge stimmt schon
     M.height = 2.75 * r;
     bake(M);
@@ -3615,7 +3681,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       cam.position.set(120, 62, 0); cam.lookAt(0, 24, 0);
       pv3 = { r, sc, cam, canvas, M: null, key: "", raf: 0, last: 0 };
     }
-    const k = `${skinId}:${weaponId}:${tier}`;
+    const k = `${skinId}:${weaponId}:${tier}:${gearKey(gearLook)}`;
     if (pv3.key !== k) {
       if (pv3.M) { pv3.sc.remove(pv3.M.root); disposeTree(pv3.M.root); }
       pv3.M = buildPlayerModel(skinId, weaponId, tier, weaponId === "flame");
@@ -3993,7 +4059,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   function syncPlayer(w, t) {
     const p = w.player;
     // Spielerfigur bei Waffenwechsel neu bauen
-    if (playerModel && (playerModel.weaponId !== p.weaponId || playerModel.tier !== p.tier || playerModel.skin !== (p.skin || "soldier"))) { scene.remove(playerModel.root); disposeTree(playerModel.root); playerModel = null; }
+    if (playerModel && (playerModel.weaponId !== p.weaponId || playerModel.tier !== p.tier || playerModel.skin !== (p.skin || "soldier") || playerModel.gearKey !== gearKey(gearLook))) { scene.remove(playerModel.root); disposeTree(playerModel.root); playerModel = null; }
     if (!playerModel) playerModel = buildPlayer(w);
     const M = playerModel;
     M.root.position.set(p.x, 0, p.y);
@@ -5042,7 +5108,8 @@ void main() {
   }
 
   return {
-    init, resize, render, project, viewQuad, heightOf, setQuality, setBloom, setCamMode, get camMode() { return camMode; }, clear, preview, stopPreview, showcase,
+    init, resize, render, project, viewQuad, heightOf, setQuality, setBloom, setCamMode, get camMode() { return camMode; },
+    setGear: (look) => { gearLook = look || {}; }, get gearKey() { return gearKey(gearLook); }, clear, preview, stopPreview, showcase,
     setCinematic(on) { cinematic = on; }, get flash() { return atmo.flash; },
     menuOrbit(d, end = false) { if (end) { menuCam.drag = false; return; } menuCam.drag = true; menuCam.yaw = Math.max(-1.6, Math.min(1.6, menuCam.yaw + d)); },
     setTilt(x, y) { menuCam.tiltX += (x - menuCam.tiltX) * 0.15; menuCam.tiltY += (y - menuCam.tiltY) * 0.15; },

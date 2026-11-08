@@ -401,6 +401,7 @@
     if (webgl === null) {
       webgl = false;
       try { webgl = !!(window.Render3D && Render3D.init(canvas3d, { W, H, WH, L, T, R, B, DOOR_W })); } catch (e) { console.warn("[Outbreak] 3D-Start fehlgeschlagen", e); }
+      if (webgl) syncGearLook(); // v3.4: auch der Menü-Held trägt seine Ausrüstung
     }
     return webgl;
   }
@@ -641,6 +642,7 @@
     heroPerk(save.skin).apply(player);
     { const lv = heroLevel(save.skin) - 1; if (lv > 0) { player.maxHp = player.hp = Math.round(player.maxHp * (1 + 0.02 * lv)); player.dmgMul *= 1 + 0.01 * lv; } }
     applyGear(player);
+    syncGearLook();
     if (run.order && run.order.apply) run.order.apply(player);
     if (run.startCity > 0) run.pendingPicks += Math.min(6, run.startCity);
     // v2.9 Wurfgürtel (3× Start-Wurfwaffe) und Spezial-Energie
@@ -4760,6 +4762,10 @@
     sfx(it.r >= 2 ? "level" : "coin"); fx4d(it.r >= 3 ? "level" : "kick");
     toast(`${tr("Beute")}: ${gearName(it)} · ${tr(GEAR_RARITY[it.r].name)}`, GEAR_SLOTS[it.s].icon);
   }
+  // v3.4 Aussehen: Seltenheit je angelegtem Platz an den 3D-Helden (und das 2D-Sprite) melden
+  // eigene Platzliste: init3d läuft schon beim Laden, bevor GEAR_SLOTS (const) angelegt ist
+  function gearLookOf() { const g = save.gear || {}, look = {}; for (const k of ["helm", "vest", "gloves", "badge", "pack", "boots", "charm"]) if (g[k]) look[k] = g[k].r; return look; }
+  function syncGearLook() { if (window.Render3D && Render3D.setGear) Render3D.setGear(gearLookOf()); }
   function applyGear(p) {
     const g = save.gear || {};
     for (const [k, it] of Object.entries(g)) {
@@ -4784,6 +4790,7 @@
   }
   function renderGear() {
     const g = save.gear || (save.gear = {});
+    syncGearLook();
     const power = Object.values(g).reduce((a, it) => a + gearPower(it), 0);
     const slotHtml = Object.entries(GEAR_SLOTS).map(([k, sl]) => {
       const it = g[k];
@@ -5911,6 +5918,7 @@
     ctx.rotate(p.aim);
     if (blink) ctx.globalAlpha = 0.4;
     ctx.drawImage(body.c, -body.w / 2 - p.kick * 0.4, -body.h / 2, body.w, body.h);
+    drawGearLook2D(p);
     ctx.drawImage(ws.c, GRIP_X - ws.grip - p.kick, GRIP_Y - ws.h / 2, ws.w, ws.h);
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -5923,6 +5931,15 @@
     }
   }
 
+  // v3.4 Ausrüstung in 2D (von oben, im gedrehten Rahmen des Helden: vorn = +x): Rucksack, Schulterstücke, Helmrand
+  const GEAR_TRIM2D = ["#8a9096", "#3a86d0", "#8a5ad8", "#e0b040"];
+  function drawGearLook2D(p) {
+    const g = save.gear || {}, k = (s) => (g[s] ? g[s].r : -1);
+    if (k("pack") >= 0 && p.weaponId !== "flame") { ctx.fillStyle = "#2e3034"; roundRect(-17, -8, 8, 16, 2); ctx.fill(); ctx.fillStyle = GEAR_TRIM2D[k("pack")]; ctx.fillRect(-17, -8, 3, 16); }
+    if (k("vest") >= 0) { ctx.fillStyle = GEAR_TRIM2D[k("vest")]; ctx.fillRect(-4, -11, 7, 3); ctx.fillRect(-4, 8, 7, 3); }
+    if (k("helm") >= 0) { ctx.strokeStyle = GEAR_TRIM2D[k("helm")]; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 6.5, 0, TAU); ctx.stroke(); if (k("helm") >= 3) { ctx.fillStyle = "#ffd86a"; ctx.fillRect(-5, -1, 8, 2); } }
+    if (k("gloves") >= 3) { ctx.fillStyle = "#c8d0d8"; ctx.beginPath(); ctx.arc(GRIP_X - 2, GRIP_Y, 3, 0, TAU); ctx.fill(); }
+  }
   function drawProjectilesBase() {
     for (const b of bullets) {
       if (b.kind === "bolt") Sprites.draw(ctx, Sprites.bolt(), b.x, b.y, Math.atan2(b.vy, b.vx));

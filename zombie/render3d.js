@@ -269,19 +269,27 @@ window.Render3D = (() => {
   // v3.3 Seltenheitsfarben der Beutekisten (gewöhnlich, selten, episch, legendär)
   const LOOT_CSS = ["200,205,210", "74,168,255", "176,122,255", "255,194,58"];
   const LOOT_RGB = LOOT_CSS.map((c) => c.split(",").map((v) => v / 255));
-  const CELL = { glow: 0, smoke: 1, streak: 2, ring: 3, star: 4, blob: 5, chevron: 6, band: 7, gib: 8, casing: 9, bolt: 10 };
+  const CELL = { glow: 0, smoke: 1, streak: 2, ring: 3, star: 4, blob: 5, chevron: 6, band: 7, gib: 8, casing: 9, bolt: 10, fire: 11, flare: 12, shock: 13, fireball: 14, puff: 15 };
   function makeAtlas() {
+    // v3.5 doppelte Auflösung (1024²), plastischer Rauch, Flammenzungen, Linsenblitz, Druckring, Feuerball, Staubwolke
     return canvasTex(512, 512, (g) => {
       const cell = (i, fn) => { g.save(); g.translate((i % 4) * 128, Math.floor(i / 4) * 128); fn(g); g.restore(); };
       const radial = (stops) => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 62); stops.forEach(([o, a]) => gr.addColorStop(o, `rgba(255,255,255,${a})`)); return gr; };
       cell(CELL.glow, () => { g.fillStyle = radial([[0, 1], [0.18, 0.65], [0.45, 0.2], [1, 0]]); g.fillRect(0, 0, 128, 128); });
-      cell(CELL.smoke, () => {
-        for (const [x, y, r] of [[64, 64, 40], [44, 56, 26], [84, 70, 28], [60, 84, 24], [74, 44, 22]]) {
-          const gr = g.createRadialGradient(x, y, 0, x, y, r);
-          gr.addColorStop(0, "rgba(255,255,255,0.55)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+      // Rauch: blumenkohlartige Wolke aus vielen Ballen, oben heller (Licht von oben), unten schattig, weicher Rand
+      const puffy = (seed, n, spread, rMin, rMax, alpha, shade) => {
+        let sd = seed; const R = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+        for (let i = 0; i < n; i++) {
+          const a = R() * TAU, d = Math.sqrt(R()) * spread, x = 64 + Math.cos(a) * d, y = 66 + Math.sin(a) * d * 0.85;
+          const r = Math.min(60 - Math.hypot(x - 64, y - 64), rMin + R() * (rMax - rMin) * (1 - d / (spread + 16)));
+          if (r < 3) continue;
+          const lit = Math.min(1, Math.max(0.35, 1 - shade * (y - 28) / 80)), v = Math.round(255 * lit), v2 = Math.round(v * 0.72);
+          const gr = g.createRadialGradient(x - r * 0.3, y - r * 0.35, 0, x, y, r);
+          gr.addColorStop(0, `rgba(${v},${v},${v},${alpha})`); gr.addColorStop(0.65, `rgba(${v2},${v2},${v2},${alpha * 0.55})`); gr.addColorStop(1, `rgba(${v2},${v2},${v2},0)`);
           g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
         }
-      });
+      };
+      cell(CELL.smoke, () => puffy(77, 48, 34, 10, 26, 0.42, 0.75));
       cell(CELL.streak, () => {
         const gr = g.createLinearGradient(0, 0, 128, 0);
         gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(0.75, "rgba(255,255,255,0.6)"); gr.addColorStop(1, "rgba(255,255,255,1)");
@@ -306,7 +314,48 @@ window.Render3D = (() => {
       });
       cell(CELL.casing, () => { g.fillStyle = "#d9b04a"; g.fillRect(24, 48, 80, 32); g.fillStyle = "#fff2b0"; g.fillRect(30, 52, 64, 8); });
       cell(CELL.bolt, () => { g.fillStyle = "#fff"; g.fillRect(8, 60, 112, 8); });
-    });
+      // Flammenzunge: heißer Kern unten, Zungen nach oben (Billboard „oben“ = Bild-oben)
+      cell(CELL.fire, () => {
+        const tongue = (cx, w, h, a) => {
+          const gr = g.createLinearGradient(0, 122, 0, 122 - h);
+          gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(0.55, `rgba(255,255,255,${a * 0.6})`); gr.addColorStop(1, "rgba(255,255,255,0)");
+          g.fillStyle = gr; g.beginPath(); g.moveTo(cx - w, 120);
+          g.bezierCurveTo(cx - w * 1.15, 120 - h * 0.35, cx - w * 0.25, 120 - h * 0.62, cx + w * 0.1, 120 - h);
+          g.bezierCurveTo(cx + w * 0.35, 120 - h * 0.6, cx + w * 1.15, 120 - h * 0.3, cx + w, 120); g.closePath(); g.fill();
+        };
+        tongue(64, 30, 104, 0.5); tongue(46, 14, 72, 0.5); tongue(82, 15, 84, 0.5); tongue(64, 16, 66, 0.85);
+        const gr = g.createRadialGradient(64, 100, 0, 64, 100, 24); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+        g.fillStyle = gr; g.fillRect(28, 70, 72, 56);
+        // Ränder der Zelle sicher ausblenden (sonst harte Quad-Kanten) – Clip, sonst löscht destination-in den ganzen Atlas
+        g.save(); g.beginPath(); g.rect(0, 0, 128, 128); g.clip();
+        g.globalCompositeOperation = "destination-in";
+        const fv = g.createLinearGradient(0, 0, 0, 128); fv.addColorStop(0, "rgba(0,0,0,1)"); fv.addColorStop(0.78, "rgba(0,0,0,1)"); fv.addColorStop(0.97, "rgba(0,0,0,0)");
+        g.fillStyle = fv; g.fillRect(0, 0, 128, 128);
+        const fh = g.createLinearGradient(0, 0, 128, 0); fh.addColorStop(0, "rgba(0,0,0,0)"); fh.addColorStop(0.12, "rgba(0,0,0,1)"); fh.addColorStop(0.88, "rgba(0,0,0,1)"); fh.addColorStop(1, "rgba(0,0,0,0)");
+        g.fillStyle = fh; g.fillRect(0, 0, 128, 128);
+        g.restore();
+      });
+      // Linsenblitz: heller Kern, lange waagerechte und kürzere senkrechte/schräge Strahlen
+      cell(CELL.flare, () => {
+        g.fillStyle = radial([[0, 1], [0.1, 0.75], [0.3, 0.16], [1, 0]]); g.fillRect(0, 0, 128, 128);
+        const ray = (ang, len, wid, a) => { g.save(); g.translate(64, 64); g.rotate(ang); const gr = g.createLinearGradient(-len, 0, len, 0); gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(0.5, `rgba(255,255,255,${a})`); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.beginPath(); g.ellipse(0, 0, len, wid, 0, 0, TAU); g.fill(); g.restore(); };
+        ray(0, 62, 3.4, 1); ray(Math.PI / 2, 44, 2.6, 0.75); ray(Math.PI / 4, 28, 1.8, 0.45); ray(-Math.PI / 4, 28, 1.8, 0.45);
+      });
+      // Druckring: weicher Rand mit hellem Saum (Boden-Druckwelle, Ringe)
+      cell(CELL.shock, () => { const gr = g.createRadialGradient(64, 64, 26, 64, 64, 62); gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(0.62, "rgba(255,255,255,0.12)"); gr.addColorStop(0.86, "rgba(255,255,255,0.95)"); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
+      // Feuerball: brodelnde, ungleichmäßig helle Kugel
+      cell(CELL.fireball, () => {
+        let sd = 4242; const R = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+        for (let i = 0; i < 44; i++) {
+          const a = R() * TAU, d = Math.sqrt(R()) * 36, x = 64 + Math.cos(a) * d, y = 64 + Math.sin(a) * d, r = Math.min(60 - Math.hypot(x - 64, y - 64), 9 + R() * 18);
+          if (r < 3) continue;
+          const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(255,255,255,${0.3 + 0.35 * (1 - d / 40)})`); gr.addColorStop(1, "rgba(255,255,255,0)");
+          g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+        }
+      });
+      // Staubwolke: dichter, gleichmäßiger als Rauch (Einschläge, Trümmer)
+      cell(CELL.puff, () => puffy(913, 30, 26, 9, 20, 0.5, 0.4));
+    }, false, 2);
   }
 
   class QuadBatch {
@@ -370,6 +419,11 @@ window.Render3D = (() => {
       ux = nux; uy = nuy; uz = nuz;
     }
     B.add(x, y, z, ux, uy, uz, vx, vy, vz, cell, r, g, b, a);
+  }
+  // v3.5 gestrecktes Billboard (Flammen: schmal und hoch)
+  function billS(B, x, y, z, sx, sy, cell, rgb, a) {
+    const [r, g, b] = lin(rgb);
+    B.add(x, y, z, camR.x * sx, camR.y * sx, camR.z * sx, camU.x * sy, camU.y * sy, camU.z * sy, cell, r, g, b, a);
   }
   // Waagerechtes Quad (liegt auf dem Boden bzw. in Flughöhe), Länge entlang Winkel ang
   function flat(B, x, y, z, ang, halfLen, halfW, cell, rgb, a) {
@@ -4740,9 +4794,11 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   const gibColor = (trail) => GIB[trail] || GIB_RED;
 
   // Explosionen, Level-up-Säule, Tür-Lichtvorhang
+  const BOOM_SPRITES = true; // v3.5: die alten facettierten Kugeln bleiben als Rückfall im Code, werden aber nicht mehr gezeigt
   function syncBigFx(w, t) {
     let bi = 0;
     for (const q of w.particles) {
+      if (BOOM_SPRITES) break; // v3.5: Feuerball, Rauchpilz und Druckwelle kommen als weiche Billboards aus fillBatches
       if (q.t !== "boom" || bi >= booms.length) continue;
       const B2 = booms[bi++], k = 1 - Math.max(0, q.life / q.max), r = q.r;
       const grow = 1 - Math.pow(1 - Math.min(1, k * 2.2), 3);
@@ -4796,15 +4852,37 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       const k = Math.max(0, q.life / q.max);
       switch (q.t) {
         case "spark": { const sp = Math.hypot(q.vx, q.vy), len = Math.min(16, sp * 0.05 + 3); flat(addB, q.x - (q.vx / (sp || 1)) * len * 0.5, 16, q.y - (q.vy / (sp || 1)) * len * 0.5, Math.atan2(q.vy, q.vx), len * 0.5, q.w, CELL.streak, q.rgb, k); break; }
-        case "fire": bill(addB, q.x, (q.z || 0) + 14 + (1 - k) * 26, q.y, q.size * (1.5 - k * 0.5), CELL.glow, fireRgb(k), 0.9 * k); break;
+        case "fire": { // v3.5 echte Flammenzunge (flackert in Breite/Höhe) über weichem Glutschein
+          const sz = q.size * (1.5 - k * 0.5), fl = 1 + 0.18 * Math.sin(t * 23 + q.x * 0.7), y0 = (q.z || 0) + 12 + (1 - k) * 24;
+          bill(addB, q.x, y0 - 2, q.y, sz * 0.9, CELL.glow, fireRgb(k), 0.45 * k);
+          billS(addB, q.x, y0 + sz * 0.35, q.y, sz * 0.55 * fl, sz * 1.05 / fl, CELL.fire, k > 0.5 ? "255,190,90" : "255,120,40", 0.95 * Math.min(1, k * 1.6));
+          break;
+        }
         case "ember": bill(addB, q.x, (q.z || 0) + 18 + (1 - k) * 30, q.y, q.size, CELL.glow, "255,160,60", k); break;
         case "flash": bill(addB, q.x, 24, q.y, q.r * 0.6, CELL.glow, q.rgb, k * 0.9); break;
-        case "ring": { const rr = q.r * (1.15 - k * 0.8); flat(floorB, q.x, 2, q.y, 0, rr, rr, CELL.ring, q.rgb, k * 0.85); break; }
+        case "ring": { const rr = q.r * (1.15 - k * 0.8); flat(floorB, q.x, 2, q.y, 0, rr, rr, CELL.shock, q.rgb, k * 0.95); break; } // v3.5 weicher Druckring
         case "bubble": bill(addB, q.x, 30 + (1 - k) * 20, q.y, q.size, CELL.glow, "140,255,74", k * 0.8); break;
         case "ice": bill(addB, q.x, 24, q.y, q.size, CELL.glow, "170,230,255", k * 0.9); break;
         case "drip": bill(addB, q.x, 18, q.y, q.size * 2, CELL.glow, q.rgb, k * 0.5); break;
         case "gas": bill(normB, q.x, 12 + (1 - k) * 16, q.y, 26 * q.size, CELL.smoke, q.rgb, Math.min(1, k * 1.6) * 0.42, q.rot); break;
         case "smoke": bill(normB, q.x, (q.h ?? 20) + (1 - k) * (q.rise ?? 40), q.y, 24 * q.size, CELL.smoke, q.rgb || "120,120,115", Math.min(1, k * 1.4) * 0.7, q.rot); break;
+        case "boom": { // v3.5 Explosion: Linsenblitz, brodelnde Feuerball-Ballen, Druckwelle am Boden, aufsteigender Rauchpilz
+          const e = 1 - k, r = q.r, sd = q.fxs || (q.fxs = 1 + Math.random() * 1000);
+          if (e < 0.22) bill(addB, q.x, r * 0.45, q.y, r * (1.6 + e * 3), CELL.flare, "255,236,200", (1 - e / 0.22) * 0.95, sd);
+          const sw = r * (0.5 + 2.4 * Math.sqrt(e));
+          flat(floorB, q.x, 2.5, q.y, sd, sw, sw, CELL.shock, "255,200,140", Math.pow(1 - e, 2) * 0.8);
+          if (e < 0.4) bill(addB, q.x, r * 0.4, q.y, r * (1.1 + e), CELL.glow, "255,226,170", (1 - e / 0.4) * 0.6); // heißer Kern
+          for (let i = 0; i < 9; i++) {
+            const a = sd + i * 0.7, d = r * (0.12 + 0.4 * Math.sqrt(e)) * (0.5 + ((i * 37) % 10) / 20), up = r * (0.22 + e * (0.65 + (i % 3) * 0.22));
+            const life = Math.max(0, 1 - e * (1.25 + (i % 3) * 0.22));
+            if (life > 0) bill(addB, q.x + Math.cos(a) * d, up, q.y + Math.sin(a) * d * 0.7, r * (0.4 + 0.45 * Math.sqrt(e)) * (0.7 + (i % 2) * 0.4), CELL.fireball, life > 0.8 ? "255,226,170" : life > 0.5 ? "255,160,60" : life > 0.25 ? "220,84,28" : "120,40,20", Math.min(0.85, life * 1.1), a + e * 2);
+          }
+          for (let i = 0; i < 8; i++) { // Rauch quillt nach, wird dunkler und steigt
+            const a = sd * 1.7 + i * 0.8, d = r * (0.2 + 0.55 * e) * (0.6 + (i % 3) * 0.25), sa = Math.min(1, e * 4) * Math.pow(1 - e, 0.6) * 0.75;
+            bill(normB, q.x + Math.cos(a) * d, r * (0.35 + e * (1.1 + (i % 4) * 0.25)), q.y + Math.sin(a) * d * 0.7, r * (0.4 + e * 0.8), CELL.smoke, e < 0.35 ? "120,84,62" : "74,68,64", Math.min(0.95, sa * 1.25), a - e);
+          }
+          break;
+        }
         case "blood": {
           // schnelle Tropfen als Streifen in Flugrichtung, langsame als runde Tropfen
           const sp = Math.hypot(q.vx, q.vy);
@@ -4997,7 +5075,9 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     const mz = w.muzzlePoint();
     if (p.muzzle > 0 && p.weapon.flash) {
       const sc = (0.75 + Math.random() * 0.35) * (p.weapon.flash === "flame" ? 0.6 : p.weapon.flash === "big" ? 1.3 : 1);
-      bill(addB, mz.x, 24, mz.y, 16 * sc, CELL.star, p.weapon.flash === "tesla" ? "160,240,255" : p.weapon.flash === "laser" ? "255,120,120" : "255,230,150", 1, Math.random() * TAU);
+      const mzc = p.weapon.flash === "tesla" ? "160,240,255" : p.weapon.flash === "laser" ? "255,120,120" : "255,230,150";
+      bill(addB, mz.x, 24, mz.y, 16 * sc, CELL.star, mzc, 1, Math.random() * TAU);
+      bill(addB, mz.x, 24, mz.y, 30 * sc, CELL.flare, mzc, 0.8, Math.random() * 0.6 - 0.3); // v3.5 Linsenblitz
       bill(addB, mz.x, 24, mz.y, 34, CELL.glow, p.weapon.tracer, 0.75);
     }
     if (p.weapon.kind === "flame") bill(addB, mz.x, 22, mz.y, 5, CELL.glow, "110,200,255", 0.9);

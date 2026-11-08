@@ -563,6 +563,7 @@
   const MINI_ORDER = ["lukas", "schiess", "funk"];
   let floorCanvas = null;
   let floorCtx = null;
+  let birds = []; // v3.4 Krähen: picken am Boden, fliegen auf, wenn der Held kommt oder es knallt
   let glossCtx = null; // Glanzkarte des Bodens: frisches Blut glänzt in 3D nass im Licht
   // gedeckelt (Modus „lighten“): voller Glanz ließe das Spekularlicht das Rot zu Rosa auswaschen
   const BLOOD_GLOSS = "#3c3c3c";
@@ -676,7 +677,7 @@
     run.doorK = 0;
     supplyCrate = null; miniSpot = null;
     run.obj = null; run.event = null; fuses = []; hordeQ = [];
-    throws = []; decoys = []; strikes = []; run.blink = null; killCam = null; lastKill = null; wetSpots = [];
+    throws = []; decoys = []; strikes = []; run.blink = null; killCam = null; lastKill = null; wetSpots = []; birds = [];
     player.vx = player.vy = 0;
     player.invuln = 1;
     run.cleared = false;
@@ -703,6 +704,7 @@
     floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     initAmbient();
+    if (theme() === "street" || theme() === "markt") for (let i = 0; i < randi(1, 2); i++) landFlock(rand(L + 60, R - 60), rand(T + 120, B - 360), randi(4, 7));
 
     const city = curCity(), [dName] = curDistrict();
     if (isSupply) {
@@ -3234,6 +3236,7 @@
   }
 
   function roomCleared() {
+    if ((theme() === "street" || theme() === "markt") && corpses.length) { const c = pick(corpses); setTimeout(() => { if (run && run.cleared && state === "play") landFlock(c.x, c.y, randi(3, 5)); }, 2500); }
     run.cleared = true;
     if (lastKill && !BOSS_ROOMS[run.room]) killCam = { x: lastKill.x, y: lastKill.y, t: 0.9, max: 0.9 };
     track("rooms");
@@ -4498,6 +4501,50 @@
     ambient = [];
     for (let i = 0; i < Math.round(28 * AREA_K); i++) ambient.push({ x: rand(L, R), y: rand(T, B), size: rand(1, 2.4), ph: rand(0, TAU) });
   }
+  // v3.4 Krähenschwarm landen lassen (Bodenvögel um einen Punkt)
+  function landFlock(x, y, n) {
+    for (let i = 0; i < n; i++) birds.push({ x: clamp(x + rand(-46, 46), L + 10, R - 10), y: clamp(y + rand(-30, 30), T + 10, B - 10), z: 0, vx: 0, vy: 0, vz: 0, face: rand(0, TAU), fly: false, t: rand(0, 5), peck: 0, hop: rand(0.5, 2) });
+  }
+  function updateBirds(dt) {
+    if (!birds.length) return;
+    const p = player;
+    for (const b of birds) {
+      b.t += dt;
+      if (!b.fly) {
+        // Aufschrecken: Held zu nah, Schuss oder Explosion in der Nähe, Gegner läuft durch
+        const scare = (b.x - p.x) ** 2 + (b.y - p.y) ** 2 < 150 * 150 || bullets.some((q) => (q.x - b.x) ** 2 + (q.y - b.y) ** 2 < 50 * 50) || particles.some((q) => q.t === "boom" && (q.x - b.x) ** 2 + (q.y - b.y) ** 2 < 260 * 260) || enemies.some((e) => !e.dead && (e.x - b.x) ** 2 + (e.y - b.y) ** 2 < 30 * 30);
+        if (scare) {
+          const a = Math.atan2(b.y - p.y, b.x - p.x) + rand(-0.8, 0.8), sp = rand(170, 240);
+          Object.assign(b, { fly: true, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, vz: rand(95, 135), face: a });
+          if (!run.cawT || run.time - run.cawT > 1.2) { run.cawT = run.time; sfx("kick"); }
+          continue;
+        }
+        b.peck = Math.max(0, b.peck - dt);
+        if ((b.hop -= dt) <= 0) { b.hop = rand(0.6, 2.2); if (Math.random() < 0.5) b.peck = 0.35; else { b.face += rand(-1.2, 1.2); b.x += Math.cos(b.face) * 6; b.y += Math.sin(b.face) * 6; } }
+      } else {
+        b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; b.vz = Math.max(45, b.vz - 14 * dt);
+        b.vx += Math.sin(b.t * 3) * 30 * dt;
+        b.face = Math.atan2(b.vy, b.vx);
+      }
+    }
+    birds = birds.filter((b) => !b.fly || (b.z < 260 && b.x > L - 200 && b.x < R + 200 && b.y > T - 300 && b.y < B + 200));
+  }
+  function drawBirds(flying) {
+    for (const b of birds) {
+      if (b.fly !== flying) continue;
+      ctx.save(); ctx.translate(b.x, b.y - b.z * 0.6); ctx.rotate(b.face); ctx.scale(1.4, 1.4);
+      if (flying) {
+        ctx.globalAlpha = 0.25; ctx.fillStyle = "#000"; ctx.beginPath(); ctx.ellipse(0, b.z * 0.6, 6, 3, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+        const f = Math.sin(b.t * 22) * 7;
+        ctx.strokeStyle = "#0e0e10"; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(-1, -9 - f * 0.4); ctx.quadraticCurveTo(1, -3, 0, 0); ctx.quadraticCurveTo(1, 3, -1, 9 + f * 0.4); ctx.stroke();
+      }
+      ctx.fillStyle = "#121214"; ctx.beginPath(); ctx.ellipse(0, 0, 6, 3.2, 0, 0, TAU); ctx.fill();
+      const hx = b.peck > 0 ? 7 + Math.sin(b.peck * 30) * 1.5 : 5.5;
+      ctx.fillStyle = "#18181a"; ctx.beginPath(); ctx.arc(hx, 0, 2.4, 0, TAU); ctx.fill(); ctx.fillStyle = "#4a4436"; ctx.fillRect(hx + 1.6, -0.6, 2.6, 1.2);
+      ctx.fillStyle = "#0a0a0c"; ctx.beginPath(); ctx.moveTo(-5, -1.6); ctx.lineTo(-10, 0); ctx.lineTo(-5, 1.6); ctx.fill();
+      ctx.restore();
+    }
+  }
   function updateAmbient(dt) {
     const th = theme();
     for (const a of ambient) {
@@ -4522,6 +4569,7 @@
     for (const z of zaps) z.life -= dt;
     zaps = zaps.filter((z) => z.life > 0);
     updateAmbient(dt);
+    updateBirds(dt);
     if (banner) { banner.life -= dt; if (banner.life <= 0) banner = null; }
     shake = Math.max(0, shake - dt * 30);
     punchX *= Math.max(0, 1 - 14 * dt); punchY *= Math.max(0, 1 - 14 * dt);
@@ -5014,7 +5062,7 @@
     get killCam() { return killCam; }, get gates() { return gates; }, get miniSpot() { return miniSpot && !miniSpot.done ? miniSpot : null; },
     get weather() { return curWeather(); }, get fest() { return curFest(); },
     get cityId() { return run && run.mode === "campaign" && run.room > 0 ? curCity().id : ""; }, get district() { return run && run.mode === "campaign" && run.room > 0 ? curDistrict()[0] : ""; },
-    get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; },
+    get obstacles() { return obstacles; }, get supplyCrate() { return supplyCrate; }, get floorCanvas() { return floorCanvas; }, get birds() { return birds; },
     get theme() { return theme(); }, get isBossRoom() { return !!(run && BOSS_ROOMS[run.room]); }, get intro() { return roomFade; },
     get camPunch() { return { x: punchX, y: punchY, fov: punchFov }; },
     get survivors() { return run && run.obj && run.obj.list ? run.obj.list : NO_SURVIVORS; },
@@ -5183,6 +5231,7 @@
     if (supplyCrate) drawSupply();
     if (miniSpot && !miniSpot.done) drawMiniSpot();
     drawCorpses();
+    drawBirds(false);
     if (run.obj && (run.obj.kind === "hold" || run.obj.kind === "relay") && !run.obj.done) drawZone(run.obj, { cx: run.obj.x, cy: run.obj.y, rx: run.obj.r, ry: run.obj.r });
     drawLobTargets();
     drawActors();
@@ -5199,6 +5248,7 @@
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
     // 4) Lesbarkeit
+    drawBirds(true);
     drawEnemyBullets();
     drawBeams();
     drawTelegraphs();
@@ -7997,5 +8047,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

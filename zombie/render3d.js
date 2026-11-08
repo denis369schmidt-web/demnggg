@@ -3154,6 +3154,14 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
         if (e.mode !== "scream") M.extra.head.rotation.z -= Math.cos(hd) * fl * 1.6;
       }
       if (e.mode !== "scream" && e.mode !== "spin") for (const A of M.arms) if (!A.crawl) A.g.rotation.y = A.s * 0.18;
+      // v3.4 Gehen: Arme schwingen gegen die Beine; Zuckungen: etwa alle 7 s reißt es Kopf und Schulter (je Zombie versetzt)
+      if (!near && e.mode === "walk") for (const A of M.arms) if (!A.crawl && !(gait === 2 && A.s < 0)) A.g.rotation.z += Math.sin(ph + (A.s > 0 ? Math.PI : 0)) * 0.14;
+      const tw = M.kind === "player" || (e.def && e.def.boss) ? 0 : Math.max(0, Math.sin(t * 0.9 + (e.wob || 0) * 7) - 0.94) * 16;
+      if (tw > 0 && e.mode === "walk") {
+        if (M.extra.head) { M.extra.head.rotation.z += Math.sin(t * 57) * 0.32 * tw; M.extra.head.rotation.x += 0.22 * tw; }
+        for (const A of M.arms) if (A.s > 0 && !A.crawl) A.g.rotation.z += Math.sin(t * 41) * 0.3 * tw;
+        M.body.rotation.x += Math.sin(t * 33) * 0.06 * tw;
+      }
     }
     if (e.armOff) for (const A of M.arms) A.g.visible = !e.armOff[A.s]; // abgeschossener Arm
     if (M.extra.blink) M.extra.blink.visible = Math.sin(t * 14 + e.wob) > 0;
@@ -3707,7 +3715,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   // ------------------------------------------------------------------
   // Instanzen: Schatten, Münzen, Projektile
   // ------------------------------------------------------------------
-  let barrelIM, anchorIM, boxIM, ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, headIM, limbIM, rocketIM, discIM, pillar, doorBeam, lootIM, lootBandIM;
+  let barrelIM, anchorIM, boxIM, ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, headIM, limbIM, rocketIM, discIM, pillar, doorBeam, lootIM, lootBandIM, birdIM, wingIM;
   const booms = [];
   const dummy = new T3.Object3D();
   function setupInstanced() {
@@ -3751,6 +3759,18 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     lootBandIM = new T3.InstancedMesh(new T3.BoxGeometry(15.6, 2.6, 13.6), new T3.MeshBasicMaterial({ color: 0xffffff }), 12);
     lootBandIM.setColorAt(0, tmpColor.setRGB(1, 1, 1));
     lootIM.castShadow = true;
+    // v3.4 Krähen: Körper (Rumpf, Kopf, Schnabel, Schwanz als ein Mesh) und V-förmiges Flügelpaar – der Flügelschlag
+    // entsteht über die Höhen-Skalierung der Instanz (positiv = V nach oben, negativ = nach unten)
+    const mergeGeo = (parts) => { const pos = []; for (const g0 of parts) pos.push(...g0.toNonIndexed().attributes.position.array); const g1 = new T3.BufferGeometry(); g1.setAttribute("position", new T3.BufferAttribute(new Float32Array(pos), 3)); g1.computeVertexNormals(); return g1; };
+    const bBody = new T3.IcosahedronGeometry(1, 1); bBody.scale(5.5, 3, 3);
+    const bHead = new T3.IcosahedronGeometry(2.2, 0); bHead.translate(5.5, 1.6, 0);
+    const bBeak = new T3.ConeGeometry(0.9, 3, 4); bBeak.rotateZ(-Math.PI / 2); bBeak.translate(8.5, 1.4, 0);
+    const bTail = new T3.BoxGeometry(4, 0.6, 3); bTail.translate(-6.5, 0.4, 0);
+    birdIM = new T3.InstancedMesh(mergeGeo([bBody, bHead, bBeak, bTail]), new T3.MeshLambertMaterial({ color: 0x1a1c24, emissive: 0x0a0b12 }), 40);
+    const wl = new T3.BoxGeometry(5, 0.5, 10); wl.translate(0, 0, 5); wl.rotateX(-0.45);
+    const wr = new T3.BoxGeometry(5, 0.5, 10); wr.translate(0, 0, -5); wr.rotateX(0.45);
+    wingIM = new T3.InstancedMesh(mergeGeo([wl, wr]), new T3.MeshLambertMaterial({ color: 0x101012, side: T3.DoubleSide }), 40);
+    for (const im of [birdIM, wingIM]) { im.castShadow = true; }
     // Rakete (Körper + rote Spitze als ein Mesh) und Sägeblatt
     const rb = new T3.CylinderGeometry(2.6, 2.6, 16, 8).toNonIndexed(); rb.rotateZ(-Math.PI / 2);
     const rt = new T3.ConeGeometry(2.6, 6, 8).toNonIndexed(); rt.rotateZ(-Math.PI / 2); rt.translate(11, 0, 0);
@@ -3780,7 +3800,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     boxIM = new T3.InstancedMesh(new T3.BoxGeometry(1, 1, 1), new T3.MeshLambertMaterial({ flatShading: true }), 60);
     boxIM.setColorAt(0, tmpColor.setRGB(1, 1, 1));
     for (const im of [barrelIM, anchorIM, boxIM]) { im.castShadow = true; im.frustumCulled = false; im.count = 0; scene.add(im); }
-    for (const im of [ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, rocketIM, discIM, lootIM, lootBandIM]) { im.frustumCulled = false; im.count = 0; scene.add(im); }
+    for (const im of [ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, rocketIM, discIM, lootIM, lootBandIM, birdIM, wingIM]) { im.frustumCulled = false; im.count = 0; scene.add(im); }
     healIM.castShadow = true;
     // abgetrennte Köpfe und Gliedmaßen
     headIM = new T3.InstancedMesh(new T3.IcosahedronGeometry(1, 1), new T3.MeshLambertMaterial({ flatShading: true }), 100);
@@ -4195,6 +4215,18 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     lootIM.count = lootBandIM.count = lk; lootIM.instanceMatrix.needsUpdate = true; lootBandIM.instanceMatrix.needsUpdate = true;
     if (lk && lootBandIM.instanceColor) lootBandIM.instanceColor.needsUpdate = true;
     lootIM.visible = lootBandIM.visible = lk > 0;
+    // v3.4 Krähen: am Boden mit angelegten Flügeln und Pickbewegung, im Flug mit Flügelschlag
+    let bk = 0;
+    for (const b of w.birds || []) {
+      if (bk >= 40) break;
+      const peck = b.peck > 0 ? Math.sin(b.peck * 30) * 0.35 : 0;
+      dummy.position.set(b.x, 4.5 + (b.z || 0), b.y); dummy.rotation.set(0, -b.face, -peck); dummy.scale.set(1.55, 1.55, 1.55); dummy.updateMatrix(); birdIM.setMatrixAt(bk, dummy.matrix); // Kopf nach unten beim Picken
+      const flap = b.fly ? Math.sin(b.t * 22) * 1.3 : 0.25;
+      inst(wingIM, bk, b.x, 6.8 + (b.z || 0), b.y, -b.face, 0, b.fly ? 1.55 : 1.25, flap * 1.55, b.fly ? 1.55 : 0.7);
+      bk++;
+    }
+    birdIM.count = wingIM.count = bk; birdIM.visible = wingIM.visible = bk > 0;
+    if (bk) { birdIM.instanceMatrix.needsUpdate = true; wingIM.instanceMatrix.needsUpdate = true; }
     healIM.count = healCrossIM.count = hk; healIM.instanceMatrix.needsUpdate = true; healCrossIM.instanceMatrix.needsUpdate = true;
     foodIM.count = fk; pfandIM.count = pk2; foodIM.instanceMatrix.needsUpdate = true; pfandIM.instanceMatrix.needsUpdate = true;
     // Brocken, Trümmer, Hülsen
@@ -4428,6 +4460,9 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       bill(addB, b.x, 18, b.y, b.r * 3.2, CELL.glow, b.rgb, 0.7);
     }
     for (const o of w.orbs) if (o.type === "heal") { bill(addB, o.x, 9, o.y, 20 + Math.sin(t * 6) * 3, CELL.glow, "120,255,140", 0.55); flat(floorB, o.x, 0.9, o.y, 0, 16, 16, CELL.ring, "120,255,140", 0.6); }
+    // v3.4 weicher Kontaktschatten unter Hindernissen, wenn keine Schattenkarte läuft (Grafikstufe 1), und unter fliegenden Krähen
+    if (quality < 2) for (const o of w.obstacles) if (!o.dead && !o.gateBar) flat(normB, o.x + o.w / 2 + 6, 0.5, o.y + o.h / 2 + 8, 0, o.w / 2 + 14, o.h / 2 + 14, CELL.blob, "0,0,0", 0.42);
+    for (const b of w.birds || []) if (b.fly) flat(normB, b.x, 0.6, b.y, 0, 6, 4, CELL.blob, "0,0,0", Math.max(0, 0.35 - b.z / 600));
     // v3.3 Beutekiste: Lichtsäule (senkrechtes, zur Kamera gedrehtes Quad), Schein und Ring in der Seltenheitsfarbe
     for (const o of w.orbs) if (o.type === "gear") {
       const rgb = LOOT_CSS[(o.item && o.item.r) || 0], pulse = 0.75 + 0.25 * Math.sin(t * 5 + o.x);

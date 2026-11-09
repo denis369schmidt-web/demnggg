@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-11-09",
+  "generatedAt": "2026-11-09T13:54:39.766Z",
+  "attempt": 4,
+  "theme": {
+    "id": "phoenix",
+    "title": "Phönix",
+    "mood": "trotzig",
+    "description": "Rückschläge in Treibstoff verwandeln und neu starten.",
+    "keywords": [
+      "Asche",
+      "Feuer",
+      "Neustart",
+      "Flügel",
+      "Glut",
+      "Comeback"
+    ]
+  },
+  "challenge": {
+    "id": "punchline-schmiede",
+    "title": "Punchline-Schmiede",
+    "task": "Baue in 8 Bars mindestens vier Punchlines zum Thema „Phönix“ – jede zweite Zeile muss sitzen.",
+    "constraint": "Mindestens zwei Zeilen enthalten einen Doppelreim.",
+    "bars": 8,
+    "bpm": 137
+  },
+  "wordPacks": [
+    {
+      "id": "phoenix-thema",
+      "title": "Thema: Phönix",
+      "words": [
+        "Feuer",
+        "Glut",
+        "Neustart",
+        "Asche",
+        "Comeback",
+        "Flügel"
+      ]
+    },
+    {
+      "id": "2026-11-09-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Radar",
+        "Satellit",
+        "Anker",
+        "Antenne",
+        "Echo",
+        "Neonlicht"
+      ]
+    },
+    {
+      "id": "2026-11-09-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Instinkt",
+        "Frieden",
+        "Geduld",
+        "schweben",
+        "pushen",
+        "kreisen"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Glut",
+      "b": "Mut"
+    },
+    {
+      "a": "Weite",
+      "b": "Seite"
+    },
+    {
+      "a": "Feuer",
+      "b": "teuer"
+    },
+    {
+      "a": "Druck",
+      "b": "Ruck"
+    },
+    {
+      "a": "Takt",
+      "b": "exakt"
+    },
+    {
+      "a": "Rauch",
+      "b": "auch"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Antenne in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 14
+    },
+    {
+      "line": "Ich zähl die Beats wie Flügel, alles landet exakt",
+      "syllables": 13
+    },
+    {
+      "line": "Zwischen Flügel und Antenne find ich Raum für den Reim",
+      "syllables": 14
+    },
+    {
+      "line": "Antenne auf Repeat, bis die Hook von alleine läuft",
+      "syllables": 14
+    }
+  ],
+  "flowTip": {
+    "id": "call-response",
+    "title": "Call & Response",
+    "tip": "Lass Zeile 2 auf Zeile 1 antworten – Frage/Antwort-Strukturen halten Zuhörer automatisch im Takt."
+  },
+  "quote": "Der Beat wartet nicht – aber er verzeiht jedem, der wiederkommt.",
+  "beatPreset": {
+    "bpm": 137,
+    "pattern": "Trap Halftime",
+    "energy": "mittel"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-11-09",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

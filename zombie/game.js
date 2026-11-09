@@ -4269,7 +4269,8 @@
   }
 
   function addText(x, y, txt, color, size, crit = false) {
-    texts.push({ x, y, txt: String(txt), color, size, life: crit ? 1.05 : 0.8, max: crit ? 1.05 : 0.8, crit });
+    const num = /^\d+!?$/.test(String(txt)); // v3.6 Schadenszahlen fliegen im Bogen auseinander, Ansagen bleiben ruhig stehen
+    texts.push({ x, y, txt: String(txt), color, size, life: crit ? 1.05 : 0.8, max: crit ? 1.05 : 0.8, crit, num, vx: num ? rand(-26, 26) : 0, vy: num ? -rand(70, 110) : -34, rot: num && crit ? rand(-0.14, 0.14) : 0 });
   }
   function showBanner(title, sub, dur = 2) {
     banner = { title, sub, life: dur, max: dur };
@@ -4600,7 +4601,7 @@
     if (callout && (callout.life -= dt) <= 0) callout = null;
     for (const d of screenBlood) { d.life -= dt; d.dy += dt * (6 + d.s * 3); } // langsam herunterlaufen
     if (screenBlood.length) screenBlood = screenBlood.filter((d) => d.life > 0);
-    for (const t of texts) { t.life -= dt; t.y -= 34 * dt; }
+    for (const t of texts) { t.life -= dt; t.x += (t.vx || 0) * dt; t.y += (t.vy ?? -34) * dt; if (t.num) { t.vy += 190 * dt; t.vx *= 1 - 2 * dt; } }
     texts = texts.filter((t) => t.life > 0);
     updateCorpses(dt);
     for (const z of zaps) z.life -= dt;
@@ -6438,12 +6439,22 @@
     for (const e of enemies) {
       const tag = e.elite && e.aff;
       if (e.def.boss || e.spawnT > 0 || (e.hp >= e.maxHp && !tag)) continue;
+      // v3.6 Balken nur nach Treffern (blendet nach 3 s aus – Horden bleiben lesbar), helle Schadensspur läuft verzögert nach
+      const kk = Math.max(0, e.hp / e.maxHp);
+      if (e.barHp !== e.hp) { e.barHp = e.hp; e.barAt = run.time; }
+      e.barK = e.barK == null ? kk : run.time - e.barAt > 0.35 ? Math.max(kk, e.barK - 1.6 * (1 / 60)) : e.barK;
+      const show = Math.max(0, Math.min(1, (3.2 - (run.time - (e.barAt || 0))) / 0.5));
       const w = Math.max(20, e.r * 2);
       const q = scr(e.x, e.y, mode3d ? Render3D.heightOf(e) + 6 : 0);
       const x = q.x, y = mode3d ? q.y - 6 : e.y - e.r * e.scale - 13;
-      if (e.hp < e.maxHp) {
-        ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 5);
-        ctx.fillStyle = e.def.armor || (tag && e.aff.includes("armored")) ? "#7fb4ff" : "#e5383b"; ctx.fillRect(x - w / 2, y, w * Math.max(0, e.hp / e.maxHp), 3);
+      if (e.hp < e.maxHp && show > 0) {
+        ctx.globalAlpha = show;
+        ctx.fillStyle = "rgba(0,0,0,0.72)"; roundRect(x - w / 2 - 1.5, y - 1.5, w + 3, 6, 2.5); ctx.fill();
+        if (e.barK > kk) { ctx.fillStyle = "rgba(255,236,190,0.9)"; ctx.fillRect(x - w / 2, y, w * e.barK, 3); }
+        const blue = e.def.armor || (tag && e.aff.includes("armored"));
+        ctx.fillStyle = blue ? "#7fb4ff" : kk < 0.3 ? "#ff3a2a" : "#e5383b"; ctx.fillRect(x - w / 2, y, w * kk, 3);
+        ctx.fillStyle = "rgba(255,255,255,0.28)"; ctx.fillRect(x - w / 2, y, w * kk, 1);
+        ctx.globalAlpha = 1;
       }
       if (tag) drawEnemyTag(e, x, y);
     }
@@ -6465,14 +6476,23 @@
     for (const t of texts) {
       const age = t.max - t.life;
       const pop = age < 0.1 ? 0.6 + age * 8 : Math.max(1, 1.4 - (age - 0.1) * 3);
-      ctx.globalAlpha = Math.min(1, (t.life / t.max) * 2.5);
-      ctx.font = FONT_NUM(Math.round(t.size * pop * 1.35), 700);
-      ctx.lineWidth = t.crit ? 5 : 3.5;
-      ctx.strokeStyle = "rgba(0,0,0,0.85)";
-      const q = scr(t.x, t.y, 30);
-      ctx.strokeText(t.txt, q.x, q.y);
-      ctx.fillStyle = t.color;
-      ctx.fillText(t.txt, q.x, q.y);
+      const a = Math.min(1, (t.life / t.max) * 2.5), q = scr(t.x, t.y, 30), fs = Math.round(t.size * pop * 1.35);
+      ctx.save(); ctx.translate(q.x, q.y); if (t.rot) ctx.rotate(t.rot);
+      // v3.6 Krit-Zahlen: Leuchtstern dahinter, Farbverlauf hell → orange, dicke Kontur
+      if (t.num && t.crit) {
+        ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = a * 0.55 * Math.max(0.4, 1.3 - age * 2);
+        ctx.drawImage(Sprites.glow("255,180,60").c, -fs * 1.1, -fs * 1.15, fs * 2.2, fs * 1.6);
+        ctx.globalCompositeOperation = "source-over";
+      }
+      ctx.globalAlpha = a;
+      ctx.font = FONT_NUM(fs, 700);
+      ctx.lineWidth = t.crit ? 5 : 3.5; ctx.lineJoin = "round";
+      ctx.strokeStyle = t.num && t.crit ? "rgba(70,20,0,0.95)" : "rgba(0,0,0,0.85)";
+      ctx.strokeText(t.txt, 0, 0);
+      if (t.num && t.crit) { const gr = ctx.createLinearGradient(0, -fs * 0.8, 0, fs * 0.1); gr.addColorStop(0, "#fff6c0"); gr.addColorStop(0.55, "#ffc23a"); gr.addColorStop(1, "#ff6a1a"); ctx.fillStyle = gr; }
+      else ctx.fillStyle = t.color;
+      ctx.fillText(t.txt, 0, 0);
+      ctx.restore();
     }
     ctx.globalAlpha = 1;
   }

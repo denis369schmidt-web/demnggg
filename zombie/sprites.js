@@ -2110,7 +2110,7 @@ window.Sprites = (() => {
       noise(g, L, T, aw, ah, Math.round(1600 * AK), ["rgba(240,246,255,0.5)"], R, 1.6);
     }
     if (opts.confetti) noise(g, L, T, aw, ah, Math.round(1100 * AK), ["#ff4a5a", "#ffd23a", "#4ad1ff", "#7dff6a", "#ff7ae0", "#ffffff"], R, 2.2);
-    if (opts.leaves) for (let i = 0; i < 160 * AK; i++) { g.fillStyle = ["#b5651d", "#d4a017", "#8b3a1a", "#c97a2a"][Math.floor(R() * 4)]; ell(g, L + R() * aw, T + R() * ah, 3 + R() * 2.5, 1.6 + R(), R() * 3); g.fill(); }
+    if (opts.leaves) for (let i = 0; i < 105 * AK; i++) { g.fillStyle = ["#b5651d", "#d4a017", "#8b3a1a", "#c97a2a"][Math.floor(R() * 4)]; ell(g, L + R() * aw, T + R() * ah, 3 + R() * 2.5, 1.6 + R(), R() * 3); g.fill(); }
     // Innenschatten an den Wänden
     const edge = (x0, y0, x1, y1, w, h) => { const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, "rgba(0,0,0,0.55)"); gr.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gr; g.fillRect(Math.min(x0, x1), Math.min(y0, y1), w, h); };
     edge(L, T, L, T + 40, aw, 40); edge(L, T, L + 30, T, 30, ah); edge(RR, T, RR - 30, T, 30, ah); edge(L, B, L, B - 26, aw, 26);

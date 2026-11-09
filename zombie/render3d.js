@@ -485,6 +485,7 @@ window.Render3D = (() => {
     sc.left = -650; sc.right = 650; sc.top = 650; sc.bottom = -650; sc.near = 200; sc.far = 2600;
     moon.shadow.bias = -0.0008;
     moon.shadow.normalBias = 1.5;
+    moon.shadow.radius = 2.4; // v3.6 weichere Schattenkanten (gleiche 5 PCF-Abtastungen, nur weiter gestreut)
     scene.add(moon, moon.target);
     // Aufhelllicht aus Kamerarichtung, damit die Vorderseiten der Figuren nicht absaufen
     fill = new T3.DirectionalLight(0xffe2c4, 1.1);
@@ -502,7 +503,7 @@ window.Render3D = (() => {
     const atlas = makeAtlas();
     addB = new QuadBatch(2600, atlas, true);
     normB = new QuadBatch(1600, atlas, false);
-    floorB = new QuadBatch(400, atlas, true, true);
+    floorB = new QuadBatch(900, atlas, true, true); // v3.6: Platz für Spiegelungen und Lichtschein der Läden
     scene.add(addB.mesh, normB.mesh, floorB.mesh);
     // Sichtbarer Lichtkegel der Taschenlampe (staubige Luft)
     const beamGeo = new T3.ConeGeometry(120, 300, 28, 1, true);
@@ -1020,7 +1021,7 @@ void main() {
       g.fillStyle = "rgba(255,255,255,0.18)"; g.fillRect(x - 3, y + h + 1, w + 6, 2.5); // Sims
       g.fillStyle = "rgba(0,0,0,0.35)"; g.fillRect(x - 3, y + h + 3.5, w + 6, 1.5);
     };
-    const winState = () => { const r = R(); return r < 0.16 ? "lit" : r < 0.2 ? "tv" : r < 0.3 ? "broken" : r < 0.38 ? "boarded" : r < 0.5 ? "curtain" : "dark"; };
+    const winState = () => { const r = R(); return r < 0.2 ? "lit" : r < 0.25 ? "tv" : r < 0.34 ? "broken" : r < 0.42 ? "boarded" : r < 0.54 ? "curtain" : "dark"; };
     // Leuchtschrift: farbiges Schild, auf der Leucht-Ebene als Neon (teils kaputt = dunkel)
     const sign = (g, x, y, w, h, [txt, rgb, cross], lit, bg = "#15181c") => {
       g.fillStyle = bg; g.fillRect(x, y, w, h);
@@ -1031,7 +1032,7 @@ void main() {
       g.font = font; g.textBaseline = "middle"; g.fillStyle = lit ? `rgb(${rgb})` : `rgba(${rgb},0.45)`; g.fillText(txt, tx, y + h / 2 + 0.5);
       const crossAt = (c, col) => { c.fillStyle = col; const cx = x + 2 + h / 2, cy = y + h / 2, a = h * 0.36, b = h * 0.12; c.fillRect(cx - a, cy - b, a * 2, b * 2); c.fillRect(cx - b, cy - a, b * 2, a * 2); };
       if (cross) crossAt(g, `rgb(${rgb})`);
-      if (lit) glow((e) => { e.font = font; e.textBaseline = "middle"; e.shadowColor = `rgb(${rgb})`; e.shadowBlur = 6; e.fillStyle = `rgb(${rgb})`; e.fillText(txt, tx, y + h / 2 + 0.5); if (cross) crossAt(e, `rgb(${rgb})`); e.shadowBlur = 0; });
+      if (lit) glow((e) => { e.fillStyle = `rgba(${rgb},0.2)`; e.fillRect(x, y, w, h); e.font = font; e.textBaseline = "middle"; e.shadowColor = `rgb(${rgb})`; e.shadowBlur = 6; e.fillStyle = `rgb(${rgb})`; e.fillText(txt, tx, y + h / 2 + 0.5); if (cross) crossAt(e, `rgb(${rgb})`); e.shadowBlur = 0; }); // v3.6 Leuchtkasten
     };
     const map = canvasTex(W, H, (g) => {
       g.fillStyle = "#2a2622"; g.fillRect(0, 0, W, H);
@@ -1101,13 +1102,13 @@ void main() {
         // Erdgeschoss: Laden mit Schaufenster, Tür, Schild – oder heruntergelassener Rollladen mit Graffiti
         if (theme !== "markt") { g.fillStyle = theme === "lab" ? "#454c50" : theme === "hospital" ? "#b8bebc" : "#5a524a"; g.fillRect(x, groundY, w2, H - groundY); }
         g.fillStyle = "rgba(0,0,0,0.3)"; g.fillRect(x, groundY, w2, 3);
-        const shop = pick(shops), lit = R() < 0.62, open = R() < 0.6;
+        const shop = pick(shops), lit = R() < 0.78, open = R() < 0.7; // v3.6 belebtere Erdgeschosse
         const sx0 = x + 8, sw0 = w2 - 16, signY = groundY + 8;
         sign(g, sx0, signY, sw0, 16, shop, lit, theme === "markt" ? "#2a1c12" : "#15181c");
         const wy0 = groundY + 32, wh0 = H - wy0 - 14, doorW = 26, dx = x + (R() < 0.5 ? 10 : w2 - 10 - doorW);
         if (open) {
           const glassX = dx > x + w2 / 2 ? x + 10 : dx + doorW + 6, glassW = w2 - doorW - 26;
-          const inLit = R() < 0.55;
+          const inLit = R() < 0.72;
           const gr = g.createLinearGradient(0, wy0, 0, wy0 + wh0);
           gr.addColorStop(0, inLit ? "#c89850" : "#182028"); gr.addColorStop(1, inLit ? "#6a4422" : "#0a0e12");
           g.fillStyle = "#202428"; g.fillRect(glassX - 2, wy0 - 2, glassW + 4, wh0 + 4);
@@ -1148,6 +1149,32 @@ void main() {
     return { map, emi };
   }
 
+  // v3.6 Spaltenweise Farbe der Leucht-Karte im Erdgeschoss (Schaufenster, Schilder): 64 Spalten je Fassadenstreifen.
+  // Einmal je Thema aus der Hauptspeicher-Leinwand gelesen (kein GPU-Zurücklesen), danach aus dem Cache.
+  const facGlowCache = new Map();
+  function facadeGlowCols(theme) {
+    let cols = facGlowCache.get(theme);
+    if (cols) return cols;
+    cols = [];
+    const img = facadeTextures(theme).emi.image, gx = img.getContext("2d", { willReadFrequently: true });
+    const y0 = Math.round(img.height * 0.6), hh = Math.round(img.height * 0.36), cw = img.width / 64;
+    const data = gx.getImageData(0, y0, img.width, hh).data;
+    for (let c = 0; c < 64; c++) {
+      // hellste Stelle der Spalte zählt (Schaufenster und Schriftzüge sind schmal), Farbe von dort
+      let best = 0, r = 0, g2 = 0, b = 0, lit = 0, n = 0;
+      for (let y = 0; y < hh; y += 2) for (let x = Math.floor(c * cw); x < Math.floor((c + 1) * cw); x += 2) {
+        const i = (y * img.width + x) * 4, m2 = Math.max(data[i], data[i + 1], data[i + 2]); n++;
+        if (m2 > 40) lit++;
+        if (m2 > best) { best = m2; r = data[i]; g2 = data[i + 1]; b = data[i + 2]; }
+      }
+      const m = best;
+      if (m < 50 || lit < n * 0.04) { cols.push(null); continue; }
+      const kk = Math.min(1, (m / 255) * (0.5 + Math.min(0.5, lit / n * 2))), sc = 255 / m;
+      cols.push({ rgb: `${Math.round(r * sc)},${Math.round(g2 * sc)},${Math.round(b * sc)}`, k: kk });
+    }
+    facGlowCache.set(theme, cols);
+    return cols;
+  }
   function obstacleTexture(kind) {
     return tex(`obs:${kind}`, 128, 128, (g) => {
       const R = seededR(kind.length * 7919 + kind.charCodeAt(0) * 31);
@@ -2170,6 +2197,7 @@ void main() {
     for (const b of sk.beams) { b.visible = vis; const ph = b.userData.ph; b.rotation.z = Math.sin(t * 0.22 + ph) * 0.55; b.rotation.x = -0.35 + Math.sin(t * 0.17 + ph * 1.7) * 0.12; }
   }
 
+  const floorWetU = { value: 0.75 }, floorSkyU = { value: new T3.Color(0.1, 0.11, 0.16) }; // v3.6 Boden-Nässe
   function buildRoom(w) {
     for (const [, d] of dying) releaseModel(d.M);
     dying.clear();
@@ -2222,6 +2250,16 @@ void main() {
     const floorMat = new T3.MeshPhongMaterial({ map: floorTex, color: 0xb4b4b4, normalMap: floorN, normalScale: new T3.Vector2(1, 1), specular: 0x4a5058, shininess: 60 });
     const glossTex = fc.gloss ? crop(new T3.CanvasTexture(fc.gloss)) : null; // frisches Blut wird hier nass glänzend eingestempelt
     if (glossTex) floorMat.specularMap = glossTex;
+    // v3.6 nasser Boden: glänzende Stellen (Pfützen, Rinnstein, Blut) spiegeln Nachthimmel und Stadtschein – flach betrachtet
+    // stärker (Fresnel), in der steilen Übersicht dezent. Nässe je Wetter, Himmelsfarbe aus Mond und Feuerschein.
+    floorWetU.value = w.weather === "rain" ? 1 : w.weather === "snow" ? 0.3 : w.theme === "hospital" || w.theme === "lab" ? 0.6 : 0.75;
+    floorSkyU.value.setRGB(0.07, 0.085, 0.13).lerp(new T3.Color(th.moon), 0.12).add(new T3.Color(0.05, 0.025, 0.012));
+    floorMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uFloorWet = floorWetU; sh.uniforms.uFloorSky = floorSkyU;
+      sh.fragmentShader = "uniform float uFloorWet;\nuniform vec3 uFloorSky;\n" + sh.fragmentShader.replace("#include <opaque_fragment>",
+        "{ float fr = pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 2.5);\n\t  outgoingLight += mix(uFloorSky * 0.3, uFloorSky * 1.25, fr) * specularStrength * uFloorWet; }\n\t#include <opaque_fragment>");
+    };
+    floorMat.customProgramCacheKey = () => "floor:v36";
     const floor = mesh(new T3.PlaneGeometry(aw, ah), floorMat, (D.L + D.R) / 2, 0, (D.T + D.B) / 2);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
@@ -2238,7 +2276,7 @@ void main() {
     const wt = wallTexture(th.wall), wn = normalTexFor(`wall:${th.wall}`, 4), rt = roofTexture(th.wall);
     const edgeMat = slam(EDGE[w.theme] || EDGE.street);
     // v3.5 Häuserfassaden zur Arena (Innenseite der Blöcke): Läden, Fenster, Leuchtreklame
-    const fac = facadeTextures(th.wall), facN = normalTexFor(`fac:${th.wall}`, 2.2);
+    const fac = facadeTextures(th.wall), facN = normalTexFor(`fac:${th.wall}`, 2.2), facLights = [];
     let fs = Math.floor(strHash(`${w.cityId}|${w.district}|${w.theme}`) * 4294967296) >>> 0;
     const FR = () => { fs = (fs * 1664525 + 1013904223) >>> 0; return fs / 4294967296; };
     const wall = (x0, z0, x1, z1, h, edge, inner = -1) => {
@@ -2251,6 +2289,18 @@ void main() {
         const rx = len / FAC_W, off = Math.floor(FR() * 8) / 8, fm = rep2(fac.map, rx, 1), fe = rep2(fac.emi, rx, 1), fnm = rep2(facN, rx, 1);
         fm.offset.x = fe.offset.x = fnm.offset.x = off;
         mats[inner] = new T3.MeshLambertMaterial({ map: fm, emissiveMap: fe, emissive: 0xffffff, emissiveIntensity: 1.2, normalMap: fnm });
+        // v3.6 erleuchtete Läden/Leuchtreklame am Fuß der Fassade: Lichtschein und Spiegelung auf dem Boden
+        const cols = facadeGlowCols(th.wall);
+        let run2 = null;
+        const flush = () => { if (run2) { facLights.push(run2); run2 = null; } };
+        for (let s0 = 6; s0 < len - 6; s0 += 12) {
+          const u = inner === 0 ? 1 - s0 / len : s0 / len, tu = u * rx + off, ci = Math.floor((((tu % 1) + 1) % 1) * cols.length) % cols.length, cg = cols[ci];
+          const wx = inner === 0 ? x1 : inner === 1 ? x0 : x0 + s0, wz = inner === 4 ? z1 : z0 + s0;
+          if (!cg || wx < D.L - 2 || wx > D.R + 2 || wz > D.B) { flush(); continue; } // nur Läden an der Arena
+          if (run2 && run2.rgb === cg.rgb && Math.abs(run2.x - wx) + Math.abs(run2.z - wz) < 60 && run2.n < 4) { run2.x = (run2.x * run2.n + wx) / (run2.n + 1); run2.z = (run2.z * run2.n + wz) / (run2.n + 1); run2.n++; run2.k = Math.max(run2.k, cg.k); }
+          else { flush(); run2 = { x: wx, z: wz, nx: inner === 0 ? 1 : inner === 1 ? -1 : 0, nz: inner === 4 ? 1 : 0, rgb: cg.rgb, k: cg.k, n: 1, ph: FR() * TAU }; }
+        }
+        flush();
       }
       const m = mesh(box(x1 - x0, h, z1 - z0), mats, (x0 + x1) / 2, h / 2, (z0 + z1) / 2);
       m.castShadow = true; m.receiveShadow = true;
@@ -2372,7 +2422,9 @@ void main() {
     uncached = false;
 
     const sky = addSkyline(g, w); // v3.5 Himmel, Skyline, Rauch, Suchscheinwerfer
-    room = { group: g, floorTex, glossTex, door, lamps, lampRgb, obs, cones, beacons, baseHemi, baseMoon, clock, sky };
+    // v3.6 Nässe: draußen nachts immer feucht, bei Regen spiegelnd, bei Schnee matt; Klinik-/Laborböden poliert
+    const wet = w.weather === "rain" ? 1 : w.weather === "snow" ? 0.3 : w.theme === "hospital" || w.theme === "lab" ? 0.6 : 0.72;
+    room = { group: g, floorTex, glossTex, door, lamps, lampRgb, obs, cones, beacons, baseHemi, baseMoon, clock, sky, facLights, wet };
     builtFloor = fc;
     renderer.shadowMap.needsUpdate = true;
     warmPending = true; // neue Raum-Materialien (Wände, Hindernisse) gleich mit übersetzen
@@ -4907,6 +4959,27 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   const EYE = { jeck: "255,216,74", spitter: "234,255,0", abom: "234,255,0", armored: "80,170,230", burner: "255,176,58", screamer: "255,74,240", splitter: "255,106,213", electro: "127,231,255", healer: "140,255,138", phantom: "232,240,255", warden: "143,212,255", bloater: "234,255,0", nest: "224,112,224" };
   const fireRgb = (k) => FIRE[k > 0.6 ? 2 : k > 0.3 ? 1 : 0];
 
+  // v3.6 Nasse Straße: jede Lichtquelle spiegelt sich als zur Kamera gestreckter, leicht flimmernder Streifen im Asphalt;
+  // Läden und Leuchtreklame werfen außerdem farbigen Schein auf den Gehweg. Benutzt die Lichtliste des letzten Bildes.
+  function wetFloor(w, t) {
+    if (!room) return;
+    const wet = room.wet || 0;
+    if (wet <= 0) return;
+    const cx = camera.position.x, cz = camera.position.z;
+    const refl = (x, h, z, rgb, k, wid) => {
+      if (k <= 0.01) return;
+      const dx = cx - x, dz = cz - z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl;
+      const len = 10 + h * 0.85, sh = 1 + 0.1 * Math.sin(t * 2.6 + x * 0.07 + z * 0.05);
+      flat(floorB, x + ux * (len * 0.62 + 3), 0.65, z + uz * (len * 0.62 + 3), Math.atan2(uz, ux), len * sh, wid, CELL.glow, rgb, k * wet);
+    };
+    for (const f of room.facLights) {
+      const fl = 0.85 + 0.15 * Math.sin(t * 1.7 + f.ph), sx = f.x + f.nx * 16, sz = f.z + f.nz * 16, sp = 14 + f.n * 7;
+      flat(floorB, sx, 0.6, sz, f.nz ? 0 : Math.PI / 2, sp, 26, CELL.glow, f.rgb, 0.5 * f.k * fl); // Schein auf dem Gehweg
+      refl(f.x + f.nx * 3, 22, f.z + f.nz * 3, f.rgb, 0.7 * f.k * fl, 6 + f.n * 3);
+    }
+    for (let i = 0; i < room.lamps.length; i++) { const l = room.lamps[i]; refl(l.x, 48, l.z, room.lampRgb, 0.75 * lampLevel(l, t), 11); }
+    if (!w.menuCam) for (const c of lightCands) if (c[6] < 12) refl(c[0], c[1], c[2], c[3], Math.min(0.95, c[4] * 0.3), Math.min(24, 7 + c[5] * 0.035));
+  }
   function fillBatches(w, t) {
     const m = camera.matrixWorld.elements;
     camR.set(m[0], m[1], m[2]); camU.set(m[4], m[5], m[6]);
@@ -5191,6 +5264,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       bill(addB, l.x, 48, l.z, 15, CELL.glow, room.lampRgb, 0.95 * fl);
       bill(addB, l.x, 48, l.z, 5, CELL.glow, "255,255,240", fl);
     }
+    wetFloor(w, t);
     addB.end(); normB.end(); floorB.end();
   }
 
@@ -5672,6 +5746,6 @@ void main() {
     setTilt(x, y) { menuCam.tiltX += (x - menuCam.tiltX) * 0.15; menuCam.tiltY += (y - menuCam.tiltY) * 0.15; },
     get ready() { return ready; },
     get bloom() { return !!(post && postActive()); },
-    get debug() { return { scene, camera, renderer, models, atmo, shCam, post: () => post, woundAt, playerModel: () => playerModel, shocks, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
+    get debug() { return { scene, camera, renderer, models, atmo, shCam, room: () => room, floorQuads: () => floorB && floorB.n, post: () => post, woundAt, playerModel: () => playerModel, shocks, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
   };
 })();

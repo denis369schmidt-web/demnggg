@@ -571,6 +571,7 @@ window.GameAudio = (() => {
   }
   return {
     init, update, setTheme, stinger, thunder, ui, gun, foot, meat, setMuted, setMusic, mini,
+    rotor: (on) => { if (ready) rotorOn(!!on); }, // v3.6 Hubschrauber-Überflug im Einsatz
     get ready() { return ready; },
     sfxOut: () => (ready ? sfxBus : ctx && ctx.destination),
     get debug() { return { song: { bpm: BPM[S.mode], section: SONG[S.mode] && SONG[S.mode].prog.length > 1 ? Math.floor(bar / 8) % 2 : 0 }, rotor: !!rotor, S: { ...S }, cut: musicTone ? Math.round(musicTone.frequency.value) : 0, layers: Object.fromEntries(LAYERS.map((k) => [k, layer[k] ? +layer[k].gain.value.toFixed(3) : 0])), bar, step }; },

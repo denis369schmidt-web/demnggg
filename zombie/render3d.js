@@ -3900,7 +3900,41 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     return { g, rotor, tail, beam: beam2 };
   }
   const DOWN = new T3.Vector3(0, -1, 0), tmpV = new T3.Vector3();
+  // v3.6 Überflug im Einsatz: etwa jede Minute quert ein Polizeihubschrauber die Arena, der Suchscheinwerfer tastet um den Helden
+  const heliFly = { next: 28, t0: -1, dur: 10, x0: 0, x1: 0, z: 0, active: false };
+  function flyHeli(w, t) {
+    const F = heliFly, play = w.state === "play" && !w.isBossRoom && quality >= 1;
+    if (!F.active) {
+      if (!play || t < F.next) return false;
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      Object.assign(F, { active: true, t0: t, dur: 10 + Math.random() * 3, x0: dir > 0 ? D.L - 620 : D.R + 620, x1: dir > 0 ? D.R + 620 : D.L - 620, z: w.player.y - 140 + (Math.random() - 0.5) * 220 });
+      if (window.GameAudio && GameAudio.rotor) GameAudio.rotor(true);
+    }
+    const k = (t - F.t0) / F.dur;
+    if (k >= 1 || !play) { F.active = false; F.next = t + 50 + Math.random() * 35; if (window.GameAudio && GameAudio.rotor) GameAudio.rotor(false); return false; }
+    const p = w.player, ease = k * k * (3 - 2 * k) * 0.35 + k * 0.65;
+    const hx = F.x0 + (F.x1 - F.x0) * ease, hz = F.z + Math.sin(k * 3.1) * 40, hy = 300 + Math.sin(t * 0.8) * 10, dir = Math.sign(F.x1 - F.x0);
+    heli.g.position.set(hx, hy, hz);
+    heli.g.rotation.set(0, dir > 0 ? 0 : Math.PI, -0.18); // Nase in Flugrichtung, leicht nach unten
+    heli.rotor.rotation.y = t * 26; heli.tail.rotation.z = t * 40;
+    const sx = p.x + Math.cos(t * 0.9) * 90, sz = p.y + Math.sin(t * 1.15) * 70 - 20;
+    heliState.tx = sx; heliState.tz = sz; heliState.x = hx; heliState.y = hy; heliState.z = hz;
+    const dx = sx - hx, dy = -hy, dz = sz - hz, len = Math.hypot(dx, dy, dz);
+    heli.beam.position.set(hx, hy - 10, hz);
+    tmpV.set(dx / len, dy / len, dz / len);
+    heli.beam.quaternion.setFromUnitVectors(DOWN, tmpV);
+    heli.beam.scale.set(62, len, 62);
+    return true;
+  }
+  const heliOn = (w) => !!w.menuCam || heliFly.active;
   function syncHeli(w, t) {
+    if (!w.menuCam) {
+      if (!heli && quality >= 1 && t >= heliFly.next && w.state === "play") heli = makeHeli();
+      if (!heli) return;
+      const on = flyHeli(w, t);
+      heli.g.visible = on; heli.beam.visible = false; // im Einsatz nur Lichtfleck + echtes Licht: der Lichtkegel würde nah an der Kamera das Bild zuschütten
+      return;
+    }
     const on = !!w.menuCam;
     if (!heli) { if (!on) return; heli = makeHeli(); }
     heli.g.visible = heli.beam.visible = on;
@@ -5240,8 +5274,8 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     }
     drawAtmo(t);
     // Menü: Hubschrauber – Lichtfleck des Suchscheinwerfers, Positionslichter, Blitzer
-    if (w.menuCam && heli) {
-      flat(floorB, heliState.x, 1.1, heliState.z, -t * 0.16, 70, 26, CELL.blob, "0,0,0", 0.35); // Schatten des Hubschraubers
+    if (heliOn(w) && heli) {
+      flat(floorB, heliState.x, 1.1, heliState.z, w.menuCam ? -t * 0.16 : 0, 70, 26, CELL.blob, "0,0,0", 0.35); // Schatten des Hubschraubers
       flat(floorB, heliState.tx, 1.4, heliState.tz, 0, 70, 70, CELL.glow, "225,235,255", 0.55);
       flat(floorB, heliState.tx, 1.5, heliState.tz, 0, 46, 46, CELL.glow, "255,255,255", 0.35);
       const m = heli.g.matrixWorld, nav = (x, y, z, rgb, sz, a) => { tmpV.set(x, y, z).applyMatrix4(m); bill(addB, tmpV.x, tmpV.y, tmpV.z, sz, CELL.glow, rgb, a); };
@@ -5265,6 +5299,15 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       bill(addB, l.x, 48, l.z, 5, CELL.glow, "255,255,240", fl);
     }
     wetFloor(w, t);
+    // v3.6 Schwebeteilchen im Taschenlampenkegel: Staub und Nieselregen glitzern im Licht (wirkt wie ein echter Lichtkegel)
+    if (!w.menuCam && w.state !== "over" && quality >= 1) {
+      const ca = Math.cos(p.aim), sa = Math.sin(p.aim);
+      for (let i = 0; i < 28; i++) {
+        const d = 36 + ((i * 53.7 + t * (9 + (i % 4) * 3)) % 230), side = Math.sin(i * 1.73 + t * 0.31) * d * 0.33, hgt = 10 + ((i * 31) % 42) + Math.sin(t * 0.7 + i) * 5;
+        const x = p.x + ca * d - sa * side, z = p.y + sa * d + ca * side, tw = 0.55 + 0.45 * Math.sin(t * 3.1 + i * 2.3);
+        bill(addB, x, hgt, z, 1.3 + (i % 3) * 0.5, CELL.glow, "255,240,210", 0.5 * (1 - d / 280) * (1 - Math.abs(side) / (d * 0.4 + 1)) * tw);
+      }
+    }
     addB.end(); normB.end(); floorB.end();
   }
 
@@ -5485,6 +5528,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       lightCands.push([p.x + (kx / kl) * 110, 105, p.y + (kz / kl) * 110, "255,234,212", 2.4, 330, 12]);
       lightCands.push([p.x - (kx / kl) * 80, 85, p.y - (kz / kl) * 80, "120,165,255", 2.6, 240, 11]);
     }
+    if (!w.menuCam && heliFly.active && heli) lightCands.push([heliState.tx, 60, heliState.tz, "215,228,255", 3.2, 230, 9]); // v3.6 Suchscheinwerfer beim Überflug
     if (room && room.beacons.length) { const k = alarmPulse(t); if (k > 0.05) for (const [bx, bz] of room.beacons) lightCands.push([bx, 70, bz + 30, "255,40,30", 3 * k, 380, 3]); }
     lightCands.sort((a, b) => b[6] - a[6] || b[4] - a[4]);
     for (let i = 0; i < pool.length; i++) {
@@ -5746,6 +5790,6 @@ void main() {
     setTilt(x, y) { menuCam.tiltX += (x - menuCam.tiltX) * 0.15; menuCam.tiltY += (y - menuCam.tiltY) * 0.15; },
     get ready() { return ready; },
     get bloom() { return !!(post && postActive()); },
-    get debug() { return { scene, camera, renderer, models, atmo, shCam, room: () => room, floorQuads: () => floorB && floorB.n, post: () => post, woundAt, playerModel: () => playerModel, shocks, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
+    get debug() { return { scene, camera, renderer, models, atmo, shCam, heliFly, room: () => room, floorQuads: () => floorB && floorB.n, post: () => post, woundAt, playerModel: () => playerModel, shocks, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
   };
 })();

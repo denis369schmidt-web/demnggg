@@ -66,7 +66,7 @@ window.Render3D = (() => {
     return g;
   }
   // Kastenteil beim Verschmelzen gegen die gefaste Form tauschen (Kleinstteile bleiben scharf und billig)
-  const SOFT_K = 0.22, SOFT_MIN = 1.6;
+  const SOFT_K = 0.22, SOFT_MIN = 0.7; // v3.6: auch Handflächen, Kiefer und Mundhöhle der Figuren gerundet
   function softGeo(g, k = SOFT_K, min = SOFT_MIN) {
     if (g.type !== "BoxGeometry") return g;
     const { width: w, height: h, depth: d } = g.parameters;
@@ -3211,6 +3211,7 @@ void main() {
           if (nz > 0.32) { const k = Math.min(1, (nz - 0.32) * 4) * look.grime; r += (look.gr - r) * k; gg += (look.gg - gg) * k; b += (look.gb - b) * k; }
         }
         if (look.h) { const ao = 0.5 + 0.5 * Math.min(1, Math.max(0, wp.y / (look.h * 0.7))); r *= ao; gg *= ao; b *= ao; }
+        if (N && look.h) { fN.set(N[i * 3], N[i * 3 + 1], N[i * 3 + 2]).transformDirection(toRoot); const cav = 0.8 + 0.2 * (fN.y * 0.5 + 0.5); r *= cav; gg *= cav; b *= cav; } // v3.6 Unterseiten (Kinn, Achseln, Bauch) im Schatten
       }
       for (let v = 0; v < step && i + v < n; v++) { const k = (o + i + v) * 3; col[k] = r; col[k + 1] = gg; col[k + 2] = b; }
     }
@@ -5299,6 +5300,26 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       bill(addB, l.x, 48, l.z, 5, CELL.glow, "255,255,240", fl);
     }
     wetFloor(w, t);
+    // v3.6 Leuchtende Augen im Dunkeln (mit Tiefentest, leicht zur Kamera versetzt) und Boden-Aura der Bosse
+    if (!w.menuCam && quality >= 1) {
+      let ne = 0;
+      for (const [e, M] of models) {
+        if (e.def && e.def.boss) {
+          const rg = e.phase2 || e.rageT > 0, rr = (e.r || 30) * 2.1 * (1 + 0.06 * Math.sin(t * 3));
+          flat(floorB, e.x, 1.7, e.y, t * 0.6, rr, rr, CELL.shock, rg ? "255,60,40" : "190,90,255", 0.42 + 0.16 * Math.sin(t * 4));
+          flat(floorB, e.x, 1.6, e.y, 0, rr * 0.8, rr * 0.8, CELL.glow, rg ? "255,40,20" : "140,60,220", 0.22);
+        }
+        const hd = M.extra && M.extra.head;
+        if (!hd || e.dead || e.spawnT > 0 || e.under || ne > 70 || M.kind === "armored") continue;
+        const r = (M.height || 33) / 2.75, hr = 0.4 * r, ec = EYE[e.type] || "255,52,40", el = hd.matrixWorld;
+        for (const sd of [-1, 1]) {
+          tmpV.set(hr * 0.9, 0.06 * r, sd * 0.15 * r).applyMatrix4(el);
+          tmpV.x += (camera.position.x - tmpV.x) * 0.012; tmpV.y += (camera.position.y - tmpV.y) * 0.012; tmpV.z += (camera.position.z - tmpV.z) * 0.012;
+          bill(floorB, tmpV.x, tmpV.y, tmpV.z, r * 0.2, CELL.glow, ec, 0.75);
+        }
+        ne++;
+      }
+    }
     // v3.6 Schwebeteilchen im Taschenlampenkegel: Staub und Nieselregen glitzern im Licht (wirkt wie ein echter Lichtkegel)
     if (!w.menuCam && w.state !== "over" && quality >= 1) {
       const ca = Math.cos(p.aim), sa = Math.sin(p.aim);

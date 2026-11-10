@@ -834,27 +834,114 @@ window.Sprites = (() => {
     g.fillStyle = "#1a0510"; ell(g, c, c, r * 0.22, r * 0.16 * (1 + 0.3 * Math.sin(ph))); g.fill();
   }
 
-  function zombie(type, frame, variant = 0) {
+  function zombie(type, frame, variant = 0, evo = 0) {
     const f = ((frame % FRAMES) + FRAMES) % FRAMES;
     const v = variant % variants(type);
-    const key = `z:${type}:${v}:${f}`;
+    const fn = type === "crawler" ? crawler : type === "dog" || type === "rat" ? dog : type === "abom" ? abom : type === "mother" ? mother : type === "nest" ? nest : humanoid;
+    if (fn !== humanoid) evo = 0; // nur menschenähnliche Zombies mutieren
+    const key = evo ? `z:${type}:${v}:${f}:e${evo}` : `z:${type}:${v}:${f}`;
     const cached = cache.get(key);
     if (cached) return cached;
     const r = Z_R[type] || 15;
-    const S = r * (SPAN[type] || 3.7);
-    const P = (PAL[type] || PAL.walker)[v];
-    const fn = type === "crawler" ? crawler : type === "dog" || type === "rat" ? dog : type === "abom" ? abom : type === "mother" ? mother : type === "nest" ? nest : humanoid;
-    return get(key, S, S, outlined((g) => fn(g, S / 2, r, f, P, rng(hash(type) + v * 977)), r > 30 ? 2 : 1.2));
+    const S = r * (SPAN[type] || 3.7) * (evo >= 2 ? 1.14 : 1); // Platz für Stacheln
+    const P0 = (PAL[type] || PAL.walker)[v], P = evo ? evoPal(P0, evo) : P0;
+    return get(key, S, S, outlined((g) => {
+      fn(g, S / 2, r, f, P, rng(hash(type) + v * 977));
+      if (evo) mutation2D(g, S / 2, r, f, evo, P, rng(hash(type) + v * 977 + evo * 7919));
+    }, r > 30 ? 2 : 1.2));
+  }
+  // v3.7 Evolutionsstufen: Haut kippt ins Grünliche (Verseucht), Rotbraune (Mutant) bzw. Dunkelrote (Alpha), Kleidung dunkelt nach
+  const EVO_SKIN = [null, "#5f9a34", "#6e3a2c", "#4a1418"], EVO_CLOTH = [0, 0.08, 0.2, 0.38];
+  function blendHex(a, b, k) {
+    const A = hex2rgb(a), B = hex2rgb(b), h = (x) => Math.round(x).toString(16).padStart(2, "0");
+    return `#${h(A[0] + (B[0] - A[0]) * k)}${h(A[1] + (B[1] - A[1]) * k)}${h(A[2] + (B[2] - A[2]) * k)}`;
+  }
+  function evoPal(P, evo) {
+    const dk = (c) => (c && c[0] === "#" ? blendHex(c, "#120808", EVO_CLOTH[evo]) : c);
+    return { ...P, skin: P.skin && P.skin[0] === "#" ? blendHex(P.skin, EVO_SKIN[evo], evo === 1 ? 0.66 : 0.72) : EVO_SKIN[evo], shirt: dk(P.shirt), pants: dk(P.pants) };
+  }
+  // Mutationsteile von oben (Blickrichtung +x): Torso-Ellipse 0,55 r × 0,93 r, Schultern bei ±0,74 r, Kopf bei +0,2 r
+  function mutation2D(g, c, r, f, evo, P, R) {
+    const ph = (f / FRAMES) * TAU, tx = c + (P.lean ? r * P.lean : 0);
+    const bulk = P.brute ? 1.14 : P.big ? 1.16 : P.bloat ? 1.1 : P.belly ? 1.08 : 1;
+    const hands = [-1, 1].map((s) => ({ s, x: tx + r * (1.22 + 0.07 * Math.sin(ph + s * 1.4)) * (P.brute ? 1.06 : 1) + r * 0.05, y: c + s * r * (0.4 + 0.06 * Math.cos(ph + s)) }));
+    const hx = tx + r * 0.2, hr = r * (P.brute ? 0.4 : 0.44);
+    // leuchtende Linien: breiter weicher Schein + heller Kern (einmal in den Sprite-Cache gezeichnet)
+    const glowLine = (pts, rgb, w) => {
+      g.lineCap = "round"; g.lineJoin = "round";
+      for (const [lw, a] of [[w * 3, 0.22], [w * 1.6, 0.45], [w, 0.95]]) {
+        g.strokeStyle = `rgba(${rgb},${a})`; g.lineWidth = lw; g.beginPath();
+        pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke();
+      }
+    };
+    const branch = (x0, y0, ang, len, rgb, w, depth) => { // verästelte Ader bzw. Riss
+      const pts = [[x0, y0]]; let x = x0, y = y0, a = ang;
+      for (let k = 0; k < 4; k++) { a += (R() - 0.5) * 0.9; x += Math.cos(a) * len / 4; y += Math.sin(a) * len / 4; pts.push([x, y]); if (depth && k === 1 && R() < 0.8) branch(x, y, a + (R() < 0.5 ? -0.9 : 0.9), len * 0.5, rgb, w * 0.7, depth - 1); }
+      glowLine(pts, rgb, w);
+    };
+    const spike = (x, y, ang, len, wid) => { // Knochenstachel mit Licht-/Schattenseite
+      const ex = x + Math.cos(ang) * len, ey = y + Math.sin(ang) * len, nx = -Math.sin(ang) * wid, ny = Math.cos(ang) * wid;
+      g.fillStyle = "#6e6450"; g.beginPath(); g.moveTo(x + nx * 1.15, y + ny * 1.15); g.lineTo(ex + Math.cos(ang) * 1.2, ey + Math.sin(ang) * 1.2); g.lineTo(x - nx * 1.15, y - ny * 1.15); g.closePath(); g.fill();
+      g.fillStyle = "#e9dfc4"; g.beginPath(); g.moveTo(x + nx, y + ny); g.lineTo(ex, ey); g.lineTo(x, y); g.closePath(); g.fill();
+      g.fillStyle = "#b9ad8f"; g.beginPath(); g.moveTo(x - nx, y - ny); g.lineTo(ex, ey); g.lineTo(x, y); g.closePath(); g.fill();
+      g.fillStyle = "rgba(90,20,16,0.7)"; ell(g, x, y, wid * 0.9, wid * 0.9); g.fill(); // wunde Haut am Austritt
+    };
+    if (evo === 1) {
+      // Verseucht: grün leuchtende Adern über Rumpf, Arme und Kopf, Giftbeulen auf den Schultern
+      for (const s of [-1, 1]) {
+        branch(tx + r * 0.05, c + s * r * 0.62, Math.PI + s * 0.6, r * 0.9, "150,255,80", r * 0.05, 1);
+        branch(tx - r * 0.1, c + s * r * 0.25, s * 1.3, r * 0.55, "150,255,80", r * 0.04, 0);
+        const h = hands.find((q) => q.s === s);
+        glowLine([[tx + r * 0.15, c + s * r * 0.7], [(tx + h.x) / 2, (c + s * r * 0.7 + h.y) / 2 + s * r * 0.06], [h.x - r * 0.12, h.y]], "150,255,80", r * 0.04);
+      }
+      branch(hx - hr * 0.6, c - hr * 0.2, -0.4, hr * 1.1, "170,255,100", r * 0.035, 0);
+      for (let i = 0; i < 5; i++) {
+        const s = i % 2 ? 1 : -1, x = tx - r * (0.1 + R() * 0.35), y = c + s * r * (0.35 + R() * 0.45), pr = r * (0.08 + R() * 0.06);
+        g.fillStyle = "rgba(120,255,60,0.35)"; circ(g, x, y, pr * 1.9); g.fill();
+        g.fillStyle = vol(g, x, y, pr, "#8ed84a", 0.45, -0.3); circ(g, x, y, pr); g.fill();
+        g.fillStyle = "rgba(240,255,210,0.9)"; circ(g, x - pr * 0.3, y - pr * 0.35, pr * 0.3); g.fill();
+      }
+      return;
+    }
+    const big = evo === 3, crack = big ? "255,48,60" : "255,150,50";
+    // Schulterplatten aus Knochen
+    for (const s of [-1, 1]) {
+      const sx = tx + r * 0.02, sy = c + s * r * 0.72 * bulk, pr = r * (big ? 0.36 : 0.3);
+      g.fillStyle = vol(g, sx, sy, pr, big ? "#a8916c" : "#b9a67f", 0.3, -0.45); ell(g, sx, sy, pr * 1.1, pr * 0.85); g.fill();
+      g.strokeStyle = "rgba(70,50,30,0.7)"; g.lineWidth = r * 0.03;
+      g.beginPath(); g.moveTo(sx - pr * 0.6, sy - pr * 0.1); g.lineTo(sx + pr * 0.2, sy + pr * 0.2); g.lineTo(sx + pr * 0.7, sy - pr * 0.05); g.stroke();
+      // Stacheln an der Schulter nach außen/hinten
+      for (let k = 0; k < (big ? 3 : 2); k++) spike(sx - pr * 0.3 - k * r * 0.18, sy + s * pr * 0.55, s * (Math.PI / 2 + 0.35 + k * 0.3), r * (big ? 0.62 : 0.46) * (1 - k * 0.15), r * 0.09);
+    }
+    // Rückgrat-Stacheln (nach hinten, −x)
+    const nSp = big ? 6 : 4;
+    for (let i = 0; i < nSp; i++) {
+      const t2 = nSp === 1 ? 0 : i / (nSp - 1) - 0.5, y = c + t2 * r * 1.1;
+      spike(tx - r * 0.42, y, Math.PI + t2 * 0.7, r * (big ? 0.82 : 0.6) * (1 - Math.abs(t2) * 0.6), r * (big ? 0.11 : 0.09));
+    }
+    // glühende Risse über Rumpf und Schultern
+    for (let i = 0; i < (big ? 5 : 3); i++) branch(tx + r * (R() - 0.6) * 0.5, c + (R() - 0.5) * r * 1.0, R() * TAU, r * (0.5 + R() * 0.4), crack, r * (big ? 0.05 : 0.04), big ? 1 : 0);
+    // Krallen an den Händen
+    for (const h of hands) for (let k = -1; k <= 1; k++) spike(h.x + r * 0.1, h.y + k * r * 0.07, k * 0.35, r * (big ? 0.34 : 0.26), r * 0.04);
+    if (big) {
+      // Alpha: Hornkamm auf dem Kopf (nach hinten gebogen), glühender Kern zwischen den Schultern
+      for (const k of [-1, 0, 1]) spike(hx - hr * 0.2, c + k * hr * 0.42, Math.PI + k * 0.5, hr * (k ? 0.9 : 1.25), r * 0.07);
+      const gr = g.createRadialGradient(tx - r * 0.18, c, 0, tx - r * 0.18, c, r * 0.4);
+      gr.addColorStop(0, "rgba(255,230,200,0.95)"); gr.addColorStop(0.35, "rgba(255,70,60,0.85)"); gr.addColorStop(1, "rgba(255,30,40,0)");
+      g.fillStyle = gr; circ(g, tx - r * 0.18, c, r * 0.4); g.fill();
+    }
+    // glühende Augen in Stufenfarbe
+    for (const s of [-1, 1]) { const ex = hx + hr * 0.62, ey = c + s * hr * 0.32; g.fillStyle = `rgba(${crack},0.4)`; circ(g, ex, ey, hr * 0.26); g.fill(); g.fillStyle = "#fff0d8"; circ(g, ex, ey, hr * 0.1); g.fill(); }
   }
   // Radien (müssen zu ZOMBIES in game.js passen; werden dort per register gesetzt)
   const Z_R = {};
   function registerRadius(type, r) { Z_R[type] = r; }
 
-  function zombieFx(type, frame, variant, kind) {
-    const base = zombie(type, frame, variant);
+  function zombieFx(type, frame, variant, kind, evo = 0) {
+    const base = zombie(type, frame, variant, evo);
     const f = ((frame % FRAMES) + FRAMES) % FRAMES, v = variant % variants(type);
     const spec = { hit: ["#ffffff", 0.85], ice: ["#9fdcff", 0.5], corpse: ["#140404", 0.7], rage: ["#ff2a2a", 0.35] }[kind];
-    return tinted(`z:${type}:${v}:${f}:${kind}`, base, spec[0], spec[1]);
+    return tinted(`z:${type}:${v}:${f}:${kind}${evo ? `:e${evo}` : ""}`, base, spec[0], spec[1]);
   }
 
   // ------------------------------------------------------------------

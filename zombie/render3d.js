@@ -2700,11 +2700,64 @@ void main() {
     accessories(M, P, r, head, hr, shirt, skin);
     M.body.add(head);
     M.extra.head = head;
+    if (P.evo && zomb && !P.scooter) addMutation(M, P, r, P.evo, { skin, bone, gore, head, hr, bulk, la, rnd });
     if (!P.scooter) realismRig(M, r, { head: P.big || P.brute ? 0.8 : 0.76 }); // v3.3 (E-Scooter: Trittbrett hängt an der Fußhöhe)
     M.body.rotation.z = -(P.lean || 0);
     M.lean = -(P.lean || 0);
     M.height = 2.75 * r;
     return M;
+  }
+
+  // v3.7 Evolutionsstufen: Mutationsteile hängen an den Knoten (Rumpf, Schulter-/Armgruppen, Kopf) und laufen mit der Animation mit.
+  // Koordinaten im Ur-Skelett (vorn = +x, oben = +y; realismRig rechnet die Rumpfhöhen danach um). Kegel zeigen in +y:
+  // rotation.z > 0 kippt sie nach hinten (−x), rotation.x = s · θ zur Seite s. Leuchtteile (sbasic) bleiben unbeleuchtet hell.
+  const EVO_GLOW = [null, "#8cff4a", "#ff9a2e", "#ff2e3c"];
+  function addMutation(M, P, r, evo, o) {
+    const B = M.body, { bone, head, hr, bulk, la, rnd } = o, glow = sbasic(EVO_GLOW[evo]), big = evo === 3;
+    const plateM = tlam(big ? "#8f7b5e" : "#a3926f", "bone"), darkBone = tlam("#7c6c52", "bone");
+    const spike = (parent, x, y, z, len, rad, rz, rx = 0, mat = bone) => { const m = mesh(cone(rad, len, 5), mat, x, y, z); m.rotation.set(rx, 0, rz); m.translateY(len * 0.45); parent.add(m); return m; };
+    const vein = (parent, x, y, z, len, rz, rx = 0, w = 0.022) => { const m = mesh(box(w * r, len, w * 1.3 * r), glow, x, y, z); m.rotation.set(rx, 0, rz); parent.add(m); return m; };
+    if (evo === 1) {
+      // Verseucht: leuchtende Adern über Rücken, Schultern, Arme und Schädel, Giftbeulen
+      for (let i = 0; i < 6; i++) { const z = (i - 2.5) * 0.16 * r * bulk; vein(B, -0.35 * r * bulk, 1.35 * r + (i % 3) * 0.12 * r, z, 0.42 * r, 0.25 * (i % 2 ? 1 : -1), z * 0.8 / r, 0.034); }
+      for (let i = 0; i < 4; i++) vein(B, 0.33 * r * bulk, 1.38 * r + i * 0.1 * r, (i - 1.5) * 0.2 * r, 0.3 * r, 0.1, (i - 1.5) * 0.6, 0.03);
+      for (const s2 of [-1, 1]) for (let k = 0; k < 3; k++) vein(B, -0.1 * r + k * 0.12 * r, 1.95 * r, s2 * (0.3 + k * 0.08) * r * bulk, 0.3 * r, Math.PI / 2, s2 * 0.3, 0.032); // über die Schultern (von oben sichtbar)
+      for (const A of M.arms) {
+        vein(A.g, 0.35 * r * la, 0.15 * r * bulk, 0, 0.5 * r, Math.PI / 2 + 0.12, 0, 0.036);
+        vein(A.g, 0.75 * r * la, 0.12 * r * bulk, 0.02 * r * A.s, 0.36 * r, Math.PI / 2 - 0.2, 0, 0.032);
+        for (let k = 0; k < 3; k++) A.g.add(mesh(ico(0.065 * r + (k % 2) * 0.025 * r, 0), glow, 0.08 * r + k * 0.2 * r, 0.18 * r * bulk, -A.s * 0.05 * r));
+      }
+      for (let i = 0; i < 4; i++) { const v = vein(head, -hr * 0.3 + i * hr * 0.22, hr * 0.9, (i - 1.5) * hr * 0.34, hr * 0.8, Math.PI / 2, (i - 1.5) * 0.45, 0.03); v.rotation.y = (i - 1.5) * 0.5; }
+      for (let i = 0; i < 7; i++) { const a = i * 2.39; B.add(mesh(ico(0.06 * r + (i % 3) * 0.025 * r, 0), glow, -0.2 * r * bulk + Math.cos(a) * 0.14 * r, 1.62 * r + (i % 3) * 0.12 * r, Math.sin(a) * 0.48 * r * bulk)); }
+      return;
+    }
+    // Mutant / Alpha: Rückgrat-Stacheln, Schulterplatten mit Stacheln, Unterarm-Dornen, Krallen, glühende Risse
+    const nSp = big ? 6 : 4;
+    for (let i = 0; i < nSp; i++) {
+      const k = nSp === 1 ? 0 : i / (nSp - 1);
+      spike(B, -0.34 * r * bulk, 1.22 * r + k * 0.72 * r, (k - 0.5) * 0.12 * r, (big ? 0.62 : 0.46) * r * (0.7 + 0.5 * Math.sin(k * Math.PI)), (big ? 0.1 : 0.08) * r, 1.05 + k * 0.2);
+    }
+    for (const A of M.arms) {
+      const pl = mesh(ico(0.2 * r * bulk * (big ? 1.12 : 1), 1), plateM, 0.0, 0.1 * r, 0); pl.scale.set(1.15, 0.42, 1.05); A.g.add(pl);
+      vein(A.g, 0.0, 0.19 * r, 0, 0.3 * r, Math.PI / 2, 0.3 * A.s, 0.03); // glühender Riss in der Platte
+      for (let k = 0; k < (big ? 3 : 2); k++) spike(A.g, -0.05 * r - k * 0.1 * r, 0.16 * r, A.s * 0.06 * r, (big ? 0.5 : 0.36) * r * (1 - k * 0.18), 0.07 * r, 0.55 + k * 0.25, A.s * 0.35);
+      for (let k = 0; k < 2; k++) spike(A.g, (0.6 + k * 0.22) * r * la, 0.12 * r * bulk, 0, (big ? 0.3 : 0.22) * r, 0.045 * r, 0.9, 0, darkBone); // Dornen am Unterarm
+      for (let k = -1; k <= 1; k++) { const cl = mesh(cone(0.04 * r, (big ? 0.42 : 0.32) * r, 4), bone, 1.24 * r * la, -0.02 * r, k * 0.08 * r); cl.rotation.z = -Math.PI / 2 - 0.25; A.g.add(cl); } // Krallen
+      A.g.scale.y *= big ? 1.22 : 1.12; A.g.scale.z *= big ? 1.22 : 1.12; // aufgequollene Muskeln
+      vein(A.g, 0.45 * r * la, 0.16 * r * bulk, 0, 0.44 * r, Math.PI / 2 + 0.3, 0, 0.03);
+    }
+    for (let i = 0; i < (big ? 7 : 4); i++) { const z = (rnd(40 + i) - 0.5) * 0.9 * r * bulk; vein(B, -0.35 * r * bulk, 1.3 * r + rnd(50 + i) * 0.55 * r, z, (0.25 + rnd(60 + i) * 0.2) * r, (rnd(70 + i) - 0.5) * 1.6, z * 0.9 / r, 0.03); }
+    for (let i = 0; i < 3; i++) vein(B, 0.33 * r * bulk, 1.3 * r + i * 0.16 * r, (rnd(80 + i) - 0.5) * 0.6 * r, 0.26 * r, (rnd(90 + i) - 0.5) * 1.2, 0, 0.03);
+    // Knochenpanzer vorn: Brustbein-Platte, darunter zwei schräge Rippenbögen je Seite
+    const st = mesh(ico(0.2 * r, 1), plateM, 0.31 * r * bulk, 1.52 * r, 0); st.scale.set(0.4, 1.25, 0.8); B.add(st);
+    for (let k = 0; k < 2; k++) for (const sd of [-1, 1]) { const rb = mesh(cyl(0.025 * r, 0.03 * r, 0.3 * r, 5), darkBone, 0.33 * r * bulk, 1.36 * r + k * 0.17 * r, sd * 0.2 * r); rb.rotation.x = sd * (Math.PI / 2 - 0.5); rb.rotation.y = sd * 0.25; B.add(rb); }
+    if (big) {
+      // Alpha: Hornkamm auf dem Schädel, Kieferhauer, glühender Kern im Rücken
+      spike(head, -hr * 0.15, hr * 0.7, 0, hr * 1.25, hr * 0.2, 1.05);
+      for (const sd of [-1, 1]) spike(head, -hr * 0.1, hr * 0.6, sd * hr * 0.45, hr * 0.95, hr * 0.16, 1.15, sd * 0.35);
+      for (const sd of [-1, 1]) { const t1 = mesh(cone(0.035 * r, 0.2 * r, 4), bone, hr * 0.85, -hr * 0.35, sd * hr * 0.3); t1.rotation.z = -0.3; head.add(t1); }
+      B.add(mesh(ico(0.16 * r, 1), glow, -0.3 * r * bulk, 1.62 * r, 0));
+    }
   }
 
   // v3.3 realistische Proportionen: das ursprüngliche Skelett (Hüfte 0,92 r, Schultern 1,86 r, Kopf 2,4 r – Kindchenschema)
@@ -3664,14 +3717,20 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   }
   const builders = { crawler: buildCrawler, dog: buildDog, rat: buildRat, abom: buildAbom, mother: buildMother, nest: buildNest };
   const pools = new Map();
-  function acquireModel(type, r, variant) {
+  // v3.7 Hautfarbe je Evolutionsstufe (Kleidung dunkelt nach), Teile kommen aus addMutation
+  const EVO_SKIN3 = [null, "#5f9a34", "#6e3a2c", "#4a1418"], EVO_CLOTH3 = [0, 0.08, 0.2, 0.38], evoCol = new T3.Color(), evoCol2 = new T3.Color();
+  const evoBlend = (c, to, k) => (c && c[0] === "#" ? `#${evoCol.set(c).lerp(evoCol2.set(to), k).getHexString()}` : c);
+  function evoPal3D(P, evo) { return { ...P, evo, skin: evoBlend(P.skin || "#8a9a7a", EVO_SKIN3[evo], evo === 1 ? 0.66 : 0.72), shirt: evoBlend(P.shirt, "#120808", EVO_CLOTH3[evo]), pants: evoBlend(P.pants, "#120808", EVO_CLOTH3[evo]) }; }
+  function acquireModel(type, r, variant, evo = 0) {
     const pal = PAL[type] || PAL.walker, pi = variant % pal.length;
-    const key = `${type}:${pi}`;
+    if (builders[type]) evo = 0; // Kriecher, Hunde, Ratten, Bosse und Nester mutieren nicht
+    const key = evo ? `${type}:${pi}:e${evo}` : `${type}:${pi}`;
     const list = pools.get(key);
     let M = list && list.pop();
     if (!M) {
-      const P = pal[pi];
+      const P = evo ? evoPal3D(pal[pi], evo) : pal[pi];
       M = (builders[type] || ((rr, pp) => buildHumanoid(type, rr, pp)))(r, P);
+      M.evo = evo;
       bake(M);
       M.key = key;
       M.mats.forEach((m) => { m.userData.base = m.color.clone(); });
@@ -3725,7 +3784,8 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       if (gait === 1) { M.body.position.y -= Math.max(0, Math.sin(ph)) * 0.06 * e.r; for (const L of M.legs) if (L.s > 0 && !L.spider) L.g.rotation.z *= 0.35; }
       else if (gait === 2) for (const A of M.arms) if (A.s < 0 && !A.crawl) A.g.rotation.z = -0.1 + Math.sin(ph) * 0.12;
       if (e.mode === "crouch") { M.body.position.y = -0.22 * e.r; M.body.rotation.z -= 0.35; for (const L of M.legs) L.g.rotation.z = L.s * 0.5; }
-      else if (e.mode === "leap") { M.body.rotation.z -= 0.6; for (const L of M.legs) L.g.rotation.z = -0.9; for (const A of M.arms) A.g.rotation.z = 0.9; }
+      else if (e.mode === "leap" || e.pose === "air") { M.body.rotation.z -= 0.6; for (const L of M.legs) L.g.rotation.z = -0.9; for (const A of M.arms) A.g.rotation.z = 0.9; }
+      else if (e.pose === "feed") { M.body.position.y = -0.3 * e.r; M.body.rotation.z -= 0.85; for (const L of M.legs) L.g.rotation.z = L.s * 0.6; for (const A of M.arms) A.g.rotation.z = 0.6 + Math.sin(t * 13 + A.s * 1.7 + (e.wob || 0)) * 0.35; } // v3.7 frisst an einer Leiche
       else if (e.mode === "scream") { if (M.extra.head) M.extra.head.rotation.z = 0.55; for (const A of M.arms) { A.g.rotation.y = A.s * 1.1; A.g.rotation.z = 0.5; } M.body.rotation.z += 0.2; }
       else if (e.mode === "zap") { for (const A of M.arms) A.g.rotation.z = 1.25 + Math.random() * 0.2; M.body.rotation.x += (Math.random() - 0.5) * 0.2; }
       else if (e.mode === "lift" || e.pose === "lift") { for (const A of M.arms) A.g.rotation.z = A.s > 0 ? 2.3 : 0.6; M.body.rotation.z += 0.18; }
@@ -4545,7 +4605,8 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     const seen = new Set();
     for (const e of w.enemies) {
       let M = models.get(e);
-      if (!M) { M = acquireModel(e.type, e.r, e.variant); models.set(e, M); }
+      if (M && (M.evo || 0) !== (builders[e.type] ? 0 : e.evo || 0)) { releaseModel(M); models.delete(e); M = null; } // v3.7 mutiert: neues Modell
+      if (!M) { M = acquireModel(e.type, e.r, e.variant, e.evo || 0); models.set(e, M); }
       seen.add(e);
       const sc = e.scale * (e.def.boss ? BOSS_SCALE : CHAR_SCALE);
       let y = 0, s = sc;
@@ -4568,7 +4629,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       // Modell des Gegners übernehmen; starb er, bevor er je gezeichnet wurde (z. B. im selben
       // Frame gespawnt und von einer Explosion erwischt), bekommt die Leiche ein eigenes
       let M = c.ref && models.get(c.ref);
-      if (M) models.delete(c.ref); else M = acquireModel(c.type, c.r / 0.8, c.v);
+      if (M) models.delete(c.ref); else M = acquireModel(c.type, c.r / 0.8, c.v, c.evo || 0);
       if (c.headless && M.extra.head) M.extra.head.visible = false;
       dying.set(c, { M, sc: c.sc * (c.boss ? BOSS_SCALE : CHAR_SCALE), boss: !!c.boss });
     }
@@ -5033,6 +5094,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   }
 
   const FIRE = ["200,60,20", "255,140,40", "255,220,120"];
+  const EVO_RGB = [null, "140,255,80", "255,150,50", "255,48,60"], EVO_EYE = [null, "170,255,90", "255,176,64", "255,70,52"]; // v3.7
   const EYE = { jeck: "255,216,74", spitter: "234,255,0", abom: "234,255,0", armored: "80,170,230", burner: "255,176,58", screamer: "255,74,240", splitter: "255,106,213", electro: "127,231,255", healer: "140,255,138", phantom: "232,240,255", warden: "143,212,255", bloater: "234,255,0", nest: "224,112,224" };
   const fireRgb = (k) => FIRE[k > 0.6 ? 2 : k > 0.3 ? 1 : 0];
 
@@ -5284,6 +5346,16 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       if (e.type === "mother") bill(addB, e.x - fx * e.r * 0.4, e.r * 1.2, e.y - fy * e.r * 0.4, e.r * 1.2, CELL.glow, "150,255,80", 0.3);
       if (e.phase2 || e.rageT > 0) bill(addB, e.x, e.r, e.y, e.r * 1.8, CELL.glow, "255,40,60", 0.22 + 0.12 * Math.sin(t * 10));
       if (e.elite) { flat(floorB, e.x, 1, e.y, 0, e.r * 2.6, e.r * 2.6, CELL.glow, "255,200,80", 0.45 + 0.15 * Math.sin(t * 5)); flat(floorB, e.x, 1.1, e.y, t, e.r * 1.8, e.r * 1.8, CELL.ring, "255,215,110", 0.6); }
+      if (e.evo) { // v3.7 Evolution: Boden-Aura in Stufenfarbe, Mutationsblitz, Sprungbahn, Brüll-Welle, Fress-Ring
+        const er = EVO_RGB[e.evo], rr = e.r * (e.evo === 3 ? 2.5 : e.evo === 2 ? 2 : 1.6);
+        flat(floorB, e.x, 1.05, e.y, t * (0.4 + e.evo * 0.3), rr, rr, e.evo === 1 ? CELL.ring : CELL.shock, er, e.evo === 1 ? 0.32 + 0.1 * Math.sin(t * 5 + e.wob) : 0.26 + 0.1 * Math.sin(t * 4 + e.wob));
+        if (e.evo === 1) flat(floorB, e.x, 1, e.y, 0, rr * 1.2, rr * 1.2, CELL.glow, "110,230,60", 0.22); // giftgrüner Schein
+        if (e.evo === 3) bill(addB, e.x - fx * e.r * 0.3, hh * 0.62, e.y - fy * e.r * 0.3, e.r * 0.9, CELL.glow, "255,60,50", 0.3 + 0.12 * Math.sin(t * 6 + e.wob));
+        if (e.evoFx > 0) { bill(addB, e.x, hh * 0.5, e.y, e.r * 4.2 * e.evoFx, CELL.glow, er, e.evoFx * 0.75); flat(floorB, e.x, 1.4, e.y, 0, e.r * 4 * (1.2 - e.evoFx), e.r * 4 * (1.2 - e.evoFx), CELL.ring, er, e.evoFx); }
+        if (e.evoCrouch > 0) { const a = e.leapAng, L2 = 170; flat(normB, e.x + Math.cos(a) * L2 / 2, 1.2, e.y + Math.sin(a) * L2 / 2, a, L2 / 2, e.r * 0.7, CELL.band, er, 0.32 + 0.25 * Math.sin(t * 30)); }
+        if (e.roarFx > 0) { const k = 1 - e.roarFx / 0.7, r2 = 30 + 230 * k; flat(floorB, e.x, 1.3, e.y, 0, r2, r2, CELL.ring, "255,70,60", e.roarFx); flat(floorB, e.x, 1.2, e.y, 0, r2, r2, CELL.glow, "255,40,40", e.roarFx * 0.25); }
+      }
+      if (e.feed && e.feed.t > 0) flat(floorB, e.feed.c.x, 1.2, e.feed.c.y, t * 2, 26, 26, CELL.ring, EVO_RGB[Math.min(3, (e.evo || 0) + 1)], 0.55);
       if (e.type === "burner") bill(addB, e.x, hh * 0.6 + (e.jumpZ || 0), e.y, e.r * 2.2, CELL.glow, "255,140,40", 0.45 + 0.15 * Math.sin(t * 17 + e.wob));
       if (e.type === "electro") bill(addB, e.x - fx * e.r * 0.5, hh * 0.75, e.y - fy * e.r * 0.5, e.r * (e.mode === "zap" ? 2.4 : 1.1), CELL.glow, "127,231,255", e.mode === "zap" ? 0.8 : 0.35);
       if (e.shield > 0) { const k = 0.45 + 0.2 * Math.sin(t * 12 + e.wob); bill(addB, e.x, hh * 0.5, e.y, e.r * 2.6, CELL.ring, "140,210,255", k); bill(addB, e.x, hh * 0.5, e.y, e.r * 2.4, CELL.glow, "120,190,255", 0.18); flat(floorB, e.x, 1.2, e.y, t * 2, e.r * 1.8, e.r * 1.8, CELL.ring, "140,210,255", k * 0.8); }
@@ -5386,11 +5458,11 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
         }
         const hd = M.extra && M.extra.head;
         if (!hd || e.dead || e.spawnT > 0 || e.under || ne > 70 || M.kind === "armored") continue;
-        const r = (M.height || 33) / 2.75, hr = 0.4 * r, ec = EYE[e.type] || "255,52,40", el = hd.matrixWorld;
+        const r = (M.height || 33) / 2.75, hr = 0.4 * r, ec = e.evo ? EVO_EYE[e.evo] : EYE[e.type] || "255,52,40", el = hd.matrixWorld;
         for (const sd of [-1, 1]) {
           tmpV.set(hr * 0.9, 0.06 * r, sd * 0.15 * r).applyMatrix4(el);
           tmpV.x += (camera.position.x - tmpV.x) * 0.012; tmpV.y += (camera.position.y - tmpV.y) * 0.012; tmpV.z += (camera.position.z - tmpV.z) * 0.012;
-          bill(floorB, tmpV.x, tmpV.y, tmpV.z, r * 0.2, CELL.glow, ec, 0.75);
+          bill(floorB, tmpV.x, tmpV.y, tmpV.z, r * (e.evo ? 0.26 : 0.2), CELL.glow, ec, e.evo ? 0.9 : 0.75);
         }
         ne++;
       }
@@ -5609,6 +5681,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       if (o.fireAt && !o.dead) lightCands.push([o.x + o.w / 2, 30, o.y + o.h / 2, "255,120,40", 2.2 + Math.random() * 0.8, 230, 7]);
     }
     for (const e of w.enemies) if (e.looter && !e.dead) lightCands.push([e.x, 40, e.y, "255,210,90", 1.5, 170, 7]);
+    for (const e of w.enemies) if (e.evo && !e.dead) { if (e.evo === 3) lightCands.push([e.x, 36, e.y, "255,60,50", 1.1, 150, 5]); if (e.evoFx > 0) lightCands.push([e.x, 30, e.y, EVO_RGB[e.evo], 3 * e.evoFx, 210, 8]); }
     for (const h of w.hazards || []) if (h.kind === "shock") lightCands.push([h.x, 30, h.y, "140,220,255", 1.4 + Math.random() * 1.6, h.r * 1.6, 8]);
     if (w.powers && w.powers.length && w.player) lightCands.push([w.player.x, 30, w.player.y, w.powers[0], 1.1, 150, 8]);
     for (const e of w.enemies) {

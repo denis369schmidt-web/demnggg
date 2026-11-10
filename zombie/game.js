@@ -316,6 +316,28 @@
   for (const [type, def] of Object.entries(ZOMBIES)) Sprites.registerRadius(type, def.r);
   Sprites.registerRadius("civilian", 13); // v2.4: Überlebende
 
+  // ============================================================
+  // v3.7 Evolutionsstufen: menschenähnliche Zombies mutieren – beim Erscheinen (je weiter die Flucht, desto öfter),
+  // durch Fressen an Leichen (nur, wenn der Held weit weg ist) und durch das Brüllen eines Alphas.
+  // Werte sind Faktoren gegenüber der Grundform; ab Stufe 2 Knochenpanzer und Sprungangriff, Stufe 3 brüllt und heilt sich.
+  // ============================================================
+  const EVO = [
+    { hp: 1, dmg: 1, speed: 1, size: 1, xp: 1, coins: 1 },
+    { name: "Verseucht", hp: 1.45, dmg: 1.12, speed: 1.08, size: 1.06, xp: 1.6, coins: 1.5, rgb: "140,255,80", eye: "170,255,90", blood: "#3f7a16",
+      desc: "Grün leuchtende Adern, Giftblut – beim Tod bleibt eine Giftlache zurück" },
+    { name: "Mutant", hp: 2.1, dmg: 1.3, speed: 1.14, size: 1.16, armor: 0.2, xp: 2.4, coins: 2.2, rgb: "255,150,50", eye: "255,176,64", blood: "#7a2a0e",
+      desc: "Knochenpanzer (−20 % Schaden), Krallen und ein Sprungangriff aus kurzer Distanz" },
+    { name: "Alpha", hp: 3.4, dmg: 1.55, speed: 1.2, size: 1.34, armor: 0.3, xp: 4, coins: 3.5, rgb: "255,48,60", eye: "255,70,52", blood: "#4a050e",
+      desc: "Brüllt: Zombies ringsum rasen und mutieren, heilt sich, Panzer −30 %, reiche Beute" },
+  ];
+  // menschenähnliche Typen (3D: buildHumanoid) – Tiere, Kriecher, Rudel, Bosse und Sonderformen mutieren nicht
+  const EVO_TYPES = new Set(["walker", "runner", "spitter", "brute", "armored", "leaper", "burner", "screamer", "electro", "healer", "thrower", "warden", "gunner",
+    "wiesn", "jeck", "schaffner", "beamter", "ultra", "paketbote", "rentner", "wengerter"]);
+  // nur diese einfachen Läufer fressen an Leichen (Typen mit eigener Fernkampf-/Sonder-KI nicht)
+  const EVO_FEEDERS = new Set(["walker", "runner", "brute", "armored", "burner", "wiesn", "jeck", "schaffner", "beamter", "ultra", "paketbote", "rentner", "wengerter"]);
+  const EVO_FEED_T = 2.6, EVO_LEAP_T = 0.32;
+  let evoLock = false; // Test-Hook spawn(): Gegner ohne Zufalls-Mutation (alte Tests rechnen mit Grundwerten)
+
   I18N.localizeData({ weapons: WEAPONS, talents: TALENTS, skills: SKILLS, zombies: ZOMBIES, evolutions: EVOLUTIONS });
 
   // ============================================================
@@ -1227,6 +1249,7 @@
     if (!def.boss && !def.pack && (room >= 4 || ch > 1 || th > 0) && Math.random() < (0.04 + 0.03 * (ch - 1) + 0.03 * th) * (ord.eliteX || 1)) {
       makeElite(e, 1);
     }
+    if (!evoLock) rollEvo(e);
     e.spawnMax = e.spawnT;
     e.face = Math.atan2(player.y - e.y, player.x - e.x);
     enemies.push(e);
@@ -2370,7 +2393,8 @@
       if (p.evo.frost && e.slowT > 0 && !e.def.boss && e.hp - dmg < e.maxHp * 0.3) { dmg = e.hp; crit = true; exec = true; o.shatter = true; }
     }
     // Panzerung (Riot-Zombie) schluckt einen Teil des Schadens – Exekution ignoriert sie
-    const armor = Math.max(e.def.armor || 0, e.aff && e.aff.includes("armored") ? 0.4 : 0);
+    const armor = Math.max(e.def.armor || 0, e.aff && e.aff.includes("armored") ? 0.4 : 0, e.evoArmor || 0); // v3.7 Knochenpanzer
+    if (e.evo) e.evoCalm = 0;
     if (armor && !o.silent && !exec) dmg *= 1 - armor;
     if (e.aff) e.calmT = 0;
     // Energieschild des Schildwächters fängt Schaden ab, bis er bricht
@@ -2504,7 +2528,7 @@
   function maybeDropPower(e) {
     if (e.def.boss || e.summoner || run.cleared) return;
     const recent = run.time - (run.puDropAt ?? -99) < 7;
-    if (Math.random() < (e.elite ? 0.22 : recent ? 0 : run.mode === "survival" ? 0.012 : 0.008)) dropPower(e.x, e.y);
+    if (Math.random() < (e.evo === 3 ? 0.5 : e.elite ? 0.22 : e.evo === 2 && !recent ? 0.08 : recent ? 0 : run.mode === "survival" ? 0.012 : 0.008)) dropPower(e.x, e.y);
   }
   function takePower(o) {
     const d = POWERUPS[o.pu], p = player;
@@ -2579,6 +2603,70 @@
     if (n >= 8) { slowMo = Math.max(slowMo, 0.3); punchFov = Math.max(punchFov, 2.5); }
     sfx("combo"); trackMax("multikill", n);
   }
+  // ---------------------------------------------------------------- v3.7 Evolution
+  function mutProgress() {
+    if (!run) return 0;
+    if (run.mode === "survival") return (run.survT || 0) / 70; // etwa jede gute Minute eine Stufe mehr
+    return cityIdx() + Math.max(0, districtIdx()) / 10;
+  }
+  function rollEvo(e) {
+    if (!EVO_TYPES.has(e.type) || e.def.boss || e.def.pack || !run || run.room < 1) return;
+    const pr = mutProgress() + 0.35 * (run.threat || 0), q = Math.random();
+    const p3 = pr >= 3 ? Math.min(0.06, 0.012 + 0.008 * (pr - 3)) : 0;
+    const p2 = pr >= 1.5 ? Math.min(0.14, 0.03 + 0.022 * (pr - 1.5)) : 0;
+    const p1 = pr >= 0.3 ? Math.min(0.26, 0.05 + 0.04 * pr) : 0;
+    const st = q < p3 ? 3 : q < p3 + p2 ? 2 : q < p3 + p2 + p1 ? 1 : 0;
+    if (st) mutate(e, e.elite ? Math.min(2, st) : st, null);
+  }
+  // Stufe anheben: Werte relativ zur bisherigen Stufe skalieren; cause ≠ null → sichtbare Mutation (Licht, Blut, Ansage)
+  function mutate(e, stage, cause) {
+    stage = Math.min(3, stage);
+    const prev = e.evo || 0;
+    if (stage <= prev || !EVO_TYPES.has(e.type) || e.def.boss) return false;
+    const A = EVO[prev], B = EVO[stage], k = (f) => (B[f] || 1) / (A[f] || 1);
+    e.maxHp *= k("hp"); e.hp = Math.min(e.maxHp, e.hp * k("hp") + (cause ? e.maxHp * 0.25 : 0)); // Mutation heilt etwas
+    e.dmg *= k("dmg"); e.speed *= k("speed"); e.scale *= k("size"); e.r = Math.min(e.r * k("size"), e.def.r * 1.45);
+    e.evo = stage; e.evoArmor = B.armor || 0;
+    e.def = { ...e.def, blood: B.blood }; // eigene Blutfarbe je Stufe (def ist sonst zwischen allen Gegnern geteilt)
+    if (!cause) return true;
+    e.evoFx = 0.9; e.hitT = 0.15;
+    fxRing(e.x, e.y, e.r * 3.2, B.rgb, 0.55); fxFlash(e.x, e.y, 110, B.rgb, 0.32);
+    fxBlood(e.x, e.y, rand(0, TAU), 14, e.def.blood, 240); fxGibs(e.x, e.y, 2, e.def.blood);
+    for (let i = 0; i < 10; i++) fxSparks(e.x, e.y, -Math.PI / 2, 2, 1, B.rgb, rand(90, 220));
+    splatter(e.x, e.y, rand(0, TAU), 0.8, e.def.blood);
+    addText(e.x, e.y - e.r - 34, `${tr("MUTATION")}: ${tr(B.name).toUpperCase()}`, `rgb(${B.rgb})`, stage === 3 ? 20 : 16, true);
+    sfx("erupt"); if (stage === 3) { sfx("rage"); shake = Math.max(shake, 6); }
+    track("mutations");
+    return true;
+  }
+  // Alpha brüllt: Zombies im Umkreis rasen, einer mutiert vielleicht mit
+  function alphaRoar(e) {
+    const R2 = 240 * 240;
+    fxRing(e.x, e.y, 240, "255,60,60", 0.6); fxRing(e.x, e.y, 150, "255,120,100", 0.4); fxFlash(e.x, e.y, 160, "255,40,40", 0.22);
+    e.roarFx = 0.7; shake = Math.max(shake, 5); punchFov = Math.max(punchFov, 1.6); sfx("rage");
+    if (!e.roared) { e.roared = true; addText(e.x, e.y - e.r - 36, tr("ALPHA BRÜLLT!"), "#ff5a4a", 18, true); }
+    let infected = false;
+    for (const q of enemies) {
+      if (q === e || q.dead || q.spawnT > 0 || q.def.boss || (q.x - e.x) ** 2 + (q.y - e.y) ** 2 > R2) continue;
+      q.rageT = Math.max(q.rageT || 0, 3.5);
+      if (!infected && !q.evo && EVO_TYPES.has(q.type) && Math.random() < 0.35) infected = mutate(q, 1, "roar");
+    }
+  }
+  function evoDeath(e) {
+    save.bestiary[`evo${e.evo}`] = (save.bestiary[`evo${e.evo}`] || 0) + 1;
+    if (e.evo === 1) { // Giftblut
+      addHazard(e.x, e.y, 26 + e.r, 3.5, e.dmg * 0.3, "gas");
+      for (let i = 0; i < 8; i++) fxGas(e.x + rand(-16, 16), e.y + rand(-16, 16), 0.9, "120,220,60", 1.6);
+    } else if (e.evo === 2) {
+      fxDebris(e.x, e.y, 0, Math.PI, 10, "#e3d8bc"); fxSparks(e.x, e.y, 0, Math.PI, 8, "255,170,70", 200);
+    } else {
+      fxDebris(e.x, e.y, 0, Math.PI, 16, "#e3d8bc"); fxRing(e.x, e.y, 110, "255,60,60", 0.55); fxFlash(e.x, e.y, 150, "255,60,50", 0.3);
+      addText(e.x, e.y - e.r - 40, tr("ALPHA ERLEGT!"), "#ff5a4a", 22, true);
+      shake = Math.max(shake, 9); slowMo = Math.max(slowMo, 0.35); hitStop = Math.max(hitStop, 0.07); punchFov = Math.max(punchFov, 3);
+      track("alphas");
+    }
+  }
+
   // Gold-Abzeichen mit Restzeit über dem Plünderer (2D und 3D)
   function drawLooterBadges() {
     for (const e of enemies) {
@@ -2649,10 +2737,11 @@
       punchFov = Math.max(punchFov, 2.2);
     }
 
-    const xpVal = def.xp * (1 + run.room * 0.04) * (1 + (run.chapter - 1) * 0.5);
+    const EV = EVO[e.evo || 0];
+    const xpVal = def.xp * (1 + run.room * 0.04) * (1 + (run.chapter - 1) * 0.5) * EV.xp;
     const nx = def.boss ? 12 : Math.max(1, Math.round(def.xp / 2));
     for (let i = 0; i < nx; i++) orbs.push(makeOrb(e.x, e.y, "xp", xpVal / nx));
-    const nc = randi(def.coins[0], def.coins[1]);
+    const nc = Math.round(randi(def.coins[0], def.coins[1]) * EV.coins);
     for (let i = 0; i < nc; i++) orbs.push(makeOrb(e.x, e.y, "coin", 1));
 
     if (player.lifesteal > 0) healPlayer(player.maxHp * player.lifesteal);
@@ -2674,6 +2763,7 @@
     if (e.type === "nest") { fxRing(e.x, e.y, 90, "200,90,200", 0.5); shake = Math.max(shake, 6); for (let i = 0; i < 5; i++) addPiece(e, "limb", rand(0, TAU), rand(120, 240), rand(150, 260), 10); }
     if (e.type === "zwerg") { fxDebris(e.x, e.y, 0, Math.PI, 6, "#c0281e"); fxDebris(e.x, e.y, 0, Math.PI, 4, "#e8e0d0"); } // Keramik-Scherben
     if (e.looter) looterLoot(e);
+    if (e.evo) evoDeath(e);
     // v3.7 Mehrfach-Abschuss: Kills im Abstand unter 0,35 s zählen zusammen, die Ansage kommt, wenn die Serie abreißt
     if (!def.boss) { run.mk = run.time - (run.mkAt ?? -9) < 0.35 ? (run.mk || 0) + 1 : 1; run.mkAt = run.time; }
     if (e.type === "beamter") { addText(e.x, e.y - 30, tr("ABGELEHNT!"), "#ff5a4a", 15); sfx("stamp"); }
@@ -3478,6 +3568,45 @@
       if ((decoys.length || lures.length) && !e.def.boss && !e.looter && e.mode === "walk") {
         const q = nearestDecoy(e);
         if (q) { const qx = q.x - e.x, qy = q.y - e.y, qd = Math.hypot(qx, qy) || 1; if (qd > e.r + 8) { mx = qx / qd; my = qy / qd; } else { mx = 0; my = 0; } }
+      }
+      // v3.7 Evolution: Fressen an Leichen (→ Mutation), Sprungangriff (Mutant/Alpha), Brüllen und Heilen (Alpha)
+      if (e.evo || EVO_FEEDERS.has(e.type)) {
+        if (e.pose === "feed" || e.pose === "crouch" || e.pose === "air") e.pose = ""; // Posen fürs 3D-Modell, jedes Bild neu
+        if (e.roarFx > 0) e.roarFx -= dt;
+        if (e.feed) {
+          const c = e.feed.c, fx = c.x - e.x, fy = c.y - e.y, fd = Math.hypot(fx, fy) || 1;
+          if (d < 210 || e.hitT > 0 || c.gone || e.mode !== "walk" || !corpses.includes(c)) { c.feeder = null; e.feed = null; }
+          else {
+            mx = fx / fd; my = fy / fd;
+            if (fd < e.r + 8) {
+              sp = 0; e.feed.t += dt; e.pose = "feed";
+              if (Math.random() < dt * 7) fxBlood(c.x, c.y, rand(0, TAU), 2, c.blood || RED, 80);
+              if (Math.random() < dt * 2) stampDot(c.x + rand(-8, 8), c.y + rand(-8, 8), rand(1, 2), c.blood || RED);
+              if (e.feed.t >= EVO_FEED_T) { c.eaten = true; c.feeder = null; e.feed = null; mutate(e, (e.evo || 0) + 1, "feed"); }
+            }
+          }
+        } else if (EVO_FEEDERS.has(e.type) && (e.evo || 0) < (e.elite ? 2 : 3) && d > 320 && e.mode === "walk" && !e.looter && !e.horde && (e.feedScan = (e.feedScan ?? rand(0, 0.7)) - dt) <= 0) {
+          e.feedScan = 0.7;
+          for (const c of corpses) if (!c.eaten && !c.feeder && !c.gone && !c.boss && c.t > 1 && (c.x - e.x) ** 2 + (c.y - e.y) ** 2 < 110 * 110) { c.feeder = e; e.feed = { c, t: 0 }; break; }
+        }
+        if (e.evo >= 2 && !e.feed) {
+          if (e.evoCrouch > 0) {
+            e.evoCrouch -= dt; sp = 0; mx = Math.cos(e.leapAng); my = Math.sin(e.leapAng); e.pose = "crouch";
+            if (e.evoCrouch <= 0) { const f = e.evo === 3 ? 600 : 540; e.kvx += Math.cos(e.leapAng) * f; e.kvy += Math.sin(e.leapAng) * f; e.evoAir = EVO_LEAP_T; sfx("kick"); fxDust(e.x, e.y, 3, 0.8); }
+          } else if (e.evoAir > 0) {
+            e.evoAir -= dt; e.jumpZ = Math.sin(Math.PI * Math.min(1, 1 - e.evoAir / EVO_LEAP_T)) * (e.evo === 3 ? 30 : 22); e.pose = "air";
+            if (e.evoAir <= 0) { e.jumpZ = 0; fxDust(e.x, e.y, 4, 1); fxRing(e.x, e.y, e.r * 2.2, EVO[e.evo].rgb, 0.25); if (dist2(p, e) < (p.r + e.r + 18) ** 2) hurtPlayer(e.dmg * 1.2); }
+          } else if ((e.evoCd = (e.evoCd ?? rand(1, 3)) - dt) <= 0 && d > 90 && d < 210 && e.mode === "walk" && !e.wp) {
+            e.evoCd = e.evo === 3 ? rand(4.5, 6) : rand(2.8, 4); e.evoCrouch = 0.42; e.leapAng = Math.atan2(dy, dx);
+          }
+        }
+        if (e.evo === 3) {
+          e.evoCalm = (e.evoCalm || 0) + dt;
+          if (e.evoCalm > 2 && e.hp < e.maxHp) { e.hp = Math.min(e.maxHp, e.hp + e.maxHp * 0.012 * dt); if (Math.random() < dt * 5) fxSparks(e.x, e.y, -Math.PI / 2, 0.6, 1, "255,90,90", 90); }
+          if ((e.roarT = (e.roarT ?? rand(2.5, 4.5)) - dt) <= 0 && d < 480) { e.roarT = rand(7, 9.5); alphaRoar(e); }
+        }
+        if (e.evo === 1 && Math.random() < dt * 1.6) stampDot(e.x + rand(-4, 4), e.y + rand(-4, 4), rand(0.8, 1.6), "#4a8a1a"); // Giftspur
+        if (e.evoFx > 0) e.evoFx -= dt;
       }
       // v3.0 Umweg-Punkt: erst zur freien Ecke, dann wieder direkt aufs Ziel
       if (e.wp) {
@@ -4600,7 +4729,7 @@
     }
     const c = {
       type: e.type, v: e.variant, f: Math.floor(e.anim) % Sprites.FRAMES, x: e.x, y: e.y, z: 0, r: e.r * 0.8,
-      face: e.face, sc: e.scale, t: 0, blood: e.def.blood, boss: e.def.boss, ref: e, death,
+      face: e.face, sc: e.scale, t: 0, blood: e.def.blood, boss: e.def.boss, ref: e, death, evo: e.evo || 0,
       vx: 0, vy: 0, vz: 0, spin: rand(-1, 1), roll: 0, rollV: 0, fall: 0, settled: false, headless: false,
       // umkippen in Schussrichtung: Treffer von vorn → nach hinten, von hinten → nach vorn
       fallDir: Math.cos(ang - e.face) < 0 ? 1 : -1, side: Math.random() < 0.5 ? -1 : 1,
@@ -4811,7 +4940,7 @@
   }
   function bakeCorpse(c) {
     // In 3D übernimmt der Renderer den Körper in sein Sammel-Mesh – nur in 2D als Bild auf den Boden
-    if (!mode3d) stamp(Sprites.zombieFx(c.type, c.f, c.v, "corpse"), c.x, c.y, c.face + c.fallDir * 0.4, c.sc * 0.88, 0.8);
+    if (!mode3d) stamp(Sprites.zombieFx(c.type, c.f, c.v, "corpse", c.evo), c.x, c.y, c.face + c.fallDir * 0.4, c.sc * 0.88, 0.8);
   }
 
   // Umgebungs-Partikel: Asche (Straße), Staub (Krankenhaus), Sporen (Labor)
@@ -5743,7 +5872,7 @@
     if (state === "play") { drawOffscreen(); drawMinimap(); }
     if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); }
     drawCombo();
-    if (state === "play" || state === "pick") { drawPowerBadges(); drawLooterBadges(); drawPowerHud(); }
+    if (state === "play" || state === "pick") { drawPowerBadges(); drawLooterBadges(); drawFeeding(); drawPowerHud(); }
     // Kinobalken bei Boss-Auftritt und Boss-Tod
     const bossIntro = enemies.some((e) => e.def.boss && e.spawnT > 0);
     cine += ((bossIntro || cineT > 0 ? 1 : 0) - cine) * Math.min(1, frameDt * 5);
@@ -6265,10 +6394,10 @@
       const ang = c.face + c.fallDir * 0.4 * k + c.roll * 0.3, sc = c.sc * (1 - 0.12 * k) * (1 + c.z / 260);
       if (c.z > 2) drawShadow(c.x, c.y, c.r);
       const y = c.y - c.z;
-      Sprites.draw(ctx, Sprites.zombie(c.type, c.f, c.v), c.x, y, ang, sc);
+      Sprites.draw(ctx, Sprites.zombie(c.type, c.f, c.v, c.evo), c.x, y, ang, sc);
       const fx = c.death === "freeze" ? "ice" : c.death === "shock" && c.t < 0.6 && Math.random() < 0.5 ? "hit" : "corpse";
       ctx.globalAlpha = fx === "corpse" ? k * (c.death === "burn" ? 1 : 0.85) : 0.9;
-      Sprites.draw(ctx, Sprites.zombieFx(c.type, c.f, c.v, fx), c.x, y, ang, sc);
+      Sprites.draw(ctx, Sprites.zombieFx(c.type, c.f, c.v, fx, c.evo), c.x, y, ang, sc);
       ctx.globalAlpha = 1;
     }
     for (const q of pieces) {
@@ -6306,7 +6435,7 @@
     if (e.spawnT > 0) {
       const k = Math.min(1, Math.max(0, 1 - e.spawnT / e.spawnMax));
       ctx.globalAlpha = k;
-      Sprites.draw(ctx, Sprites.zombie(e.type, f, e.variant), e.x, e.y + (1 - k) * 8, e.face, e.scale * (0.55 + 0.45 * k));
+      Sprites.draw(ctx, Sprites.zombie(e.type, f, e.variant, e.evo), e.x, e.y + (1 - k) * 8, e.face, e.scale * (0.55 + 0.45 * k));
       ctx.globalAlpha = 1;
       return;
     }
@@ -6314,9 +6443,12 @@
     let x = e.x, y = e.y - e.jumpZ;
     if (e.mode === "wind" || e.mode === "zap") { x += rand(-1.5, 1.5); y += rand(-1.5, 1.5); }
     if (e.elite) glowAt(e.aff ? AFFIXES[e.aff[0]].rgb : "255,200,80", e.x, e.y, e.r * 2.2, 0.35 + 0.15 * Math.sin(run.time * 5));
-    const sc = e.scale * (e.type === "nest" ? 1 + Math.sin(run.time * 4 + e.wob) * 0.05 : 1 + Math.sin(e.anim * 0.8) * 0.015);
+    if (e.evo) drawEvoUnder(e);
+    let sc = e.scale * (e.type === "nest" ? 1 + Math.sin(run.time * 4 + e.wob) * 0.05 : 1 + Math.sin(e.anim * 0.8) * 0.015);
+    if (e.evoCrouch > 0) sc *= 0.92; // duckt sich vor dem Sprung
+    if (e.evoFx > 0) sc *= 1 + Math.sin(e.evoFx * 22) * 0.06 * e.evoFx; // pulsiert bei der Mutation
     if (e.type === "phantom") ctx.globalAlpha = e.glitchT > 0 ? (Math.random() < 0.5 ? 0.15 : 0.9) : 0.6 + 0.18 * Math.sin(run.time * 9 + e.wob);
-    Sprites.draw(ctx, Sprites.zombie(e.type, f, e.variant), x, y, e.face, sc);
+    Sprites.draw(ctx, Sprites.zombie(e.type, f, e.variant, e.evo), x, y, e.face, sc);
     ctx.globalAlpha = 1;
     if (e.shield > 0) {
       // Energieschild: blaue Blase, flackert stärker, je schwächer sie wird
@@ -6327,10 +6459,38 @@
       ctx.strokeStyle = `rgba(190,235,255,${0.45 + 0.35 * k * (0.7 + 0.3 * Math.sin(run.time * 12 + e.wob))})`; ctx.lineWidth = 1.6;
       ctx.beginPath(); ctx.arc(x, y, rr, 0, TAU); ctx.stroke();
     }
-    if (e.slowT > 0) { ctx.globalAlpha = 0.8; Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "ice"), x, y, e.face, sc); }
-    if (e.phase2 || e.rageT > 0) { ctx.globalAlpha = 0.35 + 0.25 * Math.sin(run.time * 10); Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "rage"), x, y, e.face, sc); }
-    if (e.hitT > 0) { ctx.globalAlpha = Math.min(1, e.hitT / 0.1); Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "hit"), x, y, e.face, sc); }
+    if (e.slowT > 0) { ctx.globalAlpha = 0.8; Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "ice", e.evo), x, y, e.face, sc); }
+    if (e.phase2 || e.rageT > 0) { ctx.globalAlpha = 0.35 + 0.25 * Math.sin(run.time * 10); Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "rage", e.evo), x, y, e.face, sc); }
+    if (e.hitT > 0) { ctx.globalAlpha = Math.min(1, e.hitT / 0.1); Sprites.draw(ctx, Sprites.zombieFx(e.type, f, e.variant, "hit", e.evo), x, y, e.face, sc); }
     ctx.globalAlpha = 1;
+  }
+
+  // v3.7 Evolution in 2D: Schein in Stufenfarbe, Fress-Fortschritt, Sprung-Warnung, Brüll-Welle
+  function drawEvoUnder(e) {
+    const B = EVO[e.evo], t = run.time;
+    if (e.evo >= 2) glowAt(B.rgb, e.x, e.y, e.r * (e.evo === 3 ? 2.6 : 2) * e.scale, 0.22 + 0.1 * Math.sin(t * 4 + e.wob));
+    if (e.evoFx > 0) glowAt(B.rgb, e.x, e.y, e.r * 3.4, e.evoFx * 0.8);
+    if (e.roarFx > 0) { ctx.globalAlpha = 1; ctx.strokeStyle = `rgba(255,70,60,${e.roarFx})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y, 240 * (1 - e.roarFx / 0.7) + 20, 0, TAU); ctx.stroke(); }
+    if (e.evoCrouch > 0) { // rote Sprungbahn
+      const a = e.leapAng, L2 = 170;
+      ctx.save(); ctx.globalAlpha = 0.35 + 0.3 * Math.sin(t * 30); ctx.translate(e.x, e.y); ctx.rotate(a);
+      const gr = ctx.createLinearGradient(0, 0, L2, 0); gr.addColorStop(0, `rgba(${B.rgb},0.7)`); gr.addColorStop(1, `rgba(${B.rgb},0)`);
+      ctx.fillStyle = gr; ctx.fillRect(0, -e.r * 0.7, L2, e.r * 1.4); ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // Fress-Fortschritt über der Leiche (Weltkoordinaten in 2D, Bildschirm in 3D – im Overlay gezeichnet)
+  function drawFeeding() {
+    for (const e of enemies) {
+      if (!e.feed || e.feed.t <= 0 || e.dead) continue;
+      const k = e.feed.t / EVO_FEED_T, B = EVO[Math.min(3, (e.evo || 0) + 1)], q = scr(e.x, e.y - (mode3d ? 0 : e.r + 18), mode3d ? e.r * 2.6 : 0);
+      if (q.behind) continue;
+      ctx.save();
+      ctx.fillStyle = "rgba(10,6,6,0.8)"; ctx.beginPath(); ctx.arc(q.x, q.y, 10, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgb(${B.rgb})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(q.x, q.y, 10, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+      drawIcon(ctx, "dna", q.x, q.y, 12, `rgb(${B.rgb})`);
+      ctx.restore();
+    }
   }
 
   function drawPlayer() {
@@ -6523,7 +6683,7 @@
       if (e.spawnT > 0) continue;
       const fx = Math.cos(e.face), fy = Math.sin(e.face);
       const hx = e.x + fx * e.r * 0.48, hy = e.y + fy * e.r * 0.48;
-      const eye = e.type === "spitter" || e.type === "abom" ? "234,255,0" : e.type === "armored" ? "255,120,60" : "255,40,30";
+      const eye = e.evo ? EVO[e.evo].eye : e.type === "spitter" || e.type === "abom" ? "234,255,0" : e.type === "armored" ? "255,120,60" : "255,40,30";
       glowAt(eye, hx, hy, e.def.boss ? e.r * 0.45 : e.r * 0.75, 0.45);
       // v3.7 zwei glühende Pupillen statt eines Flecks (nur nah genug am Rand des Kopfes)
       const ex = -fy * e.r * 0.16, ey = fx * e.r * 0.16, er = Math.max(2.2, e.r * 0.13);
@@ -7808,6 +7968,16 @@
       g.drawImage(spr.c, -spr.w * k / 2, -spr.h * k / 2, spr.w * k, spr.h * k);
       if (!n) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = "source-atop"; g.fillStyle = "#3b4743"; g.fillRect(0, 0, 128, 128); }
     }
+    // v3.7 Evolutionsstufen: am Beispiel des Walkers, Silhouette bis zum ersten Abschuss dieser Stufe
+    for (let i = 1; i < EVO.length; i++) {
+      const B = EVO[i], n = save.bestiary[`evo${i}`] || 0, row = document.createElement("div");
+      row.className = `item codex beast${n ? " found" : " unknown"}`;
+      row.innerHTML = `<div class="ico beast-art"><canvas width="128" height="128"></canvas></div><div><span class="tag gold">${tr("EVOLUTIONSSTUFEN")}</span><div class="name">${tr("Stufe {n}", { n: i })} · ${n ? tr(B.name) : "???"}</div><div class="desc">${tr(B.desc)}</div><div class="recipe">${n ? tr("{n} erledigt", { n: n.toLocaleString(I18N.lang) }) : tr("Zombies, die an Leichen fressen, mutieren zur nächsten Stufe.")}</div></div><div></div>`;
+      list.appendChild(row);
+      const g = row.querySelector("canvas").getContext("2d"), spr = Sprites.zombie("walker", 2, 0, i), k = 150 / Math.max(spr.w, spr.h);
+      g.translate(64, 64); g.rotate(-Math.PI / 2); g.drawImage(spr.c, -spr.w * k / 2, -spr.h * k / 2, spr.w * k, spr.h * k);
+      if (!n) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = "source-atop"; g.fillStyle = "#3b4743"; g.fillRect(0, 0, 128, 128); }
+    }
     $("codexNote").textContent = tr("{n} von {m} Gegnern erledigt.", { n: seen, m: Object.keys(BESTIARY).length });
   }
 
@@ -8580,11 +8750,11 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y) => spawnEnemy(t, x, y), freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), get miniSpot() { return miniSpot; }, get wetSpots() { return wetSpots; }, mini: (kind = "lukas") => { const s = { kind, x: player.x, y: player.y, r: 30, bob: 0, done: false, armed: false }; miniSpot = s; openMini(s); return s; }, layout: (list = [], withBarrier = false) => {
+  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y, evo) => { evoLock = true; try { const e = spawnEnemy(t, x, y); if (evo) mutate(e, evo, null); return e; } finally { evoLock = false; } }, freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), get miniSpot() { return miniSpot; }, get wetSpots() { return wetSpots; }, mini: (kind = "lukas") => { const s = { kind, x: player.x, y: player.y, r: 30, bob: 0, done: false, armed: false }; miniSpot = s; openMini(s); return s; }, layout: (list = [], withBarrier = false) => {
     const fest = run.mode === "campaign" && run.room > 0 ? curCity().fest : "";
     const obs = (withBarrier ? genBarrier() : []).concat(list.map((q) => { const sz = OBSTACLE_SIZE[q.kind]; let w = q.w || sz[0], h = q.h || sz[2]; if (q.vert && !q.w) [w, h] = [h, w]; const o = { seed: randi(1, 1e9), fest, vert: !!q.vert, ...q, w, h }; if (DESTRUCT[q.kind]) o.hp = DESTRUCT[q.kind]; return o; }));
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

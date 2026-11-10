@@ -888,6 +888,18 @@ window.I18N = (() => {
     "MULTI-KILL": "MULTI KILL",
     "MEGA-KILL": "MEGA KILL",
     "GEMETZEL": "CARNAGE",
+    // v3.7 Evolutionsstufen
+    "Verseucht": "Infected",
+    "Mutant": "Mutant",
+    "Alpha": "Alpha",
+    "MUTATION": "MUTATION",
+    "ALPHA BRÜLLT!": "ALPHA ROARS!",
+    "ALPHA ERLEGT!": "ALPHA DOWN!",
+    "Grün leuchtende Adern, Giftblut – beim Tod bleibt eine Giftlache zurück": "Glowing green veins, toxic blood – leaves a poison puddle when it dies",
+    "Knochenpanzer (−20 % Schaden), Krallen und ein Sprungangriff aus kurzer Distanz": "Bone armour (−20% damage), claws and a short-range pounce",
+    "Brüllt: Zombies ringsum rasen und mutieren, heilt sich, Panzer −30 %, reiche Beute": "Roars: nearby zombies rage and mutate, regenerates, armour −30%, rich loot",
+    "EVOLUTIONSSTUFEN": "EVOLUTION STAGES",
+    "Zombies, die an Leichen fressen, mutieren zur nächsten Stufe.": "Zombies that feed on corpses mutate to the next stage.",
   };
 
   // Spieldaten (Waffen, Talente, Skills, Bosse) – nach ID

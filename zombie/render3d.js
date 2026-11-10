@@ -4389,7 +4389,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   // ------------------------------------------------------------------
   // Instanzen: Schatten, Münzen, Projektile
   // ------------------------------------------------------------------
-  let barrelIM, anchorIM, boxIM, ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, headIM, limbIM, rocketIM, discIM, pillar, doorBeam, lootIM, lootBandIM, birdIM, wingIM;
+  let barrelIM, anchorIM, boxIM, ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, headIM, limbIM, rocketIM, discIM, pillar, doorBeam, lootIM, lootBandIM, birdIM, wingIM, puGemIM, puRingIM;
   const booms = [];
   const dummy = new T3.Object3D();
   function setupInstanced() {
@@ -4433,6 +4433,12 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     lootBandIM = new T3.InstancedMesh(new T3.BoxGeometry(15.6, 2.6, 13.6), new T3.MeshBasicMaterial({ color: 0xffffff }), 12);
     lootBandIM.setColorAt(0, tmpColor.setRGB(1, 1, 1));
     lootIM.castShadow = true;
+    // v3.7 Power-up: facettierter Kristall (Grundfarbe je Instanz) mit hellem, ungeschattetem Ring
+    const gemGeo = new T3.IcosahedronGeometry(7, 0); gemGeo.scale(1, 1.5, 1);
+    puGemIM = new T3.InstancedMesh(gemGeo, new T3.MeshLambertMaterial({ color: 0xffffff, emissive: 0x2a2a2a, flatShading: true }), 4);
+    puRingIM = new T3.InstancedMesh(new T3.TorusGeometry(13, 1.1, 5, 28), new T3.MeshBasicMaterial({ color: 0xffffff }), 4);
+    puGemIM.setColorAt(0, tmpColor.setRGB(1, 1, 1)); puRingIM.setColorAt(0, tmpColor.setRGB(1, 1, 1));
+    puGemIM.castShadow = true;
     // v3.4 Krähen: Körper (Rumpf, Kopf, Schnabel, Schwanz als ein Mesh) und V-förmiges Flügelpaar – der Flügelschlag
     // entsteht über die Höhen-Skalierung der Instanz (positiv = V nach oben, negativ = nach unten)
     const mergeGeo = (parts) => { const pos = []; for (const g0 of parts) pos.push(...(g0.index ? g0.toNonIndexed() : g0).attributes.position.array); const g1 = new T3.BufferGeometry(); g1.setAttribute("position", new T3.BufferAttribute(new Float32Array(pos), 3)); g1.computeVertexNormals(); return g1; };
@@ -4474,7 +4480,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     boxIM = new T3.InstancedMesh(new T3.BoxGeometry(1, 1, 1), new T3.MeshLambertMaterial({ flatShading: true }), 60);
     boxIM.setColorAt(0, tmpColor.setRGB(1, 1, 1));
     for (const im of [barrelIM, anchorIM, boxIM]) { im.castShadow = true; im.frustumCulled = false; im.count = 0; scene.add(im); }
-    for (const im of [ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, rocketIM, discIM, lootIM, lootBandIM, birdIM, wingIM]) { im.frustumCulled = false; im.count = 0; scene.add(im); }
+    for (const im of [ballIM, paperIM, candyIM, blobShadows, coinsIM, acidIM, pinkIM, grenadeIM, boltIM, chunkIM, casingIM, healIM, healCrossIM, foodIM, pfandIM, rocketIM, discIM, lootIM, lootBandIM, birdIM, wingIM, puGemIM, puRingIM]) { im.frustumCulled = false; im.count = 0; scene.add(im); }
     healIM.castShadow = true;
     // abgetrennte Köpfe und Gliedmaßen
     headIM = new T3.InstancedMesh(new T3.IcosahedronGeometry(1, 1), new T3.MeshLambertMaterial({ flatShading: true }), 100);
@@ -4889,6 +4895,18 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     lootIM.count = lootBandIM.count = lk; lootIM.instanceMatrix.needsUpdate = true; lootBandIM.instanceMatrix.needsUpdate = true;
     if (lk && lootBandIM.instanceColor) lootBandIM.instanceColor.needsUpdate = true;
     lootIM.visible = lootBandIM.visible = lk > 0;
+    // v3.7 Power-ups: Kristall dreht sich, Ring taumelt; blinkt in den letzten 3 s (verfällt nach 14 s)
+    let pk3 = 0;
+    for (const o of w.orbs) {
+      if (o.type !== "power" || pk3 >= 4) continue;
+      const y = 24 + Math.sin(o.t * 4) * 3, on = !(o.t > 11 && Math.sin(o.t * 20) < 0), s0 = on ? Math.min(1, o.t * 4) : 0.001;
+      inst(puGemIM, pk3, o.x, y, o.y, o.t * 1.8, 0, s0, s0, s0);
+      inst(puRingIM, pk3, o.x, y, o.y, o.t * 1.1, Math.PI / 2 + Math.sin(o.t * 2.2) * 0.45, s0, s0, s0);
+      const [r0, g0, b0] = lin(o.rgb);
+      puGemIM.setColorAt(pk3, tmpColor.setRGB(r0, g0, b0)); puRingIM.setColorAt(pk3++, tmpColor.setRGB(Math.min(1, r0 * 1.4 + 0.15), Math.min(1, g0 * 1.4 + 0.15), Math.min(1, b0 * 1.4 + 0.15)));
+    }
+    puGemIM.count = puRingIM.count = pk3; puGemIM.visible = puRingIM.visible = pk3 > 0;
+    if (pk3) { puGemIM.instanceMatrix.needsUpdate = puRingIM.instanceMatrix.needsUpdate = true; puGemIM.instanceColor.needsUpdate = puRingIM.instanceColor.needsUpdate = true; }
     // v3.4 Krähen: am Boden mit angelegten Flügeln und Pickbewegung, im Flug mit Flügelschlag
     let bk = 0;
     for (const b of w.birds || []) {
@@ -5196,6 +5214,25 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       addB.add(o.x, bh * 0.42, o.y, ux * 5, 0, uz * 5, 0, bh * 0.5, 0, CELL.glow, 1, 1, 1, 0.35 * pulse); // heller Kern
       bill(addB, o.x, 10, o.y, 24 * pulse, CELL.glow, rgb, 0.6);
       flat(floorB, o.x, 0.9, o.y, t * 0.6, 20, 20, CELL.ring, rgb, 0.7 * pulse);
+    }
+    // v3.7 Power-ups: Lichtsäule, Schein, kreisender Bodenring – Aura am Helden, Schutzschild als Blase
+    for (const o of w.orbs) if (o.type === "power") {
+      const pulse = 0.75 + 0.25 * Math.sin(o.t * 5), hl = Math.hypot(camR.x, camR.z) || 1, ux = camR.x / hl, uz = camR.z / hl, [lr, lg, lb] = lin(o.rgb), a = o.t > 11 && Math.sin(o.t * 20) < 0 ? 0.35 : 1;
+      addB.add(o.x, 58, o.y, ux * 13, 0, uz * 13, 0, 66, 0, CELL.glow, lr, lg, lb, 0.55 * pulse * a);
+      addB.add(o.x, 58, o.y, ux * 4, 0, uz * 4, 0, 66, 0, CELL.glow, 1, 1, 1, 0.18 * pulse * a);
+      bill(addB, o.x, 24, o.y, 40 * pulse, CELL.glow, o.rgb, 0.42 * a);
+      flat(floorB, o.x, 0.9, o.y, o.t * 1.5, 26, 26, CELL.ring, o.rgb, 0.8 * pulse * a);
+      flat(floorB, o.x, 0.8, o.y, 0, 40, 40, CELL.glow, o.rgb, 0.35 * a);
+    }
+    if (w.powers && w.powers.length && w.player) {
+      const p = w.player;
+      w.powers.forEach((rgb, i) => { flat(floorB, p.x, 0.95, p.y, t * 2.4 + i * 2, 30 + i * 6, 30 + i * 6, CELL.ring, rgb, 0.5); if (i < 2) bill(addB, p.x, 22, p.y, 40, CELL.glow, rgb, 0.09); });
+    }
+    if (w.shield > 0 && w.player) {
+      const p = w.player, a = w.shield < 2 && Math.sin(t * 18) < 0 ? 0.3 : 1;
+      bill(addB, p.x, 26, p.y, 58, CELL.ring, "90,200,255", 0.38 * a);
+      bill(addB, p.x, 26, p.y, 60, CELL.glow, "60,160,255", 0.07 * a);
+      bill(addB, p.x - 9, 36, p.y, 12, CELL.glow, "220,245,255", 0.18 * a);
     }
     for (const o of w.orbs) if (o.type === "xp") { const y = 12 + Math.sin(t * 6 + o.x) * 2; bill(addB, o.x, y, o.y, 11, CELL.glow, "90,200,255", 0.85); bill(addB, o.x, y, o.y, 4, CELL.glow, "220,250,255", 1); }
     for (const e of w.enemies) {
@@ -5528,6 +5565,8 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       else if (o.kind === "zentrifuge") lightCands.push([o.x + o.w / 2, 40, o.y + o.h / 2, "120,255,150", 1.2, 120, 4]);
     }
     for (const o of w.orbs) if (o.type === "gear") lightCands.push([o.x, 46, o.y, LOOT_CSS[(o.item && o.item.r) || 0], 1.2, 170, 7]); // v3.3 Beutekiste (schwach, sonst überstrahlt die Kiste)
+    for (const o of w.orbs) if (o.type === "power") lightCands.push([o.x, 40, o.y, o.rgb, 1.6, 180, 8]); // v3.7 Power-up
+    if (w.powers && w.powers.length && w.player) lightCands.push([w.player.x, 30, w.player.y, w.powers[0], 1.1, 150, 8]);
     for (const e of w.enemies) {
       if (e.burnT > 0 || e.type === "burner") lightCands.push([e.x, 26, e.y, "255,140,40", 1.4, 150, 4]);
       if (e.mode === "zap") lightCands.push([e.x, 40, e.y, "127,231,255", 2.2, 200, 7]);

@@ -71,6 +71,9 @@ const ICONS = {
   missileSwarm: "missile-swarm", healMist: "healing", goldRain: "crown-coin", railShot: "laser-precision",
   // v3.3 Ausrüstung: weitere Plätze, Beutekiste, Händler
   helm: "visored-helm", gloves: "gloves", charm: "horseshoe", lootCrate: "wooden-crate", dealer: "price-tag",
+  // v3.7 Power-ups und interaktive Umgebung
+  puFrenzy: "bullets", puDouble: "mighty-force", puSlow: "sands-of-time", puMagnet: "magnet", puNuke: "nuclear-bomb", puShield: "energy-shield",
+  carAlarm: "siren", trafo: "power-lightning",
 };
 const set = require("@iconify-json/game-icons/icons.json");
 const paths = {};

@@ -858,6 +858,21 @@ window.I18N = (() => {
     "EINSATZBERICHT": "MISSION REPORT",
     "Jetzt im Play Store holen": "Get it on Google Play",
     "5 Minuten": "5 minutes",
+    // v3.7 Power-ups
+    "RASEREI": "FRENZY",
+    "Doppelte Feuerrate": "Double fire rate",
+    "DOPPELSCHADEN": "DOUBLE DAMAGE",
+    "Doppelter Schaden": "Double damage",
+    "QUERSCHLÄGER": "RICOCHET",
+    "Kugeln durchschlagen und prallen ab": "Bullets pierce and bounce",
+    "ZEITLUPE": "SLOW-MO",
+    "Alle Gegner in Zeitlupe": "All enemies slowed down",
+    "MAGNET": "MAGNET",
+    "Zieht Münzen und Erfahrung an": "Pulls in coins and XP",
+    "LUFTSCHLAG": "AIR STRIKE",
+    "Bomben auf alle Gegner in Sicht": "Bombs on every enemy in sight",
+    "SCHUTZSCHILD": "SHIELD",
+    "Unverwundbar": "Invulnerable",
   };
 
   // Spieldaten (Waffen, Talente, Skills, Bosse) – nach ID

@@ -499,6 +499,10 @@
       paper: [["noise", 3600, 1600, 0.12, 0.06]],
       troete: [["sawtooth", 330, 392, 0.22, 0.035], ["square", 660, 784, 0.22, 0.015]],
       stamp: [["sine", 110, 50, 0.12, 0.14], ["noise", 900, 200, 0.08, 0.08]],
+      // v3.7 Power-up: aufsteigender Akkord · Autoalarm: zweitöniges Jaulen · Stromschlag: Knistern mit Brummen
+      power: [["triangle", 520, 1560, 0.3, 0.09], ["square", 780, 2340, 0.22, 0.025], ["sine", 260, 1040, 0.4, 0.08]],
+      alarm: [["square", 820, 620, 0.32, 0.03], ["square", 1240, 980, 0.32, 0.02]],
+      shock: [["sawtooth", 100, 95, 0.4, 0.07], ["noise", 5200, 1800, 0.3, 0.07], ["square", 2400, 600, 0.12, 0.03]],
     }[type];
     if (!cfg) return;
     // Rausch-Anteile machen Schüsse, Treffer und Explosionen wuchtiger
@@ -1578,7 +1582,7 @@
       if (p.fireCd <= 0) {
         fire();
         const spinMul = p.weapon.spin ? 0.25 + 0.75 * p.spin : 1;
-        p.fireCd = 1 / (p.weapon.rate * p.rateMul * spinMul * (run.rage > 0 ? 1.4 : 1) * (p.jamT > 0 ? 0.5 : 1)); // „Verspätung“ halbiert die Feuerrate
+        p.fireCd = 1 / (p.weapon.rate * p.rateMul * spinMul * (run.rage > 0 ? 1.4 : 1) * (p.jamT > 0 ? 0.5 : 1) * (puOn("frenzy") ? 2 : 1)); // „Verspätung“ halbiert die Feuerrate
       }
     } else if (p.fireCd < 0) {
       p.fireCd = 0.07; // kurze Anlaufzeit nach dem Stehenbleiben
@@ -1704,7 +1708,7 @@
         const a = d.a + s + rand(-w.jitter, w.jitter) * (1 - 0.7 * (p.plant || 0));
         bullets.push(makeBullet(gx + px, gy + py, a, {
           dmg: w.dmg * p.dmgMul, speed: w.speed * (w.kind === "flame" ? rand(0.85, 1.15) : 1), r: w.r, color: w.color,
-          life: w.range / w.speed, pierce: w.pierce + p.pierce, wall: p.wall + (w.bounces || 0), rico: p.ricochet,
+          life: w.range / w.speed, pierce: w.pierce + p.pierce + (puOn("rico") ? 2 : 0), wall: p.wall + (w.bounces || 0) + (puOn("rico") ? 2 : 0), rico: p.ricochet + (puOn("rico") ? 1 : 0),
           kind: w.kind, aoe: w.aoe, burn: w.burn ? 1 + p.burn : p.burn, freeze: w.cryo ? 1.5 + p.freeze : p.freeze, poison: p.poison, player: true,
           tracer: w.tracer, long: w.long, knock: w.knock, wid: p.weaponId, big: !!(w.big || w.long || w.pellets > 1),
           cryo: !!w.cryo, bounces: w.bounces || 0,
@@ -1793,6 +1797,11 @@
       return;
     }
     if (p.invuln > 0 || state !== "play") return;
+    // v3.7 Power-up Schutzschild: schluckt jeden Treffer
+    if (puOn("shield")) {
+      if (!(p.shieldHitAt > run.time - 0.25)) { p.shieldHitAt = run.time; fxRing(p.x, p.y, 38, POWERUPS.shield.rgb, 0.25); fxSparks(p.x, p.y, rand(0, TAU), Math.PI, 5, POWERUPS.shield.rgb, 200); }
+      return;
+    }
     if (Math.random() < p.dodge) {
       addText(p.x, p.y - 30, tr("AUSGEWICHEN"), "#9ee6ff", 15);
       p.invuln = 0.3;
@@ -1939,6 +1948,7 @@
     }
     bullets = bullets.filter((b) => !b.dead);
 
+    dt *= puEnemyK(); // v3.7 Zeitlupe: Gegner-Geschosse ebenfalls langsamer
     for (const b of eBullets) {
       const px = b.x, py = b.y;
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
@@ -2054,6 +2064,7 @@
     obstacles = obstacles.filter((q) => q !== o);
     roomLights = roomLights.filter((l) => l.src !== o);
     const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+    if (PU_CRATES.includes(o.kind) && Math.random() < 0.14) dropPower(cx, cy); // v3.7 Kisten können Power-ups enthalten
     if (o.kind === "bretter") {
       const dir = o.x < L ? 0 : Math.PI;
       fxDebris(cx, cy, dir, 1.4, 26, "#7a5a34"); fxDebris(cx, cy, dir, 1.6, 10, "#4e3820"); fxDust(cx, cy, 6, 1.4);
@@ -2238,6 +2249,7 @@
       if (p.bigGame && (e.elite || e.def.boss)) dmg *= p.bigGame; // Seuchenjäger
       if (p.perfectT > run.time) dmg *= 1.25; // nach perfektem Ausweichen
       if (e.frostT > 0) dmg *= 1.3; // v2.9 eingefroren: spröde
+      if (puOn("double")) dmg *= 2; // v3.7 Power-up Doppelschaden
       // Schwachstelle: Treffer in den Rücken eines Bosses
       if (e.def.boss && o.bullet && !o.aoe && Math.abs(angDiff(e.face, Math.atan2(-o.bullet.vy, -o.bullet.vx))) > 2.0) {
         dmg *= 1.5;
@@ -2332,6 +2344,7 @@
     for (let i = 0; i < k; i++) orbs.push(makeOrb(e.x, e.y, "coin", bonus / k));
     callout = { title: tr(title), n, bonus, life: 1.4, max: 1.4 };
     sfx("combo");
+    if (n >= 10) dropPower(e.x, e.y); // v3.7 ab „Blutrausch“ bringt jede Kombo-Stufe ein Power-up
     if (n % 20 === 0) startRage();
   }
   function startRage() {
@@ -2343,6 +2356,72 @@
     sfx("rage");
     fx4d("rage");
   }
+
+  // ============================================================
+  // v3.7 Power-ups: kurze, starke Verstärkungen zum Aufsammeln
+  // Quellen: Elite (22 %), jede Kombo-Stufe ab 10, Kisten (14 %), selten normale Zombies (höchstens alle 7 s)
+  // ============================================================
+  const POWERUPS = {
+    frenzy: { name: "RASEREI", desc: "Doppelte Feuerrate", icon: "puFrenzy", rgb: "255,150,40", dur: 10, w: 18 },
+    double: { name: "DOPPELSCHADEN", desc: "Doppelter Schaden", icon: "puDouble", rgb: "255,72,64", dur: 10, w: 16 },
+    rico: { name: "QUERSCHLÄGER", desc: "Kugeln durchschlagen und prallen ab", icon: "ricochet", rgb: "110,225,255", dur: 12, w: 14 },
+    slow: { name: "ZEITLUPE", desc: "Alle Gegner in Zeitlupe", icon: "puSlow", rgb: "180,140,255", dur: 8, w: 12 },
+    magnet: { name: "MAGNET", desc: "Zieht Münzen und Erfahrung an", icon: "puMagnet", rgb: "255,214,90", dur: 14, w: 13 },
+    nuke: { name: "LUFTSCHLAG", desc: "Bomben auf alle Gegner in Sicht", icon: "puNuke", rgb: "255,96,40", dur: 0, w: 8 },
+    shield: { name: "SCHUTZSCHILD", desc: "Unverwundbar", icon: "puShield", rgb: "90,200,255", dur: 7, w: 11 },
+  };
+  const PU_LIFE = 14, PU_MAX = 2, PU_SLOW = 0.4, PU_CRATES = ["crate", "medcrate", "labcrate", "tonnen", "automat"];
+  let puFlash = null;
+  const puOn = (k) => !!(run && run.pu && run.pu[k] > 0);
+  const puEnemyK = () => (puOn("slow") ? PU_SLOW : 1);
+  function rollPower() {
+    const crowd = enemies.filter((e) => !e.dead).length, list = Object.entries(POWERUPS).filter(([k]) => k !== "nuke" || crowd >= 6);
+    let r = Math.random() * list.reduce((a, [, d]) => a + d.w, 0);
+    for (const [k, d] of list) if ((r -= d.w) <= 0) return k;
+    return list[0][0];
+  }
+  function dropPower(x, y, kind) {
+    if (!run || orbs.filter((o) => o.type === "power").length >= PU_MAX) return null;
+    const o = makeOrb(clamp(x, L + 30, R - 30), clamp(y, T + 30, B - 30), "power", 0);
+    o.pu = POWERUPS[kind] ? kind : rollPower(); o.rgb = POWERUPS[o.pu].rgb; o.r = 14; o.vx *= 0.35; o.vy *= 0.35;
+    orbs.push(o);
+    run.puDropAt = run.time;
+    fxRing(o.x, o.y, 50, o.rgb, 0.45);
+    return o;
+  }
+  function maybeDropPower(e) {
+    if (e.def.boss || e.summoner || run.cleared) return;
+    const recent = run.time - (run.puDropAt ?? -99) < 7;
+    if (Math.random() < (e.elite ? 0.22 : recent ? 0 : run.mode === "survival" ? 0.012 : 0.008)) dropPower(e.x, e.y);
+  }
+  function takePower(o) {
+    const d = POWERUPS[o.pu], p = player;
+    run.pu = run.pu || {}; run.puMax = run.puMax || {};
+    track("powerups");
+    sfx("power"); fx4d("level");
+    fxRing(p.x, p.y, 96, d.rgb, 0.5); fxFlash(p.x, p.y, 150, d.rgb, 0.22);
+    slowMo = Math.max(slowMo, 0.25); punchFov = Math.max(punchFov, 2.2);
+    puFlash = { rgb: d.rgb, t: 0.6, max: 0.6 };
+    callout = { title: tr(d.name), sub: tr(d.desc), col: `rgb(${d.rgb})`, n: 1, bonus: 0, life: 1.7, max: 1.7, plain: true };
+    if (o.pu === "nuke") { airRaid(); return; }
+    run.pu[o.pu] = Math.min(d.dur * 1.6, Math.max(0, run.pu[o.pu] || 0) + d.dur); // erneut eingesammelt: verlängert
+    run.puMax[o.pu] = run.pu[o.pu];
+    if (o.pu === "shield") sfx("shield");
+  }
+  // Luftschlag: Bomben auf bis zu 16 Gegner im Blickfeld, nächste zuerst – trifft den Helden nicht
+  function airRaid() {
+    const p = player, U = powerUnit();
+    const list = enemies.filter((e) => !e.dead && e.spawnT <= 0 && !e.under && Math.abs(e.y - p.y) < 640).sort((a, b) => dist2(a, p) - dist2(b, p)).slice(0, 16);
+    list.forEach((e, i) => { const t = 0.55 + i * 0.09; strikes.push({ x: e.x + rand(-10, 10), y: e.y + rand(-10, 10), r: 84, t, max: t, dmg: U * (e.def.boss ? 2.2 : 3.2) }); });
+    sfx("whistle"); shake = Math.max(shake, 6);
+  }
+  function updatePowers(dt) {
+    if (puFlash && (puFlash.t -= frameDt) <= 0) puFlash = null;
+    if (!run.pu) return;
+    for (const k in run.pu) if (run.pu[k] > 0 && (run.pu[k] -= dt) <= 0) { run.pu[k] = 0; fxRing(player.x, player.y, 46, POWERUPS[k].rgb, 0.3); sfx("phase"); }
+  }
+  // aktive Power-ups (für Aura, Bildschirmrand und 3D)
+  const activePowers = () => (run && run.pu ? Object.keys(POWERUPS).filter((k) => run.pu[k] > 0) : []);
 
   function killEnemy(e) {
     if (e.dead) return;
@@ -2409,6 +2488,7 @@
     // v3.3 seltene Beutekisten (Stadt-Bosse in der Kampagne geben ihre Beute weiter direkt beim Raumabschluss)
     if (!def.boss && e.elite && !e.summoner && Math.random() < 0.07 + 0.01 * (run.threat || 0)) dropGear(e.x, e.y);
     else if (def.boss && run.mode !== "campaign") dropGear(e.x, e.y, lootLuck() + 0.04);
+    maybeDropPower(e);
     if (e.aff && e.aff.includes("volatile")) { fuses.push({ x: e.x, y: e.y, r: 78, t: 0.8, max: 0.8, dmg: e.dmg * 1.3 }); addText(e.x, e.y - 34, tr("ZÜNDET!"), "#ff7a3a", 16); }
     if (e.type === "bloater") {
       // platzt zu einer Giftwolke – nicht in der Nähe erledigen!
@@ -3934,7 +4014,12 @@
       o.t += dt;
       const dx = p.x - o.x, dy = p.y - o.y;
       const d = Math.hypot(dx, dy) || 1;
-      if ((run.cleared && o.t > 0.4) || d < (run.mode === "survival" ? 120 : 80)) {
+      if (o.type === "power") { // v3.7 Power-up: schwebt an Ort und Stelle, verfällt nach PU_LIFE
+        o.vx *= 1 - 5 * dt; o.vy *= 1 - 5 * dt; o.x = clamp(o.x + o.vx * dt, L + 24, R - 24); o.y = clamp(o.y + o.vy * dt, T + 24, B - 24);
+        if (d < p.r + 22) { o.dead = true; takePower(o); } else if (o.t > PU_LIFE) { o.dead = true; fxRing(o.x, o.y, 30, o.rgb, 0.3); fxDust(o.x, o.y, 3, 0.6); }
+        continue;
+      }
+      if ((run.cleared && o.t > 0.4) || (puOn("magnet") && o.t > 0.25) || d < (run.mode === "survival" ? 120 : 80)) {
         const s = 700 + o.t * 300;
         o.vx = (dx / d) * s; o.vy = (dy / d) * s;
       } else {
@@ -4628,7 +4713,7 @@
     updatePlayer(dt);
     if (state !== "play") return;
     if (run.mode === "survival") { updateSurvival(dt); if (state !== "play") return; }
-    updateEnemies(dt);
+    updateEnemies(dt * puEnemyK()); // v3.7 Zeitlupe bremst nur die Gegner
     // Schwer verletzte Zombies hinterlassen eine Blutspur
     for (const e of enemies) {
       if (e.stumpT > 0 && !e.dead) {
@@ -4649,7 +4734,7 @@
     updateEvent();
     updateFuses(dt);
     updateHazards(dt);
-    updateLobs(dt);
+    updateLobs(dt * puEnemyK());
     updateThrowables(dt);
     updateHordes(dt);
     // v3.0 Feuertonnen: Flammen und Funken steigen aus der Tonne
@@ -4667,6 +4752,7 @@
     if (run.cleared) run.doorK = Math.min(1, (run.doorK || 0) + dt * 1.8);
     if (run.comboT > 0 && (run.comboT -= dt) <= 0) run.combo = 0;
     if (run.rage > 0) run.rage -= dt;
+    updatePowers(dt);
     // Fremder nach dem Bosssieg (wartet, bis Level-ups abgearbeitet sind)
     if (run.shrineT > 0 && state === "play" && run.pendingPicks === 0) {
       run.shrineT -= dt;
@@ -5111,6 +5197,8 @@
     get theme() { return theme(); }, get isBossRoom() { return !!(run && BOSS_ROOMS[run.room]); }, get intro() { return roomFade; },
     get camPunch() { return { x: punchX, y: punchY, fov: punchFov }; },
     get survivors() { return run && run.obj && run.obj.list ? run.obj.list : NO_SURVIVORS; },
+    get powers() { return state === "play" || state === "pick" ? activePowers().map((k) => POWERUPS[k].rgb) : NO_SURVIVORS; }, // v3.7 Aura-Farben
+    get shield() { return (state === "play" || state === "pick") && puOn("shield") ? run.pu.shield : 0; },
     get plant() { return player ? player.plant || 0 : 0; },
     consumeFloorDirty() { const d = floorDirty; floorDirty = false; return d; },
     muzzlePoint: () => muzzlePoint(player),
@@ -5456,6 +5544,7 @@
     if (state === "play") { drawOffscreen(); drawMinimap(); }
     if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); }
     drawCombo();
+    if (state === "play" || state === "pick") { drawPowerBadges(); drawPowerHud(); }
     // Kinobalken bei Boss-Auftritt und Boss-Tod
     const bossIntro = enemies.some((e) => e.def.boss && e.spawnT > 0);
     cine += ((bossIntro || cineT > 0 ? 1 : 0) - cine) * Math.min(1, frameDt * 5);
@@ -5845,6 +5934,73 @@
     Sprites.draw(ctx, Sprites.supplyCrate(), s.x, s.y - 4 + Math.sin(s.bob * 3) * 3);
   }
 
+  // v3.7 Power-up-Kapsel: Lichtsäule, kreisender Strichring, dunkle Scheibe mit Icon; blinkt kurz vor dem Verfallen
+  function drawPowerOrb(o, x, y, s, noBeam) {
+    const d = POWERUPS[o.pu], t = o.t, left = PU_LIFE - t;
+    const a = left < 3 ? (Math.sin(t * 20) > 0 ? 1 : 0.35) : Math.min(1, t * 4);
+    ctx.save();
+    glowAt(d.rgb, x, y, (40 + 6 * Math.sin(t * 5)) * s, 0.6 * a);
+    if (!noBeam) {
+      const bh = 76 * s, gr = ctx.createLinearGradient(0, y - bh, 0, y);
+      gr.addColorStop(0, `rgba(${d.rgb},0)`); gr.addColorStop(1, `rgba(${d.rgb},${0.32 * a})`);
+      ctx.globalAlpha = 1; ctx.fillStyle = gr; ctx.fillRect(x - 6 * s, y - bh, 12 * s, bh);
+    }
+    ctx.globalAlpha = a;
+    ctx.translate(x, y); ctx.scale(s, s);
+    ctx.strokeStyle = `rgba(${d.rgb},0.85)`; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.lineDashOffset = -t * 18;
+    ctx.beginPath(); ctx.arc(0, 0, 19, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(8,10,12,0.9)"; ctx.beginPath(); ctx.arc(0, 0, 14, 0, TAU); ctx.fill();
+    ctx.strokeStyle = `rgb(${d.rgb})`; ctx.lineWidth = 2.4; ctx.stroke();
+    drawIcon(ctx, d.icon, 0, 0, 18, `rgb(${d.rgb})`);
+    ctx.restore();
+  }
+  // über der 3D-Welt: Icon-Scheibe über der Kapsel (die Kapsel selbst zeichnet render3d.js)
+  function drawPowerBadges() {
+    if (!mode3d) return;
+    for (const o of orbs) if (o.type === "power") { const q = scr(o.x, o.y, 44 + Math.sin(o.t * 4) * 3); if (!q.behind) drawPowerOrb(o, q.x, q.y, 0.95, true); }
+  }
+  // Ringe mit Restzeit unten links
+  function drawPowerHud() {
+    const act = activePowers();
+    if (!act.length) return;
+    ctx.save();
+    ctx.textAlign = "center";
+    act.forEach((k, i) => {
+      const d = POWERUPS[k], left = run.pu[k], f = Math.max(0, left / ((run.puMax && run.puMax[k]) || d.dur));
+      const x = 42 + i * 54, y = SB - 40, warn = left < 2.5 && Math.sin(run.time * 18) < 0, col = `rgb(${d.rgb})`;
+      glowAt(d.rgb, x, y, 34, 0.35); ctx.globalAlpha = 1;
+      ctx.fillStyle = "rgba(6,9,8,0.82)"; ctx.beginPath(); ctx.arc(x, y, 22, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,0.14)"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, y, 18.5, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = col; ctx.lineCap = "round"; ctx.beginPath(); ctx.arc(x, y, 18.5, -Math.PI / 2, -Math.PI / 2 + TAU * f); ctx.stroke();
+      drawIcon(ctx, d.icon, x, y, 19, warn ? "#ffffff" : col);
+      ctx.font = FONT_NUM(16, 700); ctx.lineWidth = 3.5; ctx.strokeStyle = "rgba(0,0,0,0.85)";
+      ctx.strokeText(`${Math.ceil(left)}`, x, y + 38); ctx.fillStyle = col; ctx.fillText(`${Math.ceil(left)}`, x, y + 38);
+    });
+    ctx.restore();
+  }
+  // Leuchten unter dem Helden in den Farben der aktiven Power-ups, bei Raserei Funken
+  function drawPowerAura2D(p) {
+    const act = activePowers();
+    if (!act.length || state === "menu") return;
+    act.forEach((k, i) => glowAt(POWERUPS[k].rgb, p.x, p.y, 34 + 8 * Math.sin(run.time * 6 + i * 2), 0.42));
+    ctx.globalAlpha = 1;
+    ctx.save();
+    ctx.strokeStyle = `rgba(${POWERUPS[act[0]].rgb},0.7)`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + 4, 22, 15, 0, run.time * 3, run.time * 3 + 4.4); ctx.stroke();
+    ctx.restore();
+  }
+  function drawShieldBubble(x, y, r) {
+    const t = run.time, rgb = POWERUPS.shield.rgb, warn = run.pu.shield < 2 && Math.sin(t * 18) < 0;
+    ctx.save();
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
+    g.addColorStop(0, "rgba(220,245,255,0.18)"); g.addColorStop(0.75, `rgba(${rgb},0.1)`); g.addColorStop(1, `rgba(${rgb},${warn ? 0.2 : 0.5})`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = `rgba(${rgb},${warn ? 0.4 : 0.9})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, r, t * 2, t * 2 + 2.2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, r, t * 2 + Math.PI, t * 2 + Math.PI + 2.2); ctx.stroke();
+    ctx.restore();
+  }
+
   function drawOrbs() {
     const t = run.time;
     for (const o of orbs) {
@@ -5869,7 +6025,8 @@
         ctx.strokeStyle = "#3a2410"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-8, -6); ctx.lineTo(8, 6); ctx.moveTo(8, -6); ctx.lineTo(-8, 6); ctx.stroke();
         ctx.fillStyle = `rgb(${rgb})`; ctx.fillRect(-2.5, -3, 5, 6);
         ctx.restore();
-      } else if (o.type === "pfand") {
+      } else if (o.type === "power") drawPowerOrb(o, o.x, o.y - 6 + Math.sin(o.t * 4) * 3, 1);
+      else if (o.type === "pfand") {
         ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(0.6 + o.t * 2);
         ctx.fillStyle = "#2f7a3a"; roundRect(-3.5, -7, 7, 12, 2.5); ctx.fill(); ctx.fillRect(-1.6, -10, 3.2, 4);
         ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(-2, -5, 1.2, 8); ctx.fillStyle = "#e8e0c8"; ctx.fillRect(-3.5, -2, 7, 3);
@@ -5979,6 +6136,7 @@
       Sprites.draw(ctx, saw, p.x + Math.cos(a) * p.orbitR, p.y + Math.sin(a) * p.orbitR, p.orbitAng * 5);
     }
     drawShadow(p.x, p.y, 16);
+    drawPowerAura2D(p);
     const pack = p.weaponId === "flame" ? "tanks" : "pack";
     const body = Sprites.playerBody(p.moving ? Math.floor(p.walkT) % Sprites.FRAMES : -1, pack, p.skin);
     const ws = Sprites.weapon(p.weaponId, p.tier, Math.floor(p.barrel));
@@ -5991,6 +6149,7 @@
     ctx.drawImage(ws.c, GRIP_X - ws.grip - p.kick, GRIP_Y - ws.h / 2, ws.w, ws.h);
     ctx.restore();
     ctx.globalAlpha = 1;
+    if (puOn("shield")) drawShieldBubble(p.x, p.y, 30);
     // Drohnen
     const dr = Sprites.drone();
     for (let i = 0; i < p.drones; i++) {
@@ -6519,8 +6678,18 @@
       ctx.drawImage(hurtVignette, 0, 0, hurtVignette.width * LS, hurtVignette.height * LS);
       ctx.globalAlpha = 1;
     }
+    // v3.7 Power-ups: farbiger Bildrand – kurz kräftig beim Einsammeln, danach leise für das erste aktive
+    const act = state === "play" ? activePowers() : [];
+    if (puFlash || act.length) {
+      const v = puVignette(puFlash ? puFlash.rgb : POWERUPS[act[0]].rgb);
+      ctx.globalAlpha = puFlash ? 0.3 + 0.7 * (puFlash.t / puFlash.max) : 0.26 + 0.08 * Math.sin(run.time * 4);
+      ctx.drawImage(v, 0, 0, v.width * LS, v.height * LS);
+      ctx.globalAlpha = 1;
+    }
     if (view) view.classList.toggle("critical", state === "play" && low > 0);
   }
+  const puVig = {};
+  const puVignette = (rgb) => puVig[rgb] || (puVig[rgb] = vignetteCanvas(rgb, 0.44, 0.5));
 
   // Canvas-Schriften: dieselben wie in der Oberfläche
   const FONT_NUM = (px, w = 600) => `${w} ${px}px Teko, "Barlow Condensed", sans-serif`;
@@ -6721,7 +6890,11 @@
       ctx.translate(W / 2, y0 + 34); ctx.scale(sc, sc);
       ctx.textAlign = "center";
       ctx.font = FONT_NUM(42, 700); ctx.lineWidth = 6; ctx.strokeStyle = "rgba(0,0,0,0.85)";
-      ctx.strokeText(callout.title, 0, 0); ctx.fillStyle = callout.plain ? "#a8ff3e" : comboColor(callout.n); ctx.fillText(callout.title, 0, 0);
+      ctx.strokeText(callout.title, 0, 0); ctx.fillStyle = callout.col || (callout.plain ? "#a8ff3e" : comboColor(callout.n)); ctx.fillText(callout.title, 0, 0);
+      if (callout.sub) {
+        ctx.font = FONT_UI(16); ctx.lineWidth = 4;
+        ctx.strokeText(callout.sub, 0, 25); ctx.fillStyle = "#f4f1e6"; ctx.fillText(callout.sub, 0, 25);
+      }
       if (!callout.plain) {
         const sub = `x${callout.n}   +${callout.bonus}`;
         ctx.font = FONT_UI(15); ctx.lineWidth = 4;
@@ -8199,5 +8372,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

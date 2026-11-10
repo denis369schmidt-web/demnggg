@@ -873,6 +873,12 @@ window.I18N = (() => {
     "Bomben auf alle Gegner in Sicht": "Bombs on every enemy in sight",
     "SCHUTZSCHILD": "SHIELD",
     "Unverwundbar": "Invulnerable",
+    // v3.7 Interaktive Umgebung
+    "ALARMANLAGE!": "CAR ALARM!",
+    "ES BRENNT!": "IT'S ON FIRE!",
+    "KAWUMM!": "KABOOM!",
+    "HOCHSPANNUNG!": "HIGH VOLTAGE!",
+    "HOCHSPANNUNG – ALLES NASS!": "HIGH VOLTAGE – SOAKING WET!",
   };
 
   // Spieldaten (Waffen, Talente, Skills, Bosse) – nach ID

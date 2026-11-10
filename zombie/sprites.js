@@ -1269,7 +1269,7 @@ window.Sprites = (() => {
   // ------------------------------------------------------------------
   const OBS_Z = { bretter: 16, car: 0, crate: 12, barrels: 0, barricade: 14, dumpster: 16, bed: 6, cabinet: 18, medcrate: 12, tank: 0, server: 18, labcrate: 12, bude: 16, bierbank: 4, fass: 0, maibaum: 0, brunnen: 6, boeller: 10, automat: 14, rebstock: 18, glascontainer: 16, dixi: 26, telefonzelle: 30, weihnachtsbaum: 0, strandkorb: 18, sandsack: 12, bus: 22, bauzaun: 30, feuertonne: 14, container: 24,
     // v3.4 Alltagsobjekte und Stadt-Wahrzeichen
-    litfass: 30, tonnen: 18, parkbank: 6, polizeiauto: 0, bushalte: 30, rollstuhl: 8, infusion: 0, zentrifuge: 16,
+    litfass: 30, tonnen: 18, parkbank: 6, polizeiauto: 0, bushalte: 30, rollstuhl: 8, infusion: 0, zentrifuge: 16, trafo: 24, wrack: 0,
     kaethchen: 8, schoenbrunnen: 8, roessle: 14, loewe: 14, bach: 18, golem: 14, tor: 30, bembel: 0, narrenwagen: 14, leuchtturm: 0, windmuehle: 0, eiffel: 0, riesenrad: 30 };
   const CAR_COLORS = ["#7a2f2f", "#2f4f7a", "#6b6b6b", "#c9b48a", "#2f5f4a", "#d8d8d0"];
 
@@ -1280,7 +1280,8 @@ window.Sprites = (() => {
     if (edge) { g.strokeStyle = edge; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); }
   }
 
-  function carTop(g, w, h, R) {
+  function carTop(g, w, h, R, burnt) {
+    if (burnt) { wreckTop(g, w, h, R); return; }
     const col = CAR_COLORS[Math.floor(R() * CAR_COLORS.length)];
     g.fillStyle = vol(g, w / 2, h / 2, w * 0.6, col, 0.2, -0.35); rr(g, 2, 3, w - 4, h - 6, 12); g.fill();
     // Motorhaube & Kofferraum-Linien
@@ -1302,6 +1303,34 @@ window.Sprites = (() => {
     g.fillStyle = "rgba(100,10,12,0.6)"; blob(g, w * (0.3 + R() * 0.4), h * R(), 5, R); g.fill();
   }
 
+  // v3.7 ausgebranntes Wrack: verkohlter Lack mit Rostinseln, leere Fensterhöhlen, Asche, Glutnester, verbogene Haube
+  function wreckTop(g, w, h, R) {
+    g.fillStyle = vol(g, w / 2, h / 2, w * 0.6, "#2e2824", 0.12, -0.35); rr(g, 2, 3, w - 4, h - 6, 12); g.fill();
+    for (let i = 0; i < 7; i++) { g.fillStyle = R() < 0.5 ? "rgba(122,62,26,0.55)" : "rgba(14,12,11,0.7)"; blob(g, 6 + R() * (w - 12), 6 + R() * (h - 12), 4 + R() * 7, R); g.fill(); }
+    g.fillStyle = "#0a0a0a";
+    rr(g, w * 0.27, 8, w * 0.14, h - 16, 4); g.fill(); rr(g, w * 0.62, 8, w * 0.12, h - 16, 4); g.fill(); // ausgebrannte Scheiben
+    g.fillStyle = "#1e1a17"; rr(g, w * 0.41, 7, w * 0.21, h - 14, 4); g.fill();
+    g.strokeStyle = "rgba(60,52,46,0.9)"; g.lineWidth = 1.2; // Haube aufgeplatzt
+    g.beginPath(); g.moveTo(w * 0.8, 7); g.lineTo(w * 0.86, h * 0.45); g.lineTo(w * 0.8, h - 7); g.stroke();
+    g.fillStyle = "rgba(210,200,184,0.16)"; for (let i = 0; i < 5; i++) { blob(g, R() * w, R() * h, 3 + R() * 5, R); g.fill(); } // Asche
+    g.fillStyle = "rgba(255,120,40,0.55)"; for (let i = 0; i < 3; i++) { blob(g, w * (0.2 + R() * 0.6), h * (0.25 + R() * 0.5), 1.5 + R() * 1.5, R); g.fill(); } // Glutnester
+  }
+  // v3.7 Stromkasten: grüngrauer Schaltschrank, Doppeltür, Lüftungsschlitze, Blitz-Warnschild, Kabel am Sockel
+  function trafoBox(gg, x, y, o, z, R) {
+    box3d(gg, x, y, o.w, o.h, z, "#76837a", "#4a554e", "#2e3631");
+    gg.fillStyle = "rgba(255,255,255,0.08)"; gg.fillRect(x + 2, y + 2, o.w - 4, 3);
+    gg.strokeStyle = "rgba(20,26,22,0.6)"; gg.lineWidth = 1;
+    gg.beginPath(); gg.moveTo(x + o.w / 2, y + o.h); gg.lineTo(x + o.w / 2, y + o.h + z); gg.stroke(); // Türfuge vorn
+    for (let i = 0; i < 3; i++) gg.fillRect(x + 4, y + o.h + 3 + i * 3, o.w / 2 - 7, 1.2); // Lüftungsschlitze
+    const sx = x + o.w * 0.75, sy = y + o.h + z * 0.42;
+    gg.fillStyle = "#ffd21a"; gg.beginPath(); gg.moveTo(sx, sy - 6); gg.lineTo(sx + 6, sy + 5); gg.lineTo(sx - 6, sy + 5); gg.closePath(); gg.fill();
+    gg.strokeStyle = "#111"; gg.lineWidth = 0.8; gg.stroke();
+    gg.fillStyle = "#111"; gg.beginPath(); gg.moveTo(sx + 0.8, sy - 3); gg.lineTo(sx - 1.6, sy + 1); gg.lineTo(sx, sy + 1); gg.lineTo(sx - 0.8, sy + 4); gg.lineTo(sx + 1.8, sy - 0.2); gg.lineTo(sx + 0.2, sy - 0.2); gg.closePath(); gg.fill();
+    gg.fillStyle = "rgba(120,60,24,0.5)"; for (let i = 0; i < 3; i++) { blob(gg, x + R() * o.w, y + R() * o.h, 1.5 + R() * 2, R); gg.fill(); } // Rost
+    gg.strokeStyle = "#151515"; gg.lineWidth = 2; gg.beginPath(); gg.moveTo(x + 6, y + o.h + z); gg.quadraticCurveTo(x - 4, y + o.h + z + 4, x - 8, y + o.h + z - 2); gg.stroke(); // Kabel
+    gg.fillStyle = "#e8e0c8"; gg.fillRect(x + 4, y + 5, 8, 4); // Aufkleber
+  }
+
   function obstacle(o, theme) {
     const z = OBS_Z[o.kind] || 0;
     const pad = 4;
@@ -1313,11 +1342,13 @@ window.Sprites = (() => {
     const x = pad, y = pad;
     const fn = (gg) => {
       switch (o.kind) {
-        case "car": {
+        case "car": case "wrack": {
+          const burnt = o.kind === "wrack";
           gg.save(); gg.translate(x, y + z);
-          if (o.vert) { gg.translate(o.w, 0); gg.rotate(Math.PI / 2); carTop(gg, o.h, o.w, R); } else carTop(gg, o.w, o.h, R);
+          if (o.vert) { gg.translate(o.w, 0); gg.rotate(Math.PI / 2); carTop(gg, o.h, o.w, R, burnt); } else carTop(gg, o.w, o.h, R, burnt);
           gg.restore(); break;
         }
+        case "trafo": trafoBox(gg, x, y, o, z, R); break;
         case "crate":
         case "medcrate":
         case "labcrate": {

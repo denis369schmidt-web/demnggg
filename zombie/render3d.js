@@ -1388,7 +1388,7 @@ void main() {
   // Stoßstangen, Scheinwerfer, Kennzeichen mit EU-Band, Spiegel, Türfugen. Varianten: ausgebrannt, Blut auf der Haube.
   // Lokal: +x = vorn, Länge len, Breite wid; liefert die Dachhöhe (für Blaulichtbalken).
   function carBody(c, add, len, wid, paintCol, R, opts = {}) {
-    const burnt = !opts.police && R() < 0.18;
+    const burnt = !opts.police && (R() < 0.18 || !!opts.burnt); // v3.7 Wrack nach der Explosion: immer ausgebrannt
     const paint = burnt ? slam("#2c2622") : lam(paintCol);
     const L = len, Wd = wid;
     const body = add(mesh(prism([[-L / 2 + 3, 6], [L / 2 - 3, 6], [L / 2, 11], [L / 2 - 1, 19.5], [L * 0.2, 23], [-L * 0.3, 24], [-L / 2 + 1, 22.5], [-L / 2, 12]], Wd), paint));
@@ -1432,12 +1432,28 @@ void main() {
     const add = (m) => { m.castShadow = true; m.receiveShadow = true; g.add(m); return m; };
     const R = (() => { let s = o.seed || 1; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; })();
     switch (o.kind) {
-      case "car": {
+      case "car": case "wrack": {
         const len = o.vert ? Hd : W, wid = o.vert ? W : Hd;
         const c = group(); if (o.vert) c.rotation.y = Math.PI / 2;
         const col = ["#8a2f2f", "#2f4f8a", "#6b6b6b", "#c9b48a", "#2f6f4a", "#d8d8d0"][Math.floor(R() * 6)];
-        carBody(c, add, len, wid, col, R);
+        carBody(c, add, len, wid, col, R, { burnt: o.kind === "wrack" });
+        if (o.kind === "wrack") { c.rotation.z = (R() - 0.5) * 0.06; c.position.y = -1.5; } // auf den Felgen abgesackt
         g.add(c);
+        break;
+      }
+      case "trafo": {
+        // v3.7 Stromkasten: Schaltschrank mit Dach, Doppeltür (Fuge, Griffe), Lüftungsschlitzen, Blitz-Warnschild, Kabeln
+        const h = 50, dark = slam("#2c332f"), fz = Hd / 2 - 1;
+        add(mesh(box(W - 2, h, Hd - 2), lam("#6f7c73"), 0, h / 2 + 2, 0));
+        add(mesh(box(W + 2, 3, Hd + 2), slam("#56625a"), 0, h + 3.5, 0)); // Dach
+        add(mesh(box(W, 2.2, Hd), dark, 0, 1.1, 0)); // Sockel
+        g.add(mesh(box(0.8, h - 8, 0.8), dark, 0, h / 2 + 2, fz + 0.3)); // Türfuge
+        for (const sx of [-1, 1]) g.add(mesh(box(1.4, 5, 1.4), slam("#a2abb0"), sx * 3.2, h * 0.56, fz + 0.6)); // Griffe
+        for (let i = 0; i < 4; i++) g.add(mesh(box(W * 0.3, 1, 0.8), dark, -W * 0.24, 10 + i * 3.2, fz + 0.35)); // Lüftungsschlitze
+        const sign = mesh(prism([[-5.2, 0], [5.2, 0], [0, 9]], 0.7), sbasic("#ffd21a"), W * 0.24, h * 0.6, fz + 0.5); g.add(sign);
+        const bolt = mesh(box(1.3, 5.2, 0.5), sbasic("#111111"), W * 0.24, h * 0.6 + 3.6, fz + 1); bolt.rotation.z = 0.45; g.add(bolt);
+        g.add(mesh(box(8, 4, 0.5), slam("#e8e0c8"), -W * 0.22, h * 0.78, fz + 0.4)); // Aufkleber
+        for (const sx of [-1, 1]) { const k1 = mesh(cyl(1.3, 1.3, 16, 6), slam("#141414"), sx * (W / 2 + 6), 1.3, Hd * 0.2 * sx); k1.rotation.z = Math.PI / 2; k1.rotation.y = sx * 0.5; g.add(k1); } // Kabel
         break;
       }
       case "crate": case "medcrate": case "labcrate": {
@@ -2374,13 +2390,9 @@ void main() {
     // Hindernisse
     const obs = new Map();
     for (const o of w.obstacles) {
-      const raw = obstacleModel(o, w.theme), mv = raw.userData.moving;
-      // v3.4: bewegte Teile (Blaulicht, Rotor, Fahne, Flügel …) vor dem Verschmelzen abnehmen und danach wieder anhängen
-      if (mv) for (const m of mv) raw.remove(m.obj);
-      const om = o.kind === "bretter" ? raw : bakeStatic(raw);
-      if (mv) { for (const m of mv) om.add(m.obj); om.userData.moving = mv; }
+      // v3.4: bewegte Teile (Blaulicht, Rotor, Fahne, Flügel …) werden vor dem Verschmelzen abgenommen und danach wieder angehängt
+      const om = buildObstacle(o, w.theme);
       obs.set(o, om);
-      om.traverse((c) => { if (c.isMesh && !c.material.transparent) { c.castShadow = true; c.receiveShadow = true; } });
       g.add(om);
     }
 
@@ -4743,8 +4755,20 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     });
   }
 
-  function syncObstacles(t = 0) {
+  // v3.7 Hindernis-Modell bauen (auch nachträglich: das Wrack eines explodierten Autos entsteht mitten im Einsatz)
+  function buildObstacle(o, theme) {
+    const raw = obstacleModel(o, theme), mv = raw.userData.moving;
+    if (mv) for (const m of mv) raw.remove(m.obj);
+    const om = o.kind === "bretter" ? raw : bakeStatic(raw);
+    if (mv) { for (const m of mv) om.add(m.obj); om.userData.moving = mv; }
+    om.traverse((c) => { if (c.isMesh && !c.material.transparent) { c.castShadow = true; c.receiveShadow = true; } });
+    return om;
+  }
+  function syncObstacles(t = 0, w) {
     if (!room) return;
+    if (w && w.obstacles.length > room.obs.size) for (const o of w.obstacles) if (!o.dead && !room.obs.has(o)) {
+      const om = buildObstacle(o, w.theme); room.obs.set(o, om); room.group.add(om); renderer.shadowMap.needsUpdate = true;
+    }
     for (const [o, grp] of room.obs) {
       if (grp.userData.moving && !o.dead) for (const m of grp.userData.moving) m.fn(m.obj, t);
       if (o.gateBar && !o.dead && grp.userData.planks) {
@@ -5215,6 +5239,16 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       bill(addB, o.x, 10, o.y, 24 * pulse, CELL.glow, rgb, 0.6);
       flat(floorB, o.x, 0.9, o.y, t * 0.6, 20, 20, CELL.ring, rgb, 0.7 * pulse);
     }
+    // v3.7 Autoalarm: Blinker an allen vier Ecken · Brand: Feuerschein · Hochspannung: blauer Ring und Schein am Boden
+    for (const o of w.obstacles) {
+      if (o.alarmT > 0 && Math.sin(t * 13) > 0) for (const [fx, fz] of [[0.04, 0.1], [0.96, 0.1], [0.04, 0.9], [0.96, 0.9]]) { bill(addB, o.x + o.w * fx, 16, o.y + o.h * fz, 13, CELL.glow, "255,170,40", 0.95); flat(floorB, o.x + o.w * fx, 0.8, o.y + o.h * fz, 0, 22, 22, CELL.glow, "255,150,40", 0.45); }
+      if (o.fireAt && !o.dead) { const hx = o.vert ? o.x + o.w / 2 : o.x + o.w * 0.75, hz = o.vert ? o.y + o.h * 0.25 : o.y + o.h / 2; flat(floorB, hx, 0.9, hz, 0, 70, 70, CELL.glow, "255,120,40", 0.35 + 0.1 * Math.sin(t * 17)); }
+    }
+    for (const h of w.hazards || []) if (h.kind === "shock") {
+      const k = Math.min(1, h.life / 0.6) * (0.75 + 0.25 * Math.sin(t * 40));
+      flat(floorB, h.x, 1, h.y, t * 3, h.r, h.r, CELL.ring, "140,220,255", 0.55 * k);
+      flat(floorB, h.x, 0.9, h.y, 0, h.r * 1.2, h.r * 1.2, CELL.glow, "90,170,255", 0.3 * k);
+    }
     // v3.7 Power-ups: Lichtsäule, Schein, kreisender Bodenring – Aura am Helden, Schutzschild als Blase
     for (const o of w.orbs) if (o.type === "power") {
       const pulse = 0.75 + 0.25 * Math.sin(o.t * 5), hl = Math.hypot(camR.x, camR.z) || 1, ux = camR.x / hl, uz = camR.z / hl, [lr, lg, lb] = lin(o.rgb), a = o.t > 11 && Math.sin(o.t * 20) < 0 ? 0.35 : 1;
@@ -5566,6 +5600,11 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     }
     for (const o of w.orbs) if (o.type === "gear") lightCands.push([o.x, 46, o.y, LOOT_CSS[(o.item && o.item.r) || 0], 1.2, 170, 7]); // v3.3 Beutekiste (schwach, sonst überstrahlt die Kiste)
     for (const o of w.orbs) if (o.type === "power") lightCands.push([o.x, 40, o.y, o.rgb, 1.6, 180, 8]); // v3.7 Power-up
+    for (const o of w.obstacles) {
+      if (o.alarmT > 0 && Math.sin(t * 13) > 0) lightCands.push([o.x + o.w / 2, 24, o.y + o.h / 2, "255,160,40", 1.8, 160, 6]);
+      if (o.fireAt && !o.dead) lightCands.push([o.x + o.w / 2, 30, o.y + o.h / 2, "255,120,40", 2.2 + Math.random() * 0.8, 230, 7]);
+    }
+    for (const h of w.hazards || []) if (h.kind === "shock") lightCands.push([h.x, 30, h.y, "140,220,255", 1.4 + Math.random() * 1.6, h.r * 1.6, 8]);
     if (w.powers && w.powers.length && w.player) lightCands.push([w.player.x, 30, w.player.y, w.powers[0], 1.1, 150, 8]);
     for (const e of w.enemies) {
       if (e.burnT > 0 || e.type === "burner") lightCands.push([e.x, 26, e.y, "255,140,40", 1.4, 150, 4]);
@@ -5798,7 +5837,7 @@ void main() {
     syncSurvivors(w, t);
     syncPlayer(w, t);
     syncDoor(w);
-    syncObstacles(t);
+    syncObstacles(t, w);
     updateSkyline(t, w);
     syncSupply(w);
     syncMini(w);

@@ -23,11 +23,11 @@
   const THEME_ORDER = ["street", "hospital", "lab"];
   const OBSTACLE_POOL = {
     street: ["car", "car", "crate", "barrels", "barricade", "dumpster", "automat", "glascontainer", "telefonzelle", "sandsack", "bauzaun", "feuertonne", "bus", "container",
-      "litfass", "tonnen", "tonnen", "parkbank", "polizeiauto", "bushalte"], // v3.4 Alltagsobjekte
+      "litfass", "tonnen", "tonnen", "parkbank", "polizeiauto", "bushalte", "trafo"], // v3.4 Alltagsobjekte, v3.7 Stromkasten
     hospital: ["bed", "bed", "cabinet", "medcrate", "medcrate", "barrels", "sandsack", "rollstuhl", "rollstuhl", "infusion", "infusion"],
-    lab: ["tank", "tank", "server", "labcrate", "barrels", "sandsack", "zentrifuge", "zentrifuge"],
+    lab: ["tank", "tank", "server", "labcrate", "barrels", "sandsack", "zentrifuge", "zentrifuge", "trafo"],
     // Altstadt: Marktbuden, Bierbänke, Bierfässer, Brunnen, Böllerkisten und (höchstens einer) Maibaum
-    markt: ["bude", "bude", "bierbank", "fass", "brunnen", "boeller", "maibaum", "crate", "telefonzelle", "glascontainer", "feuertonne", "bauzaun", "litfass", "parkbank", "parkbank", "tonnen"],
+    markt: ["bude", "bude", "bierbank", "fass", "brunnen", "boeller", "maibaum", "crate", "telefonzelle", "glascontainer", "feuertonne", "bauzaun", "litfass", "parkbank", "parkbank", "tonnen", "trafo"],
   };
   // Feste verschieben die Mischung: mehr Bierbänke & Fässer auf der Wiesn, mehr Buden am Weihnachtsmarkt …
   const FEST_OBS = { wein: ["fass", "fass", "bude", "rebstock", "rebstock"], wiesn: ["bierbank", "bierbank", "fass", "fass", "maibaum", "dixi"], weihnachten: ["bude", "bude", "bude", "weihnachtsbaum", "weihnachtsbaum"], karneval: ["boeller", "boeller", "bude", "dixi"], imbiss: ["bude", "glascontainer"], bahn: ["automat"], hafen: ["crate", "fass", "strandkorb", "strandkorb", "container", "container"], apfelwein: ["bierbank", "fass"], werk: ["maibaum", "boeller"] };
@@ -42,14 +42,15 @@
     // v3.4 Alltagsobjekte
     litfass: [44, 44, 44, 44], tonnen: [78, 86, 26, 28], parkbank: [70, 80, 22, 24], polizeiauto: [100, 112, 48, 52], bushalte: [104, 116, 34, 38],
     rollstuhl: [30, 34, 30, 34], infusion: [20, 20, 20, 20], zentrifuge: [46, 46, 46, 46],
+    trafo: [36, 40, 24, 26], wrack: [96, 118, 48, 52], // v3.7
     // v3.4 Stadt-Wahrzeichen (feste Größe, siehe LANDMARKS)
     kaethchen: [104, 104, 104, 104], roessle: [100, 100, 60, 60], loewe: [112, 112, 60, 60], schoenbrunnen: [112, 112, 112, 112], bach: [70, 70, 70, 70],
     tor: [212, 212, 44, 44], bembel: [96, 96, 80, 80], narrenwagen: [124, 124, 64, 64], leuchtturm: [72, 72, 72, 72], windmuehle: [84, 84, 84, 84],
     eiffel: [96, 96, 96, 96], riesenrad: [150, 150, 40, 40], golem: [84, 84, 72, 72],
   };
-  const ROTATABLE = { car: true, bed: true, bierbank: true, glascontainer: true, rebstock: true, sandsack: true, bus: true, bauzaun: true, container: true, parkbank: true, polizeiauto: true };
+  const ROTATABLE = { wrack: true, car: true, bed: true, bierbank: true, glascontainer: true, rebstock: true, sandsack: true, bus: true, bauzaun: true, container: true, parkbank: true, polizeiauto: true };
   const GLOWING = { barrels: "150,255,60", tank: "120,255,80", bude: "255,196,120", telefonzelle: "255,236,170", weihnachtsbaum: "255,200,120", feuertonne: "255,138,48", zentrifuge: "120,255,150", bushalte: "220,236,255", leuchtturm: "255,236,170" };
-  const OBS_ONCE = { maibaum: 1, brunnen: 1, telefonzelle: 1, bus: 1, container: 1, weihnachtsbaum: 2, feuertonne: 2, litfass: 1, polizeiauto: 1, bushalte: 1 };
+  const OBS_ONCE = { trafo: 2, maibaum: 1, brunnen: 1, telefonzelle: 1, bus: 1, container: 1, weihnachtsbaum: 2, feuertonne: 2, litfass: 1, polizeiauto: 1, bushalte: 1 };
   // v3.4 Hingucker: je Stadt ein Wahrzeichen bzw. ein Stück Tradition mitten in der (langen) Arena – unzerstörbar, gibt Deckung
   const LANDMARKS = {
     heilbronn: { kind: "kaethchen", name: "Käthchenbrunnen" }, stuttgart: { kind: "roessle", name: "Stuttgarter Rössle" }, muenchen: { kind: "loewe", name: "Bayerischer Löwe" },
@@ -63,7 +64,9 @@
   const WALKER_LOOKS = { street: [0, 1, 2, 3, 4, 5, 0, 3], hospital: [6, 6, 7, 8, 0, 2], lab: [9, 9, 10, 11, 1, 10], markt: [0, 1, 2, 5, 0, 1, 3, 2] };
   // Zerstörbar: Giftfässer explodieren (Kettenreaktion!), Kisten zersplittern und lassen Beute fallen
   const DESTRUCT = { barrels: 70, crate: 45, medcrate: 45, labcrate: 60, bude: 90, bierbank: 50, fass: 40, maibaum: 110, boeller: 30, automat: 40, glascontainer: 60, dixi: 45, weihnachtsbaum: 120, strandkorb: 60, rebstock: 35, bauzaun: 40, feuertonne: 50,
-    tonnen: 45, parkbank: 40, rollstuhl: 30, infusion: 16, bushalte: 70 }; // v3.4
+    tonnen: 45, parkbank: 40, rollstuhl: 30, infusion: 16, bushalte: 70, // v3.4
+    car: 260, polizeiauto: 240, trafo: 55 }; // v3.7 Autos (Alarm → Rauch → Brand → Explosion, Wrack bleibt) und Stromkasten
+  const CARS = { car: true, polizeiauto: true };
   const TAU = Math.PI * 2;
 
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -580,6 +583,7 @@
   // gedeckelt (Modus „lighten“): voller Glanz ließe das Spekularlicht das Rot zu Rosa auswaschen
   const BLOOD_GLOSS = "#3c3c3c";
   let pools = []; // wachsende Blutlachen
+  let lures = []; // v3.7 Autoalarm: lockt Zombies an wie der Böller-Köder, aber ohne Knall
   let screenBlood = []; // Blutspritzer auf dem Bildschirm
   let corpses = []; // Leichen mit Physik – bleiben bis zum nächsten Raum
   let pieces = []; // abgetrennte Köpfe/Gliedmaßen
@@ -690,7 +694,7 @@
     run.doorK = 0;
     supplyCrate = null; miniSpot = null;
     run.obj = null; run.event = null; fuses = []; hordeQ = [];
-    throws = []; decoys = []; strikes = []; run.blink = null; killCam = null; lastKill = null; wetSpots = []; birds = [];
+    throws = []; decoys = []; strikes = []; lures = []; run.blink = null; killCam = null; lastKill = null; wetSpots = []; birds = [];
     player.vx = player.vy = 0;
     player.invuln = 1;
     run.cleared = false;
@@ -1710,7 +1714,7 @@
           dmg: w.dmg * p.dmgMul, speed: w.speed * (w.kind === "flame" ? rand(0.85, 1.15) : 1), r: w.r, color: w.color,
           life: w.range / w.speed, pierce: w.pierce + p.pierce + (puOn("rico") ? 2 : 0), wall: p.wall + (w.bounces || 0) + (puOn("rico") ? 2 : 0), rico: p.ricochet + (puOn("rico") ? 1 : 0),
           kind: w.kind, aoe: w.aoe, burn: w.burn ? 1 + p.burn : p.burn, freeze: w.cryo ? 1.5 + p.freeze : p.freeze, poison: p.poison, player: true,
-          tracer: w.tracer, long: w.long, knock: w.knock, wid: p.weaponId, big: !!(w.big || w.long || w.pellets > 1),
+          tracer: puTracer() || w.tracer, long: w.long, knock: w.knock, wid: p.weaponId, big: !!(w.big || w.long || w.pellets > 1),
           cryo: !!w.cryo, bounces: w.bounces || 0,
         }));
       }
@@ -2036,6 +2040,26 @@
         }
         continue;
       }
+      if (h.kind === "shock") {
+        // v3.7 Hochspannung: Stromstöße springen auf Zombies im Radius über – und auf alle, die in Blutlachen stehen (bis zum doppelten Radius)
+        if (Math.random() < 0.6) fxSparks(h.x + rand(-h.r, h.r) * 0.55, h.y + rand(-h.r, h.r) * 0.55, rand(0, TAU), Math.PI, 1, "170,230,255", 160);
+        if ((h.tick -= dt) <= 0) {
+          h.tick = 0.3;
+          let n = 0;
+          for (const e of enemies) {
+            if (e.dead || e.spawnT > 0 || e.under || n >= 8) continue;
+            const d2 = (e.x - h.x) ** 2 + (e.y - h.y) ** 2;
+            if (d2 > (h.r + e.r * 0.5) ** 2 && !(d2 < 4 * h.r * h.r && pools.some((q) => (q.x - e.x) ** 2 + (q.y - e.y) ** 2 < (q.r + e.r * 0.4) ** 2))) continue;
+            n++;
+            e.stunT = Math.max(e.stunT || 0, e.def.boss ? 0.15 : 0.45);
+            damageEnemy(e, h.dmg * 0.3, { silent: true });
+            zaps.push({ x1: h.x + rand(-8, 8), y1: h.y + rand(-8, 8), x2: e.x, y2: e.y, life: 0.28, max: 0.28 });
+          }
+          for (let i = 0; i < (h.wet ? 2 : 1); i++) { const a = rand(0, TAU), rr = rand(0.45, 1) * h.r; zaps.push({ x1: h.x, y1: h.y, x2: h.x + Math.cos(a) * rr, y2: h.y + Math.sin(a) * rr, life: 0.22, max: 0.22 }); }
+          if (n) sfx("zap");
+        }
+        continue;
+      }
       if (h.kind === "shards" || h.kind === "stink") {
         // nur für Zombies: Scherben schneiden, Gestank vergiftet
         if (h.kind === "shards") { if (Math.random() < 0.3) fxSparks(h.x + rand(-h.r, h.r) * 0.7, h.y + rand(-h.r, h.r) * 0.7, rand(0, TAU), Math.PI, 1, "200,255,235", 60); }
@@ -2056,8 +2080,90 @@
   }
   function hitObstacle(o, dmg) {
     if (!o.hp || o.dead || o.gateBar) return; // Gang-Barrikaden brechen nur die Zombies auf
+    if (!o.maxHp) o.maxHp = o.hp;
     o.hp -= dmg;
+    if (CARS[o.kind] && o.hp > 0) carHit(o);
+    else if (o.kind === "trafo" && o.hp > 0) trafoHit(o);
     if (o.hp <= 0) destroyObstacle(o);
+  }
+  // ============================================================
+  // v3.7 Interaktive Umgebung
+  // Autos: erster Treffer löst die Alarmanlage aus (lockt Zombies 9 s lang an), unter 55 % Rauch aus der Haube,
+  // unter 28 % Brand – das Feuer frisst das Auto von selbst auf, dann Explosion mit Kettenreaktion; das Wrack bleibt als Deckung.
+  // Stromkasten: Funken bei Treffern, zerstört → Hochspannung (Gefahrenzone „shock“), bei Regen und über Blutlachen weiter.
+  // ============================================================
+  const CAR_ALARM = 9;
+  const obsC = (o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2 });
+  function carHit(o) {
+    const c = obsC(o);
+    if (!o.alarmDone) {
+      o.alarmDone = true; o.alarmT = CAR_ALARM; o.alarmBeep = 0;
+      lures.push({ x: c.x, y: c.y, src: o });
+      addText(c.x, c.y - 34, tr("ALARMANLAGE!"), "#ffb733", 17, true);
+      sfx("glass"); fxSparks(c.x, c.y, rand(0, TAU), Math.PI, 6, "220,240,255", 160);
+    }
+    if (Math.random() < 0.3) fxSparks(c.x + rand(-o.w, o.w) * 0.35, c.y + rand(-o.h, o.h) * 0.35, rand(0, TAU), 1.2, 2, "255,220,160", 180);
+  }
+  function trafoHit(o) {
+    const c = obsC(o);
+    fxSparks(c.x, c.y - 6, rand(0, TAU), Math.PI, 5, "170,230,255", 220);
+    if (Math.random() < 0.35) {
+      const e = enemies.find((q) => !q.dead && q.spawnT <= 0 && !q.under && (q.x - c.x) ** 2 + (q.y - c.y) ** 2 < 120 * 120);
+      if (e) { zaps.push({ x1: c.x, y1: c.y, x2: e.x, y2: e.y, life: 0.2, max: 0.2 }); e.stunT = Math.max(e.stunT || 0, 0.4); damageEnemy(e, player.power * 0.8, { silent: true }); sfx("zap"); }
+    }
+  }
+  function updateCars(dt) {
+    for (const o of obstacles) {
+      if (o.wreck) { // ausgebranntes Wrack qualmt noch eine Weile
+        if ((o.smokeT -= dt) > 0 && Math.random() < dt * (2 + o.smokeT * 0.3)) fxSmoke(o.x + o.w * rand(0.3, 0.7), o.y + o.h * rand(0.3, 0.7), 1, 0.7, rand(1.2, 1.8));
+        if (o.smokeT > 6 && Math.random() < dt * 4) fxEmber(o.x + o.w * rand(0.2, 0.8), o.y + o.h * rand(0.2, 0.8));
+        continue;
+      }
+      if (!CARS[o.kind] || !o.maxHp || o.dead) continue;
+      const c = obsC(o), k = o.hp / o.maxHp, hood = o.vert ? { x: c.x, y: o.y + o.h * 0.25 } : { x: o.x + o.w * 0.75, y: c.y };
+      if (o.alarmT > 0) {
+        o.alarmT -= dt;
+        if ((o.alarmBeep -= dt) <= 0) { o.alarmBeep = 0.62; sfx("alarm"); }
+        if (o.alarmT <= 0) lures = lures.filter((q) => q.src !== o);
+      }
+      if (k < 0.55 && Math.random() < dt * (k < 0.28 ? 9 : 5)) fxSmoke(hood.x + rand(-8, 8), hood.y + rand(-6, 6), 1, k < 0.28 ? 0.9 : 0.6, rand(0.9, 1.4));
+      if (k < 0.28) {
+        if (!o.fireAt) { o.fireAt = run.time; addText(c.x, c.y - 34, tr("ES BRENNT!"), "#ff7a3a", 17, true); }
+        if (Math.random() < dt * 16) fxFire(hood.x + rand(-12, 12), hood.y + rand(-9, 9), 1.1, rand(0.35, 0.55));
+        if (Math.random() < dt * 5) fxEmber(hood.x, hood.y);
+        o.hp -= o.maxHp * 0.075 * dt; // das Feuer frisst sich durch – nach gut 3 s fliegt der Wagen in die Luft
+        o.shakeT = k < 0.1 ? 0.1 : 0;
+        if (o.hp <= 0) destroyObstacle(o);
+      }
+    }
+  }
+  function carExplode(o) {
+    const c = obsC(o), U = player.power;
+    lures = lures.filter((q) => q.src !== o);
+    explode(c.x, c.y, 150, U * 6, true); // trifft auch Nachbar-Hindernisse (Fässer, Kisten …)
+    // Kettenreaktion: Autos in der Nähe fangen Feuer und fliegen ein paar Sekunden später selbst in die Luft
+    for (const q of obstacles) if (CARS[q.kind] && !q.dead && q.hp > 0 && dist2(obsC(q), c) < 190 * 190) { if (!q.maxHp) q.maxHp = q.hp; q.hp = Math.min(q.hp, q.maxHp * 0.26); carHit(q); }
+    particles.push({ t: "boom", x: c.x, y: c.y, r: 175, life: 1, max: 1 });
+    for (let i = 0; i < 4; i++) addHazard(c.x + rand(-o.w, o.w) * 0.4, c.y + rand(-o.h, o.h) * 0.4, 30, 4.5, U * 1.6, "napalm");
+    stamp(Sprites.scorch(), c.x, c.y, rand(0, TAU), 3.4, 0.95);
+    fxSparks(c.x, c.y, 0, Math.PI, 26, "255,210,140", 520);
+    fxDebris(c.x, c.y, 0, Math.PI, 18, "#26282a"); fxDebris(c.x, c.y, 0, Math.PI, 10, "#9aa6ae");
+    shake = Math.max(shake, 14); punchFov = Math.max(punchFov, 4); hitStop = Math.max(hitStop, 0.08); slowMo = Math.max(slowMo, 0.3);
+    addText(c.x, c.y - 36, tr("KAWUMM!"), "#ff8a3d", 26, true);
+    fx4d("boom"); track("cars");
+    if (dist2(player, c) < 110 * 110) hurtPlayer(player.maxHp * 0.08); // wer danebensteht, bekommt etwas ab
+    obstacles.push({ kind: "wrack", x: o.x, y: o.y, w: o.w, h: o.h, vert: o.vert, seed: o.seed, fest: o.fest, barrier: o.barrier, wreck: true, smokeT: 14 });
+  }
+  function trafoBlow(o) {
+    const c = obsC(o);
+    const wet = curWeather() === "rain" || pools.filter((q) => (q.x - c.x) ** 2 + (q.y - c.y) ** 2 < 170 * 170).length >= 2;
+    const r = wet ? 190 : 125;
+    const h = addHazard(c.x, c.y, r, 4.5, player.power * 2.4, "shock"); h.wet = wet; h.tick = 0;
+    fxFlash(c.x, c.y, r * 1.5, "140,220,255", 0.45); fxRing(c.x, c.y, r, "140,220,255", 0.5);
+    fxSparks(c.x, c.y, 0, Math.PI, 30, "200,240,255", 420); fxDebris(c.x, c.y, 0, Math.PI, 12, "#5f6b64"); fxSmoke(c.x, c.y, 3, 0.8, 1.2);
+    stamp(Sprites.scorch(), c.x, c.y, rand(0, TAU), 1.4, 0.8);
+    addText(clamp(c.x, L + 130, R - 130), c.y - 32, tr(wet ? "HOCHSPANNUNG – ALLES NASS!" : "HOCHSPANNUNG!"), "#8fe0ff", 19, true);
+    sfx("shock"); shake = Math.max(shake, 7); fx4d("boom"); track("trafos");
   }
   function destroyObstacle(o) {
     o.dead = true;
@@ -2065,6 +2171,8 @@
     roomLights = roomLights.filter((l) => l.src !== o);
     const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
     if (PU_CRATES.includes(o.kind) && Math.random() < 0.14) dropPower(cx, cy); // v3.7 Kisten können Power-ups enthalten
+    if (CARS[o.kind]) { carExplode(o); return; }
+    if (o.kind === "trafo") { trafoBlow(o); return; }
     if (o.kind === "bretter") {
       const dir = o.x < L ? 0 : Math.PI;
       fxDebris(cx, cy, dir, 1.4, 26, "#7a5a34"); fxDebris(cx, cy, dir, 1.6, 10, "#4e3820"); fxDust(cx, cy, 6, 1.4);
@@ -2374,6 +2482,8 @@
   let puFlash = null;
   const puOn = (k) => !!(run && run.pu && run.pu[k] > 0);
   const puEnemyK = () => (puOn("slow") ? PU_SLOW : 1);
+  // Leuchtspur der Kugeln in der Farbe des wirksamsten Power-ups (Doppelschaden vor Querschläger vor Raserei)
+  const puTracer = () => (puOn("double") ? POWERUPS.double.rgb : puOn("rico") ? POWERUPS.rico.rgb : puOn("frenzy") ? POWERUPS.frenzy.rgb : null);
   function rollPower() {
     const crowd = enemies.filter((e) => !e.dead).length, list = Object.entries(POWERUPS).filter(([k]) => k !== "nuke" || crowd >= 6);
     let r = Math.random() * list.reduce((a, [, d]) => a + d.w, 0);
@@ -3287,7 +3397,7 @@
         if (way) { const wx = way.x - e.x, wy = way.y - e.y, wd = Math.hypot(wx, wy) || 1; mx = wx / wd; my = wy / wd; e.wp = null; }
       }
       // v2.9 Böller-Köder: Gehende Zombies laufen auf den knisternden Böller zu
-      if (decoys.length && !e.def.boss && e.mode === "walk") {
+      if ((decoys.length || lures.length) && !e.def.boss && e.mode === "walk") {
         const q = nearestDecoy(e);
         if (q) { const qx = q.x - e.x, qy = q.y - e.y, qd = Math.hypot(qx, qy) || 1; if (qd > e.r + 8) { mx = qx / qd; my = qy / qd; } else { mx = 0; my = 0; } }
       }
@@ -3744,7 +3854,7 @@
     fx4d("kick"); track("throws");
     return true;
   }
-  const nearestDecoy = (e) => { let b = null, bd = 460 * 460; for (const q of decoys) { const d = (q.x - e.x) ** 2 + (q.y - e.y) ** 2; if (d < bd) { bd = d; b = q; } } return b; };
+  const nearestDecoy = (e) => { let b = null, bd = 460 * 460; for (const list of [decoys, lures]) for (const q of list) { const d = (q.x - e.x) ** 2 + (q.y - e.y) ** 2; if (d < bd) { bd = d; b = q; } } return b; };
   function landThrow(q) {
     const def = THROWABLES[q.kind], U = powerUnit(), x = q.x, y = q.y;
     const inR = (e, r) => !e.dead && e.spawnT <= 0 && !e.under && (e.x - x) ** 2 + (e.y - y) ** 2 < (r + e.r) ** 2;
@@ -3910,6 +4020,13 @@
       ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.fillRect(-2, -6, 2, 6);
       if (q.kind === "molotov") { ctx.fillStyle = "#ffb733"; ctx.beginPath(); ctx.arc(0, -10, 3.5, 0, TAU); ctx.fill(); }
       ctx.restore();
+    }
+    // v3.7 Hochspannungszone: knisternder blauer Ring mit Schein
+    for (const h of hazards) if (h.kind === "shock") {
+      const k = Math.min(1, h.life / 0.6) * (0.7 + 0.3 * Math.sin(run.time * 40));
+      glowAt("90,170,255", h.x, h.y, h.r * 1.1, 0.35 * k); ctx.globalAlpha = 1;
+      ctx.save(); ctx.strokeStyle = `rgba(150,225,255,${0.7 * k})`; ctx.lineWidth = 2.5; ctx.setLineDash([14, 9]); ctx.lineDashOffset = -run.time * 90;
+      ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, TAU); ctx.stroke(); ctx.restore();
     }
     for (const q of decoys) {
       const blink = Math.sin(run.time * 26) > 0, k = Math.max(0, q.t / q.max);
@@ -4737,6 +4854,7 @@
     updateLobs(dt * puEnemyK());
     updateThrowables(dt);
     updateHordes(dt);
+    updateCars(dt);
     // v3.0 Feuertonnen: Flammen und Funken steigen aus der Tonne
     for (const o of obstacles) if (o.kind === "feuertonne" && Math.random() < dt * 14) {
       const f = { t: "fire", x: o.x + o.w / 2 + rand(-5, 5), y: o.y + o.h / 2 + rand(-4, 4), vx: rand(-8, 8), vy: rand(-26, -10), life: rand(0.35, 0.6), max: 0.6, size: rand(6, 10), z: 26 };
@@ -5198,6 +5316,7 @@
     get camPunch() { return { x: punchX, y: punchY, fov: punchFov }; },
     get survivors() { return run && run.obj && run.obj.list ? run.obj.list : NO_SURVIVORS; },
     get powers() { return state === "play" || state === "pick" ? activePowers().map((k) => POWERUPS[k].rgb) : NO_SURVIVORS; }, // v3.7 Aura-Farben
+    get hazards() { return hazards; },
     get shield() { return (state === "play" || state === "pick") && puOn("shield") ? run.pu.shield : 0; },
     get plant() { return player ? player.plant || 0 : 0; },
     consumeFloorDirty() { const d = floorDirty; floorDirty = false; return d; },
@@ -5814,6 +5933,14 @@
     const jx = o.shakeT > 0 ? Math.sin(run.time * 90) * 1.6 : 0; // v3.3: Barrikade wackelt unter den Schlägen
     ctx.drawImage(o.spr.c, o.x + o.spr.ox + jx, o.y + o.spr.oy, o.spr.w, o.spr.h);
     if (ANIM_OBS[o.kind]) ANIM_OBS[o.kind](o, run.time, o.x + o.w / 2, o.y + o.h / 2);
+    if (o.alarmT > 0 || o.fireAt) drawCarFx(o);
+  }
+  // v3.7 Alarmanlage: Blinker an allen vier Ecken · Brand: flackernder Feuerschein über der Haube
+  function drawCarFx(o) {
+    const t = run.time;
+    if (o.alarmT > 0 && Math.sin(t * 13) > 0) for (const [fx, fy] of [[0.06, 0.12], [0.94, 0.12], [0.06, 0.88], [0.94, 0.88]]) glowAt("255,170,40", o.x + o.w * fx, o.y + o.h * fy, 15, 0.95);
+    if (o.fireAt) { const hx = o.vert ? o.x + o.w / 2 : o.x + o.w * 0.75, hy = o.vert ? o.y + o.h * 0.25 : o.y + o.h / 2; glowAt("255,120,40", hx, hy, 54 + 8 * Math.sin(t * 17) + 5 * Math.sin(t * 31), 0.6); }
+    ctx.globalAlpha = 1;
   }
   // v3.4 bewegte Teile in 2D (in 3D übernimmt das render3d.js): Blaulicht, Lichtstrahl, Mühlenflügel, Wasserspiele, Rotor
   const ANIM_OBS = {
@@ -6318,6 +6445,10 @@
       const hx = e.x + fx * e.r * 0.48, hy = e.y + fy * e.r * 0.48;
       const eye = e.type === "spitter" || e.type === "abom" ? "234,255,0" : e.type === "armored" ? "255,120,60" : "255,40,30";
       glowAt(eye, hx, hy, e.def.boss ? e.r * 0.45 : e.r * 0.75, 0.45);
+      // v3.7 zwei glühende Pupillen statt eines Flecks (nur nah genug am Rand des Kopfes)
+      const ex = -fy * e.r * 0.16, ey = fx * e.r * 0.16, er = Math.max(2.2, e.r * 0.13);
+      glowAt(eye, hx + ex, hy + ey, er * 2.2, 0.9); glowAt(eye, hx - ex, hy - ey, er * 2.2, 0.9);
+      glowAt("255,236,200", hx + ex, hy + ey, er * 0.7, 0.85); glowAt("255,236,200", hx - ex, hy - ey, er * 0.7, 0.85);
       if (e.type === "bomber" && Math.sin(t * 14 + e.wob) > 0) glowAt("255,40,20", e.x - fx * e.r * 0.8, e.y - fy * e.r * 0.8, 14, 0.9);
       if (e.type === "spitter") glowAt("183,255,74", hx + fx * e.r * 0.35, hy + fy * e.r * 0.35, 12, 0.55);
       if (e.type === "mother") glowAt("150,255,80", e.x - fx * e.r * 0.4, e.y - fy * e.r * 0.4, e.r * 1.2, 0.35);
@@ -8372,5 +8503,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

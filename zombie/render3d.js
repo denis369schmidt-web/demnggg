@@ -5262,6 +5262,10 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       const p = w.player;
       w.powers.forEach((rgb, i) => { flat(floorB, p.x, 0.95, p.y, t * 2.4 + i * 2, 30 + i * 6, 30 + i * 6, CELL.ring, rgb, 0.5); if (i < 2) bill(addB, p.x, 22, p.y, 40, CELL.glow, rgb, 0.09); });
     }
+    for (const e of w.enemies) if (e.looter && !e.dead && e.spawnT <= 0) { // v3.7 Plünderer: goldener Schein und Ring
+      flat(floorB, e.x, 0.95, e.y, t * 3, 30, 30, CELL.ring, "255,210,90", 0.7);
+      bill(addB, e.x, 26, e.y, 46, CELL.glow, "255,200,80", 0.22);
+    }
     if (w.shield > 0 && w.player) {
       const p = w.player, a = w.shield < 2 && Math.sin(t * 18) < 0 ? 0.3 : 1;
       bill(addB, p.x, 26, p.y, 58, CELL.ring, "90,200,255", 0.38 * a);
@@ -5604,6 +5608,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       if (o.alarmT > 0 && Math.sin(t * 13) > 0) lightCands.push([o.x + o.w / 2, 24, o.y + o.h / 2, "255,160,40", 1.8, 160, 6]);
       if (o.fireAt && !o.dead) lightCands.push([o.x + o.w / 2, 30, o.y + o.h / 2, "255,120,40", 2.2 + Math.random() * 0.8, 230, 7]);
     }
+    for (const e of w.enemies) if (e.looter && !e.dead) lightCands.push([e.x, 40, e.y, "255,210,90", 1.5, 170, 7]);
     for (const h of w.hazards || []) if (h.kind === "shock") lightCands.push([h.x, 30, h.y, "140,220,255", 1.4 + Math.random() * 1.6, h.r * 1.6, 8]);
     if (w.powers && w.powers.length && w.player) lightCands.push([w.player.x, 30, w.player.y, w.powers[0], 1.1, 150, 8]);
     for (const e of w.enemies) {

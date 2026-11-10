@@ -879,6 +879,15 @@ window.I18N = (() => {
     "KAWUMM!": "KABOOM!",
     "HOCHSPANNUNG!": "HIGH VOLTAGE!",
     "HOCHSPANNUNG – ALLES NASS!": "HIGH VOLTAGE – SOAKING WET!",
+    "PLÜNDERER!": "LOOTER!",
+    "Schnapp ihn, bevor er abhaut": "Catch him before he gets away",
+    "BEUTE!": "LOOT!",
+    "ENTKOMMEN": "ESCAPED",
+    "DREIFACH!": "TRIPLE KILL!",
+    "VIERFACH!": "QUAD KILL!",
+    "MULTI-KILL": "MULTI KILL",
+    "MEGA-KILL": "MEGA KILL",
+    "GEMETZEL": "CARNAGE",
   };
 
   // Spieldaten (Waffen, Talente, Skills, Bosse) – nach ID

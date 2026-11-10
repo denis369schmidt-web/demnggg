@@ -724,6 +724,7 @@
     initAmbient();
     if (theme() === "street" || theme() === "markt") for (let i = 0; i < randi(1, 2); i++) landFlock(rand(L + 60, R - 60), rand(T + 120, B - 360), randi(4, 7));
 
+    planLooter(); // v3.7
     const city = curCity(), [dName] = curDistrict();
     if (isSupply) {
       supplyCrate = { x: W / 2, y: (T + B) / 2, r: 26, bob: 0 };
@@ -844,6 +845,7 @@
     obstacles = clearGates(genObstacles(Math.round(3 * AREA_K) + 1));
     const lmk = Object.values(LANDMARKS);
     placeLandmark(lmk[dayNo() % lmk.length], 0.3); // v3.4: Wahrzeichen des Tages
+    planLooter(); // v3.7
     floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     initAmbient();
@@ -2530,6 +2532,69 @@
     if (!run.pu) return;
     for (const k in run.pu) if (run.pu[k] > 0 && (run.pu[k] -= dt) <= 0) { run.pu[k] = 0; fxRing(player.x, player.y, 46, POWERUPS[k].rgb, 0.3); sfx("phase"); }
   }
+  // ============================================================
+  // v3.7 Plünderer: seltener Zombie mit Münzsack (Kampagne ab Bezirk 2: 30 % je Bezirk, Überleben etwa alle 75 s)
+  // Er flieht, lässt unterwegs Münzen fallen und verschwindet nach LOOTER_T Sekunden. Erwischt: Münzregen + Power-up.
+  // ============================================================
+  const LOOTER_T = 13;
+  function planLooter() {
+    run.looterAt = 0;
+    if (run.mode === "survival") run.looterAt = run.time + rand(55, 95);
+    else if (run.room > 1 && !BOSS_ROOMS[run.room] && !SUPPLY_ROOMS.includes(run.room) && Math.random() < 0.3) run.looterAt = run.time + rand(10, 24);
+  }
+  function spawnLooter() {
+    const p = player, x = p.x < W / 2 ? rand(W * 0.6, R - 60) : rand(L + 60, W * 0.4), y = clamp(p.y - rand(300, 420), T + 70, B - 70);
+    const e = spawnEnemy("runner", x, y);
+    e.looter = true; e.lootT = LOOTER_T; e.lootDrops = 8; e.side = Math.random() < 0.5 ? -1 : 1;
+    e.maxHp = e.hp = e.maxHp * 4; e.speed *= 1.08;
+    callout = { title: tr("PLÜNDERER!"), sub: tr("Schnapp ihn, bevor er abhaut"), col: "#ffe27a", n: 1, bonus: 0, life: 1.9, max: 1.9, plain: true };
+    sfx("coin"); sfx("whistle");
+    return e;
+  }
+  function looterLoot(e) {
+    for (let i = 0; i < 18; i++) orbs.push(makeOrb(e.x, e.y, "coin", 2));
+    dropPower(e.x, e.y);
+    fxRing(e.x, e.y, 80, "255,220,110", 0.5); fxFlash(e.x, e.y, 120, "255,220,110", 0.25);
+    for (let i = 0; i < 14; i++) fxSparks(e.x, e.y, -Math.PI / 2, 2.2, 1, "255,220,110", rand(120, 280));
+    addText(e.x, e.y - 40, tr("BEUTE!"), "#ffe27a", 22, true);
+    sfx("level"); track("looters");
+  }
+  function looterEscape(e) {
+    e.dead = true; e.escaped = true;
+    fxSmoke(e.x, e.y, 4, 0.8, 1); fxDust(e.x, e.y, 4, 1);
+    addText(e.x, e.y - 30, tr("ENTKOMMEN"), "#b8b2a4", 16);
+  }
+  function updateLooter() {
+    if (run.looterAt && run.time >= run.looterAt && !run.cleared && state === "play") {
+      spawnLooter();
+      run.looterAt = run.mode === "survival" ? run.time + rand(55, 95) : 0;
+    }
+    // Mehrfach-Abschuss ansagen, sobald die Serie abreißt
+    if (run.mk >= 3 && run.time - run.mkAt > 0.35) { announceMulti(run.mk); run.mk = 0; }
+  }
+  function announceMulti(n) {
+    const title = n >= 12 ? `${tr("GEMETZEL")} ×${n}` : n >= 8 ? `${tr("MEGA-KILL")} ×${n}` : n >= 5 ? `${tr("MULTI-KILL")} ×${n}` : tr(n === 3 ? "DREIFACH!" : "VIERFACH!");
+    addText(player.x, player.y - 76, title, n >= 8 ? "#ff8a3d" : "#ffe27a", Math.min(30, 18 + n), true);
+    for (let i = 0; i < Math.min(12, n); i++) orbs.push(makeOrb(player.x, player.y - 30, "coin", 1));
+    if (n >= 8) { slowMo = Math.max(slowMo, 0.3); punchFov = Math.max(punchFov, 2.5); }
+    sfx("combo"); trackMax("multikill", n);
+  }
+  // Gold-Abzeichen mit Restzeit über dem Plünderer (2D und 3D)
+  function drawLooterBadges() {
+    for (const e of enemies) {
+      if (!e.looter || e.dead || e.spawnT > 0) continue;
+      const q = scr(e.x, e.y - (mode3d ? 0 : e.r + 22), mode3d ? e.r * 2.8 + 14 : 0);
+      if (q.behind) continue;
+      const k = Math.max(0, e.lootT / LOOTER_T);
+      ctx.save();
+      glowAt("255,210,90", q.x, q.y, 26, 0.5); ctx.globalAlpha = 1;
+      ctx.fillStyle = "rgba(10,9,6,0.88)"; ctx.beginPath(); ctx.arc(q.x, q.y, 12, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "#ffd25a"; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.arc(q.x, q.y, 12, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+      drawIcon(ctx, "coins", q.x, q.y, 14, "#ffe27a");
+      ctx.restore();
+    }
+  }
+
   // aktive Power-ups (für Aura, Bildschirmrand und 3D)
   const activePowers = () => (run && run.pu ? Object.keys(POWERUPS).filter((k) => run.pu[k] > 0) : []);
 
@@ -2570,7 +2635,7 @@
     // Inferno / Seuche: brennende bzw. vergiftete Zombies stecken beim Tod ihre Nachbarn an
     if (player.evo.inferno && e.burnT > 0) spreadToNeighbors(e, 95, (q) => { if (!q.def.fireproof) { q.burnT = 2.5; q.burnDps = Math.max(q.burnDps, e.burnDps); } }, "255,140,40");
     if (player.evo.plague && e.poisonDps > 0) spreadToNeighbors(e, 90, (q) => { q.poisonDps = Math.max(q.poisonDps, e.poisonDps * 0.8); }, "150,255,60");
-    if (e.lastHit && e.lastHit.overkill && !def.boss) addText(e.x, e.y - e.r - 36, tr("ÜBERKILL"), "#ffd45c", 20, true);
+    if (e.lastHit && e.lastHit.overkill && !def.boss && !(run.time - (run.okAt ?? -9) < 0.5)) { run.okAt = run.time; addText(e.x, e.y - e.r - 36, tr("ÜBERKILL"), "#ffd45c", 20, true); } // v3.7 gedrosselt: sonst stapeln sich die Texte bei Massen-Abschüssen
     if (def.boss) {
       shake = 18;
       slowMo = 0.9;
@@ -2608,6 +2673,9 @@
     }
     if (e.type === "nest") { fxRing(e.x, e.y, 90, "200,90,200", 0.5); shake = Math.max(shake, 6); for (let i = 0; i < 5; i++) addPiece(e, "limb", rand(0, TAU), rand(120, 240), rand(150, 260), 10); }
     if (e.type === "zwerg") { fxDebris(e.x, e.y, 0, Math.PI, 6, "#c0281e"); fxDebris(e.x, e.y, 0, Math.PI, 4, "#e8e0d0"); } // Keramik-Scherben
+    if (e.looter) looterLoot(e);
+    // v3.7 Mehrfach-Abschuss: Kills im Abstand unter 0,35 s zählen zusammen, die Ansage kommt, wenn die Serie abreißt
+    if (!def.boss) { run.mk = run.time - (run.mkAt ?? -9) < 0.35 ? (run.mk || 0) + 1 : 1; run.mkAt = run.time; }
     if (e.type === "beamter") { addText(e.x, e.y - 30, tr("ABGELEHNT!"), "#ff5a4a", 15); sfx("stamp"); }
     if (e.type === "wengerter") { addText(e.x, e.y - 30, tr("HA NOI!"), "#d8a0ff", 15); for (let i = 0; i < 5; i++) fxGas(e.x + rand(-12, 12), e.y + rand(-12, 12), 0.8, "150,60,170", 1); }
     if (e.type === "jeck") for (let i = 0; i < 10; i++) fxSparks(e.x, e.y, rand(0, TAU), 0.5, 1, pick(KAMELLE), rand(120, 240));
@@ -3034,6 +3102,16 @@
       }
       let sp = e.speed * slow * stagger;
       if (e.rageT > 0) { e.rageT -= dt; sp *= 1.55; }
+      // v3.7 Plünderer: flieht mit dem Münzsack vor dem Helden, verliert dabei Münzen und haut nach LOOTER_T Sekunden ab
+      if (e.looter) {
+        if ((e.lootT -= dt) <= 0) { looterEscape(e); continue; }
+        mx = -mx; my = -my;
+        const wx = e.x - L < 90 ? 1 : R - e.x < 90 ? -1 : 0, wy = e.y - T < 90 ? 1 : B - e.y < 90 ? -1 : 0;
+        if (wx || wy) { const tx = -my * e.side, ty = mx * e.side; mx = mx * 0.3 + wx * 1.2 + tx; my = my * 0.3 + wy * 1.2 + ty; const n = Math.hypot(mx, my) || 1; mx /= n; my /= n; }
+        sp *= d < 280 ? 1.3 : 0.75;
+        if (e.lootDrops > 0 && Math.random() < dt * 2.2) { e.lootDrops--; orbs.push(makeOrb(e.x, e.y, "coin", 1)); }
+        if (Math.random() < dt * 10) fxSparks(e.x, e.y - 6, -Math.PI / 2, 1.5, 1, "255,220,110", 90);
+      }
 
       switch (e.type) {
         case "spitter": {
@@ -3397,7 +3475,7 @@
         if (way) { const wx = way.x - e.x, wy = way.y - e.y, wd = Math.hypot(wx, wy) || 1; mx = wx / wd; my = wy / wd; e.wp = null; }
       }
       // v2.9 Böller-Köder: Gehende Zombies laufen auf den knisternden Böller zu
-      if ((decoys.length || lures.length) && !e.def.boss && e.mode === "walk") {
+      if ((decoys.length || lures.length) && !e.def.boss && !e.looter && e.mode === "walk") {
         const q = nearestDecoy(e);
         if (q) { const qx = q.x - e.x, qy = q.y - e.y, qd = Math.hypot(qx, qy) || 1; if (qd > e.r + 8) { mx = qx / qd; my = qy / qd; } else { mx = 0; my = 0; } }
       }
@@ -4871,6 +4949,7 @@
     if (run.comboT > 0 && (run.comboT -= dt) <= 0) run.combo = 0;
     if (run.rage > 0) run.rage -= dt;
     updatePowers(dt);
+    updateLooter();
     // Fremder nach dem Bosssieg (wartet, bis Level-ups abgearbeitet sind)
     if (run.shrineT > 0 && state === "play" && run.pendingPicks === 0) {
       run.shrineT -= dt;
@@ -5583,7 +5662,7 @@
     for (const e of enemies) {
       if (e.dead || e.spawnT > 0 || e.under) continue;
       const boss = e.def.boss, r = boss ? 4.2 : Math.max(1.4, Math.min(3, e.r * k * 1.1));
-      ctx.fillStyle = boss ? "#ff3a24" : e.elite ? "#ffb733" : "#e8322a";
+      ctx.fillStyle = boss ? "#ff3a24" : e.looter ? "#ffe27a" : e.elite ? "#ffb733" : "#e8322a";
       ctx.beginPath(); ctx.arc(mx(e.x), my(e.y), r, 0, TAU); ctx.fill();
       if (boss) { ctx.strokeStyle = `rgba(255,58,36,${0.4 + 0.4 * Math.sin(t * 8)})`; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(mx(e.x), my(e.y), r + 3, 0, TAU); ctx.stroke(); }
     }
@@ -5663,7 +5742,7 @@
     if (state === "play") { drawOffscreen(); drawMinimap(); }
     if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); }
     drawCombo();
-    if (state === "play" || state === "pick") { drawPowerBadges(); drawPowerHud(); }
+    if (state === "play" || state === "pick") { drawPowerBadges(); drawLooterBadges(); drawPowerHud(); }
     // Kinobalken bei Boss-Auftritt und Boss-Tod
     const bossIntro = enemies.some((e) => e.def.boss && e.spawnT > 0);
     cine += ((bossIntro || cineT > 0 ? 1 : 0) - cine) * Math.min(1, frameDt * 5);
@@ -6454,6 +6533,7 @@
       if (e.type === "mother") glowAt("150,255,80", e.x - fx * e.r * 0.4, e.y - fy * e.r * 0.4, e.r * 1.2, 0.35);
       if (e.phase2) glowAt("255,40,60", e.x, e.y, e.r * 1.8, 0.25 + 0.15 * Math.sin(t * 10));
       if (e.slowT > 0) glowAt("150,220,255", e.x, e.y, e.r * 1.3, 0.3);
+      if (e.looter) glowAt("255,210,90", e.x, e.y, e.r * 2.6, 0.45 + 0.15 * Math.sin(t * 9)); // v3.7 Plünderer glänzt golden
     }
     // Spieler: Waffen-Aura (Stufe 10), Mündungsfeuer, Zündflamme
     const m = muzzlePoint(p);
@@ -8503,5 +8583,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

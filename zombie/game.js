@@ -5396,6 +5396,7 @@
     get survivors() { return run && run.obj && run.obj.list ? run.obj.list : NO_SURVIVORS; },
     get powers() { return state === "play" || state === "pick" ? activePowers().map((k) => POWERUPS[k].rgb) : NO_SURVIVORS; }, // v3.7 Aura-Farben
     get hazards() { return hazards; },
+    get slowPu() { return state === "play" && puOn("slow"); },
     get shield() { return (state === "play" || state === "pick") && puOn("shield") ? run.pu.shield : 0; },
     get plant() { return player ? player.plant || 0 : 0; },
     consumeFloorDirty() { const d = floorDirty; floorDirty = false; return d; },
@@ -6889,6 +6890,8 @@
       ctx.drawImage(hurtVignette, 0, 0, hurtVignette.width * LS, hurtVignette.height * LS);
       ctx.globalAlpha = 1;
     }
+    // v3.7 Zeitlupe: leichter kühler Schleier über allem (auf Grafikstufe 2 entsättigt zusätzlich der Nachbearbeitungs-Shader)
+    if (state === "play" && puOn("slow") && !(mode3d && quality >= 2)) { ctx.fillStyle = `rgba(50,60,150,${0.1 + 0.03 * Math.sin(run.time * 3)})`; ctx.fillRect(0, 0, W, H); }
     // v3.7 Power-ups: farbiger Bildrand – kurz kräftig beim Einsammeln, danach leise für das erste aktive
     const act = state === "play" ? activePowers() : [];
     if (puFlash || act.length) {

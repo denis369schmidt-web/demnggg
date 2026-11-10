@@ -5690,7 +5690,7 @@ void main() {
     // v3.0: Druckwellen verzerren das Bild ringförmig (bis zu 4 gleichzeitig), leichter Farbsaum zum Rand hin,
     // bei Treffern kurz entsättigt und rötlich
     const comp = sm(`uniform sampler2D src; uniform sampler2D glow; uniform float k; uniform float sat; uniform vec3 tint;
-uniform vec4 shock[4]; uniform float aspect; uniform float ca; uniform float hurt; uniform vec2 grade; varying vec2 vUv;
+uniform vec4 shock[4]; uniform float aspect; uniform float ca; uniform float hurt; uniform vec2 grade; uniform float slowk; varying vec2 vUv;
 void main() {
   vec2 off = vec2(0.0);
   for (int i = 0; i < 4; i++) {
@@ -5714,8 +5714,11 @@ void main() {
   c = mix(c, cs * cs * (3.0 - 2.0 * cs), grade.x);
   c *= mix(vec3(0.93, 0.99, 1.07), vec3(1.05, 1.0, 0.93), smoothstep(0.12, 0.7, l) * grade.y + (1.0 - grade.y) * 0.5);
   c = mix(c, vec3(l) * vec3(1.25, 0.75, 0.72), hurt * 0.4);
+  // v3.7 Power-up Zeitlupe: kühler, entsättigter Filmlook, zum Rand hin stärker (Lichter bleiben farbig)
+  float vg = smoothstep(0.2, 0.85, length((vUv - 0.5) * vec2(aspect, 1.0)));
+  c = mix(c, vec3(l) * vec3(0.8, 0.9, 1.2), slowk * (0.35 + 0.4 * vg) * (1.0 - smoothstep(0.55, 0.95, l)));
   gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0); // Werte sind schon Bildschirm-sRGB
-}`, { src: { value: null }, glow: { value: null }, k: { value: 0.85 }, sat: { value: 1.06 }, tint: { value: postTint }, shock: { value: shockU }, aspect: { value: 1 }, ca: { value: 0.001 }, hurt: { value: 0 }, grade: { value: new T3.Vector2(0.26, 1) } });
+}`, { src: { value: null }, glow: { value: null }, k: { value: 0.85 }, sat: { value: 1.06 }, tint: { value: postTint }, shock: { value: shockU }, aspect: { value: 1 }, ca: { value: 0.001 }, hurt: { value: 0 }, grade: { value: new T3.Vector2(0.26, 1) }, slowk: { value: 0 } });
     const quad = new T3.Mesh(new T3.PlaneGeometry(2, 2), comp), sc = new T3.Scene();
     quad.frustumCulled = false;
     sc.add(quad);
@@ -5769,6 +5772,7 @@ void main() {
       updateShocks(w);
       P.comp.uniforms.aspect.value = W / H;
       P.comp.uniforms.hurt.value = Math.min(1, ((w.player && w.player.hurtT) || 0) * 3);
+      const su = P.comp.uniforms.slowk; su.value += ((w.slowPu ? 1 : 0) - su.value) * Math.min(1, frameDt * 4);
       renderer.setRenderTarget(null); renderer.render(sc, cam);
     } catch (err) {
       console.warn("[Outbreak] Leuchteffekte abgeschaltet", err && err.message);

@@ -2814,12 +2814,13 @@
   }
   function burrow(e) {
     e.under = "burrow"; e.spawnT = e.spawnMax = 9; e.aiT = rand(2.2, 3.2);
+    e.wp = null; e.blocked = 0; // alter Umweg-Punkt gilt unter der Erde nicht mehr (sonst läuft er nach dem Auftauchen weg)
     fxDebris(e.x, e.y, 0, Math.PI, 10, "#5a4a3a"); fxSmoke(e.x, e.y, 3, 0.8, 0.8);
     stamp(Sprites.crack(), e.x, e.y, rand(0, TAU), e.r / 14, 0.6);
     sfx("dig");
   }
   function phase(e) {
-    e.under = "phantom"; e.spawnT = e.spawnMax = 9; e.aiT = rand(0.9, 1.4);
+    e.under = "phantom"; e.spawnT = e.spawnMax = 9; e.aiT = rand(0.9, 1.4); e.wp = null; e.blocked = 0;
     for (let i = 0; i < 6; i++) fxGas(e.x + rand(-10, 10), e.y + rand(-10, 10), 0.9, "120,80,170", 0.9);
     fxFlash(e.x, e.y, 60, "190,140,255", 0.12);
     const a = rand(0, TAU), r = rand(95, 150);
@@ -2839,7 +2840,7 @@
       if (Math.random() < 0.12) stamp(Sprites.crack(), e.x, e.y, rand(0, TAU), 0.4, 0.35);
       if (d < 26 || e.aiT <= 0) {
         // Ausbruch: Erde spritzt, wer drübersteht, wird erwischt
-        e.under = null; e.spawnT = e.spawnMax = 0.3; e.aiT = rand(2.6, 3.6); e.mode = "walk";
+        e.under = null; e.spawnT = e.spawnMax = 0.3; e.aiT = rand(2.6, 3.6); e.mode = "walk"; e.wp = null;
         fxDebris(e.x, e.y, 0, Math.PI, 16, "#5a4a3a"); fxRing(e.x, e.y, 60, "200,170,120", 0.35); fxSmoke(e.x, e.y, 4, 1, 0.9);
         stamp(Sprites.crack(), e.x, e.y, rand(0, TAU), 1.2, 0.7);
         shake = Math.max(shake, 4); sfx("erupt");

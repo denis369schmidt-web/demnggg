@@ -68,6 +68,17 @@ let genreFilter = "Alle";
 let suppressBpm = false;
 let renderingWav = false;
 let lastBeatUrl = "";
+let loopBars = 0;
+let loopOrigin = 0;
+let lastBarFloor = -1;
+let lastLoopMark = 0;
+let freestyle = null;
+let takes = [];
+let countingIn = false;
+let countToken = 0;
+let lastCoachedBar = -1;
+
+const PRACTICE_KEY = "flowforge-practice";
 
 const STREAK_KEY = "flowforge-streak";
 
@@ -611,6 +622,8 @@ function startBeat() {
 
   beatStartedAt = performance.now();
   activeBarIndex = -1;
+  lastBarFloor = -1;
+  lastLoopMark = 0;
   transportOn = true;
 
   if (playMode === "upload" && upload) {
@@ -660,7 +673,10 @@ function stopBeat(opts = {}) {
 
   barPositionText.textContent = "0.0";
   activeBarText.textContent = "–";
+  lastBarFloor = -1;
+  lastLoopMark = 0;
   setActiveLyric(-1);
+  paintPocket(null);
   paintCards();
   if (!opts.silent) updateStatus("Beat gestoppt", false);
 }
@@ -681,19 +697,64 @@ function setActiveLyric(index) {
   activeBarText.textContent = index >= 0 ? String(index + 1) : "–";
 }
 
+function currentAbsoluteBars() {
+  if (!transportOn || !beatStartedAt) return 0;
+  const elapsed = (performance.now() - beatStartedAt) / 1000;
+  return (elapsed * (Number(bpmInput.value) / 60)) / 4;
+}
+
+function practiceBars(absolute) {
+  if (!loopBars) return absolute;
+  const into = absolute - loopOrigin;
+  const wrapped = ((into % loopBars) + loopBars) % loopBars;
+  return loopOrigin + wrapped;
+}
+
 function calculateBarPosition() {
-  if (!beatStartedAt || !transportOn) {
-    return;
+  if (!beatStartedAt || !transportOn) return;
+
+  const absolute = currentAbsoluteBars();
+  const shown = practiceBars(absolute);
+  barPositionText.textContent = shown.toFixed(2);
+  paintPocket(shown - Math.floor(shown));
+
+  const floorAbs = Math.floor(absolute);
+  if (lastBarFloor < 0) lastBarFloor = floorAbs;
+  else if (floorAbs > lastBarFloor) {
+    addPracticeBars(floorAbs - lastBarFloor);
+    lastBarFloor = floorAbs;
   }
 
-  const elapsed = (performance.now() - beatStartedAt) / 1000;
-  const beatsPerSecond = Number(bpmInput.value) / 60;
-  const bars = (elapsed * beatsPerSecond) / 4;
-  barPositionText.textContent = bars.toFixed(2);
+  if (loopBars > 0) {
+    const mark = Math.floor((absolute - loopOrigin) / loopBars);
+    if (mark > lastLoopMark) {
+      addPracticeLoops(mark - lastLoopMark);
+      lastLoopMark = mark;
+    }
+  }
 
   if (lyricLines.length > 0) {
-    const idx = Math.min(lyricLines.length - 1, Math.floor(bars));
+    const idx = Math.min(lyricLines.length - 1, Math.max(0, Math.floor(shown)));
     setActiveLyric(idx);
+    if (idx !== lastCoachedBar && window.FlowRhymes) {
+      lastCoachedBar = idx;
+      const input = document.getElementById("rhymeInput");
+      if (!input || document.activeElement !== input) {
+        const word = window.FlowRhymes.lastWord(lyricLines[idx].line);
+        if (word) showRhymes(word);
+      }
+    }
+  }
+
+  if (freestyle && !freestyle.done) {
+    const bar = Math.floor(absolute);
+    if (bar !== freestyle.shown && bar < freestyle.length) {
+      freestyle.shown = bar;
+      const cue = window.FlowRhymes.cueFor(freestyle.seed, bar);
+      freestyle.history[bar] = cue;
+      paintFreestyleCue(`${bar + 1}/${freestyle.length}  ${cue}`);
+    }
+    if (bar >= freestyle.length) finishFreestyle();
   }
 }
 
@@ -734,15 +795,53 @@ function buildTimedLyrics(keywords, bars) {
   return lines;
 }
 
+function flowTargetValue() {
+  const input = document.getElementById("flowTarget");
+  return Number(input && input.value) || 3;
+}
+
+function flowVerdict(density) {
+  const delta = density - flowTargetValue();
+  if (delta > 0.6) return { key: "hot", label: "zu dicht" };
+  if (delta < -0.6) return { key: "thin", label: "Luft" };
+  return { key: "ok", label: "sitzt" };
+}
+
+function refreshLine(entry, row) {
+  const syllables = estimateSyllables(entry.line);
+  const density = syllables / 4;
+  entry.syllables = syllables;
+  entry.density = density.toFixed(1);
+  const verdict = flowVerdict(density);
+  row.dataset.flow = verdict.key;
+  const meta = row.querySelector(".lyric-meta");
+  if (meta) {
+    meta.textContent = `~${syllables} Silben · ${entry.density}/Beat · Ziel ${flowTargetValue().toFixed(1)} · ${verdict.label}`;
+  }
+}
+
+function paintScheme() {
+  if (!window.FlowRhymes) return;
+  const letters = window.FlowRhymes.scheme(lyricLines.map((entry) => entry.line));
+  lyricsOutput.querySelectorAll(".lyric-row").forEach((row, index) => {
+    const badge = row.querySelector(".scheme");
+    if (badge) badge.textContent = letters[index] || "·";
+  });
+  const schemeLine = document.getElementById("schemeLine");
+  if (schemeLine) schemeLine.textContent = letters.filter((letter) => letter && letter !== "·").join(" ") || "–";
+}
+
 function renderLyrics(lines) {
   lyricLines = lines;
   lyricsOutput.replaceChildren();
+  lastCoachedBar = -1;
 
   if (lines.length === 0) {
     const empty = document.createElement("p");
     empty.className = "channel-empty";
     empty.textContent = "Noch kein Text. Trag mindestens zwei Schlagwörter ein.";
     lyricsOutput.append(empty);
+    paintScheme();
     return;
   }
 
@@ -751,19 +850,328 @@ function renderLyrics(lines) {
     row.className = "lyric-row";
     row.dataset.bar = String(entry.bar);
 
-    const main = document.createElement("p");
-    main.className = "lyric-main";
-    main.textContent = `Bar ${String(entry.bar).padStart(2, "0")}  ${entry.line}`;
+    const top = document.createElement("div");
+    top.className = "lyric-top";
+
+    const barNo = document.createElement("span");
+    barNo.className = "bar-no";
+    barNo.textContent = `Bar ${String(entry.bar).padStart(2, "0")}`;
+
+    const scheme = document.createElement("span");
+    scheme.className = "scheme";
+    scheme.textContent = "·";
+
+    const text = document.createElement("span");
+    text.className = "lyric-text lyric-main";
+    text.contentEditable = "true";
+    text.spellcheck = false;
+    text.setAttribute("role", "textbox");
+    text.setAttribute("aria-label", `Bar ${entry.bar}`);
+    text.textContent = entry.line;
+    text.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") event.preventDefault();
+    });
+    text.addEventListener("input", () => {
+      entry.line = text.textContent.replace(/\n/g, " ");
+      refreshLine(entry, row);
+      paintScheme();
+    });
+    text.addEventListener("focus", () => {
+      const index = lyricLines.indexOf(entry);
+      if (index >= 0) setActiveLyric(index);
+    });
+
+    top.append(barNo, scheme, text);
 
     const meta = document.createElement("p");
     meta.className = "lyric-meta";
-    meta.textContent = `~${entry.syllables} Silben / 4 Beats (${entry.density} pro Beat)`;
-
-    row.append(main, meta);
+    row.append(top, meta);
+    refreshLine(entry, row);
     lyricsOutput.append(row);
   });
 
+  paintScheme();
   setActiveLyric(-1);
+}
+
+function loadPractice() {
+  const today = todayKey();
+  try {
+    const data = JSON.parse(localStorage.getItem(PRACTICE_KEY) || "null");
+    const best = data && Number(data.freestyleBest) ? Number(data.freestyleBest) : 0;
+    if (!data || data.day !== today) return { day: today, bars: 0, loops: 0, freestyleBest: best };
+    return {
+      day: today,
+      bars: Number(data.bars) || 0,
+      loops: Number(data.loops) || 0,
+      freestyleBest: best,
+    };
+  } catch (_error) {
+    return { day: today, bars: 0, loops: 0, freestyleBest: 0 };
+  }
+}
+
+function savePractice(data) {
+  localStorage.setItem(PRACTICE_KEY, JSON.stringify(data));
+}
+
+function renderPractice() {
+  const data = loadPractice();
+  const bars = document.getElementById("statBars");
+  const loops = document.getElementById("statLoops");
+  const free = document.getElementById("statFree");
+  if (bars) bars.textContent = String(data.bars);
+  if (loops) loops.textContent = String(data.loops);
+  if (free) free.textContent = data.freestyleBest ? String(data.freestyleBest) : "–";
+}
+
+function addPracticeBars(count) {
+  if (!count) return;
+  const data = loadPractice();
+  data.bars += count;
+  savePractice(data);
+  renderPractice();
+}
+
+function addPracticeLoops(count) {
+  if (!count) return;
+  const data = loadPractice();
+  data.loops += count;
+  savePractice(data);
+  renderPractice();
+}
+
+function buildPocket() {
+  const root = document.getElementById("pocket");
+  if (!root || root.childElementCount) return;
+  for (let beat = 0; beat < 4; beat += 1) {
+    const column = document.createElement("div");
+    column.className = "pocket-beat";
+    const label = document.createElement("span");
+    label.textContent = String(beat + 1);
+    column.append(label);
+    for (let step = 0; step < 4; step += 1) {
+      const tick = document.createElement("i");
+      tick.dataset.step = String(beat * 4 + step);
+      column.append(tick);
+    }
+    root.append(column);
+  }
+}
+
+function paintPocket(fraction) {
+  const root = document.getElementById("pocket");
+  if (!root) return;
+  const active = fraction == null ? -1 : Math.min(15, Math.floor(fraction * 16));
+  root.querySelectorAll("i").forEach((tick) => {
+    tick.classList.toggle("is-on", Number(tick.dataset.step) === active);
+  });
+  root.querySelectorAll(".pocket-beat").forEach((column, index) => {
+    column.classList.toggle("is-down", active >= 0 && index === Math.floor(active / 4));
+  });
+}
+
+function setLoop(bars) {
+  loopBars = bars;
+  const absolute = currentAbsoluteBars();
+  loopOrigin = Math.floor(absolute);
+  if (bars > 0 && lyricLines.length) {
+    loopOrigin = Math.min(loopOrigin, Math.max(0, lyricLines.length - bars));
+  }
+  lastLoopMark = 0;
+  document.querySelectorAll("[data-loop]").forEach((button) => {
+    button.classList.toggle("is-on", Number(button.dataset.loop) === bars);
+  });
+  updateStatus(bars ? `Loop ${bars} ${bars === 1 ? "Takt" : "Takte"}` : "Loop aus");
+}
+
+function showRhymes(raw) {
+  const input = document.getElementById("rhymeInput");
+  const host = document.getElementById("rhymeResults");
+  if (!host || !window.FlowRhymes) return;
+  const word = String(raw || "").trim();
+  if (input && word && document.activeElement !== input) input.value = word;
+  const query = (input && input.value.trim()) || word;
+  host.replaceChildren();
+  if (!query) return;
+
+  const extra = lyricLines.flatMap((entry) => entry.line.split(/\s+/));
+  const result = window.FlowRhymes.suggest(query, extra);
+  const groups = [
+    ["Mehrsilbig", result.multi],
+    ["Perfekt", result.perfect],
+    ["Assonanz", result.family],
+  ];
+  groups.forEach(([label, list]) => {
+    if (!list.length) return;
+    const block = document.createElement("div");
+    block.className = "rhyme-group";
+    const title = document.createElement("p");
+    title.className = "rhyme-label";
+    title.textContent = label;
+    const chips = document.createElement("div");
+    chips.className = "chips";
+    list.forEach((rhyme) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "rhyme-chip";
+      button.textContent = rhyme;
+      button.addEventListener("click", () => insertRhyme(rhyme));
+      chips.append(button);
+    });
+    block.append(title, chips);
+    host.append(block);
+  });
+  if (!host.childElementCount) {
+    const empty = document.createElement("p");
+    empty.className = "channel-empty";
+    empty.textContent = "Kein Treffer im Lexikon. Anderes Wort versuchen.";
+    host.append(empty);
+  }
+}
+
+function insertRhyme(word) {
+  const index = activeBarIndex >= 0 ? activeBarIndex : 0;
+  const entry = lyricLines[index];
+  const fields = lyricsOutput.querySelectorAll(".lyric-text");
+  const field = fields[index];
+  if (!entry || !field) {
+    updateStatus(`„${word}“ – erst eine Zeile erzeugen`, false);
+    return;
+  }
+  const current = field.textContent.replace(/\s+$/g, "");
+  field.textContent = current ? `${current} ${word}` : word;
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+  updateStatus(`„${word}“ in Bar ${index + 1}`);
+}
+
+function paintFreestyleCue(text) {
+  const cue = document.getElementById("freestyleCue");
+  if (!cue) return;
+  cue.hidden = false;
+  cue.textContent = text;
+}
+
+function startFreestyle() {
+  if (!window.FlowRhymes) return;
+  const length = Math.min(16, Math.max(4, Number(barsInput.value) || 8));
+  freestyle = {
+    length,
+    seed: Math.floor(Math.random() * 1000),
+    shown: -1,
+    history: [],
+    done: false,
+  };
+  const button = document.getElementById("freestyleToggle");
+  if (button) {
+    button.classList.add("is-on");
+    button.textContent = "Runde läuft";
+  }
+  const adopt = document.getElementById("adoptFreestyle");
+  if (adopt) adopt.hidden = true;
+  if (loopBars) setLoop(0);
+  if (transportOn) stopBeat({ silent: true });
+  startBeat();
+  updateStatus(`Freestyle · ${length} Takte`);
+}
+
+function finishFreestyle() {
+  if (!freestyle || freestyle.done) return;
+  freestyle.done = true;
+  const score = freestyle.history.filter(Boolean).length;
+  const data = loadPractice();
+  if (score > data.freestyleBest) data.freestyleBest = score;
+  savePractice(data);
+  renderPractice();
+  const button = document.getElementById("freestyleToggle");
+  if (button) {
+    button.classList.remove("is-on");
+    button.textContent = "Freestyle-Runde";
+  }
+  const adopt = document.getElementById("adoptFreestyle");
+  if (adopt) adopt.hidden = freestyle.history.length === 0;
+  paintFreestyleCue(`Runde ${score}/${freestyle.length}. Schreib sie auf, solange sie noch im Kopf ist.`);
+  updateStatus(`Freestyle ${score}/${freestyle.length}`);
+}
+
+function stopFreestyle() {
+  freestyle = null;
+  const button = document.getElementById("freestyleToggle");
+  if (button) {
+    button.classList.remove("is-on");
+    button.textContent = "Freestyle-Runde";
+  }
+  const cue = document.getElementById("freestyleCue");
+  if (cue) cue.hidden = true;
+  const adopt = document.getElementById("adoptFreestyle");
+  if (adopt) adopt.hidden = true;
+}
+
+function adoptFreestyle() {
+  if (!freestyle || !freestyle.history.length) return;
+  const lines = freestyle.history.filter(Boolean).map((cue, index) => {
+    const line = cue.replace(" · ", " und ");
+    const syllables = estimateSyllables(line);
+    return {
+      bar: index + 1,
+      line,
+      syllables,
+      density: (syllables / 4).toFixed(1),
+    };
+  });
+  renderLyrics(lines);
+  updateStatus("Cues stehen im Text");
+}
+
+function playCountClicks() {
+  ensureAudioContext();
+  const bpm = Number(bpmInput.value) || 96;
+  const beat = 60 / bpm;
+  const start = audioContext.currentTime + 0.05;
+  for (let i = 0; i < 4; i += 1) {
+    const time = start + i * beat;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = "square";
+    osc.frequency.value = i === 0 ? 880 : 660;
+    gain.gain.setValueAtTime(i === 0 ? 0.18 : 0.12, time);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.06);
+    osc.connect(gain).connect(audioContext.destination);
+    osc.start(time);
+    osc.stop(time + 0.07);
+  }
+  return beat * 4 * 1000;
+}
+
+function renderTakes() {
+  const host = document.getElementById("takes");
+  if (!host) return;
+  host.replaceChildren();
+  takes.forEach((take, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn tiny muted take-btn";
+    button.textContent = `Take ${takes.length - index} · ${take.bars.toFixed(1)} Takte`;
+    button.addEventListener("click", () => {
+      playback.src = take.url;
+      playback.play().catch(() => {});
+      host.querySelectorAll(".take-btn").forEach((node) => node.classList.remove("is-on"));
+      button.classList.add("is-on");
+    });
+    host.append(button);
+  });
+}
+
+function pushTake(blob, type, startedAt) {
+  const seconds = Math.max(0, (performance.now() - startedAt) / 1000);
+  const bars = (seconds * (Number(bpmInput.value) / 60)) / 4;
+  const url = URL.createObjectURL(blob);
+  takes.unshift({ url, type, bars });
+  if (takes.length > 4) {
+    const dropped = takes.pop();
+    URL.revokeObjectURL(dropped.url);
+  }
+  renderTakes();
 }
 
 function generateLyrics() {
@@ -780,6 +1188,9 @@ function generateLyrics() {
 
   const bars = Math.min(24, Math.max(2, Number(barsInput.value) || 8));
   renderLyrics(buildTimedLyrics(rawKeywords, bars));
+  if (lyricLines[0] && window.FlowRhymes) {
+    showRhymes(window.FlowRhymes.lastWord(lyricLines[0].line));
+  }
   updateStatus("Lyrics erzeugt");
 }
 
@@ -802,7 +1213,13 @@ async function toggleRecording() {
     return;
   }
 
-  if (!transportOn) startBeat();
+  if (countingIn) {
+    countToken += 1;
+    countingIn = false;
+    recordToggleButton.textContent = "● Aufnahme starten";
+    updateStatus("Count-in abgebrochen", false);
+    return;
+  }
 
   if (!mediaStream) {
     try {
@@ -813,8 +1230,32 @@ async function toggleRecording() {
     }
   }
 
+  const token = countToken + 1;
+  countToken = token;
+  const useCount = document.getElementById("countIn")?.checked;
+  if (useCount && !transportOn) {
+    countingIn = true;
+    recordToggleButton.textContent = "■ Count-in";
+    const wait = playCountClicks();
+    updateStatus("Count-in · 1 2 3 4");
+    await new Promise((resolve) => window.setTimeout(resolve, wait));
+    countingIn = false;
+    if (token !== countToken) return;
+  } else if (useCount && transportOn) {
+    countingIn = true;
+    recordToggleButton.textContent = "■ Count-in";
+    const wait = playCountClicks();
+    updateStatus("Count-in über dem Beat");
+    await new Promise((resolve) => window.setTimeout(resolve, wait));
+    countingIn = false;
+    if (token !== countToken) return;
+  }
+
+  if (!transportOn) startBeat();
+
   recordedChunks = [];
   const mime = recorderMime();
+  const startedAt = performance.now();
   mediaRecorder = mime
     ? new MediaRecorder(recordDestination.stream, { mimeType: mime })
     : new MediaRecorder(recordDestination.stream);
@@ -834,7 +1275,8 @@ async function toggleRecording() {
     downloadLink.href = url;
     downloadLink.download = `flowforge-aufnahme.${ext}`;
     downloadLink.hidden = false;
-    updateStatus("Aufnahme bereit – Beat und Stimme");
+    pushTake(blob, type, startedAt);
+    updateStatus("Take liegt bereit – Beat und Stimme");
   };
 
   mediaRecorder.start();
@@ -993,7 +1435,15 @@ window.FlowForge = {
     status: statusText.textContent,
     bar: barPositionText.textContent,
     step: stepIndex,
+    loopBars,
+    freestyle: freestyle ? { length: freestyle.length, done: freestyle.done, history: freestyle.history.slice() } : null,
+    takes: takes.length,
+    practice: loadPractice(),
   }),
+  suggest: (word) => window.FlowRhymes.suggest(word),
+  setLoop,
+  startFreestyle,
+  showRhymes,
 };
 
 bpmInput.addEventListener("input", () => {
@@ -1070,8 +1520,49 @@ if (beatBay) {
   });
 }
 
+document.querySelectorAll("[data-loop]").forEach((button) => {
+  button.addEventListener("click", () => setLoop(Number(button.dataset.loop) || 0));
+});
+
+const freestyleToggle = document.getElementById("freestyleToggle");
+if (freestyleToggle) {
+  freestyleToggle.addEventListener("click", () => {
+    if (freestyle && !freestyle.done) finishFreestyle();
+    else startFreestyle();
+  });
+}
+
+const adoptFreestyleButton = document.getElementById("adoptFreestyle");
+if (adoptFreestyleButton) adoptFreestyleButton.addEventListener("click", adoptFreestyle);
+
+const rhymeInput = document.getElementById("rhymeInput");
+const rhymeFromLine = document.getElementById("rhymeFromLine");
+if (rhymeInput) {
+  rhymeInput.addEventListener("input", () => showRhymes(rhymeInput.value));
+}
+if (rhymeFromLine) {
+  rhymeFromLine.addEventListener("click", () => {
+    const index = activeBarIndex >= 0 ? activeBarIndex : 0;
+    const entry = lyricLines[index];
+    const word = entry && window.FlowRhymes ? window.FlowRhymes.lastWord(entry.line) : "";
+    if (word) showRhymes(word);
+    else updateStatus("Keine Zeile für den Reim", false);
+  });
+}
+
+const flowTarget = document.getElementById("flowTarget");
+if (flowTarget) {
+  flowTarget.addEventListener("change", () => {
+    lyricsOutput.querySelectorAll(".lyric-row").forEach((row, index) => {
+      if (lyricLines[index]) refreshLine(lyricLines[index], row);
+    });
+  });
+}
+
 window.setInterval(calculateBarPosition, 50);
 renderStreak();
+renderPractice();
+buildPocket();
 renderBeatLibrary();
 selectBeat(selectedId);
 drawBeatViz();

@@ -1,121 +1,121 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-11-09",
-  "generatedAt": "2026-11-09T13:54:39.766Z",
-  "attempt": 4,
+  "edition": "2026-11-10",
+  "generatedAt": "2026-11-10T13:28:36.970Z",
+  "attempt": 0,
   "theme": {
-    "id": "phoenix",
-    "title": "Phönix",
-    "mood": "trotzig",
-    "description": "Rückschläge in Treibstoff verwandeln und neu starten.",
+    "id": "vollgas",
+    "title": "Vollgas",
+    "mood": "hoch",
+    "description": "Double-Time, keine Bremsen, der Takt gibt die Richtung.",
     "keywords": [
-      "Asche",
-      "Feuer",
-      "Neustart",
-      "Flügel",
-      "Glut",
-      "Comeback"
+      "Tempo",
+      "Motor",
+      "Turbo",
+      "Strecke",
+      "Adrenalin",
+      "Start"
     ]
   },
   "challenge": {
-    "id": "punchline-schmiede",
-    "title": "Punchline-Schmiede",
-    "task": "Baue in 8 Bars mindestens vier Punchlines zum Thema „Phönix“ – jede zweite Zeile muss sitzen.",
-    "constraint": "Mindestens zwei Zeilen enthalten einen Doppelreim.",
-    "bars": 8,
-    "bpm": 137
+    "id": "atem-marathon",
+    "title": "Atem-Marathon",
+    "task": "Performe 12 Bars über „Vollgas“ mit maximal einem Atemzug pro zwei Zeilen – Pausen bewusst setzen.",
+    "constraint": "Die Hook-Zeile muss eine Frage sein.",
+    "bars": 12,
+    "bpm": 100
   },
   "wordPacks": [
     {
-      "id": "phoenix-thema",
-      "title": "Thema: Phönix",
+      "id": "vollgas-thema",
+      "title": "Thema: Vollgas",
       "words": [
-        "Feuer",
-        "Glut",
-        "Neustart",
-        "Asche",
-        "Comeback",
-        "Flügel"
+        "Motor",
+        "Strecke",
+        "Tempo",
+        "Adrenalin",
+        "Turbo",
+        "Start"
       ]
     },
     {
-      "id": "2026-11-09-bilder",
+      "id": "2026-11-10-bilder",
       "title": "Bilder & Metaphern",
       "words": [
+        "Spiegel",
+        "Schatten",
+        "Asphalt",
+        "Silhouette",
         "Radar",
-        "Satellit",
-        "Anker",
-        "Antenne",
-        "Echo",
-        "Neonlicht"
+        "Tinte"
       ]
     },
     {
-      "id": "2026-11-09-energie",
+      "id": "2026-11-10-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Instinkt",
+        "Feuer",
+        "Stolz",
         "Frieden",
-        "Geduld",
-        "schweben",
-        "pushen",
-        "kreisen"
+        "starten",
+        "grinden",
+        "driften"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Glut",
-      "b": "Mut"
-    },
-    {
-      "a": "Weite",
-      "b": "Seite"
-    },
-    {
-      "a": "Feuer",
-      "b": "teuer"
-    },
-    {
-      "a": "Druck",
-      "b": "Ruck"
-    },
-    {
-      "a": "Takt",
-      "b": "exakt"
+      "a": "Wort",
+      "b": "Ort"
     },
     {
       "a": "Rauch",
       "b": "auch"
+    },
+    {
+      "a": "Meer",
+      "b": "schwer"
+    },
+    {
+      "a": "Glut",
+      "b": "Mut"
+    },
+    {
+      "a": "Hallen",
+      "b": "knallen"
+    },
+    {
+      "a": "Zeilen",
+      "b": "eilen"
     }
   ],
   "starterBars": [
     {
-      "line": "Antenne in den Zeilen, jede Silbe nimmt mich mit",
-      "syllables": 14
+      "line": "Motor bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 12
     },
     {
-      "line": "Ich zähl die Beats wie Flügel, alles landet exakt",
+      "line": "Adrenalin im Blick, ich bleib ruhig auf der Eins",
       "syllables": 13
     },
     {
-      "line": "Zwischen Flügel und Antenne find ich Raum für den Reim",
-      "syllables": 14
+      "line": "Mit Fundament in der Stimme klingt selbst Stille wie ein Ruf",
+      "syllables": 15
     },
     {
-      "line": "Antenne auf Repeat, bis die Hook von alleine läuft",
+      "line": "Aus Adrenalin wird ein Plan, aus dem Plan wird ein Schritt",
       "syllables": 14
     }
   ],
   "flowTip": {
-    "id": "call-response",
-    "title": "Call & Response",
-    "tip": "Lass Zeile 2 auf Zeile 1 antworten – Frage/Antwort-Strukturen halten Zuhörer automatisch im Takt."
+    "id": "pausen-power",
+    "title": "Pausen sind Punchlines",
+    "tip": "Eine gut gesetzte Pause vor der Punchline verdoppelt ihre Wirkung. Stille ist Teil des Flows."
   },
-  "quote": "Der Beat wartet nicht – aber er verzeiht jedem, der wiederkommt.",
+  "quote": "Große Hooks entstehen oft aus kleinen Selbstgesprächen.",
   "beatPreset": {
-    "bpm": 137,
-    "pattern": "Trap Halftime",
+    "bpm": 100,
+    "pattern": "West Coast Bounce",
     "energy": "mittel"
   },
   "editorial": {
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-11-09",
+    "latestEdition": "2026-11-10",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

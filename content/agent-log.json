@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-11-10T13:28:36.970Z",
+    "edition": "2026-11-10",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 19,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Vollgas“, West Coast Bounce @ 100 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Atem-Marathon“ (12 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-11-10 veröffentlicht (Hash 4f6427a4)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-11-09T13:54:39.766Z",
     "edition": "2026-11-09",
     "attempt": 4,
@@ -1871,41 +1906,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-09-20 veröffentlicht (Hash 72c656fa)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-09-19T09:31:17.121Z",
-    "edition": "2026-09-19",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 18,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Goldene Stunde“, Trap Halftime @ 148 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Atem-Marathon“ (8 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-09-19 veröffentlicht (Hash 6615fe1d)."
       }
     ]
   }

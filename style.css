@@ -859,3 +859,233 @@ body.trainer select:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+.practice-strip {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.stat {
+  display: grid;
+  justify-items: center;
+  min-width: 72px;
+  gap: 1px;
+}
+
+.stat span,
+.stat small {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--subtle);
+}
+
+.stat strong {
+  font-size: 1.35rem;
+  line-height: 1.1;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.pocket {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.pocket-beat {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  padding: 6px 6px 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.pocket-beat span {
+  grid-column: 1 / -1;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: var(--subtle);
+}
+
+.pocket-beat i {
+  display: block;
+  height: 10px;
+  border-radius: 2px;
+  background: rgba(246, 241, 231, 0.16);
+}
+
+.pocket-beat i.is-on {
+  background: #dff25a;
+  box-shadow: 0 0 8px rgba(223, 242, 90, 0.65);
+}
+
+.pocket-beat.is-down {
+  outline: 1px solid rgba(223, 242, 90, 0.55);
+}
+
+.coach-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 4px 0 12px;
+}
+
+.loop-switch {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--subtle);
+  font-size: 0.82rem;
+}
+
+body.trainer .loop-btn,
+body.trainer .rhyme-chip {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid rgba(246, 241, 231, 0.18);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+body.trainer .loop-btn.is-on,
+body.trainer #freestyleToggle.is-on,
+body.trainer .take-btn.is-on {
+  background: var(--accent);
+  color: #1a1c0e;
+  border-color: transparent;
+}
+
+.flow-target {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--subtle);
+  font-size: 0.82rem;
+}
+
+.flow-target select {
+  margin: 0;
+}
+
+.freestyle-cue {
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #17180f;
+  border: 1px solid rgba(223, 242, 90, 0.45);
+  color: #f6f8d4;
+  font-size: clamp(1.2rem, 2vw, 1.7rem);
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+#adoptFreestyle {
+  margin: -4px 0 12px;
+}
+
+.lyric-top {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.bar-no {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--subtle);
+  white-space: nowrap;
+}
+
+.scheme {
+  font-weight: 800;
+  color: var(--accent);
+  min-width: 0.8em;
+}
+
+.lyric-text {
+  flex: 1;
+  min-height: 1.3em;
+  outline: none;
+  border-radius: 6px;
+}
+
+.lyric-text:focus {
+  background: rgba(223, 242, 90, 0.08);
+}
+
+.lyric-row[data-flow="ok"] .lyric-meta {
+  color: var(--ok);
+}
+
+.lyric-row[data-flow="hot"] .lyric-meta {
+  color: #ffb15a;
+}
+
+.lyric-row[data-flow="thin"] .lyric-meta {
+  color: #9eb0d4;
+}
+
+.rhyme-box {
+  margin-top: 12px;
+}
+
+.rhyme-box .row input[type="text"] {
+  width: auto;
+  flex: 1;
+  min-width: 140px;
+  margin-bottom: 0;
+}
+
+.scheme-line,
+.rhyme-label {
+  margin: 8px 0 4px;
+  font-size: 0.8rem;
+  color: var(--subtle);
+}
+
+.scheme-line strong {
+  color: var(--text);
+  letter-spacing: 0.12em;
+}
+
+.rhyme-group .chips {
+  margin-bottom: 4px;
+}
+
+.count-in {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--subtle);
+  font-size: 0.85rem;
+}
+
+.takes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .practice-strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .pocket {
+    grid-column: 1 / -1;
+  }
+
+  .coach-row,
+  .rhyme-box .row {
+    align-items: stretch;
+  }
+}

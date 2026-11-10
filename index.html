@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="assets/logo.png" />
   <link rel="stylesheet" href="style.css" />
   <script src="beats.js" defer></script>
+  <script src="rhymes.js" defer></script>
   <script src="game.js" defer></script>
   <script src="channel.js" defer></script>
 </head>
@@ -17,7 +18,7 @@
         <img class="brand-logo" src="assets/logo.png" alt="FlowForge Logo" />
         <div>
           <h1>FlowForge</h1>
-          <p>Beat wählen, Text bauen, Flow aufnehmen. Lizenzfreie Original-Beats oder deine eigene Datei.</p>
+          <p>Tasche treffen, Reim setzen, Loop drehen. Der Trainer für Leute, die wirklich besser werden wollen.</p>
         </div>
       </div>
       <div class="hero-side">
@@ -33,6 +34,25 @@
         </div>
       </div>
     </header>
+
+    <section class="practice-strip glass" aria-label="Training">
+      <div class="stat">
+        <span>Heute</span>
+        <strong id="statBars">0</strong>
+        <small>Takte</small>
+      </div>
+      <div class="stat">
+        <span>Loops</span>
+        <strong id="statLoops">0</strong>
+        <small>heute</small>
+      </div>
+      <div class="stat">
+        <span>Freestyle</span>
+        <strong id="statFree">–</strong>
+        <small>Best</small>
+      </div>
+      <div id="pocket" class="pocket" aria-label="Taktgitter. Die helle Zelle ist die aktuelle Sechzehntel."></div>
+    </section>
 
     <section class="beat-bay glass" aria-label="Beat-Bibliothek">
       <div class="bay-head">
@@ -54,8 +74,8 @@
 
     <section class="grid">
       <article class="panel glass">
-        <h2>1) Prompt & Lyrics</h2>
-        <p>2–3 Schlagwörter eingeben. Die App baut daraus taktgenaue Zeilen – Karaoke läuft am Beat mit.</p>
+        <h2>1) Schreiben & Reime</h2>
+        <p>Zeilen sind editierbar. Der Buchstabe zeigt die Reimfamilie, die Farbe ob die Silbendichte zum Ziel passt.</p>
 
         <label for="keywords">Schlagwörter</label>
         <input id="keywords" type="text" placeholder="z. B. Straße, Träume, Fokus" />
@@ -63,11 +83,42 @@
         <div class="row">
           <label for="bars">Bars</label>
           <input id="bars" type="number" min="2" max="24" value="8" />
-          <button id="generateLyrics" class="btn">Text generieren</button>
+          <button id="generateLyrics" class="btn" type="button">Text generieren</button>
+          <button id="freestyleToggle" class="btn muted" type="button">Freestyle-Runde</button>
         </div>
+
+        <div class="coach-row">
+          <div class="loop-switch" role="group" aria-label="Loop-Länge">
+            <span>Loop</span>
+            <button class="loop-btn is-on" type="button" data-loop="0">Frei</button>
+            <button class="loop-btn" type="button" data-loop="1">1</button>
+            <button class="loop-btn" type="button" data-loop="2">2</button>
+            <button class="loop-btn" type="button" data-loop="4">4</button>
+          </div>
+          <label class="flow-target" for="flowTarget">Flow-Ziel
+            <select id="flowTarget">
+              <option value="2">locker · 2</option>
+              <option value="3" selected>mittel · 3</option>
+              <option value="4">dicht · 4</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="freestyleCue" class="freestyle-cue" hidden></div>
+        <button id="adoptFreestyle" class="btn muted" type="button" hidden>Cues in den Text übernehmen</button>
 
         <div class="lyrics-wrap" id="lyricsWrap">
           <div id="lyricsOutput" class="lyrics-list" aria-live="polite"></div>
+        </div>
+
+        <div class="rhyme-box">
+          <div class="row">
+            <label for="rhymeInput">Reim auf</label>
+            <input id="rhymeInput" type="text" placeholder="Wort oder letzte Silbe" />
+            <button id="rhymeFromLine" class="btn muted" type="button">Letztes Wort</button>
+          </div>
+          <p class="scheme-line">Reimfolge <strong id="schemeLine">–</strong></p>
+          <div id="rhymeResults"></div>
         </div>
       </article>
 
@@ -81,6 +132,7 @@
           <button id="startBeat" class="btn" type="button">▶ Beat starten</button>
           <button id="stopBeat" class="btn muted" type="button">■ Beat stoppen</button>
           <button id="recordToggle" class="btn danger" type="button">● Aufnahme starten</button>
+          <label class="count-in"><input id="countIn" type="checkbox" checked /> Count-in</label>
         </div>
 
         <div class="mix-row">
@@ -120,6 +172,7 @@
         <div class="downloads">
           <audio id="playback" controls></audio>
           <a id="downloadLink" class="btn" download="flowforge-recording.webm" hidden>Aufnahme speichern</a>
+          <div id="takes" class="takes"></div>
         </div>
       </article>
     </section>

@@ -6632,8 +6632,25 @@
     lctx.rotate(p.aim);
     lctx.drawImage(ls, 0, -120 / LS, 460 / LS, 240 / LS);
     lctx.restore();
-    lctx.globalAlpha = 1;
     lctx.globalCompositeOperation = "source-over";
+    // v3.8 Taschenlampen-Schatten: hinter Gegnern im Lichtkegel kehrt die Dunkelheit als gestreckter Fleck zurück
+    // (die Licht-Leinwand ist niedrig aufgelöst – die Kanten werden beim Hochskalieren von selbst weich)
+    lctx.fillStyle = `rgb(${dr},${dg},${db})`;
+    const ca = Math.cos(p.aim), sa = Math.sin(p.aim);
+    let ns = 0;
+    for (const e of enemies) {
+      if (e.dead || e.spawnT > 0 || e.under || ns >= 48) continue;
+      const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy);
+      if (d < 30 || d > 430) continue;
+      const cosA = (dx * ca + dy * sa) / d;
+      if (cosA < 0.85) continue;
+      const k = Math.min(1, (cosA - 0.85) / 0.1) * (1 - d / 430), L2 = Math.min(150, 34 + d * 0.5), r = e.r * (e.scale || 1);
+      lctx.globalAlpha = alpha * 0.95 * k;
+      lctx.beginPath(); lctx.ellipse((e.x + (dx / d) * L2 * 0.5) / LS, (e.y + (dy / d) * L2 * 0.5) / LS, (L2 * 0.56) / LS, (r * (1 + L2 / 300)) / LS, Math.atan2(dy, dx), 0, TAU); lctx.fill();
+      ns++;
+    }
+    run.flashSh = ns;
+    lctx.globalAlpha = 1;
     ctx.drawImage(lightCanvas, 0, 0, lw * LS, lh * LS);
   }
 

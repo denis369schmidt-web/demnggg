@@ -406,6 +406,7 @@ window.Render3D = (() => {
   let addB = null; // additiv: Glows, Feuer, Funken, Leuchtspuren, Blitze
   let floorB = null; // additiv mit Tiefentest: Lichtinseln, Ringe, Pfeile am Boden
   let normB = null; // normal: Rauch, Blut, Gibs, Hülsen, Warnflächen
+  let shadeB = null; // v3.8 normal, NACH dem Lichtkegel gezeichnet: Taschenlampen-Schatten dunkeln auch den Kegel ab
   const camR = new T3.Vector3(), camU = new T3.Vector3();
 
   // Kamera-zugewandtes Quad
@@ -426,6 +427,29 @@ window.Render3D = (() => {
     B.add(x, y, z, camR.x * sx, camR.y * sx, camR.z * sx, camU.x * sy, camU.y * sy, camU.z * sy, cell, r, g, b, a);
   }
   // Waagerechtes Quad (liegt auf dem Boden bzw. in Flughöhe), Länge entlang Winkel ang
+  // v3.8 Taschenlampen-Schatten: Figuren und kleine Hindernisse im Lichtkegel werfen lange weiche Schatten vom Helden weg.
+  // Kein zusätzlicher Schatten-Durchgang – je Körper ein gestreckter dunkler Fleck in einem eigenen kleinen Batch (alle 3D-Stufen),
+  // der mit der Blickrichtung wandert: zum Kegelrand und mit der Entfernung blasser, weiter weg länger.
+  const FLASH_SH = { range: 520, cos0: 0.8, cos1: 0.93, max: 64 };
+  function flashShadows(w) {
+    const p = w.player, ca = Math.cos(p.aim), sa = Math.sin(p.aim);
+    let n = 0;
+    const cast = (x, z, r, h) => {
+      const dx = x - p.x, dz = z - p.y, d = Math.hypot(dx, dz);
+      if (d < 26 || d > FLASH_SH.range || n >= FLASH_SH.max) return;
+      const cosA = (dx * ca + dz * sa) / d;
+      if (cosA < FLASH_SH.cos0) return;
+      const k = Math.min(1, (cosA - FLASH_SH.cos0) / (FLASH_SH.cos1 - FLASH_SH.cos0)) * (1 - d / FLASH_SH.range);
+      if (k < 0.05) return;
+      const L = Math.min(190, (34 + d * 0.55) * h), ux = dx / d, uz = dz / d, off = L * 0.36 + r * 0.3;
+      flat(shadeB, x + ux * off, 0.62, z + uz * off, Math.atan2(dz, dx), L * 0.5, r * (1.05 + L / 280), CELL.blob, "0,0,0", Math.min(0.72, k));
+      n++;
+    };
+    for (const e of w.enemies) if (!e.dead && e.spawnT <= 0 && !e.under) cast(e.x, e.y, e.r * (e.scale || 1), e.def && e.def.boss ? 1.3 : 1);
+    for (const sv of w.survivors || []) if (sv.state === "wait" || sv.state === "run") cast(sv.x, sv.y, 12, 0.9);
+    for (const o of w.obstacles) if (!o.dead && !o.gateBar && !o.landmark && Math.max(o.w, o.h) <= 96) cast(o.x + o.w / 2, o.y + o.h / 2, Math.max(o.w, o.h) * 0.42, 0.8);
+    return n;
+  }
   function flat(B, x, y, z, ang, halfLen, halfW, cell, rgb, a) {
     const [r, g, b] = lin(rgb);
     const c = Math.cos(ang), s = Math.sin(ang);
@@ -504,7 +528,9 @@ window.Render3D = (() => {
     addB = new QuadBatch(2600, atlas, true);
     normB = new QuadBatch(1600, atlas, false);
     floorB = new QuadBatch(900, atlas, true, true); // v3.6: Platz für Spiegelungen und Lichtschein der Läden
-    scene.add(addB.mesh, normB.mesh, floorB.mesh);
+    shadeB = new QuadBatch(96, atlas, false);
+    shadeB.mesh.renderOrder = 27; // Lichtkegel (beam) hat 26
+    scene.add(addB.mesh, normB.mesh, floorB.mesh, shadeB.mesh);
     // Sichtbarer Lichtkegel der Taschenlampe (staubige Luft)
     const beamGeo = new T3.ConeGeometry(120, 300, 28, 1, true);
     beamGeo.translate(0, -150, 0);
@@ -5122,7 +5148,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   function fillBatches(w, t) {
     const m = camera.matrixWorld.elements;
     camR.set(m[0], m[1], m[2]); camU.set(m[4], m[5], m[6]);
-    addB.begin(); normB.begin(); floorB.begin();
+    addB.begin(); normB.begin(); floorB.begin(); shadeB.begin();
     const p = w.player;
     // Partikel
     for (const q of w.particles) {
@@ -5289,6 +5315,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { flat(floorB, cx + sx * ex, 0.8, cz + sz * ez, 0, 34, 34, CELL.glow, "255,214,150", 0.32); bill(addB, cx + sx * ex, 43, cz + sz * ez, 10, CELL.glow, "255,224,160", 0.5); }
     }
     // v3.4 weicher Kontaktschatten unter Hindernissen, wenn keine Schattenkarte läuft (Grafikstufe 1), und unter fliegenden Krähen
+    if (w.player && w.state !== "over") flashShadows(w); // v3.8
     if (quality < 2) for (const o of w.obstacles) if (!o.dead && !o.gateBar) flat(normB, o.x + o.w / 2 + 6, 0.5, o.y + o.h / 2 + 8, 0, o.w / 2 + 14, o.h / 2 + 14, CELL.blob, "0,0,0", 0.42);
     for (const b of w.birds || []) if (b.fly) flat(normB, b.x, 0.6, b.y, 0, 6, 4, CELL.blob, "0,0,0", Math.max(0, 0.35 - b.z / 600));
     // v3.3 Beutekiste: Lichtsäule (senkrechtes, zur Kamera gedrehtes Quad), Schein und Ring in der Seltenheitsfarbe
@@ -5476,7 +5503,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
         bill(addB, x, hgt, z, 1.3 + (i % 3) * 0.5, CELL.glow, "255,240,210", 0.5 * (1 - d / 280) * (1 - Math.abs(side) / (d * 0.4 + 1)) * tw);
       }
     }
-    addB.end(); normB.end(); floorB.end();
+    addB.end(); normB.end(); floorB.end(); shadeB.end();
   }
 
 
@@ -5748,22 +5775,29 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     main.texture.colorSpace = T3.SRGBColorSpace; // Halbfloat: bleibt RGBA16F, die Shader schreiben sRGB-Werte hinein
     main.isXRRenderTarget = true;
     const a = new T3.WebGLRenderTarget(4, 4, { ...tOpt, depthBuffer: false }), b = new T3.WebGLRenderTarget(4, 4, { ...tOpt, depthBuffer: false });
+    // v3.8 zweite, weite Leucht-Stufe in Achtel-Auflösung (weicher Dunst um Lichter) – vier winzige Durchgänge
+    const c = new T3.WebGLRenderTarget(4, 4, { ...tOpt, depthBuffer: false }), d = new T3.WebGLRenderTarget(4, 4, { ...tOpt, depthBuffer: false });
     const sm = (frag, uniforms, toneMapped = false) => new T3.ShaderMaterial({ uniforms, vertexShader: POST_VS, fragmentShader: frag, depthTest: false, depthWrite: false, toneMapped });
     const bright = sm(`uniform sampler2D src; uniform vec2 texel; uniform float th; varying vec2 vUv;
-vec3 tap(vec2 o) { vec3 c = texture2D(src, vUv + o * texel).rgb; float l = max(c.r, max(c.g, c.b)); return c * smoothstep(th, th + 0.22, l); }
-void main() { gl_FragColor = vec4((tap(vec2(-1.0, -1.0)) + tap(vec2(1.0, -1.0)) + tap(vec2(-1.0, 1.0)) + tap(vec2(1.0, 1.0))) * 0.25, 1.0); }`,
+float lum = 0.0;
+vec3 tap(vec2 o) { vec3 c = texture2D(src, vUv + o * texel).rgb; float l = max(c.r, max(c.g, c.b)); lum += dot(c, vec3(0.299, 0.587, 0.114)); return c * smoothstep(th, th + 0.22, l); }
+// v3.8: Alpha trägt die mittlere Bildhelligkeit – nach dem Weichzeichnen die Grundlage für den lokalen Kontrast
+void main() { vec3 g = (tap(vec2(-1.0, -1.0)) + tap(vec2(1.0, -1.0)) + tap(vec2(-1.0, 1.0)) + tap(vec2(1.0, 1.0))) * 0.25; gl_FragColor = vec4(g, lum * 0.25); }`,
     { src: { value: null }, texel: { value: new T3.Vector2() }, th: { value: 0.8 } });
     const blur = sm(`uniform sampler2D src; uniform vec2 dir; varying vec2 vUv;
 void main() {
-  vec3 c = texture2D(src, vUv).rgb * 0.227;
-  c += (texture2D(src, vUv + dir * 1.385).rgb + texture2D(src, vUv - dir * 1.385).rgb) * 0.316;
-  c += (texture2D(src, vUv + dir * 3.231).rgb + texture2D(src, vUv - dir * 3.231).rgb) * 0.07;
-  gl_FragColor = vec4(c, 1.0);
+  vec4 c = texture2D(src, vUv) * 0.227;
+  c += (texture2D(src, vUv + dir * 1.385) + texture2D(src, vUv - dir * 1.385)) * 0.316;
+  c += (texture2D(src, vUv + dir * 3.231) + texture2D(src, vUv - dir * 3.231)) * 0.07;
+  gl_FragColor = c;
 }`, { src: { value: null }, dir: { value: new T3.Vector2() } });
     // v3.0: Druckwellen verzerren das Bild ringförmig (bis zu 4 gleichzeitig), leichter Farbsaum zum Rand hin,
     // bei Treffern kurz entsättigt und rötlich
-    const comp = sm(`uniform sampler2D src; uniform sampler2D glow; uniform float k; uniform float sat; uniform vec3 tint;
-uniform vec4 shock[4]; uniform float aspect; uniform float ca; uniform float hurt; uniform vec2 grade; uniform float slowk; varying vec2 vUv;
+    // v3.8: zweistufiges Leuchten (eng + weit), Nachschärfen (gleicht die begrenzte 3D-Auflösung aus), lokaler Kontrast
+    // aus der weichgezeichneten Helligkeit, Rauschmuster gegen Farbstufen in dunklen Verläufen
+    const comp = sm(`uniform sampler2D src; uniform sampler2D glow; uniform sampler2D glow2; uniform float k; uniform float k2; uniform float sat; uniform vec3 tint;
+uniform vec4 shock[4]; uniform float aspect; uniform float ca; uniform float hurt; uniform vec2 grade; uniform float slowk;
+uniform vec2 texel; uniform float sharp; uniform float clarity; varying vec2 vUv;
 void main() {
   vec2 off = vec2(0.0);
   for (int i = 0; i < 4; i++) {
@@ -5779,7 +5813,14 @@ void main() {
   float a = ca + length(off) * 0.3;
   vec2 dir = vUv - 0.5;
   vec3 c = vec3(texture2D(src, uv + dir * a).r, texture2D(src, uv).g, texture2D(src, uv - dir * a).b);
-  c += texture2D(glow, uv).rgb * k;
+  // Nachschärfen: Abstand zum Mittel der vier Nachbarn, begrenzt (kein Überschwingen an harten Kanten)
+  vec3 nb = (texture2D(src, uv + vec2(texel.x, 0.0)).rgb + texture2D(src, uv - vec2(texel.x, 0.0)).rgb + texture2D(src, uv + vec2(0.0, texel.y)).rgb + texture2D(src, uv - vec2(0.0, texel.y)).rgb) * 0.25;
+  c += clamp(c - nb, -0.07, 0.07) * sharp;
+  vec4 g1 = texture2D(glow, uv), g2 = texture2D(glow2, uv);
+  // lokaler Kontrast: heller als die Umgebung → etwas heller, dunkler → etwas dunkler (nicht in sehr hellen Zonen: keine Höfe um Lampen)
+  float l0 = dot(c, vec3(0.299, 0.587, 0.114));
+  c *= 1.0 + clarity * clamp(l0 - g2.a, -0.14, 0.14) * 2.2 * (1.0 - smoothstep(0.45, 0.9, g2.a));
+  c += g1.rgb * k + g2.rgb * k2;
   float l = dot(c, vec3(0.299, 0.587, 0.114));
   c = mix(vec3(l), c, sat) * tint;
   // v3.5 Filmlook: sanfte S-Kurve (mehr Tiefe in Schatten und Mitten), kühle Schatten, warme Lichter
@@ -5790,12 +5831,15 @@ void main() {
   // v3.7 Power-up Zeitlupe: kühler, entsättigter Filmlook, zum Rand hin stärker (Lichter bleiben farbig)
   float vg = smoothstep(0.2, 0.85, length((vUv - 0.5) * vec2(aspect, 1.0)));
   c = mix(c, vec3(l) * vec3(0.8, 0.9, 1.2), slowk * (0.35 + 0.4 * vg) * (1.0 - smoothstep(0.55, 0.95, l)));
+  // Rauschmuster (±½ Farbstufe, „interleaved gradient noise“): löst Streifen in dunklen Verläufen auf
+  c += (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) - 0.5) / 255.0;
   gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0); // Werte sind schon Bildschirm-sRGB
-}`, { src: { value: null }, glow: { value: null }, k: { value: 0.85 }, sat: { value: 1.06 }, tint: { value: postTint }, shock: { value: shockU }, aspect: { value: 1 }, ca: { value: 0.001 }, hurt: { value: 0 }, grade: { value: new T3.Vector2(0.26, 1) }, slowk: { value: 0 } });
+}`, { src: { value: null }, glow: { value: null }, glow2: { value: null }, k: { value: 0.7 }, k2: { value: 0.5 }, sat: { value: 1.06 }, tint: { value: postTint }, shock: { value: shockU }, aspect: { value: 1 }, ca: { value: 0.001 }, hurt: { value: 0 }, grade: { value: new T3.Vector2(0.26, 1) }, slowk: { value: 0 },
+      texel: { value: new T3.Vector2() }, sharp: { value: 0.55 }, clarity: { value: 0.4 } });
     const quad = new T3.Mesh(new T3.PlaneGeometry(2, 2), comp), sc = new T3.Scene();
     quad.frustumCulled = false;
     sc.add(quad);
-    return { main, a, b, quad, sc, cam: new T3.Camera(), bright, blur, comp, w: 0, h: 0 };
+    return { main, a, b, c, d, quad, sc, cam: new T3.Camera(), bright, blur, comp, w: 0, h: 0 };
   }
   const postActive = () => postWanted && quality >= 2 && !postBroken;
   // Druckwellen aus neuen Explosionen (Feuerball-Partikel „boom“) – Bildschirmposition über die Kamera
@@ -5831,17 +5875,25 @@ void main() {
         P.main.setSize(W, H);
         const qw = Math.max(1, Math.round(W / 4)), qh = Math.max(1, Math.round(H / 4));
         P.a.setSize(qw, qh); P.b.setSize(qw, qh);
+        const ew = Math.max(1, Math.round(W / 8)), eh = Math.max(1, Math.round(H / 8));
+        P.c.setSize(ew, eh); P.d.setSize(ew, eh);
       }
       renderer.setRenderTarget(P.main);
       renderer.render(scene, camera);
-      const { quad, sc, cam, a, b } = P;
+      const { quad, sc, cam, a, b, c, d } = P;
       quad.material = P.bright; P.bright.uniforms.src.value = P.main.texture; P.bright.uniforms.texel.value.set(1 / W, 1 / H);
       renderer.setRenderTarget(a); renderer.render(sc, cam);
       const u = P.blur.uniforms;
       quad.material = P.blur;
       u.src.value = a.texture; u.dir.value.set(1 / a.width, 0); renderer.setRenderTarget(b); renderer.render(sc, cam);
       u.src.value = b.texture; u.dir.value.set(0, 1 / a.height); renderer.setRenderTarget(a); renderer.render(sc, cam);
-      quad.material = P.comp; P.comp.uniforms.src.value = P.main.texture; P.comp.uniforms.glow.value = a.texture;
+      // weite Stufe: enges Leuchten in Achtel-Auflösung zweimal weichzeichnen (zweiter Durchgang mit doppeltem Abstand)
+      u.src.value = a.texture; u.dir.value.set(1 / c.width, 0); renderer.setRenderTarget(d); renderer.render(sc, cam);
+      u.src.value = d.texture; u.dir.value.set(0, 1 / c.height); renderer.setRenderTarget(c); renderer.render(sc, cam);
+      u.src.value = c.texture; u.dir.value.set(2 / c.width, 0); renderer.setRenderTarget(d); renderer.render(sc, cam);
+      u.src.value = d.texture; u.dir.value.set(0, 2 / c.height); renderer.setRenderTarget(c); renderer.render(sc, cam);
+      quad.material = P.comp; P.comp.uniforms.src.value = P.main.texture; P.comp.uniforms.glow.value = a.texture; P.comp.uniforms.glow2.value = c.texture;
+      P.comp.uniforms.texel.value.set(1 / W, 1 / H);
       updateShocks(w);
       P.comp.uniforms.aspect.value = W / H;
       P.comp.uniforms.hurt.value = Math.min(1, ((w.player && w.player.hurtT) || 0) * 3);
@@ -5971,6 +6023,6 @@ void main() {
     setTilt(x, y) { menuCam.tiltX += (x - menuCam.tiltX) * 0.15; menuCam.tiltY += (y - menuCam.tiltY) * 0.15; },
     get ready() { return ready; },
     get bloom() { return !!(post && postActive()); },
-    get debug() { return { scene, camera, renderer, models, atmo, shCam, heliFly, room: () => room, floorQuads: () => floorB && floorB.n, post: () => post, woundAt, playerModel: () => playerModel, shocks, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
+    get debug() { return { scene, camera, renderer, models, atmo, shCam, heliFly, room: () => room, floorQuads: () => floorB && floorB.n, post: () => post, flashShadows, woundAt, playerModel: () => playerModel, shocks, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
   };
 })();

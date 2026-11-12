@@ -5,6 +5,26 @@ Android-Build, Emulator-Test, Store-Grafiken, Datenschutzerklärung). Die folgen
 Schritte brauchen **deine Identität, deine Konten oder deine Unterschrift** – die
 kann niemand für dich erledigen.
 
+## 0. Stand v4.0.0: fertig im Code – offen bei dir
+
+**Im Code erledigt und getestet**
+
+- Vollbild auf allen gängigen Seitenverhältnissen (16:9 bis 19,5:9), Notch-Abstände über `env(safe-area-inset-*)`
+- Drei Grafikstufen mit automatischer Rückstufung bei niedriger Bildrate, 30-FPS-Sparmodus
+- Deutsch und Englisch vollständig, Controller, Tastatur, Touch
+- Spielstand: lokal, Export/Import als Text (Einstellungen → „Spielstand sichern“)
+- Barrierearm: Bildschirmwackeln, Leuchteffekte, Kino-Effekte und Vibration einzeln abschaltbar, `prefers-reduced-motion` wird beachtet
+- Offline spielbar (Service Worker), keine Konten, keine Server
+- Regression: 48 automatische Browser-Läufe (2D und 3D)
+
+**Nur du kannst das erledigen – ohne diese Punkte keine Veröffentlichung**
+
+1. `zombie/privacy.html`: alle Stellen „BITTE AUSFÜLLEN“ (Name, Anschrift, Kontakt) eintragen.
+2. AdMob-IDs und Play-Store-Link in `zombie/config.js` (Abschnitt 3 unten).
+3. Signatur-Schlüssel erzeugen und als GitHub-Secrets hinterlegen (Abschnitt 4).
+4. Auf mindestens zwei echten Geräten spielen (ein schwaches, ein aktuelles): Bildrate, Akku, Werbung, Kauf.
+5. Store-Eintrag, Screenshots und Altersfreigabe in der Play Console (Abschnitt 5).
+
 ## 1. Rechtliches & Konten (einmalig)
 
 - [ ] **Gewerbe anmelden** (Gewerbeamt, ca. 20–60 €). Einnahmen aus Werbung/Käufen sind gewerblich.

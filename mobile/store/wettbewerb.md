@@ -1,7 +1,51 @@
-# Wettbewerbsanalyse – Outbreak Hero (Stand v1.5.0, Oktober 2026)
+# Wettbewerbsanalyse – Outbreak! Germany (Stand v4.0.0, November 2026)
 
-Ziel: Funktionen der stärksten Spiele der Nische (Auto-Shooter-Roguelites) vergleichen,
-Lücken schließen und dort besser sein, wo die Konkurrenz Spieler verärgert.
+Ziel: Funktionen der stärksten Spiele der Nische (Auto-Shooter-Roguelites und Zombie-Shooter fürs Handy)
+vergleichen, Lücken schließen und dort besser sein, wo die Konkurrenz Spieler verärgert.
+
+## Vergleich November 2026 (v4.0)
+
+Verglichen: Archero / Archero 2, Survivor.io, Capybara Go (alle Habby), Vampire Survivors, Brotato,
+Deep Rock Galactic: Survivor, Soul Knight, Zombie State, Zombero, Zombie World War: Storm.
+Quellen: Store-Einträge, Patch-Notizen und Testberichte (GamingOnPhone, Pocket Gamer, ProGameGuides), Stand 11/2026.
+
+| Funktion der Marktführer | Wer hat sie | Outbreak! Germany 4.0 |
+|---|---|---|
+| Skill-Wahl, Evolutionen, Sets | alle | ✓ (Rezepte offen sichtbar, Sets, legendäre Skills, Sperren) |
+| Ausrüstung mit Seltenheit | Archero, Survivor.io | ✓ sieben Plätze, Zusatz-Eigenschaften, sichtbar am Helden |
+| **Ausrüstung verschmelzen** | Archero, Survivor.io | **✓ neu: Schmiede 3 → 1** |
+| **Begleiter / Haustiere** | Archero, Survivor.io | **✓ neu: Waldi, Rex, Hugin – drei Rollen, trainierbar** |
+| **Sammelstücke mit Dauerbonus** | Survivor.io (Collectibles) | **✓ neu: Album der 13 Wahrzeichen** |
+| Talente / Runen | Archero 2 | ✓ Talente + Waffen-Mods |
+| Saisonpass, Missionen, Erfolge, Tagesbonus | alle F2P | ✓ |
+| Offline-Belohnung | Habby-Spiele | ✓ Patrouille |
+| Tägliche Herausforderung | Survivor.io | ✓ Tagesbefehl mit Serie |
+| Kapitel/Kampagne mit Bossen | alle | ✓ neun Städte, Stadt-Bosse mit Phasen |
+| Gilden, Gilden-Boss, Arena-PvP | Archero 2, Survivor.io | ✗ braucht Server – **Ersatz: Duell-Codes** (asynchron, ohne Konto) |
+| Cloud-Spielstand | alle großen | ✗ braucht Server – **Ersatz: Spielstand als Text sichern/einspielen** |
+| Energiesystem | Habby-Spiele (häufigste Kritik) | bewusst nicht |
+| Gacha für Ausrüstung | Habby-Spiele (Kritik: Pay-to-win) | bewusst nicht – Beute, Händler mit festen Preisen, Schmiede |
+
+### Was nur wir haben
+
+1. **Deutschland als Schauplatz** – neun echte Städte, Feste, Wahrzeichen mit Segen, deutsche Gegner und Bosse.
+2. **Duell-Codes ohne Server** – Herausforderung per Code oder Link, vorlesbar, mit Prüfzeichen; kein Konto, kein Tracking.
+3. **Evolutionsstufen der Zombies** – Gegner fressen Leichen und mutieren sichtbar im laufenden Einsatz.
+4. **Interaktive Umgebung** – Autos mit Alarmanlage als Köder, Kettenexplosionen, Stromkasten-Fallen in Pfützen.
+5. **Drei Kameras** (Übersicht, nah, Schulter) und echte 3D-Darstellung mit 2D-Sparmodus für schwache Geräte.
+6. **Vollständig offline, keine Energie, offene Gewinnchancen.**
+
+### Ehrliche Einordnung
+
+Funktional schließt 4.0 die Lücken zu den Marktführern, soweit das ohne Server geht. Marktführerschaft
+entscheidet sich danach an Dingen außerhalb des Codes: Store-Auftritt und Bewertungen, Werbebudget
+(Habby kauft Reichweite im großen Stil), regelmäßige Inhalte und Ereignisse nach dem Start sowie
+Messwerte echter Spieler (Bindung nach Tag 1/7/30). Der realistische Weg: Nische „deutsches Zombie-Roguelite“
+besetzen, mit kurzen Videos der Städte und Bosse Reichweite aufbauen, Bewertungen sammeln, dann ausbauen.
+
+---
+
+## Ältere Analyse (Stand v1.5.0, Oktober 2026)
 
 ## Verglichene Spiele
 

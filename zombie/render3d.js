@@ -600,7 +600,7 @@ window.Render3D = (() => {
   function applyCam(fov, offY) {
     if (menuMode) {
       menuMode = false;
-      fly = { t0: performance.now(), pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov, off: D.H * 0.075 };
+      fly = { t0: performance.now(), pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov, off: D.H * (0.5 - menuCam.cy) };
     }
     camera.position.copy(camPos);
     camera.lookAt(camLook);

@@ -7,13 +7,18 @@
   // Konstanten & Hilfsfunktionen
   // ============================================================
   const W = 540;
-  const H = 960;
+  // Bildhöhe in logischen Pixeln. 16:9 ist die Basis; hohe Handy-Displays (bis 19,5:9) bekommen mehr Spielfeld
+  // statt schwarzer Balken. Einmal beim Start festgelegt – alles Weitere (HUD, Kamera, 3D) rechnet mit H.
+  const H = (() => {
+    const aspect = window.innerHeight / Math.max(1, window.innerWidth);
+    return aspect > 16 / 9 ? Math.min(1170, Math.round((W * aspect) / 2) * 2) : 960;
+  })();
   // v3.4 größere Arenas: 1,5× so lang wie bisher – der Bildschirm (H) zeigt nur einen Ausschnitt, die Kamera läuft mit.
   const ARENA = { x: 24, y: 120, w: W - 48, h: 1200 };
   const L = ARENA.x, R = ARENA.x + ARENA.w, T = ARENA.y, B = ARENA.y + ARENA.h;
   const WH = B + 40; // Welthöhe (Boden-Leinwand samt unterer Mauer)
   const AREA_K = ARENA.h / 800; // Flächenfaktor gegenüber der alten Arena (Hindernisse, Bodendetails)
-  const ST = 120, SB = 920; // Bildschirm-Lage der alten Arena: HUD-Knöpfe und Tutorial bleiben dort
+  const ST = 120, SB = H - 40; // Bildschirm-Ränder des Spielfelds: HUD-Knöpfe und Tutorial richten sich danach
   let camY = 0, scrOff = 0; // 2D-Kamera (Weltversatz nach oben) und Versatz für Overlay-Projektionen
   const DOOR_W = 84;
   const ROOMS_PER_CHAPTER = 20;

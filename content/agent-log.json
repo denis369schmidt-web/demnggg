@@ -1,5 +1,55 @@
 [
   {
+    "runAt": "2026-11-12T13:46:11.953Z",
+    "edition": "2026-11-12",
+    "attempt": 3,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 21,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 2 abgelehnt (Frische)."
+      },
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 3 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Goldene Stunde“, West Coast Bounce @ 92 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Double-Time-Drill“ (8 Bars), Versuch 4."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-11-12 veröffentlicht (Hash e99bf90)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-11-11T12:43:50.404Z",
     "edition": "2026-11-11",
     "attempt": 2,
@@ -1851,51 +1901,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-09-23 veröffentlicht (Hash 8e5d7557)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-09-21T10:45:09.614Z",
-    "edition": "2026-09-21",
-    "attempt": 2,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 22,
-    "stages": [
-      {
-        "name": "Editor",
-        "ok": false,
-        "summary": "Versuch 1 abgelehnt (Frische)."
-      },
-      {
-        "name": "Editor",
-        "ok": false,
-        "summary": "Versuch 2 abgelehnt (Frische)."
-      },
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Heimathafen“, Double-Time Drill @ 152 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Storytelling-Run“ (8 Bars), Versuch 3."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-09-21 veröffentlicht (Hash 31de21e9)."
       }
     ]
   }

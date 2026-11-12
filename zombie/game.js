@@ -5251,7 +5251,7 @@
     const slotHtml = Object.entries(GEAR_SLOTS).map(([k, sl]) => {
       const it = g[k];
       const extra = it ? [affixStat(it), gearTrait(it)].filter(Boolean).map((s) => `<i>${s}</i>`).join("") : "";
-      return `<button class="gear-slot gs-${k}${it ? " r" + it.r : ""}" data-slot="${k}">${medal(sl.icon, it ? GEAR_RARITY[it.r].tone : "steel")}<small>${tr(sl.name)}</small><b>${it ? softHyphen(gearName(it)) : tr("leer")}</b><em>${it ? gearStat(it) : "–"}</em>${extra}</button>`;
+      return `<button class="gear-slot gs-${k}${it ? " r" + it.r : " empty"}" data-slot="${k}">${medal(sl.icon, it ? GEAR_RARITY[it.r].tone : "steel")}<small>${tr(sl.name)}</small>${it ? `<b>${softHyphen(gearName(it))}</b><em>${gearStat(it)}</em>` : `<b class="free">${tr("frei")}</b>`}${extra}</button>`;
     }).join("");
     $("gearSlots").innerHTML = `<div class="gear-power"><small>${tr("Kampfwert")}</small><b>${power}</b></div>${slotHtml}<button class="gear-dealer" id="gearDealer">${I("dealer")}<span>${tr("Händler")}</span></button>`;
     // angelegtes Teil antippen = ablegen (zurück in die Tasche)
@@ -5405,7 +5405,7 @@
     const rk = rankOf(bestScore()), streak = save.orderStreak && save.orderStreak.day >= dayNo() - 1 ? save.orderStreak.n : 0;
     $("rankTitle").innerHTML = `${I("medal")}<span><small>${tr("Dienstgrad")}</small><b>${rk.name}</b></span><em>${rk.next ? tr("Nächster: {r} ab {s} Punkten", { r: rk.next.name, s: num(rk.next.at) }) : tr("Höchster Rang erreicht")}</em>${streak ? `<strong>${tr("Serie {n}", { n: streak })}</strong>` : ""}`;
     const o = todaysOrder(), db = save.dailyBest && save.dailyBest.day === dayNo() ? save.dailyBest.s : 0;
-    $("dailyOrder").innerHTML = `${I("stopwatch")}<span><small>${tr("Tagesbefehl im Überlebensmodus")}</small><b>${tr(o.name)}</b><em>${tr(o.desc)} · ×${o.mul.toLocaleString(I18N.lang)} ${tr("Punkte")}</em></span><strong>${db ? num(db) : "–"}</strong>`;
+    $("dailyOrder").innerHTML = `${I("stopwatch")}<span><small>${tr("Tagesbefehl im Überlebensmodus")}</small><b>${tr(o.name)}</b><em>${tr(o.desc)} · ×${o.mul.toLocaleString(I18N.lang)} ${tr("Punkte")}</em></span>${db ? `<strong>${num(db)}</strong>` : ""}`;
     const list = save.scores || [];
     $("rankList").innerHTML = list.length ? list.map((e, i) => `<li class="${i === 0 ? "top" : ""}"><b>${i + 1}</b><span><strong>${num(e.s)}</strong><small>${e.m === "survival" ? tr("Überleben") : tr("Kampagne")}${e.t ? ` · ${tr("Bedrohung {n}", { n: e.t })}` : ""} · ${(SKINS.find((q) => q.id === e.h) || SKINS[0]).name}</small></span><em>${e.p}</em></li>`).join("") : `<p class="empty">${tr("Noch keine Einsätze – deine Bestwerte erscheinen hier.")}</p>`;
     $("rankShare").disabled = !list.length;

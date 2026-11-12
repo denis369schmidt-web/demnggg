@@ -411,7 +411,7 @@ window.I18N = (() => {
     "Feuerwehr-Ehrenzeichen": "Fire Brigade Medal",
     "Goldene Götz-Medaille": "Golden Götz Medal",
     "Legendär": "Legendary",
-    "leer": "empty",
+    "leer": "empty", "frei": "free",
     "Tasche {n}/{m} · Stadt-Bosse lassen Ausrüstung fallen": "Bag {n}/{m} · city bosses drop gear",
     "Besiege Stadt-Bosse, um Ausrüstung zu erbeuten. Höhere Bedrohung = bessere Beute.": "Defeat city bosses to loot gear. Higher threat = better loot.",
     "jetzt": "now",
@@ -984,7 +984,8 @@ window.I18N = (() => {
   function t(s, vars) {
     let out = lang === "en" && EN[s] !== undefined ? EN[s] : s;
     if (vars) out = out.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
-    return out;
+    // Deutsche Typografie: Zahl und Prozentzeichen bleiben zusammen, „25 %“ zerreißt nie am Zeilenende
+    return out.replace(/(\d) (?=[%‰])/g, "$1\u00a0");
   }
 
   function localizeData(tables) {

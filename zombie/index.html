@@ -27,17 +27,22 @@
     <!-- ============ Hauptmenü ============ -->
     <section id="menu" class="overlay menu">
       <header class="menu-top">
+        <!-- Dienstausweis: Dienstgrad und Fortschritt zum nächsten, Antippen öffnet die Bestenliste -->
+        <button class="id-chip" id="ranksBtn" aria-label="Bestenliste">
+          <i data-ic="medal"></i>
+          <span><small data-i18n>Dienstgrad</small><b id="menuRank">–</b><u aria-hidden="true"><s id="menuRankBar"></s></u></span>
+        </button>
         <div class="wallet"><i class="coin" data-ic="coin"></i><b id="menuCoins">0</b></div>
-        <!-- Eilmeldungs-Ticker: Nachrichten aus dem gefallenen Deutschland -->
-        <div class="ticker" aria-hidden="true"><b data-i18n>EILMELDUNG</b><div class="tk-track"><span id="tickerText"></span></div></div>
         <button class="round" id="settingsBtn" aria-label="Einstellungen"><i data-ic="gear"></i></button>
       </header>
+      <!-- Eilmeldungs-Ticker: Nachrichten aus dem gefallenen Deutschland -->
+      <div class="ticker" aria-hidden="true"><b data-i18n>EILMELDUNG</b><div class="tk-track"><span id="tickerText"></span></div></div>
 
       <div class="brand">
-        <div class="brand-top">OUTBREAK<em>!</em><span class="drips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+        <div class="brand-top">OUTBREAK<em>!</em></div>
         <div class="brand-bottom"><span>GERMANY</span></div>
       </div>
-      <!-- Fluchtroute als Fortschritt: Städte mit Kfz-Kennzeichen, Rekord leuchtet -->
+      <!-- Fluchtroute als Fortschritt: Städte mit Kfz-Kennzeichen, Rekord leuchtet; Antippen öffnet den Fluchtplan -->
       <button class="route-strip" id="routeStrip" aria-label="Fluchtplan">
         <span class="rs-head">
           <span class="rs-a"><small id="rsLabel">Fluchtroute</small><b id="menuBest">–</b></span>
@@ -49,12 +54,10 @@
       <nav class="rail rail-l">
         <button class="rail-btn" id="dailyBtn"><i data-ic="daily"></i><span data-i18n>Täglich</span><b class="badge hidden" id="dailyBadge">!</b></button>
         <button class="rail-btn" id="missionsBtn"><i data-ic="missions"></i><span data-i18n>Missionen</span><b class="badge hidden" id="missionsBadge">!</b></button>
-        <button class="rail-btn pass" id="passBtn"><i data-ic="pass"></i><span data-i18n>Saisonpass</span><b class="badge hidden" id="passBadge">!</b></button>
       </nav>
       <nav class="rail rail-r">
         <button class="rail-btn" id="patrolBtn"><i data-ic="patrol"></i><span data-i18n>Patrouille</span><small id="patrolMini"></small><b class="badge hidden" id="patrolBadge">!</b></button>
-        <button class="rail-btn" id="codexBtn"><i data-ic="codex"></i><span data-i18n>Kodex</span></button>
-        <button class="rail-btn route" id="routeBtn"><i data-ic="map"></i><span data-i18n>Fluchtplan</span></button>
+        <button class="rail-btn pass" id="passBtn"><i data-ic="pass"></i><span data-i18n>Saisonpass</span><b class="badge hidden" id="passBadge">!</b></button>
       </nav>
 
       <!-- Bühne: Ziehen dreht die Kamera um den Helden -->
@@ -97,7 +100,7 @@
         <button class="dock-btn" id="armoryBtn"><i data-ic="weapons"></i><span data-i18n>Waffen</span></button>
         <button class="dock-btn" id="talentBtn"><i data-ic="talents"></i><span data-i18n>Talente</span></button>
         <button class="dock-btn" id="gearBtn"><i data-ic="heartArmor"></i><span data-i18n>Ausrüstung</span><b class="badge hidden" id="gearBadge">!</b></button>
-        <button class="dock-btn" id="ranksBtn"><i data-ic="trophy"></i><span data-i18n>Bestenliste</span></button>
+        <button class="dock-btn" id="codexBtn"><i data-ic="codex"></i><span data-i18n>Kodex</span></button>
       </nav>
       <a class="btn ghost store-cta hidden" id="storeCta" target="_blank" rel="noopener" data-i18n>Jetzt im Play Store holen</a>
     </section>

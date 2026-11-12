@@ -400,11 +400,17 @@
   let curOverlay = null;
   function show(el) {
     // Hauptmenü blendet in Wellen ein (Klasse neu setzen spielt die Animation erneut ab)
-    if (el === ui.menu && curOverlay !== ui.menu) { el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter"); requestAnimationFrame(startTicker); }
+    if (el === ui.menu && curOverlay !== ui.menu) { el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter"); requestAnimationFrame(() => { startTicker(); frameMenuStage(); }); }
     curOverlay = el;
     for (const o of overlays) o.classList.toggle("hidden", o !== el);
     ui.pauseBtn.classList.toggle("hidden", el !== null);
     requestAnimationFrame(() => fitTitle(el));
+  }
+  // Die Menü-Kamera rückt den Helden in die Mitte der Bühne – so groß, wie die freie Fläche es erlaubt.
+  function frameMenuStage() {
+    if (!mode3d || !Render3D.setMenuFrame || ui.menu.classList.contains("hidden")) return;
+    const st = $("menuStage").getBoundingClientRect(), v = view.getBoundingClientRect();
+    if (v.height > 0 && st.height > 0) Render3D.setMenuFrame((st.top + st.height / 2 - v.top) / v.height, st.height / v.height);
   }
   // Bildschirmtitel auf schmalen Displays verkleinern statt abschneiden (lange Wörter, großer Münzstand)
   function fitTitle(el) {
@@ -459,7 +465,7 @@
       Render3D.resize(W * scale, H * scale, Math.min(window.devicePixelRatio || 1, quality >= 2 ? 1.5 : 1) * RES_STEPS[resStep]);
     }
   }
-  window.addEventListener("resize", resize);
+  window.addEventListener("resize", () => { resize(); frameMenuStage(); });
   resize();
 
   // Kino-Look: animiertes Filmkorn + Vignette über dem Bild (reines CSS, eine Rauschkachel)
@@ -7704,6 +7710,11 @@
   }
   function refreshMenu() {
     $("menuCoins").textContent = num(save.coins);
+    { // Dienstausweis: Rang und Weg zum nächsten
+      const best = bestScore(), rk = rankOf(best), from = RANKS[rk.i][0];
+      $("menuRank").textContent = rk.name;
+      $("menuRankBar").style.width = `${rk.next ? Math.round(clamp((best - from) / (rk.next.at - from), 0, 1) * 100) : 100}%`;
+    }
     renderRouteStrip();
     const w = WEAPONS[save.equipped], lvl = save.weapons[save.equipped];
     $("menuWeaponImg").src = Sprites.weaponIcon(save.equipped, weaponTier(lvl));
@@ -7724,7 +7735,7 @@
     const mode = save.menuMode === "survival" ? "survival" : "campaign";
     $("modeCampaign").classList.toggle("active", mode === "campaign");
     $("survivalBtn").classList.toggle("active", mode === "survival");
-    $("campaignInfo").textContent = save.best.chapter ? `${tr("Rekord")}: ${cityAt(cityIdx(save.best)).name} · ${tr("Bezirk {n}/10", { n: districtIdx(save.best) + 1 })}` : tr("Heilbronn → Hamburg · 9 Städte");
+    $("campaignInfo").textContent = save.best.chapter ? `${tr("Rekord")}: ${cityAt(cityIdx(save.best)).name} ${districtIdx(save.best) + 1}/10` : tr("Heilbronn → Hamburg · 9 Städte");
     const todayWorld = THEME_ORDER[Math.floor(Date.now() / 864e5) % THEME_ORDER.length];
     const th = Math.min(save.threat || 0, save.threatMax || 0);
     const sc = Math.min(save.startCity || 0, save.cityMax || 0), scName = CITIES[sc].name;
@@ -8607,7 +8618,6 @@
   for (const b of document.querySelectorAll("#missionTabs button")) b.addEventListener("click", () => { missionTab = b.dataset.tab; renderMissions(); });
   $("passBtn").addEventListener("click", () => { ensureAudio(); renderPass(); show(ui.pass); });
   $("codexBtn").addEventListener("click", () => { ensureAudio(); renderCodex(); show(ui.codex); });
-  $("routeBtn").addEventListener("click", () => { ensureAudio(); openStory("menu", () => { show(ui.menu); }); });
   $("routeStrip").addEventListener("click", () => { ensureAudio(); openStory("menu", () => { show(ui.menu); }); });
   $("storyGo").addEventListener("click", storyNext);
   window.addEventListener("resize", () => { if (routeView) drawRouteMap(); });

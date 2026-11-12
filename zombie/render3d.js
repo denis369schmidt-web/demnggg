@@ -557,16 +557,28 @@ window.Render3D = (() => {
   let menuMode = false;
   // Hauptmenü-Kamera: Einflug von oben, dann langsame Kreisfahrt um den Helden in Nahaufnahme.
   // Ziehen dreht (menuOrbit), der Bewegungssensor neigt (setTilt), dazu leichtes Handkamera-Wackeln.
-  const menuCam = { yaw: 0, drag: false, tiltX: 0, tiltY: 0, t0: -1 };
+  // Bildausschnitt (setMenuFrame): cy = Bühnenmitte, h = Bühnenhöhe, beides als Anteil der Bildhöhe.
+  const MENU_FOV = 36, MENU_HERO = 58; // Heldenhöhe samt etwas Luft in Welt-Einheiten
+  const menuCam = { yaw: 0, drag: false, tiltX: 0, tiltY: 0, t0: -1, cy: 0.425, h: 0.2, dist: 400, dirty: true };
+  function setMenuFrame(cy, h) {
+    menuCam.cy = Math.max(0.25, Math.min(0.6, cy));
+    menuCam.h = Math.max(0.19, Math.min(0.34, h * 1.05)); // Anteil der Bildhöhe, den der Held füllt
+    menuCam.dist = MENU_HERO / (2 * Math.tan((MENU_FOV * Math.PI) / 360) * menuCam.h);
+    menuCam.dirty = true;
+  }
   function placeMenuCamera(t, w) {
-    if (!menuMode) { menuMode = true; menuCam.t0 = t; camera.fov = 36; camera.setViewOffset(D.W, D.H, 0, D.H * 0.075, D.W, D.H); camera.updateProjectionMatrix(); camOff = null; }
+    if (!menuMode) { menuMode = true; menuCam.t0 = t; menuCam.dirty = true; camOff = null; }
+    if (menuCam.dirty) {
+      menuCam.dirty = false; camera.fov = MENU_FOV;
+      camera.setViewOffset(D.W, D.H, 0, D.H * (0.5 - menuCam.cy), D.W, D.H); camera.updateProjectionMatrix();
+    }
     const k = Math.min(1, (t - menuCam.t0) / 3.4), ease = 1 - Math.pow(1 - k, 3);
     if (!menuCam.drag) menuCam.yaw *= Math.exp(-0.35 * Math.min(0.1, frameDt)); // lässt man los, schwingt sie langsam zurück
     const yaw = Math.PI + 0.42 + Math.sin(t * 0.07) * 0.32 + menuCam.yaw + menuCam.tiltX * 0.3;
-    const elev = 0.27 + menuCam.tiltY * 0.1 + (1 - ease) * 0.55, d = 400 + (1 - ease) * 520;
+    const elev = 0.24 + menuCam.tiltY * 0.1 + (1 - ease) * 0.55, d = menuCam.dist + (1 - ease) * 520;
     const tx = w.player.x, tz = w.player.y;
     camera.position.set(tx + Math.sin(yaw) * d * Math.cos(elev), 20 + Math.sin(elev) * d, tz + Math.cos(yaw) * d * Math.cos(elev));
-    camera.lookAt(tx, 34, tz);
+    camera.lookAt(tx, 27, tz);
     camera.rotateZ(Math.sin(t * 0.83) * 0.007 + Math.sin(t * 1.9) * 0.003);
     camera.updateMatrixWorld();
   }
@@ -3991,8 +4003,9 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     const cone2 = new T3.ConeGeometry(1, 1, 24, 1, true); cone2.translate(0, -0.5, 0);
     const beam2 = new T3.Mesh(cone2, new T3.MeshBasicMaterial({
       // oben (Scheinwerfer) schwächer, unten zum Lichtfleck hin heller – im Menü ist vor allem der untere Teil im Bild
-      map: canvasTex(4, 128, (q) => { const gr = q.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, "#9aa2aa"); gr.addColorStop(0.5, "#6a7078"); gr.addColorStop(0.9, "#c8d0d8"); gr.addColorStop(1, "#ffffff"); q.fillStyle = gr; q.fillRect(0, 0, 4, 128); }),
-      color: 0xdfeaff, transparent: true, opacity: 0.27, blending: T3.AdditiveBlending, depthWrite: false, side: T3.DoubleSide, fog: false,
+      map: canvasTex(4, 128, (q) => { const gr = q.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, "#9aa2aa"); gr.addColorStop(0.5, "#6a7078"); gr.addColorStop(0.9, "#9aa2aa"); gr.addColorStop(1, "#c8d0d8"); q.fillStyle = gr; q.fillRect(0, 0, 4, 128); }),
+      color: 0xdfeaff, transparent: true, opacity: 0.14, // dezent: die Menü-Kamera steht nah am Helden, ein kräftiger Kegel überstrahlt dort das halbe Bild
+       blending: T3.AdditiveBlending, depthWrite: false, side: T3.DoubleSide, fog: false,
     }));
     beam2.renderOrder = 26; beam2.frustumCulled = false;
     scene.add(g, beam2);
@@ -6019,6 +6032,7 @@ void main() {
     init, resize, render, project, viewQuad, heightOf, setQuality, setBloom, setCamMode, get camMode() { return camMode; },
     setGear: (look) => { gearLook = look || {}; }, get gearKey() { return gearKey(gearLook); }, clear, preview, stopPreview, showcase,
     setCinematic(on) { cinematic = on; }, get flash() { return atmo.flash; },
+    setMenuFrame,
     menuOrbit(d, end = false) { if (end) { menuCam.drag = false; return; } menuCam.drag = true; menuCam.yaw = Math.max(-1.6, Math.min(1.6, menuCam.yaw + d)); },
     setTilt(x, y) { menuCam.tiltX += (x - menuCam.tiltX) * 0.15; menuCam.tiltY += (y - menuCam.tiltY) * 0.15; },
     get ready() { return ready; },

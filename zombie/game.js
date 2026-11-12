@@ -163,8 +163,26 @@
   if (save.gfxV !== 2) { save.gfx = 2; save.gfxV = 2; }
   if (!save.stats.runs && save.runs) save.stats.runs = save.runs;
   if (!save.patrol.since) save.patrol.since = Date.now();
+  let restoring = false; // ein eingespielter Spielstand darf bis zum Neuladen nicht mehr überschrieben werden
   function persist() {
+    if (restoring) return;
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch { /* ignorieren */ }
+  }
+  // v4.0 Spielstand sichern: als Text exportieren (Zwischenablage/Teilen) und auf einem anderen Gerät einspielen.
+  // Format: Kennung, Prüfsumme und der Spielstand als Base64 – Tippfehler und fremde Texte werden erkannt.
+  const BACKUP_TAG = "OGSAVE1";
+  const backupSum = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return (h >>> 0).toString(36); };
+  function exportSave() {
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(save))));
+    return `${BACKUP_TAG}.${backupSum(b64)}.${b64}`;
+  }
+  function parseBackup(text) {
+    const m = /OGSAVE1\.([0-9a-z]+)\.([A-Za-z0-9+/=]+)/.exec(String(text || "").replace(/\s+/g, ""));
+    if (!m || backupSum(m[2]) !== m[1]) return null;
+    try {
+      const data = JSON.parse(decodeURIComponent(escape(atob(m[2]))));
+      return data && typeof data === "object" && typeof data.coins === "number" && data.weapons ? data : null;
+    } catch { return null; }
   }
 
   // ============================================================
@@ -359,7 +377,7 @@
     menu: $("menu"), armory: $("armory"), talents: $("talents"), skillPick: $("skillPick"),
     pause: $("pause"), over: $("over"), pauseBtn: $("pauseBtn"),
     shop: $("shop"), daily: $("daily"), settings: $("settings"), revive: $("revive"),
-    missions: $("missions"), pass: $("pass"), patrol: $("patrol"), codex: $("codex"), route: $("route"), ranks: $("ranks"), gear: $("gear"), mini: $("mini"),
+    missions: $("missions"), pass: $("pass"), patrol: $("patrol"), codex: $("codex"), route: $("route"), ranks: $("ranks"), gear: $("gear"), mini: $("mini"), pets: $("pets"), duel: $("duel"),
   };
   const overlays = Object.values(ui).filter((o) => o !== ui.pauseBtn);
   // UI-Bausteine: Icons aus dem Sprite, Münzbeträge, Sechseck-Medaillons, Fortschritts-Pips
@@ -682,7 +700,8 @@
     run.startCity = mode === "campaign" ? Math.max(0, Math.min(save.startCity || 0, save.cityMax || 0)) : 0;
     if (run.startCity > 0) { run.chapter = Math.floor(run.startCity / 2) + 1; run.room = (run.startCity % 2) * (ROOMS_PER_CHAPTER / 2); }
     run.freeRerolls = 1; run.setTier = {}; run.event = null; run.bans = 2; run.banned = [];
-    run.order = mode === "survival" ? todaysOrder() : null;
+    run.duel = mode === "survival" && duel ? { ...duel, beaten: false } : null;
+    run.order = mode === "survival" ? (run.duel ? run.duel.order : todaysOrder()) : null;
     run.bossKills = 0;
     if (run.threat) run.greed *= 1 + 0.25 * run.threat;
     if (run.order && run.order.greed) run.greed *= run.order.greed;
@@ -690,6 +709,8 @@
     heroPerk(save.skin).apply(player);
     { const lv = heroLevel(save.skin) - 1; if (lv > 0) { player.maxHp = player.hp = Math.round(player.maxHp * (1 + 0.02 * lv)); player.dmgMul *= 1 + 0.01 * lv; } }
     applyGear(player);
+    applyAlbum(player);
+    spawnPet();
     syncGearLook();
     if (run.order && run.order.apply) run.order.apply(player);
     if (run.startCity > 0) run.pendingPicks += Math.min(6, run.startCity);
@@ -741,6 +762,7 @@
     if (districtIdx() === 0 && cityIdx() > 0) { run.cityBonus = Math.round(60 * cityIdx() * run.greed * ECON.earn); run.coins += run.cityBonus; }
     resetRoomState();
     player.x = W / 2; player.y = B - 70;
+    heelPet();
     updateCam2D(0, true);
 
     const isBoss = BOSS_ROOMS[run.room] ? (run.mode === "campaign" && curCity().boss) || BOSS_ROOMS[run.room] : null;
@@ -2394,6 +2416,7 @@
       if (p.perfectT > run.time) dmg *= 1.25; // nach perfektem Ausweichen
       if (e.frostT > 0) dmg *= 1.3; // v2.9 eingefroren: spröde
       if (puOn("double")) dmg *= 2; // v3.7 Power-up Doppelschaden
+      dmg *= petMark(e); // v4.0 Hugins Markierung
       // Schwachstelle: Treffer in den Rücken eines Bosses
       if (e.def.boss && o.bullet && !o.aoe && Math.abs(angDiff(e.face, Math.atan2(-o.bullet.vy, -o.bullet.vx))) > 2.0) {
         dmg *= 1.5;
@@ -2582,6 +2605,7 @@
     const e = spawnEnemy("runner", x, y);
     e.looter = true; e.lootT = LOOTER_T; e.lootDrops = 8; e.side = Math.random() < 0.5 ? -1 : 1;
     e.maxHp = e.hp = e.maxHp * 4; e.speed *= 1.08;
+    if (run.pet && run.pet.id === "hugin") e.lootT += 2 + run.pet.lv;
     callout = { title: tr("PLÜNDERER!"), sub: tr("Schnapp ihn, bevor er abhaut"), col: "#ffe27a", n: 1, bonus: 0, life: 1.9, max: 1.9, plain: true };
     sfx("coin"); sfx("whistle");
     return e;
@@ -4355,7 +4379,7 @@
         if (d < p.r + 22) { o.dead = true; takePower(o); } else if (o.t > PU_LIFE) { o.dead = true; fxRing(o.x, o.y, 30, o.rgb, 0.3); fxDust(o.x, o.y, 3, 0.6); }
         continue;
       }
-      if ((run.cleared && o.t > 0.4) || (puOn("magnet") && o.t > 0.25) || d < (run.mode === "survival" ? 120 : 80)) {
+      if (o.fetch || (run.cleared && o.t > 0.4) || (puOn("magnet") && o.t > 0.25) || d < (run.mode === "survival" ? 120 : 80)) {
         const s = 700 + o.t * 300;
         o.vx = (dx / d) * s; o.vy = (dy / d) * s;
       } else {
@@ -4968,6 +4992,7 @@
     if (!birds.length) return;
     const p = player;
     for (const b of birds) {
+      if (b.pet) continue; // Hugin fliegt nach eigenen Regeln (updateRaven)
       b.t += dt;
       if (!b.fly) {
         // Aufschrecken: Held zu nah, Schuss oder Explosion in der Nähe, Gegner läuft durch
@@ -4986,7 +5011,7 @@
         b.face = Math.atan2(b.vy, b.vx);
       }
     }
-    birds = birds.filter((b) => !b.fly || (b.z < 260 && b.x > L - 200 && b.x < R + 200 && b.y > T - 300 && b.y < B + 200));
+    birds = birds.filter((b) => b.pet || !b.fly || (b.z < 260 && b.x > L - 200 && b.x < R + 200 && b.y > T - 300 && b.y < B + 200));
   }
   function drawBirds(flying) {
     for (const b of birds) {
@@ -5001,6 +5026,154 @@
       const hx = b.peck > 0 ? 7 + Math.sin(b.peck * 30) * 1.5 : 5.5;
       ctx.fillStyle = "#18181a"; ctx.beginPath(); ctx.arc(hx, 0, 2.4, 0, TAU); ctx.fill(); ctx.fillStyle = "#4a4436"; ctx.fillRect(hx + 1.6, -0.6, 2.6, 1.2);
       ctx.fillStyle = "#0a0a0c"; ctx.beginPath(); ctx.moveTo(-5, -1.6); ctx.lineTo(-10, 0); ctx.lineTo(-5, 1.6); ctx.fill();
+      ctx.restore();
+    }
+  }
+  // ============================================================
+  // v4.0 Begleiter: ein Tier läuft im Einsatz mit. Drei Rollen – Sammeln, Angreifen, Aufklären.
+  // Gekauft und trainiert wird im Fenster „Begleiter“ (save.pets = Stufe je Tier, save.pet = aktives Tier).
+  // ============================================================
+  const PET_MAX = 5;
+  const PETS = {
+    waldi: { name: "Waldi", kind: "Dackel", role: "Sammler", icon: "petHound", look: 1, price: 2400, req: 0, r: 9, speed: 300,
+      desc: "Apportiert Münzen und Erfahrung und buddelt alle {s} s {n} Münzen aus" },
+    rex: { name: "Rex", kind: "Schäferhund", role: "Angreifer", icon: "petDog", look: 0, price: 6500, req: 1, r: 12, speed: 345,
+      desc: "Fällt alle {s} s einen Zombie an: Biss mit {d} % Waffenschaden, hält ihn kurz fest" },
+    hugin: { name: "Hugin", kind: "Kolkrabe", role: "Späher", icon: "petRaven", look: 2, price: 12000, req: 3, r: 6, speed: 380,
+      desc: "Markiert das zäheste Ziel: +{d} % Schaden darauf. Hält Plünderer länger auf" },
+  };
+  const petLv = (id) => (save.pets || {})[id] || 0;
+  const petCost = (id) => { const lv = petLv(id); return lv ? Math.round((PETS[id].price * 0.45 * lv) / 10) * 10 : PETS[id].price; };
+  function petVals(id, lv = Math.max(1, petLv(id))) {
+    if (id === "waldi") return { s: 22 - lv * 2, n: 2 + lv };
+    if (id === "rex") return { s: (3.4 - lv * 0.3).toLocaleString(I18N.lang), cd: 3.4 - lv * 0.3, d: 140 + lv * 30, hold: 0.45 + lv * 0.1 };
+    return { d: 16 + lv * 4 };
+  }
+  const petDesc = (id, lv) => tr(PETS[id].desc, petVals(id, lv));
+  function spawnPet() {
+    const id = save.pet, p = player;
+    run.pet = null;
+    if (!id || !PETS[id] || !petLv(id)) return;
+    const pt = run.pet = { id, def: PETS[id], lv: petLv(id), v: petVals(id), x: p.x - 30, y: p.y + 26, r: PETS[id].r, face: -Math.PI / 2, anim: 0, t: 0, cd: 1.5, state: "heel", target: null, chase: 0, dig: 0, scan: 0 };
+    pt.dig = pt.v.s || 0;
+    if (id === "hugin") pt.bird = { x: p.x, y: p.y, z: 70, vx: 0, vy: 0, vz: 0, face: 0, fly: true, t: 0, peck: 0, hop: 0, pet: true };
+  }
+  // Nach einem Bezirkswechsel steht das Tier wieder beim Helden
+  function heelPet() { const pt = run && run.pet; if (pt) { pt.x = player.x - 30; pt.y = player.y + 26; pt.state = "heel"; pt.target = null; pt.cd = Math.max(pt.cd, 1); } }
+  const petCanTarget = (e) => !e.dead && !(e.spawnT > 0) && !e.under;
+  function petRun(pt, tx, ty, speed, dt) {
+    const dx = tx - pt.x, dy = ty - pt.y, d = Math.hypot(dx, dy);
+    if (d < 3) return d;
+    const step = Math.min(d, speed * dt);
+    pt.x += (dx / d) * step; pt.y += (dy / d) * step;
+    pt.face = Math.atan2(dy, dx); pt.anim += dt * (6 + speed / 40);
+    for (const o of obstacles) if (!o.gateBar) pushOutRect(pt, o);
+    pt.x = clamp(pt.x, L + pt.r, R - pt.r); pt.y = clamp(pt.y, T + pt.r, B - pt.r);
+    return d;
+  }
+  function updatePet(dt) {
+    const pt = run && run.pet, p = player;
+    if (!pt || state !== "play") return;
+    pt.t += dt; pt.cd -= dt;
+    if (pt.id === "hugin") { updateRaven(pt, dt); return; }
+    // Bei Fuß: schräg hinter dem Helden; hängt er weit zurück, sprintet er
+    const hx = p.x - 30, hy = p.y + 26, away = Math.hypot(hx - pt.x, hy - pt.y);
+    if (away > 520) { pt.x = hx; pt.y = hy; pt.state = "heel"; pt.target = null; }
+    if (pt.id === "rex") {
+      if (pt.state === "heel" && pt.cd <= 0) {
+        let best = null, bd = 290 * 290;
+        for (const e of enemies) { if (!petCanTarget(e) || e.looter) continue; const d2 = dist2(e, p); if (d2 < bd) { bd = d2; best = e; } }
+        if (best) { pt.state = "hunt"; pt.target = best; pt.chase = 0; } else pt.cd = 0.4;
+      }
+      if (pt.state === "hunt") {
+        const e = pt.target;
+        pt.chase += dt;
+        if (!e || !petCanTarget(e) || pt.chase > 1.6) { pt.state = "heel"; pt.target = null; pt.cd = 0.8; return; }
+        if (petRun(pt, e.x, e.y, pt.def.speed * 1.5, dt) < e.r + pt.r + 6) {
+          damageEnemy(e, p.power * (pt.v.d / 100), { silent: true, pet: true });
+          if (!e.def.boss) e.stunT = Math.max(e.stunT || 0, pt.v.hold);
+          fxBlood(e.x, e.y, pt.face, 6, e.def.blood, 160); fxRing(e.x, e.y, e.r + 10, "255,240,200", 0.2);
+          sfx("kick"); track("petBites");
+          pt.state = "heel"; pt.target = null; pt.cd = pt.v.cd;
+        }
+        return;
+      }
+    } else {
+      // Waldi: nächste liegende Beute holen – berührt er sie, fliegt sie zum Helden
+      if ((pt.scan -= dt) <= 0) {
+        pt.scan = 0.25; pt.target = null;
+        let bd = 360 * 360;
+        for (const o of orbs) { if (o.dead || o.fetch || o.type === "power" || o.type === "gear") continue; const d2 = dist2(o, pt); if (d2 < bd) { bd = d2; pt.target = o; } }
+      }
+      const o = pt.target;
+      if (o && !o.dead && !o.fetch) {
+        if (petRun(pt, o.x, o.y, pt.def.speed * 1.25, dt) < pt.r + 8) { o.fetch = true; pt.target = null; pt.scan = 0; track("petFetch"); }
+        return;
+      }
+      // … und zwischendurch buddeln, wenn es ruhig um ihn ist
+      if ((pt.dig -= dt) <= 0 && away < 60 && !enemies.some((e) => petCanTarget(e) && dist2(e, pt) < 110 * 110)) {
+        pt.dig = pt.v.s;
+        for (let i = 0; i < pt.v.n; i++) orbs.push(makeOrb(pt.x, pt.y, "coin", 1));
+        fxDust(pt.x, pt.y, 5, 0.8); addText(pt.x, pt.y - 26, tr("Waldi hat was!"), "#ffe27a", 14); sfx("coin");
+      }
+    }
+    if (away > 10) petRun(pt, hx, hy, away > 150 ? pt.def.speed * 1.5 : Math.min(pt.def.speed, 60 + away * 3), dt);
+    else pt.face += (Math.atan2(p.y - 40 - pt.y, p.x - pt.x) - pt.face) * Math.min(1, dt * 4);
+  }
+  // Hugin kreist über dem zähesten Gegner in Sichtweite; ohne Ziel bleibt er über dem Helden
+  function updateRaven(pt, dt) {
+    const p = player, b = pt.bird;
+    if (!birds.includes(b)) birds.push(b); // die Vogelliste wird je Bezirk neu angelegt
+    if ((pt.scan -= dt) <= 0 || (pt.target && !petCanTarget(pt.target))) {
+      pt.scan = 1.2; pt.target = null;
+      let hp = 0;
+      for (const e of enemies) if (petCanTarget(e) && dist2(e, p) < 470 * 470 && e.hp > hp) { hp = e.hp; pt.target = e; }
+    }
+    const c = pt.target || p, a = pt.t * 2.1, rad = pt.target ? 30 : 46;
+    const tx = c.x + Math.cos(a) * rad, ty = c.y + Math.sin(a) * rad;
+    const k = Math.min(1, dt * 5);
+    b.vx = (tx - b.x) * k / Math.max(dt, 0.001); b.vy = (ty - b.y) * k / Math.max(dt, 0.001);
+    b.x += (tx - b.x) * k; b.y += (ty - b.y) * k; b.z += ((pt.target ? 58 : 76) - b.z) * Math.min(1, dt * 3);
+    b.face = a + Math.PI / 2; b.t += dt;
+    pt.x = b.x; pt.y = b.y; pt.face = b.face;
+  }
+  const petMark = (e) => (run.pet && run.pet.id === "hugin" && run.pet.target === e ? 1 + run.pet.v.d / 100 : 1);
+  // 2D: Hund von oben – Rumpf, Kopf mit Schnauze, Ohren, wedelnde Rute, trabende Pfoten
+  const PET_LOOK = [
+    { fur: "#8a5a2e", dark: "#2a211b", s: 1, len: 1 },      // Schäferhund: lohfarben mit dunklem Sattel
+    { fur: "#7a4420", dark: "#3a2416", s: 0.78, len: 1.28 }, // Dackel: klein und lang
+  ];
+  function drawPet2D() {
+    const pt = run && run.pet;
+    if (!pt || pt.id === "hugin") return;
+    const k = PET_LOOK[pt.def.look], r = pt.r * 1.15, ph = pt.anim, wag = Math.sin(pt.t * 14) * 0.5;
+    ctx.save(); ctx.translate(pt.x, pt.y);
+    ctx.globalAlpha = 0.3; ctx.fillStyle = "#000"; ctx.beginPath(); ctx.ellipse(0, 3, r * 1.5 * k.len, r * 0.8, pt.face, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.rotate(pt.face);
+    ctx.fillStyle = k.dark;
+    for (const [x, s, o] of [[0.7, 1, 0], [0.7, -1, Math.PI], [-0.8, 1, Math.PI], [-0.8, -1, 0]]) { ctx.beginPath(); ctx.ellipse(x * r * k.len + Math.sin(ph + o) * 2.4, s * r * 0.62, 2.6, 1.9, 0, 0, TAU); ctx.fill(); }
+    ctx.strokeStyle = k.fur; ctx.lineWidth = 2.6; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-r * 1.1 * k.len, 0); ctx.quadraticCurveTo(-r * 1.5 * k.len, wag * 4, -r * 1.9 * k.len, wag * 8); ctx.stroke();
+    ctx.fillStyle = k.fur; ctx.beginPath(); ctx.ellipse(0, 0, r * 1.2 * k.len, r * 0.62, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = k.dark; ctx.globalAlpha = 0.55; ctx.beginPath(); ctx.ellipse(-r * 0.15, 0, r * 0.75 * k.len, r * 0.4, 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.fillStyle = "#b8352a"; ctx.fillRect(r * 0.72 * k.len, -r * 0.42, 2.4, r * 0.84); // Halsband
+    ctx.fillStyle = k.fur; ctx.beginPath(); ctx.arc(r * 1.15 * k.len, 0, r * 0.5, 0, TAU); ctx.fill();
+    ctx.fillStyle = k.dark; ctx.beginPath(); ctx.ellipse(r * 1.6 * k.len, 0, r * 0.34, r * 0.24, 0, 0, TAU); ctx.fill();
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(r * 1.02 * k.len, s * r * 0.44, r * 0.26, r * 0.16, s * 0.5, 0, TAU); ctx.fill(); }
+    ctx.restore();
+  }
+  // Markierung des Raben und Beute-Anzeige über dem Hund (2D-Welt oder 3D-Overlay über scr())
+  function drawPetMarks() {
+    const pt = run && run.pet;
+    if (!pt || state !== "play") return;
+    const e = pt.target;
+    if (pt.id === "hugin" && e && petCanTarget(e)) {
+      const c = scr(e.x, e.y, e.r * 2.4);
+      if (c.behind) return;
+      const s = 9 + Math.sin(run.time * 6) * 1.5;
+      ctx.save(); ctx.translate(c.x, c.y - e.r - 8); ctx.strokeStyle = "#ffd36a"; ctx.lineWidth = 2.2; ctx.lineJoin = "round";
+      ctx.beginPath(); ctx.moveTo(-s, -s * 0.7); ctx.lineTo(0, 0); ctx.lineTo(s, -s * 0.7); ctx.stroke();
+      ctx.font = "800 11px 'Barlow Condensed', sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd36a"; ctx.fillText(`+${pt.v.d} %`, 0, -s - 3);
       ctx.restore();
     }
   }
@@ -5029,6 +5202,7 @@
     zaps = zaps.filter((z) => z.life > 0);
     updateAmbient(dt);
     updateBirds(dt);
+    updatePet(dt);
     if (banner) { banner.life -= dt; if (banner.life <= 0) banner = null; }
     shake = Math.max(0, shake - dt * 30);
     punchX *= Math.max(0, 1 - 14 * dt); punchY *= Math.max(0, 1 - 14 * dt);
@@ -5223,6 +5397,26 @@
     sfx(it.r >= 2 ? "level" : "coin"); fx4d(it.r >= 3 ? "level" : "kick");
     toast(`${tr("Beute")}: ${gearName(it)} · ${tr(GEAR_RARITY[it.r].name)}`, GEAR_SLOTS[it.s].icon);
   }
+  // v4.0 Schmiede: drei Teile gleicher Seltenheit aus der Tasche werden zu einem der nächsten Stufe.
+  // Der Platz kommt vom stärksten der drei – wer gezielt sammelt, bestimmt so, was entsteht.
+  const FORGE_N = 3, FORGE_FEE = [150, 500, 1600];
+  function forgePick(r) {
+    const pool = (save.gearBag || []).filter((it) => it.r === r).sort((a, b) => gearPower(a) - gearPower(b));
+    return pool.length >= FORGE_N ? pool.slice(0, FORGE_N) : null;
+  }
+  function forgeGear(r) {
+    const src = forgePick(r), fee = FORGE_FEE[r];
+    if (!src || r >= GEAR_RARITY.length - 1) return null;
+    if (save.coins < fee) { toast(tr("Zu wenig Münzen"), "coin"); return null; }
+    const ids = new Set(src.map((it) => it.id));
+    save.coins -= fee;
+    save.gearBag = save.gearBag.filter((it) => !ids.has(it.id));
+    const out = makeGear(src[src.length - 1].s, r + 1);
+    save.gearBag.push(out);
+    save.stats.forged = (save.stats.forged || 0) + 1;
+    persist();
+    return out;
+  }
   // v3.4 Aussehen: Seltenheit je angelegtem Platz an den 3D-Helden (und das 2D-Sprite) melden
   // eigene Platzliste: init3d läuft schon beim Laden, bevor GEAR_SLOTS (const) angelegt ist
   function gearLookOf() { const g = save.gear || {}, look = {}; for (const k of ["helm", "vest", "gloves", "badge", "pack", "boots", "charm"]) if (g[k]) look[k] = g[k].r; return look; }
@@ -5274,6 +5468,22 @@
       : tr("Bosse, Elite-Gegner und Kopfgeld-Ziele lassen Beutekisten fallen. Höhere Bedrohung = bessere Beute."));
     const list = $("gearBag");
     list.innerHTML = "";
+    for (let r = 0; r < GEAR_RARITY.length - 1; r++) {
+      const src = forgePick(r);
+      if (!src) continue;
+      const to = GEAR_RARITY[r + 1], slot = GEAR_SLOTS[src[src.length - 1].s];
+      const row = shopRow(medal("forge", to.tone), tr("Schmiede: {a} → {b}", { a: tr(GEAR_RARITY[r].name), b: tr(to.name) }),
+        tr("Verschmilzt die 3 schwächsten Teile ({list}) zu: {slot}, {b}", { list: src.map(gearName).join(", "), slot: tr(slot.name), b: tr(to.name) }),
+        `<span class="tag">${tr("3 → 1")}</span>`, `${tr("Schmieden")} ${coinAmt(FORGE_FEE[r])}`, save.coins >= FORGE_FEE[r], () => {
+          const out = forgeGear(r);
+          if (!out) return;
+          sfx("level");
+          toast(`${tr("Geschmiedet")}: ${gearName(out)} · ${tr(GEAR_RARITY[out.r].name)}`, GEAR_SLOTS[out.s].icon);
+          renderGear(); refreshMenu();
+        }, "amber");
+      row.classList.add("forge-row", "gear-r" + (r + 1));
+      list.appendChild(row);
+    }
     for (const it of bag) {
       const cur = g[it.s], better = gearBetter(it, cur);
       const desc = `${tr(GEAR_RARITY[it.r].name)} · ${tr(GEAR_SLOTS[it.s].name)} · ${gearLines(it).join(" · ")}${cur ? ` (${tr("jetzt")}: ${gearStat(cur)})` : ""}`;
@@ -5368,6 +5578,78 @@
   const dayNo = () => { const d = new Date(); return Math.floor((d.getTime() - d.getTimezoneOffset() * 6e4) / 864e5); };
   const todaysOrder = () => ORDERS[dayNo() % ORDERS.length];
   const ORDER_NONE = {};
+  // ============================================================
+  // v4.0 Duell-Codes: Herausforderung ohne Server. Der Code trägt Tagesbefehl und Punktzahl; wer ihn eingibt,
+  // spielt den Überlebensmodus unter denselben Bedingungen und muss die Punktzahl schlagen.
+  // ============================================================
+  const DUEL_ABC = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // ohne 0/O und 1/I – lässt sich am Telefon vorlesen
+  const DUEL_PRIZE = 150;
+  const duelCheck = (body) => DUEL_ABC[[...body].reduce((a, ch, i) => (a + (DUEL_ABC.indexOf(ch) + 1) * (i + 3)) % 32, 7)];
+  function duelEncode(orderId, score) {
+    let n = Math.max(1, Math.round(score)) * 16 + Math.max(0, ORDERS.findIndex((q) => q.id === orderId)), body = "";
+    while (n > 0) { body = DUEL_ABC[n % 32] + body; n = Math.floor(n / 32); }
+    body = body.padStart(5, DUEL_ABC[0]);
+    return `OG-${body}${duelCheck(body)}`;
+  }
+  function duelDecode(code) {
+    const s = String(code || "").toUpperCase().replace(/[^0-9A-Z]/g, "").replace(/^OG/, "");
+    const body = s.slice(0, -1);
+    if (body.length < 5 || [...body].some((ch) => !DUEL_ABC.includes(ch)) || duelCheck(body) !== s.slice(-1)) return null;
+    let n = 0;
+    for (const ch of body) n = n * 32 + DUEL_ABC.indexOf(ch);
+    const order = ORDERS[n % 16], score = Math.floor(n / 16);
+    return order && score > 0 ? { code: `OG-${s}`, order, score } : null;
+  }
+  let duelLinkUsed = false;
+  let duel = null; // angenommene Herausforderung; gilt bis zur Rückkehr ins Menü (auch für „Nochmal“)
+  function duelText(code, score, order) {
+    const base = Platform.cfg.playStoreUrl || (location.protocol.startsWith("http") ? `${location.origin}${location.pathname}?duel=${code}` : "");
+    return tr("Duell in Outbreak! Germany: Schlag meine {s} Punkte ({o}). Code: {c}", { s: num(score), o: tr(order.name), c: code }) + (base ? ` ${base}` : "");
+  }
+  async function shareDuel(score, orderId) {
+    const order = ORDERS.find((q) => q.id === orderId) || todaysOrder(), code = duelEncode(order.id, score), text = duelText(code, score, order);
+    try { if (navigator.share) { await navigator.share({ text }); return; } } catch (err) { if (err && err.name === "AbortError") return; }
+    try { await navigator.clipboard.writeText(text); toast(tr("Duell-Code {c} kopiert", { c: code }), "duel"); }
+    catch { toast(code, "duel"); }
+  }
+  // Abrechnung am Ende des Einsatzes: Sieg zählt je Code nur einmal für die Prämie
+  function settleDuel(points) {
+    const d = run.duel;
+    if (!d) return null;
+    const st = save.duels || (save.duels = { w: 0, l: 0, seen: [] }), won = points > d.score, first = !st.seen.includes(d.code);
+    if (won) st.w++; else st.l++;
+    let prize = 0;
+    if (won && first) { prize = DUEL_PRIZE; save.coins += prize; st.seen = st.seen.concat(d.code).slice(-40); }
+    return { won, prize, target: d.score };
+  }
+  function drawDuelHud() {
+    const d = run.duel;
+    if (!d || state !== "play") return;
+    const s = runScore(), k = clamp(s / d.score, 0, 1), w = 210, x = (W - w) / 2, y = 108;
+    if (!d.beaten && s > d.score) { d.beaten = true; showBanner(tr("ZIEL GESCHLAGEN!"), tr("Jetzt ausbauen – jeder Punkt zählt"), 2); sfx("level"); }
+    ctx.save();
+    ctx.fillStyle = "rgba(12,14,12,0.78)"; ctx.fillRect(x, y, w, 20);
+    ctx.fillStyle = d.beaten ? "#9fe870" : "#e2561f"; ctx.fillRect(x + 2, y + 16, (w - 4) * k, 2);
+    ctx.font = "800 12px 'Barlow Condensed', sans-serif"; ctx.textBaseline = "middle";
+    ctx.textAlign = "left"; ctx.fillStyle = "#efe8d4"; ctx.fillText(tr("DUELL"), x + 8, y + 9);
+    ctx.textAlign = "right"; ctx.fillStyle = d.beaten ? "#9fe870" : "#ffd36a"; ctx.fillText(`${num(s)} / ${num(d.score)}`, x + w - 8, y + 9);
+    ctx.restore();
+  }
+  function renderDuel(prefill = "") {
+    const st = save.duels || { w: 0, l: 0 }, mine = (save.scores || []).find((e) => e.m === "survival");
+    $("duelRecord").textContent = tr("Siege {w} · Niederlagen {l}", { w: st.w, l: st.l });
+    $("duelMine").classList.toggle("hidden", !mine);
+    if (mine) $("duelMine").onclick = () => shareDuel(mine.s, mine.o);
+    const inp = $("duelCode"), info = $("duelInfo"), go = $("duelGo");
+    const check = () => {
+      const d = duelDecode(inp.value);
+      go.disabled = !d;
+      info.textContent = d ? tr("Ziel: {s} Punkte · Tagesbefehl {o} ({d})", { s: num(d.score), o: tr(d.order.name), d: tr(d.order.desc) }) : inp.value.trim().length > 4 ? tr("Diesen Code kenne ich nicht – bitte prüfen") : tr("Code eines Freundes eingeben, z. B. OG-4K7QX2");
+      info.classList.toggle("bad", !d && inp.value.trim().length > 4);
+    };
+    inp.value = prefill; inp.oninput = check; check();
+    go.onclick = () => { const d = duelDecode(inp.value); if (!d) return; duel = d; ensureAudio(); startRun("survival"); };
+  }
   const runOrder = () => (run && run.order) || ORDER_NONE;
   function runScore() {
     const r = run;
@@ -5381,7 +5663,7 @@
     const list = (save.scores || []).concat(entry).sort((a, b) => b.s - a.s).slice(0, 10);
     save.scores = list;
     let daily = false;
-    if (surv && run.order) {
+    if (surv && run.order && !run.duel) { // Duelle laufen mit fremdem Tagesbefehl – kein Tagesbestwert
       const day = dayNo();
       if (!save.dailyBest || save.dailyBest.day !== day || score > save.dailyBest.s) { daily = true; save.dailyBest = { day, s: score, o: run.order.id }; }
     }
@@ -5447,7 +5729,7 @@
       const score = run.chapter * 100 + run.room;
       if (score > save.best.chapter * 100 + save.best.room) { save.best = { chapter: run.chapter, room: run.room }; record = true; }
     }
-    const points = runScore(), rk = recordScore(points);
+    const points = runScore(), rk = recordScore(points), duelRes = settleDuel(points);
     lastScore = rk.entry;
     const lv0 = heroLevel(save.skin);
     save.heroXp = save.heroXp || {};
@@ -5464,6 +5746,7 @@
       }
     }
     persist();
+    $("duelShareBtn").classList.toggle("hidden", !surv);
     const title = $("overTitle");
     title.textContent = won ? tr("ÜBERLEBT!") : quit ? tr("EINSATZ BEENDET") : tr("GEFALLEN");
     title.classList.toggle("win", won);
@@ -5479,6 +5762,7 @@
     const tags = `${rk.rank === 1 && save.scores.length > 1 ? `<em class="rec">${tr("BESTWERT")}</em>` : rk.rank > 1 ? `<em class="rank">#${rk.rank}</em>` : ""}${rk.daily ? `<em class="rec">${tr("TAGESBESTWERT")}</em>` : ""}`;
     $("overStats").innerHTML =
       line("trophy", tr("Punkte"), `${num(points)}${tags}`, "gold") +
+      (duelRes ? line("duel", tr("Duell"), duelRes.won ? `${tr("GEWONNEN")}${duelRes.prize ? ` ${coinAmt(duelRes.prize, "+")}` : ""}` : tr("Verloren – Ziel {s}", { s: num(duelRes.target) }), duelRes.won ? "gold" : "") : "") +
       (run.threat ? line("skull", tr("Bedrohung"), `${run.threat} · ×${threatScore(run.threat).toLocaleString(I18N.lang)}`) : "") +
       (run.order ? line("stopwatch", tr("Tagesbefehl"), `${tr(run.order.name)}${run.orderBonus ? ` ${coinAmt(run.orderBonus, "+")}` : ""}`) : "") +
       (run.loot ? line("heartArmor", tr("Beute"), tr("{n} Ausrüstungsteil(e)", { n: run.loot })) : "") +
@@ -5535,6 +5819,7 @@
     get theme() { return theme(); }, get isBossRoom() { return !!(run && BOSS_ROOMS[run.room]); }, get intro() { return roomFade; },
     get camPunch() { return { x: punchX, y: punchY, fov: punchFov }; },
     get survivors() { return run && run.obj && run.obj.list ? run.obj.list : NO_SURVIVORS; },
+    get pet() { return run && run.pet && run.pet.id !== "hugin" ? run.pet : null; },
     get powers() { return state === "play" || state === "pick" ? activePowers().map((k) => POWERUPS[k].rgb) : NO_SURVIVORS; }, // v3.7 Aura-Farben
     get hazards() { return hazards; },
     get slowPu() { return state === "play" && puOn("slow"); },
@@ -5884,7 +6169,7 @@
     if (state === "play") { drawOffscreen(); drawMinimap(); }
     if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); }
     drawCombo();
-    if (state === "play" || state === "pick") { drawPowerBadges(); drawLooterBadges(); drawFeeding(); drawPowerHud(); }
+    if (state === "play" || state === "pick") { drawPowerBadges(); drawLooterBadges(); drawFeeding(); drawPetMarks(); drawPowerHud(); drawDuelHud(); }
     // Kinobalken bei Boss-Auftritt und Boss-Tod
     const bossIntro = enemies.some((e) => e.def.boss && e.spawnT > 0);
     cine += ((bossIntro || cineT > 0 ? 1 : 0) - cine) * Math.min(1, frameDt * 5);
@@ -6211,9 +6496,53 @@
     if (!b) return;
     b[2](o);
     track("blessings");
+    albumStamp(o.kind, o.name);
     fxRing(o.x + o.w / 2, o.y + o.h / 2, Math.max(o.w, o.h) * 0.9, "255,214,120", 0.7); fxRing(player.x, player.y, 70, "255,214,120", 0.5);
     showBanner(tr(b[0]).toUpperCase(), `${tr(o.name)}: ${tr(b[1])}`, 2.2);
     sfx("level"); fx4d("level");
+  }
+  // v4.0 Sammelalbum: Wer sich den Segen eines Wahrzeichens holt, bekommt dessen Marke ins Album geklebt.
+  // Jede Marke bringt dauerhaft +1 % Münzen, das volle Album zusätzlich +10 % Erfahrung.
+  const ALBUM_COIN = 0.01, ALBUM_XP = 0.1;
+  const ALBUM = Object.entries(LANDMARKS).map(([city, lm]) => ({ city, kind: lm.kind, name: lm.name }));
+  const albumCount = () => ALBUM.filter((s) => (save.album || {})[s.kind]).length;
+  function albumStamp(kind, name) {
+    if (!save.album) save.album = {};
+    const first = !save.album[kind];
+    save.album[kind] = (save.album[kind] || 0) + 1;
+    if (first) {
+      run.greed *= 1 + ALBUM_COIN;
+      setTimeout(() => toast(tr("Neue Marke im Album: {n}", { n: tr(name) }), "album"), 1400);
+      if (albumCount() === ALBUM.length) setTimeout(() => toast(tr("Album voll! +10 % Erfahrung"), "trophy"), 3200);
+    }
+    persist();
+  }
+  function applyAlbum(p) {
+    const n = albumCount();
+    run.greed *= 1 + ALBUM_COIN * n;
+    if (n === ALBUM.length) p.xpGain = (p.xpGain || 1) * (1 + ALBUM_XP);
+  }
+  function renderAlbum(list) {
+    const grid = document.createElement("div");
+    grid.className = "album";
+    for (const s of ALBUM) {
+      const n = (save.album || {})[s.kind] || 0, city = CITIES.find((c) => c.id === s.city);
+      const cell = document.createElement("div");
+      cell.className = `stamp${n ? " got" : ""}`;
+      if (n) {
+        const [w, , h] = OBSTACLE_SIZE[s.kind];
+        // eigene Leinwand je Marke: das Sprite kommt aus dem Zwischenspeicher und darf nicht ins Dokument wandern
+        const spr = Sprites.obstacle({ kind: s.kind, x: 0, y: 0, w, h, vert: false, seed: 7, fest: "", landmark: true }, "markt");
+        const art = document.createElement("canvas");
+        art.width = spr.c.width; art.height = spr.c.height; art.className = "stamp-art";
+        art.getContext("2d").drawImage(spr.c, 0, 0);
+        cell.appendChild(art);
+      } else cell.innerHTML = `<span class="stamp-art q">?</span>`;
+      cell.insertAdjacentHTML("beforeend", `<b>${n ? tr(s.name) : "? ? ?"}</b><small>${city ? city.name : tr("Überleben")}${n > 1 ? ` · ×${n}` : ""}</small>`);
+      grid.appendChild(cell);
+    }
+    list.appendChild(grid);
+    $("codexNote").textContent = tr("{n} von {m} Marken · +{p} % Münzen", { n: albumCount(), m: ALBUM.length, p: albumCount() });
   }
   // Namensschild des Wahrzeichens, solange der Held in der Nähe ist
   function drawLandmarkLabel() {
@@ -6430,7 +6759,7 @@
     if (run.obj && run.obj.list) for (const s of run.obj.list) actorList.push(s);
     actorList.push(player);
     actorList.sort((a, b) => a.y - b.y);
-    for (const a of actorList) { if (a === player) drawPlayer(); else if (a.isSurvivor) drawSurvivor(a); else drawEnemy(a); }
+    for (const a of actorList) { if (a === player) { drawPet2D(); drawPlayer(); } else if (a.isSurvivor) drawSurvivor(a); else drawEnemy(a); }
   }
 
   function drawEnemy(e) {
@@ -8161,12 +8490,43 @@
       g.textAlign = "left";
     });
   }
+  // v4.0 Begleiter-Fenster: kaufen, trainieren, mitnehmen (immer nur ein Tier)
+  function renderPets() {
+    const list = $("petList");
+    list.innerHTML = "";
+    if (!save.pets) save.pets = {};
+    for (const [id, pt] of Object.entries(PETS)) {
+      const lv = petLv(id), active = save.pet === id, locked = !lv && reqLocked(pt.req), cost = petCost(id);
+      const tag = active ? `<span class="tag gold">${tr("DABEI")}</span>` : locked ? `<span class="tag">${reqText(pt.req)}</span>` : "";
+      const desc = `${tr(pt.kind)} · ${tr(pt.role)}<br>${petDesc(id, Math.max(1, lv))}${lv && lv < PET_MAX ? `<br><em class="next">${tr("Nächste Stufe")}: ${petDesc(id, lv + 1)}</em>` : ""}`;
+      const row = document.createElement("div");
+      row.className = `item pet${active ? " active" : ""}${lv ? "" : " dim"}`;
+      row.innerHTML = `<div class="ico">${medal(pt.icon, active ? "gold" : lv ? "" : "steel", "big")}</div>
+        <div>${tag}<div class="name">${pt.name}</div><div class="meta">${pipsHtml(lv, PET_MAX)}</div><div class="desc">${desc}</div></div><div class="acts"></div>`;
+      const acts = row.querySelector(".acts");
+      const btn = (label, cls, enabled, fn) => { const b = document.createElement("button"); b.className = `btn ${cls}`; b.innerHTML = label; b.disabled = !enabled; b.addEventListener("click", fn); acts.appendChild(b); };
+      if (!lv) btn(coinAmt(cost), "amber", !locked && save.coins >= cost, () => {
+        save.coins -= cost; save.pets[id] = 1; save.pet = id; persist(); sfx("level"); toast(tr("{n} begleitet dich jetzt", { n: pt.name }), pt.icon); renderPets(); refreshMenu();
+      });
+      else {
+        btn(active ? tr("Bleibt hier") : tr("Mitnehmen"), active ? "ghost" : "primary", true, () => { save.pet = active ? null : id; persist(); renderPets(); refreshMenu(); });
+        if (lv < PET_MAX) btn(`${I("upgrade")}${coinAmt(cost)}`, "steel", save.coins >= cost, () => {
+          save.coins -= cost; save.pets[id] = lv + 1; persist(); sfx("level"); renderPets(); refreshMenu();
+        });
+      }
+      list.appendChild(row);
+    }
+    for (const el of document.querySelectorAll(".coinsVal")) el.textContent = num(save.coins);
+  }
   function renderCodex() {
     const list = $("codexList");
     list.innerHTML = "";
     for (const b of document.querySelectorAll("#codexTabs button")) b.classList.toggle("active", b.dataset.tab === codexTab);
-    $("codexLead").textContent = codexTab === "evo" ? tr("Evolutionen: Zwei Skills auf Stufe verschmelzen zu einer Superfähigkeit.") : tr("Jeder Gegner hat eine Schwäche. Erledige ihn einmal, um ihn freizuschalten.");
+    $("codexLead").textContent = codexTab === "evo" ? tr("Evolutionen: Zwei Skills auf Stufe verschmelzen zu einer Superfähigkeit.")
+      : codexTab === "album" ? tr("Hol dir den Segen eines Wahrzeichens – seine Marke klebt dann für immer im Album.")
+      : tr("Jeder Gegner hat eine Schwäche. Erledige ihn einmal, um ihn freizuschalten.");
     if (codexTab === "bestiary") { renderBestiary(list); return; }
+    if (codexTab === "album") { renderAlbum(list); return; }
     for (const ev of EVOLUTIONS) {
       const found = !!save.codex[ev.id];
       const recipe = Object.entries(ev.needs).map(([id, n]) => { const sk = skillById(id); return `<span class="ing">${medal(sk.icon, RARITY_TONE[sk.rarity])}${sk.name}${n > 1 ? ` ×${n}` : ""}</span>`; }).join('<span class="arr">+</span>');
@@ -8521,6 +8881,8 @@
     $("bloomBtn").classList.toggle("hidden", !init3d());
     $("camBtn").innerHTML = row("camView", tr("Kamera"), valTxt(tr(CAM_NAMES[save.cam || "top"]) + (quality === 0 ? ` ${tr("(nur 3D)")}` : "")));
     $("camBtn").classList.toggle("hidden", !init3d());
+    $("backupBtn").innerHTML = row("backup", tr("Spielstand sichern"), valTxt(tr("Kopieren")));
+    $("restoreBtn").innerHTML = row("backup", tr("Spielstand einspielen"), valTxt(tr("Einfügen")));
     const cp = $("camBtnP"); if (cp) { cp.innerHTML = `${I("camView")}${tr(CAM_NAMES[save.cam || "top"])}`; cp.classList.toggle("hidden", !mode3d); }
     $("privacyOptsBtn").innerHTML = row("privacy", tr("Werbe-Einwilligung ändern"), "");
     $("privacyOptsBtn").classList.toggle("hidden", !Platform.isNative);
@@ -8549,7 +8911,7 @@
   let dailyShown = false;
   function toMenu() {
     state = "menu";
-    run = null;
+    run = null; duel = null;
     try { if (webgl) Render3D.stopPreview(); } catch { /* Menü-Vorschau */ }
     try { if (webgl) Render3D.clear(); } catch (e) { console.warn("[Outbreak] 3D-Clear", e); }
     refreshMenu();
@@ -8559,6 +8921,9 @@
     cta.classList.toggle("hidden", Platform.isNative || !Platform.cfg.playStoreUrl);
     if (Platform.cfg.playStoreUrl) cta.href = Platform.cfg.playStoreUrl;
     const shot = /(?:\?|&)shot=(menu|play|over|boss)\b/.exec(location.search)?.[1];
+    // Einstieg über einen geteilten Link (?duel=CODE): einmalig den Duell-Dialog mit dem Code öffnen
+    const linked = !duelLinkUsed && /[?&]duel=([\w-]+)/.exec(location.search)?.[1];
+    if (linked && duelDecode(linked)) { duelLinkUsed = true; dailyShown = true; show(ui.menu); renderDuel(linked); show(ui.duel); return; }
     if (!shot && !dailyShown && !st.claimedToday) { dailyShown = true; openDaily(); return; }
     show(ui.menu);
   }
@@ -8589,6 +8954,8 @@
   $("gearBtn").addEventListener("click", () => { ensureAudio(); renderGear(); show(ui.gear); });
   $("rankShare").addEventListener("click", () => { const e = (save.scores || [])[0]; if (e) shareScore(e); });
   $("shareBtn").addEventListener("click", () => { if (lastScore) shareScore(lastScore); });
+  $("duelShareBtn").addEventListener("click", () => { if (lastScore && lastScore.m === "survival") shareDuel(lastScore.s, lastScore.o); });
+  $("duelBtn").addEventListener("click", () => { ensureAudio(); renderDuel(); show(ui.duel); });
   const pickMode = (m) => {
     if ((save.menuMode || "campaign") === m) { startRun(m); return; }
     save.menuMode = m; persist(); refreshMenu();
@@ -8623,6 +8990,7 @@
   for (const b of document.querySelectorAll("#missionTabs button")) b.addEventListener("click", () => { missionTab = b.dataset.tab; renderMissions(); });
   $("passBtn").addEventListener("click", () => { ensureAudio(); renderPass(); show(ui.pass); });
   $("codexBtn").addEventListener("click", () => { ensureAudio(); renderCodex(); show(ui.codex); });
+  $("petsBtn").addEventListener("click", () => { ensureAudio(); renderPets(); show(ui.pets); });
   $("routeStrip").addEventListener("click", () => { ensureAudio(); openStory("menu", () => { show(ui.menu); }); });
   $("storyGo").addEventListener("click", storyNext);
   window.addEventListener("resize", () => { if (routeView) drawRouteMap(); });
@@ -8708,6 +9076,23 @@
     if (window.GameAudio) GameAudio.ui("tick");
   }
   $("camBtn").addEventListener("click", () => cycleCam(true));
+  $("backupBtn").addEventListener("click", async () => {
+    const text = exportSave();
+    try { await navigator.clipboard.writeText(text); toast(tr("Spielstand kopiert – sicher aufbewahren"), "backup"); }
+    catch { window.prompt(tr("Spielstand kopieren:"), text); }
+  });
+  $("restoreBtn").addEventListener("click", async () => {
+    let text = "";
+    try { text = await navigator.clipboard.readText(); } catch { /* kein Zugriff auf die Zwischenablage */ }
+    if (!/OGSAVE1\./.test(text)) text = window.prompt(tr("Gesicherten Spielstand einfügen:"), "") || "";
+    if (!text) return;
+    const data = parseBackup(text);
+    if (!data) { toast(tr("Das ist kein gültiger Spielstand"), "hazard"); return; }
+    if (!window.confirm(tr("Spielstand einspielen? Der aktuelle Stand wird überschrieben."))) return;
+    // erst nach der Bestätigung schreiben; beim Neuladen ergänzt loadSave fehlende Felder
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); restoring = true; location.reload(); }
+    catch { toast(tr("Speichern fehlgeschlagen"), "hazard"); }
+  });
   $("camBtnP").addEventListener("click", () => cycleCam(true));
   $("bloomBtn").addEventListener("click", () => { save.bloom = save.bloom === false; persist(); if (window.Render3D && Render3D.ready) Render3D.setBloom(save.bloom !== false); renderSettings(); });
   $("motionBtn").addEventListener("click", () => { save.motion = save.motion === false; persist(); renderSettings(); if (!save.motion && webgl && Render3D.setTilt) for (let i = 0; i < 40; i++) Render3D.setTilt(0, 0); });
@@ -8789,5 +9174,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, PETS, duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

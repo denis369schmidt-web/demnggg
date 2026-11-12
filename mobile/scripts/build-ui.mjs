@@ -49,6 +49,9 @@ const ICONS = {
   hazard: "hazard-sign", info: "info", firstAid: "first-aid-kit", ammo: "ammo-box", angel: "angel-outfit",
   dove: "peace-dove", devil: "devil-mask", heartArmor: "heart-armor", clover: "clover", run: "run", cash: "swap-bag",
   combo: "triple-skulls", adrenaline: "heart-beats", music: "musical-notes", motion: "3d-glasses", cinema: "film-projector", storm: "lightning-storm", beast: "spiked-dragon-head",
+  // v4.0 Begleiter, Schmiede, Album, Duell, Foto, Sicherung
+  paw: "paw", petDog: "labrador-head", petHound: "sitting-dog", petRaven: "raven", forge: "anvil-impact",
+  album: "stamper", duel: "crossed-swords", photo: "photo-camera", backup: "save", hand: "hand",
   // Skills
   multishot: "bullets", front: "heavy-bullets", diag: "arrow-cluster", side: "back-forth", rear: "return-arrow",
   pierce: "supersonic-bullet", ricochet: "ricochet", wall: "brick-wall", atk: "muscle-up", rate: "machine-gun-magazine",

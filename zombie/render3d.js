@@ -2526,6 +2526,8 @@ void main() {
     armored: [{ shirt: "#26324a", pants: "#1a2130", skin: "#7f9474", armor: true, eye: "#ff5a3a" }],
     crawler: [{ shirt: "#4b4258", pants: "#2a2430", skin: "#8a7c9e" }],
     dog: [{ shirt: "#4f3f32", skin: "#6b5644" }],
+    // v4.0 Begleiter: gesunde Hunde – 0 Schäferhund, 1 Dackel (kurze Beine, langer Rücken)
+    petdog: [{ shirt: "#8a5a2e", skin: "#2a211b", pet: true }, { shirt: "#7a4420", skin: "#3a2416", pet: true, low: true }],
     abom: [{ skin: "#8a4a6a" }],
     mother: [{ skin: "#3f5a3a" }],
     // v1.9
@@ -3147,9 +3149,13 @@ void main() {
     const bone = tlam("#ddd3b8", "bone"), gore = tlam("#5c0d12", "skin"), cavity = slam("#1c0607");
     const body = mesh(cap(0.42 * r, 1.1 * r), fur, 0, 0.95 * r, 0); body.rotation.z = Math.PI / 2;
     M.body.add(body);
+    const pet = !!P.pet; // Begleiter: keine Wunden, dunkle Augen
+    M.pet = pet;
     // v3.2: aufgerissene Flanke mit Rippen, Nackenfell, Halsband mit Marke
-    const wd = mesh(ico(0.34 * r, 1), gore, 0.05 * r, 0.95 * r, 0.3 * r); wd.scale.set(1.3, 0.85, 0.35); M.body.add(wd);
-    for (let k = 0; k < 4; k++) { const rb = mesh(box(0.06 * r, 0.42 * r, 0.06 * r), bone, -0.22 * r + k * 0.17 * r, 0.95 * r, 0.42 * r); rb.rotation.x = -0.25; M.body.add(rb); }
+    if (!pet) {
+      const wd = mesh(ico(0.34 * r, 1), gore, 0.05 * r, 0.95 * r, 0.3 * r); wd.scale.set(1.3, 0.85, 0.35); M.body.add(wd);
+      for (let k = 0; k < 4; k++) { const rb = mesh(box(0.06 * r, 0.42 * r, 0.06 * r), bone, -0.22 * r + k * 0.17 * r, 0.95 * r, 0.42 * r); rb.rotation.x = -0.25; M.body.add(rb); }
+    }
     for (let k = 0; k < 7; k++) { const tf = mesh(cone(0.1 * r, 0.32 * r, 4), fur, 0.75 * r - k * 0.24 * r, 1.36 * r - Math.abs(k - 1) * 0.02 * r, (k % 2 ? 0.07 : -0.07) * r); tf.rotation.z = 1.0; M.body.add(tf); }
     for (const [x, ph] of [[0.6, 0], [-0.62, Math.PI]]) for (const s of [-1, 1]) {
       const hip = group(x * r, 0.85 * r, s * 0.26 * r);
@@ -3179,10 +3185,11 @@ void main() {
     for (const s of [-1, 1]) {
       const ear = mesh(cone(0.1 * r, 0.3 * r, 4), fur, -0.12 * r, 0.32 * r, s * 0.2 * r); ear.rotation.x = s * 0.4; head.add(ear);
       head.add(fine(mesh(ico(0.09 * r, 1), cavity, 0.2 * r, 0.12 * r, s * 0.18 * r)));
-      head.add(mesh(ico(0.07 * r, 0), sbasic("#ff3a2a"), 0.24 * r, 0.12 * r, s * 0.18 * r));
+      head.add(mesh(ico(0.07 * r, 0), pet ? slam("#140d08") : sbasic("#ff3a2a"), 0.24 * r, 0.12 * r, s * 0.18 * r));
     }
     M.body.add(head);
     M.extra.head = head;
+    if (P.low) { M.body.scale.set(1.25, 0.72, 1); } // Dackel
     M.height = 1.7 * r;
     return M;
   }
@@ -3682,7 +3689,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     }
     M.root.updateMatrixWorld(true);
     // Zombies: Blut & Dreck, Spieler: nur etwas Staub
-    const zombie = M.kind !== "player" && M.kind !== "civilian"; // Überlebende: sauber wie der Held
+    const zombie = M.kind !== "player" && M.kind !== "civilian" && !M.pet; // Überlebende und Begleiter: sauber wie der Held
     const look = { h: M.height, seed: Math.random() * 10, grime: zombie ? 0.75 : 0.3, freq: zombie ? 0.22 : 0.3, gr: zombie ? 0.16 : 0.12, gg: zombie ? 0.005 : 0.1, gb: zombie ? 0.008 : 0.07 };
     if (M.kind === "abom" || M.kind === "mother") look.grime = 0.4;
     // Einzelteile mit eigener Animation behalten ihre Materialien; der Rest blitzt gemeinsam auf
@@ -3753,7 +3760,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     M.height = 1.7 * r;
     return M;
   }
-  const builders = { crawler: buildCrawler, dog: buildDog, rat: buildRat, abom: buildAbom, mother: buildMother, nest: buildNest };
+  const builders = { crawler: buildCrawler, dog: buildDog, petdog: buildDog, rat: buildRat, abom: buildAbom, mother: buildMother, nest: buildNest };
   const pools = new Map();
   // v3.7 Hautfarbe je Evolutionsstufe (Kleidung dunkelt nach), Teile kommen aus addMutation
   const EVO_SKIN3 = [null, "#5f9a34", "#6e3a2c", "#4a1418"], EVO_CLOTH3 = [0, 0.08, 0.2, 0.38], evoCol = new T3.Color(), evoCol2 = new T3.Color();
@@ -4703,6 +4710,23 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       for (const m of M.mats) m.emissive.setRGB(s.hurtT > 0 ? k : 0, s.hurtT > 0 ? 0.02 : k, s.hurtT > 0 ? 0.02 : k * 0.3);
     }
     for (const [s, M] of survModels) if (!seen.has(s)) { releaseModel(M); survModels.delete(s); }
+  }
+  // v4.0 Begleiter: Hund als eigenes Modell neben dem Helden (der Rabe fliegt in der Vogel-Schar mit)
+  let petModel = null;
+  const petPose = { anim: 0, pose: null };
+  function syncPet(w, t) {
+    const pt = w.pet;
+    if (!pt) { if (petModel) { releaseModel(petModel); petModel = null; } return; }
+    if (petModel && petModel.look !== pt.def.look) { releaseModel(petModel); petModel = null; }
+    if (!petModel) { petModel = acquireModel("petdog", pt.r, pt.def.look); petModel.look = pt.def.look; }
+    const M = petModel;
+    M.root.position.set(pt.x, 0, pt.y);
+    M.root.rotation.set(0, -pt.face, 0);
+    M.root.scale.setScalar(CHAR_SCALE * (pt.def.look ? 0.8 : 1.05));
+    petPose.anim = pt.anim;
+    animate(M, petPose, t, false);
+    if (M.extra.tail) M.extra.tail.rotation.y = Math.sin(t * 14) * 0.5; // wedeln
+    for (const m of M.mats) m.emissive.setRGB(0, 0, 0);
   }
   const ICE = new T3.Color(0.55, 0.82, 1.0), CHAR = new T3.Color(0.09, 0.07, 0.06);
   function poseCorpse(c, d, t) {
@@ -5982,6 +6006,7 @@ void main() {
     updateAtmo(dt, t);
     syncEnemies(w, t, dt);
     syncSurvivors(w, t);
+    syncPet(w, t);
     syncPlayer(w, t);
     syncDoor(w);
     syncObstacles(t, w);

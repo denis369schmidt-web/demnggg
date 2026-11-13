@@ -15,7 +15,7 @@ kann niemand für dich erledigen.
 - Spielstand: lokal, Export/Import als Text (Einstellungen → „Spielstand sichern“)
 - Barrierearm: Bildschirmwackeln, Leuchteffekte, Kino-Effekte und Vibration einzeln abschaltbar, `prefers-reduced-motion` wird beachtet
 - Offline spielbar (Service Worker), keine Konten, keine Server
-- Regression: 48 automatische Browser-Läufe (2D und 3D)
+- Regression: 48 automatische Browser-Läufe (2D und 3D) grün – nur auf Software-3D im Testbrowser, nicht auf echten Geräten
 
 **Nur du kannst das erledigen – ohne diese Punkte keine Veröffentlichung**
 

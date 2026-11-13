@@ -372,6 +372,33 @@
       </div>
     </section>
 
+    <!-- ============ v4.1 Arena: Aufstieg + 1 gegen 1 ============ -->
+    <section id="arena" class="overlay screen hidden">
+      <header class="bar">
+        <button class="back" data-back aria-label="Zurück"></button>
+        <div class="title"><small data-i18n>1 GEGEN 1</small><h2 data-i18n>Arena</h2></div>
+        <div class="wallet"><i class="coin" data-ic="coin"></i><b class="coinsVal">0</b></div>
+      </header>
+      <div class="body">
+        <div class="fighter-card" id="arenaFighter"></div>
+        <button class="btn primary" id="arenaClimb"></button>
+        <p class="note" data-i18n>Aufstieg: zehn Bezirke Heilbronn, nach jedem ein Skill. Dein bester Kämpfer bleibt gespeichert.</p>
+        <div class="arena-box">
+          <h3 data-i18n>Online-Kampf</h3>
+          <button class="btn amber" id="arenaHost" data-i18n>Raum erstellen</button>
+          <div class="arena-join">
+            <label class="field"><span data-i18n>Raum-Code</span><input id="arenaCode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="5" placeholder="·····" /></label>
+            <button class="btn steel" id="arenaJoin" data-i18n>Beitreten</button>
+          </div>
+          <p class="arena-status" id="arenaStatus"></p>
+          <button class="btn ghost hidden" id="arenaCancel" data-i18n>Abbrechen</button>
+        </div>
+        <button class="btn steel" id="arenaBot" data-i18n>Gegen Bot üben</button>
+        <p class="note" id="arenaRecord"></p>
+        <p class="note" data-i18n>Online-Kämpfe laufen direkt zwischen den beiden Geräten. Zur Vermittlung wird kurz ein öffentlicher Dienst (PeerJS) genutzt; dabei sieht die Gegenseite deine IP-Adresse.</p>
+      </div>
+    </section>
+
     <!-- ============ v4.0 Duell-Codes ============ -->
     <section id="duel" class="overlay modal hidden">
       <div class="dialog duel">
@@ -381,6 +408,7 @@
         <label class="field"><span data-i18n>Duell-Code</span><input id="duelCode" type="text" inputmode="latin" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" placeholder="OG-······" /></label>
         <p class="duel-info" id="duelInfo"></p>
         <button class="btn primary" id="duelGo" data-i18n>Duell annehmen</button>
+        <button class="btn amber" id="arenaBtn"><i data-ic="duel"></i><span data-i18n>Live-Arena: 1 gegen 1 online</span></button>
         <button class="btn ghost share hidden" id="duelMine"><i data-ic="duel"></i><span data-i18n>Meinen Bestwert als Code teilen</span></button>
         <p class="note" id="duelRecord"></p>
       </div>

@@ -377,7 +377,7 @@
     menu: $("menu"), armory: $("armory"), talents: $("talents"), skillPick: $("skillPick"),
     pause: $("pause"), over: $("over"), pauseBtn: $("pauseBtn"),
     shop: $("shop"), daily: $("daily"), settings: $("settings"), revive: $("revive"),
-    missions: $("missions"), pass: $("pass"), patrol: $("patrol"), codex: $("codex"), route: $("route"), ranks: $("ranks"), gear: $("gear"), mini: $("mini"), pets: $("pets"), duel: $("duel"),
+    missions: $("missions"), pass: $("pass"), patrol: $("patrol"), codex: $("codex"), route: $("route"), ranks: $("ranks"), gear: $("gear"), mini: $("mini"), pets: $("pets"), duel: $("duel"), arena: $("arena"),
   };
   const overlays = Object.values(ui).filter((o) => o !== ui.pauseBtn);
   // UI-Bausteine: Icons aus dem Sprite, Münzbeträge, Sechseck-Medaillons, Fortschritts-Pips
@@ -722,7 +722,7 @@
     if (save.skin === "gold") run.greed *= 1.1;
     // Gekaufte Boosts für diesen Run verbrauchen
     const used = [];
-    const b = save.boosts;
+    const b = mode === "pvp" ? {} : save.boosts; // im 1 gegen 1 zählt nur der Kämpfer
     const boostName = (id) => BOOSTS.find((q) => q.id === id).name;
     if (b.hp > 0) { b.hp--; player.maxHp = Math.round(player.maxHp * 1.3); player.hp = player.maxHp; used.push(boostName("hp")); }
     if (b.coins > 0) { b.coins--; run.greed *= 1.5; used.push(boostName("coins")); }
@@ -756,6 +756,8 @@
 
   function nextRoom() {
     if (run.mode === "survival") { setupSurvival(); return; }
+    if (run.mode === "pvp") return; // der Kampfplatz wird in startPvp aufgebaut
+    if (run.mode === "arena" && run.room >= ARENA_STAGES) { finishClimb(); return; }
     run.room++;
     if (run.room > ROOMS_PER_CHAPTER) { run.chapter++; run.room = 1; }
     // Neue Stadt: Prämie für die durchbrochene, dann der Fluchtplan (pausiert bis „Weiter“)
@@ -1871,7 +1873,7 @@
     }
     dmg *= p.dmgTaken || 1; // SWAT-Weste
     p.hp -= dmg;
-    p.invuln = 0.8;
+    p.invuln = run.mode === "pvp" ? PVP.invuln : 0.8;
     shake = Math.max(shake, 8);
     punchFov = Math.max(punchFov, 2.4);
     addText(p.x + rand(-10, 10), p.y - 58, `-${Math.round(dmg)}`, "#ff5a5a", 18);
@@ -1881,6 +1883,7 @@
     hitStop = Math.max(hitStop, 0.05);
     sfx("hurt");
     fx4d(dmg >= p.maxHp * 0.2 ? "heavyHurt" : "hurt");
+    if (p.hp <= 0 && run.mode === "pvp") { p.hp = 0; endPvp(false); return; }
     if (p.hp <= 0) {
       if (p.revives > 0) {
         p.revives--;
@@ -2405,6 +2408,15 @@
   // ============================================================
   function damageEnemy(e, dmg, o) {
     if (e.dead) return;
+    if (e.rival && run.pvp) {
+      if (run.pvp.over || run.pvp.cd > 0) return;
+      if (run.pvp.net) { // online entscheidet das Gerät des Gegners über Kugeltreffer; nur Flächenschaden wird gemeldet
+        e.hitT = 0.08;
+        if (!o.bullet && !o.silent && dmg < 1e5) run.pvp.link.send({ t: "h", d: +dmg.toFixed(1) });
+        return;
+      }
+      if (dmg > e.maxHp * 0.25) dmg = e.maxHp * 0.25; // kein Sofort-Tod durch Exekution/Kopfschuss
+    }
     const p = player;
     let crit = false, exec = false;
     if (!o.silent) {
@@ -2722,6 +2734,7 @@
   const activePowers = () => (run && run.pu ? Object.keys(POWERUPS).filter((k) => run.pu[k] > 0) : []);
 
   function killEnemy(e) {
+    if (e.rival && run.pvp) endPvp(true); // v4.1: der Arena-Gegner ist gefallen
     if (e.dead) return;
     e.dead = true;
     run.kills++;
@@ -3185,6 +3198,7 @@
       e.wob += dt * 6;
       if (e.under) { updateUnder(e, dt); continue; }
       if (e.spawnT > 0) { e.spawnT -= dt; continue; }
+      if (e.rival) { if (e.stunT > 0) e.stunT -= dt; updateRival(e, dt); continue; } // v4.1 Arena-Gegner: Bot oder Netz
       if (e.shieldT > 0 && (e.shieldT -= dt) <= 0) e.shield = 0;
       if (e.glitchT > 0) e.glitchT -= dt;
       if (e.aff) updateAffixes(e, dt);
@@ -3702,12 +3716,13 @@
     }
 
     enemies = enemies.filter((e) => !e.dead);
-    if (run.mode !== "survival" && !run.cleared && !supplyCrate && enemies.length === 0 && !objectiveBlocksClear()) roomCleared();
+    if (run.mode !== "survival" && run.mode !== "pvp" && !run.cleared && !supplyCrate && enemies.length === 0 && !objectiveBlocksClear()) roomCleared();
   }
 
   function roomCleared() {
     if ((theme() === "street" || theme() === "markt") && corpses.length) { const c = pick(corpses); setTimeout(() => { if (run && run.cleared && state === "play") landFlock(c.x, c.y, randi(3, 5)); }, 2500); }
     run.cleared = true;
+    if (run.mode === "arena") { run.pendingPicks++; saveFighter(run.room); } // Aufstieg: nach jedem Bezirk ein Skill, Zwischenstand sichern
     if (lastKill && !BOSS_ROOMS[run.room]) killCam = { x: lastKill.x, y: lastKill.y, t: 0.9, max: 0.9 };
     track("rooms");
     if (run.belt) addThrow(save.throwOwned[save.throwSel] ? save.throwSel : "frag", 1, player.x, player.y - 46); // Nachschub je Bezirk
@@ -5177,6 +5192,324 @@
       ctx.restore();
     }
   }
+  // ============================================================
+  // v4.1 Arena: erst über zehn Bezirke einen Kämpfer hochskillen („Aufstieg“), dann 1 gegen 1 –
+  // gegen einen Bot oder online gegen einen anderen Spieler (Raum-Code, direkte Verbindung per WebRTC).
+  //
+  // Netzmodell: Jede Seite rechnet den eigenen Helden selbst. Übertragen werden Zustand (15×/s) und neue
+  // Kugeln; Treffer entscheidet das Gerät des Getroffenen – wer auf dem eigenen Bildschirm ausweicht, ist
+  // ausgewichen. Flächenschaden ohne Kugel (Säge, Tesla, Explosion) meldet der Schütze als Treffer.
+  // Beide sehen sich selbst unten: fremde Koordinaten werden am Arena-Mittelpunkt gespiegelt.
+  // ============================================================
+  const ARENA_STAGES = 10;
+  const PVP = { dmg: 0.6, invuln: 0.15, sendHz: 15, timeout: 6, count: 3 };
+  // Was vom Helden in den Kämpfer wandert: alle Werte außer Lage und laufenden Zeitgebern
+  const FIGHTER_SKIP = new Set(["x", "y", "vx", "vy", "hp", "aim", "fireCd", "invuln", "moving", "muzzle", "walkT", "plant", "footStep", "ghostCd", "kick", "spin", "barrel", "hurtT",
+    "dashCd", "dashT", "dashX", "dashY", "weapon", "slowT", "jamT", "perfectT", "orbitAng", "droneCd", "xp", "revives"]);
+  function fighterOf(p) {
+    const f = {};
+    for (const [k, v] of Object.entries(p)) if (!FIGHTER_SKIP.has(k) && typeof v !== "function") f[k] = v;
+    return JSON.parse(JSON.stringify(f));
+  }
+  function playerFromFighter(f) {
+    const p = Object.assign(newPlayer(), JSON.parse(JSON.stringify(f)));
+    p.weapon = WEAPONS[p.weaponId] || WEAPONS.pistol;
+    p.hp = p.maxHp; p.revives = 0;
+    return p;
+  }
+  // Kennzahlen für Anzeige, Gegenstelle und Bot
+  function fighterInfo(f) {
+    const w = WEAPONS[f.weaponId] || WEAPONS.pistol;
+    const shots = (1 + (f.front || 0) + 2 * (f.diag || 0) + 2 * (f.side || 0) + Math.min(3, f.rear || 0)) * (w.pellets || 1);
+    return {
+      name: rankOf(bestScore()).name, skin: f.skin, w: f.weaponId, lv: f.level, mhp: f.maxHp, speed: f.speed,
+      dmg: w.dmg * f.dmgMul, rate: w.rate * (f.rateMul || 1) * (1 + (f.multishot || 0) * 0.6), shots, bspeed: w.speed, br: w.r || 5,
+      skills: Object.values(f.skills || {}).reduce((a, n) => a + n, 0),
+    };
+  }
+  // Der bessere Kämpfer bleibt: ein missglückter Aufstieg zerstört keinen fertigen
+  function saveFighter(stage) {
+    const a = save.arena || (save.arena = { w: 0, l: 0 }), old = a.stage || 0;
+    if (a.f && (stage < old || (stage === old && player.level <= a.f.level))) return false;
+    a.f = fighterOf(player); a.stage = stage;
+    persist();
+    return true;
+  }
+  function finishClimb() {
+    run.climbDone = true;
+    gameOver(false, true);
+  }
+
+  // ---------------------------------------------------------------- Verbindung
+  // Einheitliche Leitung: send(obj), close(), onmsg, onclose. „local“ (BroadcastChannel) verbindet zwei
+  // Fenster desselben Browsers – für Tests und zum Ausprobieren am PC; sonst PeerJS (WebRTC-Datenkanal).
+  const NET_LOCAL = /[?&]net=local\b/.test(location.search);
+  const roomId = (code) => `outbreak-germany-${code}`;
+  const newRoomCode = () => Array.from({ length: 5 }, () => DUEL_ABC[Math.floor(Math.random() * 32)]).join("");
+  const cleanRoomCode = (s) => String(s || "").toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 5);
+  function loadScript(src) {
+    return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("load")); document.head.appendChild(s); });
+  }
+  function openLocalLink(code, host) {
+    return new Promise((res) => {
+      const ch = new BroadcastChannel(roomId(code)), link = { send: (o) => ch.postMessage(o), close: () => { try { ch.postMessage({ t: "bye" }); } catch { /* zu */ } ch.close(); }, onmsg: null, onclose: null };
+      let open = false;
+      ch.onmessage = (ev) => {
+        const m = ev.data;
+        if (!open) {
+          if (host && m.t === "join") { open = true; ch.postMessage({ t: "joined" }); res(link); }
+          else if (!host && m.t === "joined") { open = true; res(link); }
+          return;
+        }
+        if (m.t === "bye") { if (link.onclose) link.onclose(); } else if (m.t !== "join" && m.t !== "joined" && link.onmsg) link.onmsg(m);
+      };
+      link.cancel = () => ch.close();
+      if (!host) ch.postMessage({ t: "join" });
+      openLocalLink.pending = link;
+    });
+  }
+  async function openPeerLink(code, host) {
+    if (!window.Peer) await loadScript("vendor/peerjs.min.js");
+    const cfg = (Platform.cfg.arena && Platform.cfg.arena.peer) || undefined; // eigener Vermittlungs-Server möglich
+    return new Promise((res, rej) => {
+      const peer = host ? new window.Peer(roomId(code), cfg) : new window.Peer(cfg);
+      let done = false;
+      const fail = (why) => { if (!done) { done = true; try { peer.destroy(); } catch { /* weg */ } rej(new Error(why)); } };
+      const wire = (conn) => {
+        const link = { send: (o) => { if (conn.open) conn.send(o); }, close: () => { try { conn.close(); peer.destroy(); } catch { /* weg */ } }, onmsg: null, onclose: null };
+        conn.on("data", (m) => { if (link.onmsg) link.onmsg(m); });
+        conn.on("close", () => { if (link.onclose) link.onclose(); });
+        conn.on("open", () => { done = true; res(link); });
+      };
+      peer.on("error", (e) => fail(e && e.type === "peer-unavailable" ? "noroom" : e && e.type === "unavailable-id" ? "taken" : "net"));
+      if (host) peer.on("connection", wire);
+      else peer.on("open", () => wire(peer.connect(roomId(code), { reliable: true })));
+      openPeerLink.cancel = () => fail("cancel");
+    });
+  }
+  const openLink = (code, host) => (NET_LOCAL ? openLocalLink(code, host) : openPeerLink(code, host));
+  let lobby = null; // { code, host, link, cancel }
+
+  // ---------------------------------------------------------------- Kampf
+  const pvpMirror = (x, y) => ({ x: W - x, y: T + B - y });
+  // Punktsymmetrischer Kampfplatz: was unten links Deckung gibt, steht oben rechts genauso
+  function pvpObstacles() {
+    const half = [["container", 70, 420, 120, 54], ["sandsack", 300, 470, 96, 34], ["crate", 250, 330, 52, 46], ["barricade", 110, 250, 110, 28], ["dumpster", 380, 300, 78, 44]];
+    const out = [], cx = W / 2, cy = (T + B) / 2;
+    half.forEach(([kind, x, dy, w, h], i) => {
+      out.push({ kind, x, y: Math.round(cy + dy - 250), w, h, vert: false, seed: 11 + i });
+      out.push({ kind, x: Math.round(2 * cx - x - w), y: Math.round(cy - (dy - 250) - h), w, h, vert: false, seed: 31 + i });
+    });
+    return out;
+  }
+  function setupPvpRoom() {
+    resetRoomState();
+    run.room = 1;
+    player.x = W / 2; player.y = B - 150;
+    updateCam2D(0, true);
+    makeGates(true);
+    obstacles = pvpObstacles();
+    floorCanvas = makeFloor();
+    roomLights = [];
+    initAmbient();
+    const o = run.pvp.opp, at = pvpMirror(player.x, player.y);
+    const lock = evoLock; evoLock = true; // der Gegner mutiert nicht
+    const e = spawnEnemy("walker", at.x, at.y);
+    evoLock = lock;
+    Object.assign(e, { rival: true, variant: 10, aff: null, elite: 0, spawnT: 0, scale: 1, face: Math.PI / 2, speed: o.speed || 190, tx: at.x, ty: at.y, fireCd: 1, strafe: 1, strafeT: 1, lastMsg: 0 });
+    e.def = { ...e.def, name: o.name || tr("Gegner"), xp: 0, coins: [0, 0], dmg: 0 };
+    // Bot: der eigene Schaden wirkt ungebremst, deshalb trägt er entsprechend mehr Leben
+    e.maxHp = e.hp = run.pvp.net ? o.mhp : o.mhp / PVP.dmg;
+    run.pvp.rival = e;
+    run.pvp.cd = PVP.count;
+    player.fireCd = PVP.count;
+    showBanner(tr("1 GEGEN 1"), `${tr("Gegner")}: ${e.def.name} · ${tr("Level {n}", { n: o.lv || 1 })}`, 2.4);
+  }
+  function startPvp(opp, link) {
+    const a = save.arena;
+    if (!a || !a.f) return;
+    duel = null;
+    startRun("pvp");
+    run.pet = null;
+    player = playerFromFighter(a.f);
+    syncGearLook();
+    run.pvp = { opp, net: !!link, link: link || null, sendT: 0, rival: null, cd: PVP.count, over: false, quiet: 0 };
+    setupPvpRoom();
+    if (link) {
+      link.onmsg = pvpMessage;
+      link.onclose = () => { if (run && run.pvp && !run.pvp.over) endPvp(true, tr("Gegner hat aufgegeben")); };
+    }
+    track("arenaFights");
+  }
+  function rivalShoot(e, ang, list) {
+    for (const [a, d, sp, r] of list) {
+      eBullets.push({ x: e.x + Math.cos(a) * (e.r + 6), y: e.y + Math.sin(a) * (e.r + 6), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r, dmg: d, color: "#ff6a4a", life: 1.6, dead: false, rgb: "255,106,74" });
+    }
+    e.face = ang; e.flashT = 0.07;
+    fxFlash(e.x + Math.cos(ang) * 22, e.y + Math.sin(ang) * 22, 34, "255,170,110", 0.07);
+  }
+  function updateRival(e, dt) {
+    const pv = run.pvp, p = player;
+    if (pv.over) return;
+    if (pv.cd > 0) return;
+    if (pv.net) {
+      const k = Math.min(1, dt * 14), dx = e.tx - e.x, dy = e.ty - e.y;
+      if (Math.abs(dx) + Math.abs(dy) > 1) e.anim += dt * 9;
+      e.x += dx * k; e.y += dy * k;
+      if ((pv.quiet += dt) > PVP.timeout) endPvp(true, tr("Verbindung zum Gegner verloren"));
+      return;
+    }
+    // Bot: hält mittlere Distanz, läuft seitlich, wechselt die Richtung, zielt mit Vorhalt
+    const o = pv.opp, dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
+    if ((e.strafeT -= dt) <= 0) { e.strafeT = rand(0.7, 1.8); e.strafe = Math.random() < 0.5 ? -1 : 1; }
+    const want = d > 380 ? 1 : d < 230 ? -1 : 0;
+    let mx = (dx / d) * want + (-dy / d) * e.strafe * 0.9, my = (dy / d) * want + (dx / d) * e.strafe * 0.9;
+    const ml = Math.hypot(mx, my) || 1, sp = e.speed * o.skill * (e.stunT > 0 ? 0 : 1);
+    e.x += (mx / ml) * sp * dt; e.y += (my / ml) * sp * dt; e.anim += dt * 9;
+    for (const ob of obstacles) pushOutRect(e, ob);
+    e.x = clamp(e.x, L + e.r, R - e.r); e.y = clamp(e.y, T + e.r, B - e.r);
+    if (e.stunT > 0) return;
+    const lead = d / (o.bspeed || 700), ang = Math.atan2(p.y + p.vy * lead * o.skill - e.y, p.x + p.vx * lead * o.skill - e.x);
+    e.face = ang;
+    if ((e.fireCd -= dt) <= 0 && d < 620) {
+      e.fireCd = 1 / Math.max(0.6, o.rate * o.skill);
+      const n = Math.min(7, o.shots), list = [];
+      for (let i = 0; i < n; i++) list.push([ang + (i - (n - 1) / 2) * 0.09 + rand(-0.05, 0.05) / o.skill, o.dmg * PVP.dmg, o.bspeed, o.br]);
+      rivalShoot(e, ang, list);
+      sfx("shoot");
+    }
+  }
+  // Eigene neue Kugeln und der Zustand gehen an die Gegenstelle
+  function pvpSend(dt) {
+    const pv = run.pvp, p = player;
+    if (!pv.net || pv.over) return;
+    const fresh = [];
+    const k = 1 + p.crit * (p.critMul - 1); // Krit-Erwartungswert: drüben wird nicht gewürfelt
+    for (const b of bullets) {
+      if (b.sent) continue;
+      b.sent = true;
+      const m = pvpMirror(b.x, b.y);
+      fresh.push([Math.round(m.x), Math.round(m.y), Math.round(-b.vx), Math.round(-b.vy), +(b.dmg * k).toFixed(1), b.r, +b.life.toFixed(2)]);
+    }
+    if (fresh.length) pv.link.send({ t: "b", l: fresh.slice(0, 40) });
+    if ((pv.sendT -= dt) <= 0) {
+      pv.sendT = 1 / PVP.sendHz;
+      const m = pvpMirror(p.x, p.y);
+      pv.link.send({ t: "s", x: Math.round(m.x), y: Math.round(m.y), a: +(p.aim + Math.PI).toFixed(2), hp: Math.max(0, Math.round(p.hp)), mhp: Math.round(p.maxHp) });
+    }
+  }
+  function pvpMessage(m) {
+    const pv = run && run.pvp;
+    if (!pv || pv.over || !m) return;
+    const e = pv.rival;
+    pv.quiet = 0;
+    if (m.t === "s") { e.tx = clamp(+m.x || 0, L, R); e.ty = clamp(+m.y || 0, T, B); e.face = +m.a || 0; e.maxHp = Math.max(1, +m.mhp || 1); e.hp = clamp(+m.hp || 0, 0, e.maxHp); }
+    else if (m.t === "b" && Array.isArray(m.l) && pv.cd <= 0) {
+      for (const q of m.l.slice(0, 40)) eBullets.push({ x: +q[0], y: +q[1], vx: +q[2], vy: +q[3], r: clamp(+q[5] || 5, 2, 14), dmg: clamp(+q[4] || 0, 0, 5000) * PVP.dmg, color: "#ff6a4a", life: clamp(+q[6] || 1, 0.1, 3), dead: false, rgb: "255,106,74" });
+      if (m.l.length) { e.flashT = 0.07; if (Math.random() < 0.5) sfx("shoot"); }
+    }
+    else if (m.t === "h" && pv.cd <= 0) hurtPlayer(clamp(+m.d || 0, 0, 5000) * PVP.dmg);
+    else if (m.t === "dead") endPvp(true);
+  }
+  function endPvp(won, why = "") {
+    const pv = run.pvp;
+    if (pv.over) return;
+    pv.over = true; pv.won = won;
+    if (pv.net) { if (!won) pv.link.send({ t: "dead" }); setTimeout(() => { try { pv.link.close(); } catch { /* zu */ } }, 400); }
+    const a = save.arena || (save.arena = { w: 0, l: 0 });
+    let prize = 0;
+    if (won) { a.w = (a.w || 0) + 1; prize = pv.net ? 120 : 30; save.coins += prize; track("arenaWins"); } else a.l = (a.l || 0) + 1;
+    persist();
+    slowMo = Math.max(slowMo, 0.6); shake = Math.max(shake, 8);
+    if (won && pv.rival && !pv.rival.dead) { pv.rival.hp = 0; fxBlood(pv.rival.x, pv.rival.y, rand(0, TAU), 14, RED, 220); pv.rival.dead = true; }
+    eBullets = [];
+    showBanner(won ? tr("SIEG!") : tr("NIEDERLAGE"), why || (won ? tr("Der Platz gehört dir") : tr("Nächstes Mal")), 2.2);
+    if (window.GameAudio) GameAudio.stinger(won ? "victory" : "death");
+    setTimeout(() => {
+      if (!run || run.pvp !== pv) return;
+      state = "over"; joy.active = false; lastScore = null;
+      const title = $("overTitle");
+      title.textContent = won ? tr("SIEG!") : tr("NIEDERLAGE"); title.classList.toggle("win", won);
+      const line = (icon, label, value, cls = "", i = 0) => `<span style="--i:${i}">${I(icon)}${label}</span><b class="${cls}" style="--i:${i}">${value}</b>`;
+      $("overStats").innerHTML = line("duel", tr("Gegner"), `${pv.opp.name} · ${tr("Level {n}", { n: pv.opp.lv || 1 })}`) +
+        (why ? line("info", tr("Grund"), why, "", 1) : "") +
+        line("trophy", tr("Bilanz"), tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 }), "", 2) +
+        line("coin", tr("Münzen"), coinAmt(prize, "+"), "gold", 3);
+      for (const id of ["doubleBtn", "shareBtn", "duelShareBtn"]) $(id).classList.add("hidden");
+      $("againBtn").textContent = tr("Zur Arena");
+      show(ui.over);
+      refreshMenu();
+    }, 1900);
+  }
+  function drawPvpHud() {
+    const pv = run && run.pvp;
+    if (!pv || !pv.rival) return;
+    const e = pv.rival, w = 250, x = (W - w) / 2, y = 106, k = clamp(e.hp / e.maxHp, 0, 1);
+    ctx.save();
+    ctx.fillStyle = "rgba(12,14,12,0.8)"; ctx.fillRect(x, y, w, 24);
+    ctx.fillStyle = "#3a1512"; ctx.fillRect(x + 3, y + 15, w - 6, 6);
+    ctx.fillStyle = "#e2561f"; ctx.fillRect(x + 3, y + 15, (w - 6) * k, 6);
+    ctx.font = "800 12px 'Barlow Condensed', sans-serif"; ctx.textBaseline = "middle";
+    ctx.textAlign = "left"; ctx.fillStyle = "#efe8d4"; ctx.fillText(String(e.def.name).toUpperCase(), x + 8, y + 8);
+    ctx.textAlign = "right"; ctx.fillStyle = "#ffd36a"; ctx.fillText(`${Math.ceil(k * 100)} %`, x + w - 8, y + 8);
+    if (pv.cd > 0 && state === "play") {
+      const n = Math.ceil(pv.cd), f = pv.cd - Math.floor(pv.cd);
+      ctx.textAlign = "center"; ctx.font = `400 ${Math.round(110 + f * 40)}px 'Saira Stencil One', sans-serif`;
+      ctx.globalAlpha = 0.35 + f * 0.65; ctx.fillStyle = "#efe8d4"; ctx.strokeStyle = "#1c1913"; ctx.lineWidth = 8;
+      ctx.strokeText(String(n), W / 2, H * 0.42); ctx.fillText(String(n), W / 2, H * 0.42);
+    }
+    ctx.restore();
+  }
+  function updatePvp(dt) {
+    const pv = run && run.pvp;
+    if (!pv || state !== "play") return;
+    if (pv.cd > 0) { pv.cd -= dt; if (pv.cd <= 0) { sfx("whistle"); player.fireCd = 0; } }
+    pvpSend(dt);
+  }
+
+  // ---------------------------------------------------------------- Fenster „Arena“
+  const NET_ERR = { noroom: "Diesen Raum gibt es nicht (mehr)", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
+  function closeLobby() {
+    if (!lobby) return;
+    try { if (lobby.link) lobby.link.close(); else if (NET_LOCAL && openLocalLink.pending) openLocalLink.pending.cancel(); else if (openPeerLink.cancel) openPeerLink.cancel(); } catch { /* zu */ }
+    lobby = null;
+  }
+  async function openLobby(host, code) {
+    closeLobby();
+    const me = lobby = { code, host, link: null };
+    renderArena();
+    try {
+      const link = await openLink(code, host);
+      if (lobby !== me) { link.close(); return; }
+      me.link = link;
+      // Vorstellung: beide schicken ihre Kennzahlen, der Gastgeber gibt das Startsignal
+      const mine = fighterInfo(save.arena.f);
+      let theirs = null, started = false;
+      const go = () => { if (started || !theirs) return; started = true; lobby = null; startPvp(theirs, link); };
+      link.onmsg = (m) => {
+        if (m.t === "hello" && m.i) { theirs = { name: String(m.i.name || "?").slice(0, 16), lv: +m.i.lv || 1, mhp: clamp(+m.i.mhp || 600, 100, 1e5), speed: clamp(+m.i.speed || 190, 100, 400) }; if (host) { link.send({ t: "go" }); go(); } }
+        else if (m.t === "go") go();
+      };
+      link.onclose = () => { if (lobby === me) { lobby = null; renderArena(tr("Gegner hat den Raum verlassen")); } };
+      link.send({ t: "hello", i: { name: mine.name, lv: mine.lv, mhp: mine.mhp, speed: mine.speed } });
+    } catch (err) {
+      if (lobby === me) { lobby = null; renderArena(tr(NET_ERR[err.message] || NET_ERR.net)); }
+    }
+  }
+  function renderArena(msg = "") {
+    const a = save.arena || {}, f = a.f, info = f ? fighterInfo(f) : null, wname = info ? WEAPONS[info.w].name : "";
+    $("arenaFighter").innerHTML = f
+      ? `${medal("duel", a.stage >= ARENA_STAGES ? "gold" : "steel", "big")}<span><small>${tr("Dein Kämpfer")}</small><b>${tr("Level {n}", { n: info.lv })} · ${wname}</b><em>${tr("Aufstieg {n}/{m}", { n: a.stage || 0, m: ARENA_STAGES })} · ${tr("{n} Skills", { n: info.skills })} · ${num(info.mhp)} ${tr("Leben")}</em></span>`
+      : `${medal("duel", "steel", "big")}<span><small>${tr("Dein Kämpfer")}</small><b>${tr("Noch keiner")}</b><em>${tr("Schaff den Aufstieg: 10 Bezirke, nach jedem ein Skill")}</em></span>`;
+    $("arenaClimb").innerHTML = `<span>${f ? tr("Neuer Aufstieg") : tr("Aufstieg starten")}</span>`;
+    $("arenaRecord").textContent = tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 });
+    const wait = !!lobby;
+    for (const id of ["arenaBot", "arenaHost", "arenaJoin", "arenaCode"]) $(id).disabled = !f || wait;
+    $("arenaClimb").disabled = wait;
+    $("arenaCancel").classList.toggle("hidden", !wait);
+    $("arenaStatus").textContent = msg || (wait ? (lobby.host ? tr("Raum {c} ist offen – gib den Code deinem Gegner", { c: lobby.code }) : tr("Verbinde mit Raum {c} …", { c: lobby.code })) : f ? tr("Raum erstellen und Code weitergeben – oder dem Raum eines Freundes beitreten") : "");
+    $("arenaStatus").classList.toggle("live", wait && !msg);
+  }
   function updateAmbient(dt) {
     const th = theme();
     for (const a of ambient) {
@@ -5203,6 +5536,7 @@
     updateAmbient(dt);
     updateBirds(dt);
     updatePet(dt);
+    updatePvp(dt);
     if (banner) { banner.life -= dt; if (banner.life <= 0) banner = null; }
     shake = Math.max(0, shake - dt * 30);
     punchX *= Math.max(0, 1 - 14 * dt); punchY *= Math.max(0, 1 - 14 * dt);
@@ -5707,6 +6041,7 @@
   let lastScore = null;
   function gameOver(quit, won = false) {
     state = "over";
+    if (run.mode === "arena") saveFighter(run.climbDone ? ARENA_STAGES : Math.max(0, run.room - (run.cleared ? 0 : 1)));
     bankLoot();
     if (window.GameAudio && !quit) GameAudio.stinger(won ? "victory" : "death");
     joy.active = false;
@@ -5725,7 +6060,7 @@
       record = s > (save.stats.survival || 0);
       trackMax("survival", s);
       addPassXp(Math.floor(s / 2));
-    } else {
+    } else if (run.mode === "campaign") { // Aufstieg und Arena zählen nicht für den Kampagnen-Rekord
       const score = run.chapter * 100 + run.room;
       if (score > save.best.chapter * 100 + save.best.room) { save.best = { chapter: run.chapter, room: run.room }; record = true; }
     }
@@ -5747,8 +6082,9 @@
     }
     persist();
     $("duelShareBtn").classList.toggle("hidden", !surv);
+    $("shareBtn").classList.remove("hidden"); $("againBtn").textContent = tr("Nochmal"); // der Arena-Bericht blendet sie aus
     const title = $("overTitle");
-    title.textContent = won ? tr("ÜBERLEBT!") : quit ? tr("EINSATZ BEENDET") : tr("GEFALLEN");
+    title.textContent = run.mode === "arena" ? (run.climbDone ? tr("KÄMPFER BEREIT") : tr("AUFSTIEG BEENDET")) : won ? tr("ÜBERLEBT!") : quit ? tr("EINSATZ BEENDET") : tr("GEFALLEN");
     title.classList.toggle("win", won);
     const reached = surv ? `${fmtTime(Math.min(run.survT, SURVIVAL_TIME))} / ${fmtTime(SURVIVAL_TIME)}` : placeLabel(run.chapter, run.room);
     let si = 0;
@@ -6169,7 +6505,7 @@
     if (state === "play") { drawOffscreen(); drawMinimap(); }
     if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); }
     drawCombo();
-    if (state === "play" || state === "pick") { drawPowerBadges(); drawLooterBadges(); drawFeeding(); drawPetMarks(); drawPowerHud(); drawDuelHud(); }
+    if (state === "play" || state === "pick") { drawPowerBadges(); drawLooterBadges(); drawFeeding(); drawPetMarks(); drawPowerHud(); drawDuelHud(); drawPvpHud(); }
     // Kinobalken bei Boss-Auftritt und Boss-Tod
     const bossIntro = enemies.some((e) => e.def.boss && e.spawnT > 0);
     cine += ((bossIntro || cineT > 0 ? 1 : 0) - cine) * Math.min(1, frameDt * 5);
@@ -8911,6 +9247,8 @@
   let dailyShown = false;
   function toMenu() {
     state = "menu";
+    if (run && run.pvp && run.pvp.link) { try { run.pvp.link.close(); } catch { /* zu */ } }
+    closeLobby();
     run = null; duel = null;
     try { if (webgl) Render3D.stopPreview(); } catch { /* Menü-Vorschau */ }
     try { if (webgl) Render3D.clear(); } catch (e) { console.warn("[Outbreak] 3D-Clear", e); }
@@ -8985,7 +9323,19 @@
     const end = () => { lx = null; if (webgl && Render3D.menuOrbit) Render3D.menuOrbit(0, true); };
     st.addEventListener("pointerup", end); st.addEventListener("pointercancel", end);
   }
-  $("againBtn").addEventListener("click", () => leaveOver(() => startRun(lastMode)));
+  $("againBtn").addEventListener("click", () => leaveOver(() => {
+    if (lastMode === "pvp") { toMenu(); renderArena(); show(ui.arena); } else startRun(lastMode);
+  }));
+  $("arenaBtn").addEventListener("click", () => { ensureAudio(); renderArena(); show(ui.arena); });
+  $("arenaClimb").addEventListener("click", () => { ensureAudio(); startRun("arena"); });
+  $("arenaBot").addEventListener("click", () => {
+    ensureAudio();
+    const me = fighterInfo(save.arena.f);
+    startPvp({ ...me, name: tr("Spiegel-Bot"), skill: 0.85 }, null);
+  });
+  $("arenaHost").addEventListener("click", () => { ensureAudio(); openLobby(true, newRoomCode()); });
+  $("arenaJoin").addEventListener("click", () => { ensureAudio(); const c = cleanRoomCode($("arenaCode").value); if (c.length === 5) openLobby(false, c); else renderArena(tr("Der Raum-Code hat 5 Zeichen")); });
+  $("arenaCancel").addEventListener("click", () => { closeLobby(); renderArena(); });
   $("missionsBtn").addEventListener("click", () => { ensureAudio(); renderMissions(); show(ui.missions); });
   for (const b of document.querySelectorAll("#missionTabs button")) b.addEventListener("click", () => { missionTab = b.dataset.tab; renderMissions(); });
   $("passBtn").addEventListener("click", () => { ensureAudio(); renderPass(); show(ui.pass); });
@@ -9174,5 +9524,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, PETS, duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, PETS, arena: { fighterOf, fighterInfo, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP }, duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

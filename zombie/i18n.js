@@ -896,6 +896,13 @@ window.I18N = (() => {
     "ALPHA BRÜLLT!": "ALPHA ROARS!",
     "ALPHA ERLEGT!": "ALPHA DOWN!",
     // v4.1 Arena
+    "Duell-Code: Punktzahl schlagen (ohne Verbindung)": "Duel code: beat a score (offline)",
+    "Einsatz fortsetzen": "Continue mission", "Einsatz fortgesetzt – der Bezirk beginnt neu": "Mission resumed – the district restarts", "Gesicherten Einsatz verwerfen?": "Discard the saved mission?",
+    "Gegner ist weg": "Opponent left", "Warte auf Gegner …": "Waiting for opponent …", "Revanche annehmen": "Accept rematch", "Revanche": "Rematch",
+    "Online-Kampf aufgeben? Das zählt als Niederlage.": "Give up the online fight? It counts as a loss.", "Aufgegeben": "Gave up", "App verlassen": "Left the app",
+    "Kampfwert {a} gegen {b}": "Power {a} vs {b}",
+    "VEREIST": "FROZEN",
+    "An Brand oder Gift erlegen": "Taken out by fire or poison",
     "ARENA": "ARENA", "1 gegen 1": "1 vs 1", "AUFSTIEG": "CLIMB",
     "Zeit überschritten – Verbindung zu langsam oder Spiel pausiert": "Timed out – connection too slow or game paused",
     "1 GEGEN 1": "1 VS 1",

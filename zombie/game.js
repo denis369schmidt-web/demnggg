@@ -683,8 +683,9 @@
   }
 
   let lastMode = "campaign";
-  function startRun(mode = "campaign") {
+  function startRun(mode = "campaign", resume = null) {
     ensureAudio();
+    if (!resume && CHECKPOINT_MODES.has(mode)) save.resume = null; // neuer Lauf ersetzt den gesicherten
     lastMode = mode;
     run = {
       mode, chapter: 1, room: 0, kills: 0, coins: 0, greed: 1 + 0.1 * save.talents.greed, time: 0, pendingPicks: 0, cleared: false,
@@ -722,7 +723,7 @@
     if (save.skin === "gold") run.greed *= 1.1;
     // Gekaufte Boosts für diesen Run verbrauchen
     const used = [];
-    const b = mode === "pvp" ? {} : save.boosts; // im 1 gegen 1 zählt nur der Kämpfer
+    const b = mode === "pvp" || resume ? {} : save.boosts; // im 1 gegen 1 zählt nur der Kämpfer, beim Fortsetzen sind sie schon verbraucht
     const boostName = (id) => BOOSTS.find((q) => q.id === id).name;
     if (b.hp > 0) { b.hp--; player.maxHp = Math.round(player.maxHp * 1.3); player.hp = player.maxHp; used.push(boostName("hp")); }
     if (b.coins > 0) { b.coins--; run.greed *= 1.5; used.push(boostName("coins")); }
@@ -730,7 +731,9 @@
     if (b.skill > 0) { b.skill--; run.pendingPicks++; used.push(boostName("skill")); }
     if (used.length) persist();
     try { if (webgl) Render3D.clear(); } catch (e) { console.warn("[Outbreak] 3D-Clear", e); }
+    if (resume) applyCheckpoint(resume);
     nextRoom();
+    if (resume) setTimeout(() => toast(tr("Einsatz fortgesetzt – der Bezirk beginnt neu"), "play"), 400);
     if (run.order) showBanner(`${tr("TAGESBEFEHL")}: ${tr(run.order.name).toUpperCase()}`, tr(run.order.desc), 2.8);
     else if (run.threat) setTimeout(() => toast(tr("Bedrohung {n}", { n: run.threat }), "skull"), 400);
     roomFade = 0; // beim Start übernimmt der Kameraflug aus dem Menü die Überblendung
@@ -761,7 +764,7 @@
     run.room++;
     if (run.room > ROOMS_PER_CHAPTER) { run.chapter++; run.room = 1; }
     // Neue Stadt: Prämie für die durchbrochene, dann der Fluchtplan (pausiert bis „Weiter“)
-    if (districtIdx() === 0 && cityIdx() > 0) { run.cityBonus = Math.round(60 * cityIdx() * run.greed * ECON.earn); run.coins += run.cityBonus; }
+    if (districtIdx() === 0 && cityIdx() > 0 && !run.resumed) { run.cityBonus = Math.round(60 * cityIdx() * run.greed * ECON.earn); run.coins += run.cityBonus; }
     resetRoomState();
     player.x = W / 2; player.y = B - 70;
     heelPet();
@@ -805,8 +808,42 @@
       else if (!banner) showBanner(dName.toUpperCase(), `${city.name} · ${tr("Bezirk {n}/10", { n: districtIdx() + 1 })}`, 1.4);
     }
     // Funkspruch beim Stadtwechsel; beim Einsatzstart nur bis der Prolog einmal gesehen wurde (kein Extra-Tippen bei jeder Runde)
-    if (districtIdx() === 0 && (run.time > 0.5 || !save.storySeen)) openCityCard();
+    if (districtIdx() === 0 && (run.time > 0.5 || !save.storySeen) && !run.resumed) openCityCard();
     if (run.room === 1 && run.time < 0.05) { cineT = Math.max(cineT, 0.9); punchFov = Math.max(punchFov, 3.6); }
+    run.resumed = false;
+    saveCheckpoint();
+  }
+
+  // ============================================================
+  // v4.2 Einsatz fortsetzen: Am Anfang jedes Bezirks werden Lauf und Held gesichert. Schließt das Handy die App
+  // (Anruf, Speicher knapp, Akku), bietet das Menü „Einsatz fortsetzen“ – der Bezirk beginnt dann neu.
+  // ============================================================
+  const CHECKPOINT_MODES = new Set(["campaign", "arena"]);
+  const CHECKPOINT_RUN = ["mode", "chapter", "room", "kills", "coins", "greed", "time", "bestCombo", "headshots", "threat", "startCity", "freeRerolls", "setTier",
+    "bans", "banned", "bossKills", "belt", "beltSel", "ult", "earned", "firstBlood", "blessed", "loot", "objDone", "bossIntel", "pendingPicks"];
+  function saveCheckpoint() {
+    if (!run || !CHECKPOINT_MODES.has(run.mode)) return;
+    try {
+      const r = {};
+      for (const k of CHECKPOINT_RUN) if (run[k] !== undefined) r[k] = run[k];
+      const p = JSON.parse(JSON.stringify(player, (k, v) => (k === "weapon" || (v && typeof v === "object" && v.def) ? undefined : v)));
+      save.resume = { v: 1, at: Date.now(), run: JSON.parse(JSON.stringify(r)), player: p };
+      persist();
+    } catch (err) { console.warn("[Outbreak] Checkpoint", err); }
+  }
+  function applyCheckpoint(cp) {
+    Object.assign(run, JSON.parse(JSON.stringify(cp.run)));
+    player = Object.assign(newPlayer(), JSON.parse(JSON.stringify(cp.player)));
+    player.weapon = WEAPONS[player.weaponId] || WEAPONS.pistol;
+    player.invuln = 1; player.hp = Math.max(1, player.hp);
+    run.room -= 1; // nextRoom zählt wieder hoch: derselbe Bezirk beginnt neu
+    run.resumed = true;
+  }
+  const validCheckpoint = (cp) => !!(cp && cp.v === 1 && cp.run && cp.player && CHECKPOINT_MODES.has(cp.run.mode) && cp.run.room >= 1 && WEAPONS[cp.player.weaponId]);
+  function resumeRun() {
+    const cp = save.resume;
+    if (!validCheckpoint(cp)) { save.resume = null; persist(); refreshMenu(); return; }
+    startRun(cp.run.mode, cp);
   }
 
 
@@ -2068,6 +2105,7 @@
         b.dead = true;
         acidSplash(b);
         hurtPlayer(b.dmg);
+        if (b.pfx) pvpStatus(b.pfx); // v4.2 Arena: Brand, Gift, Frost des Gegners
         if (b.kind === "paper") debuff("slowT", 2.2, "AUSGEBREMST");
         if (b.kind === "ball") { player.kvx = (player.kvx || 0) + b.vx * 0.4; player.kvy = (player.kvy || 0) + b.vy * 0.4; }
       }
@@ -3198,7 +3236,18 @@
       e.wob += dt * 6;
       if (e.under) { updateUnder(e, dt); continue; }
       if (e.spawnT > 0) { e.spawnT -= dt; continue; }
-      if (e.rival) { if (e.stunT > 0) e.stunT -= dt; updateRival(e, dt); continue; } // v4.1 Arena-Gegner: Bot oder Netz
+      if (e.rival) { // v4.1 Arena-Gegner: Bot oder Netz
+        if (e.stunT > 0) e.stunT -= dt;
+        if (e.flashT > 0) e.flashT -= dt;
+        if (!run.pvp.net) { // Bot: Brand und Gift wie bei Zombies, Frost bremst in updateRival
+          if (e.burnT > 0) { e.burnT -= dt; e.hp -= e.burnDps * dt; if (Math.random() < 0.3) fxFire(e.x + rand(-8, 8), e.y + rand(-8, 8), 0.7, 0.4); }
+          if (e.poisonDps > 0) { e.hp -= e.poisonDps * dt; if (Math.random() < 0.1) fxBubble(e.x + rand(-8, 8), e.y + rand(-6, 6)); }
+          if (e.slowT > 0) { e.slowT -= dt; if (Math.random() < 0.1) fxIce(e.x + rand(-10, 10), e.y + rand(-10, 10)); }
+          if (e.hp <= 0) { killEnemy(e); continue; }
+        }
+        updateRival(e, dt);
+        continue;
+      }
       if (e.shieldT > 0 && (e.shieldT -= dt) <= 0) e.shield = 0;
       if (e.glitchT > 0) e.glitchT -= dt;
       if (e.aff) updateAffixes(e, dt);
@@ -5225,7 +5274,28 @@
       name: rankOf(bestScore()).name, skin: f.skin, w: f.weaponId, lv: f.level, mhp: f.maxHp, speed: f.speed,
       dmg: w.dmg * f.dmgMul, rate: w.rate * (f.rateMul || 1) * (1 + (f.multishot || 0) * 0.6), shots, bspeed: w.speed, br: w.r || 5,
       skills: Object.values(f.skills || {}).reduce((a, n) => a + n, 0),
+      fx: statusOf(f, w.burn ? 1 + (f.burn || 0) : f.burn || 0, (w.cryo ? 1.5 : 0) + (f.freeze || 0), f.poison || 0),
+      look: { skin: f.skin || "soldier", w: f.weaponId, tier: f.tier || 0 },
+      pow: Math.round(f.maxHp * 0.1 + w.dmg * f.dmgMul * w.rate * (f.rateMul || 1) * shots * 0.5), // grober Kampfwert für die Anzeige
     };
+  }
+  // Fremdes Aussehen nur aus bekannten Werten übernehmen
+  function safeLook(l) {
+    l = l || {};
+    return { skin: SKINS.some((s) => s.id === l.skin) ? l.skin : "soldier", w: WEAPONS[l.w] ? l.w : "pistol", tier: clamp(Math.round(+l.tier || 0), 0, 3) };
+  }
+  // Brand/Gift je Sekunde und Frost-Dauer – gleiche Formeln wie bei Treffern auf Zombies (damageEnemy)
+  function statusOf(f, burn, freeze, poison) {
+    const fx = { b: burn ? +(f.power * 0.35 * burn * (f.evo && f.evo.inferno ? 2 : 1)).toFixed(1) : 0, p: poison ? +(f.power * 0.08 * poison).toFixed(1) : 0, s: freeze ? +(1.2 + 0.6 * freeze).toFixed(2) : 0 };
+    return fx.b || fx.p || fx.s ? fx : null;
+  }
+  // Getroffen von einer Kugel mit Wirkung: Brand läuft 2,5 s, Gift addiert sich (gedeckelt), Frost bremst
+  function pvpStatus(fx) {
+    const pv = run && run.pvp;
+    if (!pv || pv.over || !fx) return;
+    if (fx.b > 0 && !player.fireproof) { pv.burnT = 2.5; pv.burnDps = Math.max(pv.burnDps || 0, clamp(+fx.b, 0, 2000)); }
+    if (fx.p > 0) pv.poisonDps = Math.min((pv.poisonDps || 0) + clamp(+fx.p, 0, 500), clamp(+fx.p, 0, 500) * 6);
+    if (fx.s > 0) debuff("slowT", clamp(+fx.s, 0, 4), "VEREIST");
   }
   // Der bessere Kämpfer bleibt: ein missglückter Aufstieg zerstört keinen fertigen
   function saveFighter(stage) {
@@ -5321,9 +5391,13 @@
     // Bot: der eigene Schaden wirkt ungebremst, deshalb trägt er entsprechend mehr Leben
     e.maxHp = e.hp = run.pvp.net ? o.mhp : o.mhp / PVP.dmg;
     run.pvp.rival = e;
+    const lk = safeLook(o.look);
+    e.look = lk;
+    e.body = Object.assign(newPlayer(), { skin: lk.skin, weaponId: lk.w, weapon: WEAPONS[lk.w], tier: lk.tier, orbit: 0, drones: 0 });
     run.pvp.cd = PVP.count;
     player.fireCd = PVP.count;
-    showBanner(tr("1 GEGEN 1"), `${tr("Gegner")}: ${e.def.name} · ${tr("Level {n}", { n: o.lv || 1 })}`, 2.4);
+    const myPow = fighterInfo(save.arena.f).pow;
+    showBanner(tr("1 GEGEN 1"), `${e.def.name} · ${tr("Level {n}", { n: o.lv || 1 })}${o.pow ? ` · ${tr("Kampfwert {a} gegen {b}", { a: num(myPow), b: num(o.pow) })}` : ""}`, 2.6);
   }
   function startPvp(opp, link) {
     const a = save.arena;
@@ -5343,8 +5417,8 @@
     track("arenaFights");
   }
   function rivalShoot(e, ang, list) {
-    for (const [a, d, sp, r] of list) {
-      eBullets.push({ x: e.x + Math.cos(a) * (e.r + 6), y: e.y + Math.sin(a) * (e.r + 6), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r, dmg: d, color: "#ff6a4a", life: 1.6, dead: false, rgb: "255,106,74" });
+    for (const [a, d, sp, r, fx] of list) {
+      eBullets.push({ x: e.x + Math.cos(a) * (e.r + 6), y: e.y + Math.sin(a) * (e.r + 6), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r, dmg: d, color: "#ff6a4a", life: 1.6, dead: false, rgb: "255,106,74", pfx: fx || null });
     }
     e.face = ang; e.flashT = 0.07;
     fxFlash(e.x + Math.cos(ang) * 22, e.y + Math.sin(ang) * 22, 34, "255,170,110", 0.07);
@@ -5365,7 +5439,7 @@
     if ((e.strafeT -= dt) <= 0) { e.strafeT = rand(0.7, 1.8); e.strafe = Math.random() < 0.5 ? -1 : 1; }
     const want = d > 380 ? 1 : d < 230 ? -1 : 0;
     let mx = (dx / d) * want + (-dy / d) * e.strafe * 0.9, my = (dy / d) * want + (dx / d) * e.strafe * 0.9;
-    const ml = Math.hypot(mx, my) || 1, sp = e.speed * o.skill * (e.stunT > 0 ? 0 : 1);
+    const ml = Math.hypot(mx, my) || 1, sp = e.speed * o.skill * (e.stunT > 0 ? 0 : 1) * (e.slowT > 0 ? 0.45 : 1);
     e.x += (mx / ml) * sp * dt; e.y += (my / ml) * sp * dt; e.anim += dt * 9;
     for (const ob of obstacles) pushOutRect(e, ob);
     e.x = clamp(e.x, L + e.r, R - e.r); e.y = clamp(e.y, T + e.r, B - e.r);
@@ -5375,7 +5449,7 @@
     if ((e.fireCd -= dt) <= 0 && d < 620) {
       e.fireCd = 1 / Math.max(0.6, o.rate * o.skill);
       const n = Math.min(7, o.shots), list = [];
-      for (let i = 0; i < n; i++) list.push([ang + (i - (n - 1) / 2) * 0.09 + rand(-0.05, 0.05) / o.skill, o.dmg * PVP.dmg, o.bspeed, o.br]);
+      for (let i = 0; i < n; i++) list.push([ang + (i - (n - 1) / 2) * 0.09 + rand(-0.05, 0.05) / o.skill, o.dmg * PVP.dmg, o.bspeed, o.br, o.fx]);
       rivalShoot(e, ang, list);
       sfx("shoot");
     }
@@ -5390,7 +5464,8 @@
       if (b.sent) continue;
       b.sent = true;
       const m = pvpMirror(b.x, b.y);
-      fresh.push([Math.round(m.x), Math.round(m.y), Math.round(-b.vx), Math.round(-b.vy), +(b.dmg * k).toFixed(1), b.r, +b.life.toFixed(2)]);
+      const fx = statusOf(p, b.burn || 0, b.freeze || 0, b.poison || 0);
+      fresh.push([Math.round(m.x), Math.round(m.y), Math.round(-b.vx), Math.round(-b.vy), +(b.dmg * k).toFixed(1), b.r, +b.life.toFixed(2)].concat(fx ? [fx.b, fx.p, fx.s] : []));
     }
     if (fresh.length) pv.link.send({ t: "b", l: fresh.slice(0, 40) });
     if ((pv.sendT -= dt) <= 0) {
@@ -5406,10 +5481,20 @@
     pv.quiet = 0;
     if (m.t === "s") { e.tx = clamp(+m.x || 0, L, R); e.ty = clamp(+m.y || 0, T, B); e.face = +m.a || 0; e.maxHp = Math.max(1, +m.mhp || 1); e.hp = clamp(+m.hp || 0, 0, e.maxHp); }
     else if (m.t === "b" && Array.isArray(m.l) && pv.cd <= 0) {
-      for (const q of m.l.slice(0, 40)) eBullets.push({ x: +q[0], y: +q[1], vx: +q[2], vy: +q[3], r: clamp(+q[5] || 5, 2, 14), dmg: clamp(+q[4] || 0, 0, 5000) * PVP.dmg, color: "#ff6a4a", life: clamp(+q[6] || 1, 0.1, 3), dead: false, rgb: "255,106,74" });
+      // Drossel: höchstens 160 Kugeln je Sekunde – mehr schafft keine Waffe, mehr ist Manipulation oder Stau
+      const now = performance.now();
+      if (now - (pv.inT || 0) > 1000) { pv.inT = now; pv.inB = 0; pv.inH = 0; }
+      const room = Math.max(0, 160 - pv.inB), list = m.l.slice(0, Math.min(40, room));
+      pv.inB += list.length;
+      for (const q of list) eBullets.push({ x: +q[0], y: +q[1], vx: +q[2], vy: +q[3], r: clamp(+q[5] || 5, 2, 14), dmg: clamp(+q[4] || 0, 0, 5000) * PVP.dmg, color: "#ff6a4a", life: clamp(+q[6] || 1, 0.1, 3), dead: false, rgb: "255,106,74",
+        pfx: q.length > 7 ? { b: +q[7] || 0, p: +q[8] || 0, s: +q[9] || 0 } : null });
       if (m.l.length) { e.flashT = 0.07; if (Math.random() < 0.5) sfx("shoot"); }
     }
-    else if (m.t === "h" && pv.cd <= 0) hurtPlayer(clamp(+m.d || 0, 0, 5000) * PVP.dmg);
+    else if (m.t === "h" && pv.cd <= 0) {
+      const now = performance.now();
+      if (now - (pv.inT || 0) > 1000) { pv.inT = now; pv.inB = 0; pv.inH = 0; }
+      if ((pv.inH = (pv.inH || 0) + 1) <= 30) hurtPlayer(clamp(+m.d || 0, 0, 5000) * PVP.dmg);
+    }
     else if (m.t === "dead") endPvp(true);
     else if (m.t === "lost") endPvp(false, tr("Zeit überschritten – Verbindung zu langsam oder Spiel pausiert"));
   }
@@ -5419,7 +5504,7 @@
     pv.over = true; pv.won = won;
     // Ergebnis mitteilen: wer fällt, meldet „dead“; wer (auch per Zeitüberschreitung) gewinnt, sagt es dem anderen –
     // sonst sähen sich nach einer Pause beide als Sieger
-    if (pv.net) { pv.link.send({ t: won ? "lost" : "dead" }); setTimeout(() => { try { pv.link.close(); } catch { /* zu */ } }, 400); }
+    if (pv.net) { pv.link.send({ t: won ? "lost" : "dead" }); armRematch(pv); } // Leitung bleibt offen: Revanche ohne neuen Code
     const a = save.arena || (save.arena = { w: 0, l: 0 });
     let prize = 0;
     if (won) { a.w = (a.w || 0) + 1; prize = pv.net ? 120 : 30; save.coins += prize; track("arenaWins"); } else a.l = (a.l || 0) + 1;
@@ -5440,10 +5525,40 @@
         line("trophy", tr("Bilanz"), tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 }), "", 2) +
         line("coin", tr("Münzen"), coinAmt(prize, "+"), "gold", 3);
       for (const id of ["doubleBtn", "shareBtn", "duelShareBtn"]) $(id).classList.add("hidden");
-      $("againBtn").textContent = tr("Zur Arena");
+      $("menuBtn").textContent = tr("Zur Arena");
+      renderRematch(pv);
       show(ui.over);
       refreshMenu();
     }, 1900);
+  }
+  // Revanche: beide tippen „Revanche“, dann startet derselbe Raum einen neuen Kampf
+  function armRematch(pv) {
+    pv.rm = { me: false, them: false, gone: false, started: false };
+    pv.link.onmsg = (m) => { if (m && m.t === "again") { pv.rm.them = true; tryRematch(pv); renderRematch(pv); } };
+    pv.link.onclose = () => { pv.rm.gone = true; renderRematch(pv); };
+  }
+  function tryRematch(pv) {
+    if (!pv.rm || !pv.rm.me || !pv.rm.them || pv.rm.started || pv.rm.gone) return;
+    pv.rm.started = true;
+    startPvp(pv.opp, pv.link);
+  }
+  function renderRematch(pv) {
+    if (!run || run.pvp !== pv || state !== "over") return;
+    const b = $("againBtn");
+    if (!pv.net) { b.textContent = tr("Nochmal"); b.disabled = false; return; }
+    const rm = pv.rm || {};
+    b.disabled = !!(rm.gone || rm.me);
+    b.textContent = rm.gone ? tr("Gegner ist weg") : rm.me ? tr("Warte auf Gegner …") : rm.them ? tr("Revanche annehmen") : tr("Revanche");
+  }
+  function requestRematch() {
+    const pv = run && run.pvp;
+    if (!pv) return;
+    if (!pv.net) { startPvp(pv.opp, null); return; }
+    if (!pv.rm || pv.rm.gone || pv.rm.me) return;
+    pv.rm.me = true;
+    pv.link.send({ t: "again" });
+    renderRematch(pv);
+    tryRematch(pv);
   }
   function drawPvpHud() {
     const pv = run && run.pvp;
@@ -5468,6 +5583,14 @@
     const pv = run && run.pvp;
     if (!pv || state !== "play") return;
     if (pv.cd > 0) { pv.cd -= dt; if (pv.cd <= 0) { sfx("whistle"); player.fireCd = 0; } }
+    if (!pv.over && (pv.burnT > 0 || pv.poisonDps > 0)) {
+      const p = player;
+      let d = 0;
+      if (pv.burnT > 0) { pv.burnT -= dt; d += pv.burnDps * dt; if (Math.random() < 0.3) fxFire(p.x + rand(-8, 8), p.y + rand(-8, 8), 0.7, 0.4); }
+      if (pv.poisonDps > 0) { d += pv.poisonDps * dt; pv.poisonDps = Math.max(0, pv.poisonDps - pv.poisonDps * 0.25 * dt); if (Math.random() < 0.1) fxBubble(p.x + rand(-8, 8), p.y + rand(-6, 6)); }
+      p.hp -= d * PVP.dmg;
+      if (p.hp <= 0) { p.hp = 0; endPvp(false, tr("An Brand oder Gift erlegen")); }
+    }
     pvpSend(dt);
   }
 
@@ -5491,11 +5614,11 @@
       let theirs = null, started = false;
       const go = () => { if (started || !theirs) return; started = true; lobby = null; startPvp(theirs, link); };
       link.onmsg = (m) => {
-        if (m.t === "hello" && m.i) { theirs = { name: String(m.i.name || "?").slice(0, 16), lv: +m.i.lv || 1, mhp: clamp(+m.i.mhp || 600, 100, 1e5), speed: clamp(+m.i.speed || 190, 100, 400) }; if (host) { link.send({ t: "go" }); go(); } }
+        if (m.t === "hello" && m.i) { theirs = { name: String(m.i.name || "?").slice(0, 16), lv: +m.i.lv || 1, mhp: clamp(+m.i.mhp || 600, 100, 1e5), speed: clamp(+m.i.speed || 190, 100, 400), look: safeLook(m.i.look), pow: clamp(+m.i.pow || 0, 0, 1e7) }; if (host) { link.send({ t: "go" }); go(); } }
         else if (m.t === "go") go();
       };
       link.onclose = () => { if (lobby === me) { lobby = null; renderArena(tr("Gegner hat den Raum verlassen")); } };
-      link.send({ t: "hello", i: { name: mine.name, lv: mine.lv, mhp: mine.mhp, speed: mine.speed } });
+      link.send({ t: "hello", i: { name: mine.name, lv: mine.lv, mhp: mine.mhp, speed: mine.speed, look: mine.look, pow: mine.pow } });
     } catch (err) {
       if (lobby === me) { lobby = null; renderArena(tr(NET_ERR[err.message] || NET_ERR.net)); }
     }
@@ -5617,6 +5740,12 @@
   }
 
   function togglePause() {
+    // Online lässt sich der Kampf nicht anhalten – die Gegenseite läuft weiter. Pause heißt dort: aufgeben?
+    if (state === "play" && run && run.pvp && run.pvp.net && !run.pvp.over) {
+      joy.active = false;
+      if (window.confirm(tr("Online-Kampf aufgeben? Das zählt als Niederlage."))) endPvp(false, tr("Aufgegeben"));
+      return;
+    }
     if (state === "play") {
       state = "pause";
       joy.active = false;
@@ -6045,6 +6174,7 @@
   let lastScore = null;
   function gameOver(quit, won = false) {
     state = "over";
+    save.resume = null; // der Lauf ist zu Ende – nichts mehr fortzusetzen
     if (run.mode === "arena") saveFighter(run.climbDone ? ARENA_STAGES : Math.max(0, run.room - (run.cleared ? 0 : 1)));
     bankLoot();
     if (window.GameAudio && !quit) GameAudio.stinger(won ? "victory" : "death");
@@ -6086,7 +6216,7 @@
     }
     persist();
     $("duelShareBtn").classList.toggle("hidden", !surv);
-    $("shareBtn").classList.remove("hidden"); $("againBtn").textContent = tr("Nochmal"); // der Arena-Bericht blendet sie aus
+    $("shareBtn").classList.remove("hidden"); $("againBtn").textContent = tr("Nochmal"); $("againBtn").disabled = false; $("menuBtn").textContent = tr("Menü"); // der Arena-Bericht ändert sie
     const title = $("overTitle");
     title.textContent = run.mode === "arena" ? (run.climbDone ? tr("KÄMPFER BEREIT") : tr("AUFSTIEG BEENDET")) : won ? tr("ÜBERLEBT!") : quit ? tr("EINSATZ BEENDET") : tr("GEFALLEN");
     title.classList.toggle("win", won);
@@ -6160,6 +6290,7 @@
     get camPunch() { return { x: punchX, y: punchY, fov: punchFov }; },
     get survivors() { return run && run.obj && run.obj.list ? run.obj.list : NO_SURVIVORS; },
     get pet() { return run && run.pet && run.pet.id !== "hugin" ? run.pet : null; },
+    get rival() { return run && run.pvp && run.pvp.rival && !run.pvp.rival.dead ? run.pvp.rival : null; },
     get powers() { return state === "play" || state === "pick" ? activePowers().map((k) => POWERUPS[k].rgb) : NO_SURVIVORS; }, // v3.7 Aura-Farben
     get hazards() { return hazards; },
     get slowPu() { return state === "play" && puOn("slow"); },
@@ -7102,7 +7233,17 @@
     for (const a of actorList) { if (a === player) { drawPet2D(); drawPlayer(); } else if (a.isSurvivor) drawSurvivor(a); else drawEnemy(a); }
   }
 
+  // v4.2 Arena-Gegner: als Held gezeichnet (eigene Figur und Waffe), dafür kurz den Spieler tauschen
+  function drawRival2D(e) {
+    const b = e.body, me = player;
+    b.x = e.x; b.y = e.y; b.aim = e.face;
+    b.moving = Math.abs(e.anim - (b.lastAnim ?? e.anim)) > 1e-3; b.lastAnim = e.anim; b.walkT = e.anim;
+    b.invuln = e.hitT > 0 ? 0.05 : 0; b.kick = e.flashT > 0 ? 3 : 0;
+    player = b;
+    try { drawPlayer(); } finally { player = me; }
+  }
   function drawEnemy(e) {
+    if (e.rival && e.body) { drawRival2D(e); return; }
     const f = Math.floor(e.anim) % Sprites.FRAMES;
     if (e.under === "burrow") {
       // Erdhügel wandert unter dem Boden
@@ -8394,6 +8535,14 @@
       $("menuRankBar").style.width = `${rk.next ? Math.round(clamp((best - from) / (rk.next.at - from), 0, 1) * 100) : 100}%`;
     }
     renderRouteStrip();
+    { // v4.2 Fortsetzen-Karte
+      const cp = save.resume, ok = validCheckpoint(cp);
+      $("resumeRow").classList.toggle("hidden", !ok);
+      if (ok) {
+        const r = cp.run, where = r.mode === "arena" ? tr("Aufstieg {n}/{m}", { n: r.room, m: ARENA_STAGES }) : `${cityAt(cityIdx(r)).name} · ${tr("Bezirk {n}/10", { n: districtIdx(r) + 1 })}`;
+        $("resumeInfo").textContent = `${where} · ${tr("Level {n}", { n: cp.player.level || 1 })}`;
+      }
+    }
     const w = WEAPONS[save.equipped], lvl = save.weapons[save.equipped];
     $("menuWeaponImg").src = Sprites.weaponIcon(save.equipped, weaponTier(lvl));
     $("menuEquipped").textContent = softHyphen(w.name);
@@ -9331,10 +9480,15 @@
     const end = () => { lx = null; if (webgl && Render3D.menuOrbit) Render3D.menuOrbit(0, true); };
     st.addEventListener("pointerup", end); st.addEventListener("pointercancel", end);
   }
-  $("againBtn").addEventListener("click", () => leaveOver(() => {
-    if (lastMode === "pvp") { toMenu(); renderArena(); show(ui.arena); } else startRun(lastMode);
-  }));
-  $("arenaBtn").addEventListener("click", () => { ensureAudio(); renderArena(); show(ui.arena); });
+  $("againBtn").addEventListener("click", () => {
+    if (lastMode === "pvp") { requestRematch(); return; } // keine Werbung zwischen Revanchen
+    leaveOver(() => {
+      startRun(lastMode);
+    });
+  });
+  $("resumeRun").addEventListener("click", () => { ensureAudio(); resumeRun(); });
+  $("resumeDrop").addEventListener("click", () => { if (window.confirm(tr("Gesicherten Einsatz verwerfen?"))) { save.resume = null; persist(); refreshMenu(); } });
+  $("arenaRail").addEventListener("click", () => { ensureAudio(); renderArena(); show(ui.arena); });
   $("arenaClimb").addEventListener("click", () => { ensureAudio(); startRun("arena"); });
   $("arenaBot").addEventListener("click", () => {
     ensureAudio();
@@ -9374,7 +9528,11 @@
     } else toast(tr("Kein Video verfügbar"), "video");
     renderPatrol(); refreshMenu();
   });
-  $("menuBtn").addEventListener("click", () => leaveOver(toMenu));
+  $("menuBtn").addEventListener("click", () => leaveOver(() => {
+    const arena = lastMode === "pvp";
+    toMenu();
+    if (arena) { renderArena(); show(ui.arena); }
+  }));
   $("armoryBtn").addEventListener("click", () => { ensureAudio(); renderArmory(); show(ui.armory); });
   $("talentBtn").addEventListener("click", () => { ensureAudio(); renderTalents(); show(ui.talents); });
   $("shopBtn").addEventListener("click", () => { ensureAudio(); previewSkin = null; show(ui.shop); renderShop(); });
@@ -9416,7 +9574,10 @@
   });
   ui.pauseBtn.addEventListener("click", togglePause);
   $("resumeBtn").addEventListener("click", togglePause);
-  $("quitBtn").addEventListener("click", () => gameOver(true));
+  $("quitBtn").addEventListener("click", () => {
+    if (run && run.pvp && !run.pvp.over) { show(null); state = "play"; endPvp(false, tr("Aufgegeben")); return; }
+    gameOver(true);
+  });
   const soundBtn = $("soundBtn");
   const syncSound = () => { soundBtn.innerHTML = `${I(save.sound ? "sound" : "soundOff")}${tr(save.sound ? "Ton an" : "Ton aus")}`; renderSettings(); };
   const toggleSound = () => { save.sound = !save.sound; persist(); syncSound(); if (window.GameAudio) GameAudio.setMuted(!save.sound); };
@@ -9495,6 +9656,8 @@
     }
   });
   Platform.on("pause", () => {
+    // Online-Kampf: wer die App verlässt, verliert – sofort und für beide sichtbar statt erst nach der Zeitüberschreitung
+    if ((state === "play" || state === "pause") && run && run.pvp && run.pvp.net && !run.pvp.over) { endPvp(false, tr("App verlassen")); return; }
     if (state === "play") togglePause();
     if (actx && actx.state === "running") actx.suspend();
   });
@@ -9532,5 +9695,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, PETS, arena: { fighterOf, fighterInfo, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP }, duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP }, duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

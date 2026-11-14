@@ -1233,6 +1233,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
     "perk   perk   perk"
     "mode   mode   mode"
     "threat threat threat"
+    "resume resume resume"
     "cta    cta    cta"
     "dock   dock   dock"
     "store  store  store";
@@ -1253,6 +1254,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 .menu > .mode-row    { grid-area: mode; }
 .menu > .threat-row  { grid-area: threat; }
 .menu > .cta         { grid-area: cta; }
+.menu > .resume-row  { grid-area: resume; }
 .menu > .dock        { grid-area: dock; }
 .menu > .store-cta   { grid-area: store; margin-top: 8px; }
 
@@ -1372,6 +1374,7 @@ canvas { display: block; background: #121a16; touch-action: none; }
 }
 .rail-btn:nth-child(odd) > [data-ic] { transform: rotate(-5deg); }
 .rail-btn:nth-child(even) > [data-ic] { transform: rotate(4deg); }
+.rail-btn.arena > [data-ic] { background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.2), transparent 55%), var(--paper-tex), linear-gradient(160deg, #b23a2a, #4a1008); }
 .rail-btn.pass > [data-ic] { background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.2), transparent 55%), var(--paper-tex), linear-gradient(160deg, #c29a3c, #5a420c); }
 .rail-btn span { font: 800 10px/1 var(--f-ui); letter-spacing: 0.05em; text-transform: uppercase; color: #efe8d4; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0, 0, 0, 0.9); }
 .rail-btn small { margin-top: -2px; font: 600 13px/1 var(--f-display); color: #ffe2a3; text-shadow: 0 1px 3px #000; }
@@ -1483,9 +1486,13 @@ canvas { display: block; background: #121a16; touch-action: none; }
   .brand-top { font-size: clamp(34px, 11vw, 46px); }
   .brand-bottom span { font-size: 18px; }
   .route-strip { margin-top: 12px; }
-  .rail { gap: 4px; margin-top: 8px; }
-  .rail-btn > [data-ic] { width: 38px; height: 38px; font-size: 20px; outline-offset: -5px; }
-  .rail-btn span { font-size: 9px; }
+  .rail { gap: 3px; margin-top: 6px; }
+  .rail-btn { gap: 2px; }
+  .rail-btn > [data-ic] { width: 34px; height: 34px; font-size: 18px; outline-offset: -5px; }
+  .rail-btn span { font-size: 8.5px; }
+  /* mit Fortsetzen-Karte wird es eng: die Heldenzeile weicht, die Bühne bleibt */
+  .menu:has(.resume-row:not(.hidden)) .boost-line { display: none; }
+  .resume-card { padding: 6px 10px; }
   .picker { height: 50px; }
   .mode-card { padding: 7px 9px; }
   .boost-line { margin-top: 4px; font-size: 11px; }
@@ -1557,3 +1564,22 @@ canvas.stamp-art { width: auto; max-width: 100%; }
 .arena-status.live { color: #ffd36a; }
 .arena-status.live::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: #ffd36a; animation: rs-pulse 1.4s ease-in-out infinite; }
 #arena .btn:disabled { opacity: 0.45; }
+
+/* ---------------------------------------------------------------- v4.2 Einsatz fortsetzen: Funkzettel mit Signalrand */
+.resume-row { display: grid; grid-template-columns: minmax(0, 1fr) 40px; gap: 6px; margin-top: 8px; }
+.resume-card {
+  display: flex; align-items: center; gap: 10px; min-width: 0; padding: 8px 12px; border: 0; border-radius: 2px; cursor: pointer; text-align: left; color: var(--ink);
+  background: var(--paper-tex), linear-gradient(180deg, #f0e8d5, #ded4bb);
+  box-shadow: inset 4px 0 0 var(--signal), 0 2px 0 rgba(0, 0, 0, 0.3), 0 6px 12px rgba(0, 0, 0, 0.35);
+}
+.resume-card > [data-ic] { flex: none; font-size: 24px; color: var(--signal-2); }
+.resume-card > span { display: grid; gap: 3px; min-width: 0; }
+.resume-card b { font: 800 14px/1 var(--f-ui); letter-spacing: 0.1em; text-transform: uppercase; }
+.resume-card small { font: 600 11.5px/1.1 var(--f-ui); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.resume-card:active { transform: scale(0.98); }
+.resume-drop {
+  position: relative; border: 0; border-radius: 2px; cursor: pointer;
+  background: var(--metal-tex), linear-gradient(180deg, #4a4e3d, #2f3228); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -3px 0 #16170f;
+}
+.resume-drop::before, .resume-drop::after { content: ""; position: absolute; left: 12px; top: 19px; width: 16px; height: 2.5px; background: #efe8d4; transform: rotate(45deg); }
+.resume-drop::after { transform: rotate(-45deg); }

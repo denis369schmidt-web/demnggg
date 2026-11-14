@@ -4650,6 +4650,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   function syncEnemies(w, t, dt) {
     const seen = new Set();
     for (const e of w.enemies) {
+      if (e.rival) continue; // v4.2 Arena-Gegner: eigenes Heldenmodell (syncRival)
       let M = models.get(e);
       if (M && (M.evo || 0) !== (builders[e.type] ? 0 : e.evo || 0)) { releaseModel(M); models.delete(e); M = null; } // v3.7 mutiert: neues Modell
       if (!M) { M = acquireModel(e.type, e.r, e.variant, e.evo || 0); models.set(e, M); }
@@ -4710,6 +4711,25 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       for (const m of M.mats) m.emissive.setRGB(s.hurtT > 0 ? k : 0, s.hurtT > 0 ? 0.02 : k, s.hurtT > 0 ? 0.02 : k * 0.3);
     }
     for (const [s, M] of survModels) if (!seen.has(s)) { releaseModel(M); survModels.delete(s); }
+  }
+  // v4.2 Arena-Gegner: zweites Heldenmodell mit Skin und Waffe der Gegenseite
+  let rivalModel = null;
+  function syncRival(w, t) {
+    const e = w.rival;
+    const key = e && e.look ? `${e.look.skin}|${e.look.w}|${e.look.tier}` : "";
+    if (rivalModel && rivalModel.key !== key) { scene.remove(rivalModel.root); disposeTree(rivalModel.root); rivalModel = null; }
+    if (!e || !e.look) return;
+    if (!rivalModel) { rivalModel = buildPlayerModel(e.look.skin, e.look.w, e.look.tier, e.look.w === "flame", {}); rivalModel.key = key; scene.add(rivalModel.root); cast(rivalModel.root); }
+    const M = rivalModel, moving = Math.abs(e.anim - (M.la ?? e.anim)) > 1e-3;
+    M.la = e.anim;
+    M.root.position.set(e.x, 0, e.y);
+    M.root.rotation.set(0, -e.face, 0);
+    M.root.scale.setScalar(PLAYER_SCALE);
+    M.root.visible = !(e.hitT > 0 && Math.floor(t * 30) % 2 === 0);
+    const ph = (e.anim / 8) * TAU;
+    for (const L of M.legs) L.g.rotation.z = moving ? Math.sin(ph + (L.s > 0 ? Math.PI : 0)) * 0.6 : 0;
+    M.body.position.y = moving ? Math.abs(Math.sin(ph)) * 0.8 : Math.sin(t * 2.4) * 0.35;
+    if (M.extra.weapon) M.extra.weapon.position.x = M.extra.gripX - (e.flashT > 0 ? 2.4 : 0);
   }
   // v4.0 Begleiter: Hund als eigenes Modell neben dem Helden (der Rabe fliegt in der Vogel-Schar mit)
   let petModel = null;
@@ -6007,6 +6027,7 @@ void main() {
     syncEnemies(w, t, dt);
     syncSurvivors(w, t);
     syncPet(w, t);
+    syncRival(w, t);
     syncPlayer(w, t);
     syncDoor(w);
     syncObstacles(t, w);

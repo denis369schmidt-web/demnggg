@@ -59,7 +59,7 @@
       <nav class="rail rail-r">
         <button class="rail-btn" id="patrolBtn"><i data-ic="patrol"></i><span data-i18n>Patrouille</span><small id="patrolMini"></small><b class="badge hidden" id="patrolBadge">!</b></button>
         <button class="rail-btn pass" id="passBtn"><i data-ic="pass"></i><span data-i18n>Saisonpass</span><b class="badge hidden" id="passBadge">!</b></button>
-        <button class="rail-btn" id="duelBtn"><i data-ic="duel"></i><span data-i18n>Duell</span></button>
+        <button class="rail-btn arena" id="arenaRail"><i data-ic="duel"></i><span data-i18n>Arena</span></button>
       </nav>
 
       <!-- Bühne: Ziehen dreht die Kamera um den Helden -->
@@ -94,6 +94,11 @@
         <span class="tr-label"><i data-ic="skull"></i><span data-i18n>Bedrohung</span></span>
         <div class="tr-pips" id="threatPips"></div>
         <small id="threatInfo"></small>
+      </div>
+      <!-- v4.2 Einsatz fortsetzen (nach App-Abbruch) -->
+      <div class="resume-row hidden" id="resumeRow">
+        <button class="resume-card" id="resumeRun"><i data-ic="play"></i><span><b data-i18n>Einsatz fortsetzen</b><small id="resumeInfo"></small></span></button>
+        <button class="resume-drop" id="resumeDrop" aria-label="Verwerfen"></button>
       </div>
       <button class="btn primary xl cta" id="playBtn"><span data-i18n>EINSATZ STARTEN</span><small id="ctaSub"></small></button>
 
@@ -394,6 +399,7 @@
           <button class="btn ghost hidden" id="arenaCancel" data-i18n>Abbrechen</button>
         </div>
         <button class="btn steel" id="arenaBot" data-i18n>Gegen Bot üben</button>
+        <button class="btn ghost" id="duelBtn"><span data-i18n>Duell-Code: Punktzahl schlagen (ohne Verbindung)</span></button>
         <p class="note" id="arenaRecord"></p>
         <p class="note" data-i18n>Online-Kämpfe laufen direkt zwischen den beiden Geräten. Zur Vermittlung wird kurz ein öffentlicher Dienst (PeerJS) genutzt; dabei sieht die Gegenseite deine IP-Adresse.</p>
       </div>
@@ -408,7 +414,6 @@
         <label class="field"><span data-i18n>Duell-Code</span><input id="duelCode" type="text" inputmode="latin" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="14" placeholder="OG-······" /></label>
         <p class="duel-info" id="duelInfo"></p>
         <button class="btn primary" id="duelGo" data-i18n>Duell annehmen</button>
-        <button class="btn amber" id="arenaBtn"><i data-ic="duel"></i><span data-i18n>Live-Arena: 1 gegen 1 online</span></button>
         <button class="btn ghost share hidden" id="duelMine"><i data-ic="duel"></i><span data-i18n>Meinen Bestwert als Code teilen</span></button>
         <p class="note" id="duelRecord"></p>
       </div>

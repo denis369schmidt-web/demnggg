@@ -467,7 +467,9 @@ window.Render3D = (() => {
   // geht im Hochformat geometrisch nicht (die Arena-Breite erzwingt den Abstand) – die ganze Karte zeigt deshalb die Minikarte.
   const CAM_MODES = {
     close: { eye: 520, back: 330, lookH: 10, ahead: 80, fov: 40, follow: 5 },
-    tp: { shoulderCam: true, ray: 37, dist: 300, heroNdc: -0.4, fov: 64, shoulder: 26, follow: 6, sMax: 2.1, danger: 230, hud: 112 },
+    tp: { shoulderCam: true, ray: 37, dist: 300, heroNdc: -0.4, fov: 64, shoulder: 26, follow: 6, sMax: 2.4, danger: 230, hud: 112, center: 0.45 },
+    // v4.4 „Schulter weit“: etwas höher und weiter hinten – mehr Überblick, Held bleibt nah
+    tpw: { shoulderCam: true, ray: 44, dist: 400, heroNdc: -0.45, fov: 66, shoulder: 20, follow: 6, sMax: 1.9, danger: 260, hud: 112, center: 0.5 },
   };
   let camMode = "top", camOff = null;
   const camPos = new T3.Vector3(), camLook = new T3.Vector3();
@@ -629,7 +631,7 @@ window.Render3D = (() => {
     for (const [e, M] of models) {
       if (!M.parts) continue;
       const dz = e.y - pl.y, reach = P.shoulderCam ? (heightOf(e) * 1.15 - 22) / slope : P.back + 40;
-      const hit = camMode === "tp" && !e.dead && dz > 4 && dz < reach && Math.abs(e.x - pl.x) < e.r * 1.5 + 16;
+      const hit = CAM_MODES[camMode] && CAM_MODES[camMode].shoulderCam && !e.dead && dz > 4 && dz < reach && Math.abs(e.x - pl.x) < e.r * 1.5 + 16;
       setGhost(M, (M.ghost || 0) + ((hit ? 1 : 0) - (M.ghost || 0)) * Math.min(1, dt * 8));
     }
   }
@@ -642,7 +644,7 @@ window.Render3D = (() => {
     mat.transparent = g > 0; mat.opacity = 1 - 0.68 * g; mat.depthWrite = g === 0;
     for (const c of M.root.children) if (c.userData.outline) c.visible = g < 0.3;
   }
-  function setCamMode(m) { camMode = CAM_MODES[m] ? m : "top"; CAM.fol = null; shCam.s = 1; camOff = null; if (camMode !== "tp") for (const [, M] of models) setGhost(M, 0); }
+  function setCamMode(m) { camMode = CAM_MODES[m] ? m : "top"; CAM.fol = null; shCam.s = 1; camOff = null; if (!CAM_MODES[camMode] || !CAM_MODES[camMode].shoulderCam) for (const [, M] of models) setGhost(M, 0); }
 
   // v3.2 Schulterkamera: tief hinter der rechten Schulter, Blick nach vorn bis zur Stirnwand. Nur Neigung, kein Gieren
   // (Norden bleibt oben) → Projektion ohne Matrizen. Die Kamera sitzt auf einem Strahl unter P.ray Grad hinter dem Helden;
@@ -650,7 +652,9 @@ window.Render3D = (() => {
   const shCam = { s: 1, pitch: 0 };
   function shoulderPose(P, hx, hz, s) {
     const r = P.ray * Math.PI / 180, d = P.dist * s, mx = (D.L + D.R) / 2;
-    return { x: hx + P.shoulder * s + (mx - hx) * 0.2, y: Math.sin(r) * d, z: hz + Math.cos(r) * d };
+    // v4.4 stärker zur Arena-Mitte ziehen: am Rand füllt sonst die Hausfassade ein Drittel des Bildes
+    // Schulter-Versatz nimmt beim Herauszoomen ab – sonst rutscht die linke Seite aus dem Bild
+    return { x: hx + P.shoulder * Math.max(0, 2 - s) + (mx - hx) * (P.center ?? 0.2), y: Math.sin(r) * d, z: hz + Math.cos(r) * d };
   }
   function shoulderSees(P, C, x, z, h, tv, th) {
     const sp = Math.sin(shCam.pitch), cp = Math.cos(shCam.pitch), ry = h - C.y, rz = z - C.z, depth = -ry * sp - rz * cp;
@@ -665,6 +669,7 @@ window.Render3D = (() => {
     const near = [];
     for (const e of w.enemies) {
       if (e.dead || e.spawnT > 0 || e.under) continue;
+      if (e.rival) { near.push(e); continue; } // 1 gegen 1: der Gegner bleibt immer im Bild
       const dd = Math.hypot(e.x - hx, e.y - hz);
       if (dd < (e.def.boss ? P.danger * 1.8 : P.danger)) near.push(e);
     }

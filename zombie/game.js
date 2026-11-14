@@ -161,6 +161,8 @@
   const save = loadSave();
   // Mit Einführung von 3D bekommt jeder einmal die höchste Stufe (die Auto-Anpassung regelt bei Bedarf herunter)
   if (save.gfxV !== 2) { save.gfx = 2; save.gfxV = 2; }
+  // v4.4: Schulterkamera wird für alle Standard; 2D (Draufsicht) nur noch, wenn man es selbst wählt
+  if (save.camV !== 44) { save.cam = "tp"; save.camV = 44; if (save.gfx === 0) save.gfx = 1; }
   if (!save.stats.runs && save.runs) save.stats.runs = save.runs;
   if (!save.patrol.since) save.patrol.since = Date.now();
   let restoring = false; // ein eingespielter Spielstand darf bis zum Neuladen nicht mehr überschrieben werden
@@ -371,8 +373,9 @@
   const ctx = canvas.getContext("2d");
   const view = $("view");
   const canvas3d = $("game3d");
-  const CAM_ORDER = ["top", "close", "tp"];
-  const CAM_NAMES = { top: "Übersicht", close: "Nah", tp: "Third Person" };
+  // v4.4: nur noch Schulterkameras zur Wahl (Übersicht/Nah bleiben für Tests über save.cam + camV erreichbar)
+  const CAM_ORDER = ["tp", "tpw"];
+  const CAM_NAMES = { top: "Übersicht", close: "Nah", tp: "Schulter", tpw: "Schulter weit" };
   const ui = {
     menu: $("menu"), armory: $("armory"), talents: $("talents"), skillPick: $("skillPick"),
     pause: $("pause"), over: $("over"), pauseBtn: $("pauseBtn"),
@@ -447,12 +450,13 @@
   let dpr = 1;
   // Grafikqualität: 2 = 3D mit Schatten, 1 = 3D ohne Schatten, 0 = klassisches 2D.
   // Ohne WebGL bleiben es drei 2D-Stufen (Auflösung & Partikelmenge).
-  let quality = Math.max(0, Math.min(2, save.gfx ?? 2));
+  // v4.4: 2D ist keine wählbare Stufe mehr – nur noch Notlösung, falls das Gerät gar kein WebGL kann
+  let quality = Math.max(1, Math.min(2, save.gfx ?? 2));
   let gfxLocked = false; // für Tests: keine automatische Anpassung
   const QUALITY_DPR = [1, 1.5, 2];
   // Dynamische Auflösung: unter Last zuerst die 3D-Auflösung stufenweise senken (kaum sichtbar),
   // erst danach eine ganze Qualitätsstufe (Schatten aus bzw. 2D)
-  const RES_STEPS = [1, 0.85, 0.72];
+  const RES_STEPS = [1, 0.85, 0.72, 0.6];
   let resStep = 0;
   const QUALITY_PARTICLES = [350, 600, 900];
   // 3D (WebGL) wird beim ersten Bedarf gestartet; schlägt das fehl, läuft das Spiel in 2D.
@@ -483,7 +487,7 @@
     if (mode3d) {
       Render3D.setQuality(quality);
       Render3D.setBloom(save.bloom !== false);
-      Render3D.setCamMode(save.cam || "top");
+      Render3D.setCamMode(save.cam || "tp");
       // 3D-Auflösung bewusst begrenzt: Füllrate ist auf Handys der Engpass, das HUD bleibt trotzdem scharf
       Render3D.resize(W * scale, H * scale, Math.min(window.devicePixelRatio || 1, quality >= 2 ? 1.5 : 1) * RES_STEPS[resStep]);
     }
@@ -513,6 +517,8 @@
   // ============================================================
   let actx = null;
   const lastSfx = {};
+  // v4.4 iPhone/Safari: Audio wird erst nach einer echten Berührung (touchend/click) freigegeben – einmal mitlauschen
+  for (const ev of ["touchend", "click"]) document.addEventListener(ev, () => ensureAudio(), { passive: true, capture: true });
   function ensureAudio() {
     if (!actx) {
       try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { actx = null; }
@@ -1416,9 +1422,11 @@
     const db = dashBtn();
     if ((p.x - db.x) ** 2 + (p.y - db.y) ** 2 < (db.r + 8) ** 2) { requestDash(); return; }
     const hitB = (b, extra = 6) => (p.x - b.x) ** 2 + (p.y - b.y) ** 2 < (b.r + extra) ** 2;
-    if (beltKinds().length > 1 && hitB(swapBtn(), 4)) { cycleThrow(); return; }
-    if (hitB(throwBtn())) { requestThrow(); return; }
-    if (hitB(ultBtn())) { requestUlt(); return; }
+    if (run.mode !== "pvp") {
+      if (beltKinds().length > 1 && hitB(swapBtn(), 4)) { cycleThrow(); return; }
+      if (hitB(throwBtn())) { requestThrow(); return; }
+      if (hitB(ultBtn())) { requestUlt(); return; }
+    }
     const now = performance.now();
     if (now - lastTap.t < 280 && (p.x - lastTap.x) ** 2 + (p.y - lastTap.y) ** 2 < 50 * 50) requestDash();
     lastTap = { t: now, x: p.x, y: p.y };
@@ -4354,7 +4362,7 @@
     }
   }
   function drawActionButtons() {
-    if (!run || !run.belt) return;
+    if (!run || !run.belt || run.mode === "pvp") return; // 1 gegen 1: keine Wurfwaffen/Spezial (Turnierregeln)
     const sel = run.beltSel, n = run.belt[sel] || 0, def = THROWABLES[sel];
     // Wurfwaffe
     const tb = throwBtn(), ready = n > 0 && run.throwCd <= 0;
@@ -5384,6 +5392,8 @@
         conn.on("open", () => { done = true; res(link); });
       };
       peer.on("error", (e) => fail(e && e.type === "peer-unavailable" ? "noroom" : e && e.type === "unavailable-id" ? "taken" : "net"));
+      // v4.4 Handy kurz im Hintergrund (Einladung teilen): Verbindung zum Vermittlungs-Dienst wieder aufnehmen
+      peer.on("disconnected", () => { if (!done) try { peer.reconnect(); } catch { /* weg */ } });
       if (host) peer.on("connection", wire);
       else peer.on("open", () => wire(peer.connect(roomId(code), { reliable: true })));
       openPeerLink.cancel = () => fail("cancel");
@@ -5428,17 +5438,18 @@
     e.body = Object.assign(newPlayer(), { skin: lk.skin, weaponId: lk.w, weapon: WEAPONS[lk.w], tier: lk.tier, orbit: 0, drones: 0 });
     run.pvp.cd = PVP.count;
     player.fireCd = PVP.count;
-    const myPow = fighterInfo(fairPlayer(save.arena.f)).pow;
+    const myPow = fighterInfo(fairPlayer(myFighter())).pow;
     showBanner(tr("1 GEGEN 1"), `${e.def.name} · ${tr("Level {n}", { n: o.lv || 1 })}${o.pow ? ` · ${tr("Kampfwert {a} gegen {b}", { a: num(myPow), b: num(o.pow) })}` : ""}`, 2.6);
   }
+  // v4.4 Ohne Aufstieg: Standard-Kämpfer (gewählte Waffe, keine Skills) – Freunde können sofort mitmachen
+  const myFighter = () => (save.arena && save.arena.f) || { weaponId: save.equipped || "pistol", skin: save.skin, level: 1, tier: 0, skills: {}, evo: {}, mods: [] };
   let pvpMatch = null; // Best of 3 über mehrere Runden
   function startPvp(opp, link, next = false) {
-    const a = save.arena;
-    if (!a || !a.f) return;
+    const a = save.arena || (save.arena = { w: 0, l: 0 });
     duel = null;
     startRun("pvp");
     run.pet = null;
-    player = fairPlayer(a.f);
+    player = fairPlayer(myFighter());
     syncGearLook();
     run.belt = {}; run.ult = 0; // Turnierregeln: keine Wurfwaffen, keine Spezialfähigkeit
     if (!next) pvpMatch = { me: 0, them: 0, round: 1, net: !!link }; else pvpMatch.round++;
@@ -5466,6 +5477,10 @@
       const k = Math.min(1, dt * 14), dx = e.tx - e.x, dy = e.ty - e.y;
       if (Math.abs(dx) + Math.abs(dy) > 1) e.anim += dt * 9;
       e.x += dx * k; e.y += dy * k;
+      // v4.4 Vorhersage: zwischen zwei Zustandsmeldungen läuft der Gegner mit seiner gemeldeten Geschwindigkeit weiter
+      // (höchstens 0,2 s, dann bleibt er stehen statt durch Wände zu gleiten)
+      if (e.tAge < 0.2) { const step = Math.min(dt, 0.2 - e.tAge); e.tx = clamp(e.tx + (e.tvx || 0) * step, L, R); e.ty = clamp(e.ty + (e.tvy || 0) * step, T, B); }
+      e.tAge = (e.tAge || 0) + dt;
       if ((pv.quiet += dt) > PVP.timeout) endPvp(true, tr("Verbindung zum Gegner verloren"), true);
       return;
     }
@@ -5506,15 +5521,22 @@
     if ((pv.sendT -= dt) <= 0) {
       pv.sendT = 1 / PVP.sendHz;
       const m = pvpMirror(p.x, p.y);
-      pv.link.send({ t: "s", x: Math.round(m.x), y: Math.round(m.y), a: +(p.aim + Math.PI).toFixed(2), hp: Math.max(0, Math.round(p.hp)), mhp: Math.round(p.maxHp) });
+      pv.link.send({ t: "s", x: Math.round(m.x), y: Math.round(m.y), vx: Math.round(-p.vx), vy: Math.round(-p.vy), a: +(p.aim + Math.PI).toFixed(2), hp: Math.max(0, Math.round(p.hp)), mhp: Math.round(p.maxHp) });
     }
+    // v4.4 Ping: jede Sekunde eine Messung, Antwort kommt sofort zurück
+    if ((pv.pingT = (pv.pingT || 0) - dt) <= 0) { pv.pingT = 1; pv.link.send({ t: "ping", c: Math.round(performance.now()) }); }
   }
   function pvpMessage(m) {
     const pv = run && run.pvp;
     if (!pv || pv.over || !m) return;
     const e = pv.rival;
     pv.quiet = 0;
-    if (m.t === "s") { e.tx = clamp(+m.x || 0, L, R); e.ty = clamp(+m.y || 0, T, B); e.face = +m.a || 0; e.maxHp = Math.max(1, +m.mhp || 1); e.hp = clamp(+m.hp || 0, 0, e.maxHp); }
+    if (m.t === "ping") { pv.link.send({ t: "pong", c: m.c }); return; }
+    if (m.t === "pong") { const ms = clamp(performance.now() - (+m.c || 0), 0, 5000); pv.ping = pv.ping == null ? ms : ms < pv.ping ? pv.ping * 0.4 + ms * 0.6 : pv.ping * 0.8 + ms * 0.2; return; } // fällt schnell, steigt langsam
+    if (m.t === "s") {
+      e.tx = clamp(+m.x || 0, L, R); e.ty = clamp(+m.y || 0, T, B); e.face = +m.a || 0; e.maxHp = Math.max(1, +m.mhp || 1); e.hp = clamp(+m.hp || 0, 0, e.maxHp);
+      e.tvx = clamp(+m.vx || 0, -600, 600); e.tvy = clamp(+m.vy || 0, -600, 600); e.tAge = 0;
+    }
     else if (m.t === "b" && Array.isArray(m.l) && pv.cd <= 0) {
       // Drossel: höchstens 160 Kugeln je Sekunde – mehr schafft keine Waffe, mehr ist Manipulation oder Stau
       const now = performance.now();
@@ -5635,6 +5657,13 @@
       ctx.fillStyle = pv.sudden ? `rgb(255,${110 + 60 * Math.sin(run.time * 8)},90)` : "#efe8d4";
       ctx.fillText(`${tr("RUNDE {n}", { n: pvpMatch.round })} · ${pvpMatch.me}:${pvpMatch.them}${pv.sudden ? ` · ${tr("SUDDEN DEATH")}` : ""}`, W / 2, y + 34);
     }
+    if (pv.net) {
+      // v4.4 Verbindungsanzeige: Ping in ms, rot bei Aussetzern
+      const lag = pv.quiet > 1, ms = pv.ping == null ? null : Math.round(pv.ping);
+      const col = lag ? "#ff6a4a" : ms == null || ms < 90 ? "#9fe08a" : ms < 180 ? "#ffd36a" : "#ff8a3a";
+      ctx.textAlign = "right"; ctx.font = "800 11px 'Barlow Condensed', sans-serif"; ctx.fillStyle = col;
+      ctx.fillText(lag ? tr("Verbindung hakt … {s} s", { s: Math.ceil(PVP.timeout - pv.quiet) }) : ms == null ? tr("Ping …") : tr("Ping {n} ms", { n: ms }), x + w, y + 34);
+    }
     if (pv.cd > 0 && state === "play") {
       const n = Math.ceil(pv.cd), f = pv.cd - Math.floor(pv.cd);
       ctx.textAlign = "center"; ctx.font = `400 ${Math.round(110 + f * 40)}px 'Saira Stencil One', sans-serif`;
@@ -5678,7 +5707,7 @@
       if (lobby !== me) { link.close(); return; }
       me.link = link;
       // Vorstellung: beide schicken ihre Kennzahlen, der Gastgeber gibt das Startsignal
-      const mine = fighterInfo(fairPlayer(save.arena.f));
+      const mine = fighterInfo(fairPlayer(myFighter()));
       let theirs = null, started = false;
       const go = () => { if (started || !theirs) return; started = true; lobby = null; startPvp(theirs, link); };
       link.onmsg = (m) => {
@@ -5691,18 +5720,33 @@
       if (lobby === me) { lobby = null; renderArena(tr(NET_ERR[err.message] || NET_ERR.net)); }
     }
   }
+  // v4.4 Einladung: Link öffnet das Spiel (Web-Version, auch auf dem iPhone) direkt im Raum
+  function inviteUrl(code) {
+    const web = Platform.isNative || !location.protocol.startsWith("http") ? Platform.cfg.webUrl || "" : `${location.origin}${location.pathname}`;
+    return web ? `${web}?room=${code}` : "";
+  }
+  async function shareInvite() {
+    if (!lobby || !lobby.host) return;
+    const code = lobby.code, url = inviteUrl(code);
+    const text = tr("Komm in meine Arena bei Outbreak! Germany – Raum-Code {c}", { c: code }) + (url ? `\n${url}` : "");
+    try { if (navigator.share) { await navigator.share(url ? { text, url } : { text }); return; } } catch (err) { if (err && err.name === "AbortError") return; }
+    try { await navigator.clipboard.writeText(text); toast(tr("Einladung kopiert – jetzt deinem Freund schicken"), "duel"); }
+    catch { toast(code, "duel"); }
+  }
+  let roomLinkUsed = false;
   function renderArena(msg = "") {
     const a = save.arena || {}, f = a.f, info = f ? fighterInfo(fairPlayer(f)) : null, wname = info ? WEAPONS[info.w].name : "";
     $("arenaFighter").innerHTML = f
       ? `${medal("duel", a.stage >= ARENA_STAGES ? "gold" : "steel", "big")}<span><small>${tr("Dein Kämpfer")}</small><b>${tr("Level {n}", { n: info.lv })} · ${wname}</b><em>${tr("Aufstieg {n}/{m}", { n: a.stage || 0, m: ARENA_STAGES })} · ${tr("{n} Skills", { n: info.skills })} · ${num(info.mhp)} ${tr("Leben")}</em></span>`
-      : `${medal("duel", "steel", "big")}<span><small>${tr("Dein Kämpfer")}</small><b>${tr("Noch keiner")}</b><em>${tr("Schaff den Aufstieg: 10 Bezirke, nach jedem ein Skill")}</em></span>`;
+      : `${medal("duel", "steel", "big")}<span><small>${tr("Dein Kämpfer")}</small><b>${tr("Standard-Kämpfer")} · ${WEAPONS[myFighter().weaponId].name}</b><em>${tr("Ohne Skills – der Aufstieg (10 Bezirke) macht dich stärker")}</em></span>`;
     $("arenaClimb").innerHTML = `<span>${f ? tr("Neuer Aufstieg") : tr("Aufstieg starten")}</span>`;
     $("arenaRecord").textContent = `${tr("Wertung {e}", { e: arenaElo() })} · ${tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 })}`;
     const wait = !!lobby;
-    for (const id of ["arenaBot", "arenaHost", "arenaJoin", "arenaCode"]) $(id).disabled = !f || wait;
+    for (const id of ["arenaBot", "arenaHost", "arenaJoin", "arenaCode"]) $(id).disabled = wait;
+    $("arenaInvite").classList.toggle("hidden", !(wait && lobby.host));
     $("arenaClimb").disabled = wait;
     $("arenaCancel").classList.toggle("hidden", !wait);
-    $("arenaStatus").textContent = msg || (wait ? (lobby.host ? tr("Raum {c} ist offen – gib den Code deinem Gegner", { c: lobby.code }) : tr("Verbinde mit Raum {c} …", { c: lobby.code })) : f ? tr("Raum erstellen und Code weitergeben – oder dem Raum eines Freundes beitreten") : "");
+    $("arenaStatus").textContent = msg || (wait ? (lobby.host ? tr("Raum {c} ist offen – gib den Code deinem Gegner", { c: lobby.code }) : tr("Verbinde mit Raum {c} …", { c: lobby.code })) : tr("Raum erstellen und Einladung schicken – oder dem Raum eines Freundes beitreten"));
     $("arenaStatus").classList.toggle("live", wait && !msg);
   }
   function updateAmbient(dt) {
@@ -8301,7 +8345,7 @@
     if (avg > target * 1.33) {
       perf.good = 0;
       if (mode3d && resStep < RES_STEPS.length - 1) resStep++;
-      else if (quality > 0) { quality--; resStep = 0; save.gfx = quality; persist(); }
+      else if (quality > 1) { quality--; resStep = 0; save.gfx = quality; persist(); } // v4.4: nie automatisch in die 2D-Draufsicht
       else return;
       resize();
       console.log(`[Outbreak] Grafik → Stufe ${quality}, Auflösung ${RES_STEPS[resStep]} (Ø ${avg.toFixed(1)} ms/Bild)`);
@@ -9432,7 +9476,7 @@
     $("musicBtn").innerHTML = row("music", tr("Musik"), sw(save.music !== false));
     $("vibBtn").innerHTML = row("vibration", tr("Vibration"), sw(save.vibration));
     $("langBtn").innerHTML = row("language", tr("Sprache"), valTxt(I18N.lang === "de" ? "Deutsch" : "English"));
-    const gfxNames = init3d() ? ["2D (schnell)", "3D", "3D + Schatten"] : ["Niedrig", "Mittel", "Hoch"];
+    const gfxNames = init3d() ? ["3D", "3D (schnell)", "3D + Schatten"] : ["Niedrig", "Mittel", "Hoch"];
     $("gfxBtn").innerHTML = row("graphics", tr("Grafik"), valTxt(tr(gfxNames[quality])));
     $("fpsBtn").innerHTML = row("battery", tr("Akku sparen (30 FPS)"), sw(!!save.fps30));
     $("cineBtn").innerHTML = row("cinema", tr("Kino-Effekte"), sw(save.cine !== false));
@@ -9440,11 +9484,11 @@
     $("shakeBtn").innerHTML = row("explosion", tr("Bildschirmwackeln"), sw(save.shakeFx !== false));
     $("bloomBtn").innerHTML = row("star", tr("Leuchteffekte"), sw(save.bloom !== false));
     $("bloomBtn").classList.toggle("hidden", !init3d());
-    $("camBtn").innerHTML = row("camView", tr("Kamera"), valTxt(tr(CAM_NAMES[save.cam || "top"]) + (quality === 0 ? ` ${tr("(nur 3D)")}` : "")));
+    $("camBtn").innerHTML = row("camView", tr("Kamera"), valTxt(tr(CAM_NAMES[save.cam || "tp"]) + (quality === 0 ? ` ${tr("(nur 3D)")}` : "")));
     $("camBtn").classList.toggle("hidden", !init3d());
     $("backupBtn").innerHTML = row("backup", tr("Spielstand sichern"), valTxt(tr("Kopieren")));
     $("restoreBtn").innerHTML = row("backup", tr("Spielstand einspielen"), valTxt(tr("Einfügen")));
-    const cp = $("camBtnP"); if (cp) { cp.innerHTML = `${I("camView")}${tr(CAM_NAMES[save.cam || "top"])}`; cp.classList.toggle("hidden", !mode3d); }
+    const cp = $("camBtnP"); if (cp) { cp.innerHTML = `${I("camView")}${tr(CAM_NAMES[save.cam || "tp"])}`; cp.classList.toggle("hidden", !mode3d); }
     $("privacyOptsBtn").innerHTML = row("privacy", tr("Werbe-Einwilligung ändern"), "");
     $("privacyOptsBtn").classList.toggle("hidden", !Platform.isNative);
     $("privacyLink").innerHTML = row("info", tr("Datenschutzerklärung"), "");
@@ -9487,6 +9531,13 @@
     // Einstieg über einen geteilten Link (?duel=CODE): einmalig den Duell-Dialog mit dem Code öffnen
     const linked = !duelLinkUsed && /[?&]duel=([\w-]+)/.exec(location.search)?.[1];
     if (linked && duelDecode(linked)) { duelLinkUsed = true; dailyShown = true; show(ui.menu); renderDuel(linked); show(ui.duel); return; }
+    // v4.4 Einladung (?room=CODE): Arena öffnen und dem Raum sofort beitreten
+    const room = !roomLinkUsed && cleanRoomCode(/[?&]room=([\w]+)/.exec(location.search)?.[1] || "");
+    if (room && room.length === 5) {
+      roomLinkUsed = true; dailyShown = true; show(ui.menu);
+      $("arenaCode").value = room; renderArena(); show(ui.arena); openLobby(false, room);
+      return;
+    }
     if (!shot && !dailyShown && !st.claimedToday) { dailyShown = true; openDaily(); return; }
     show(ui.menu);
   }
@@ -9560,12 +9611,13 @@
   $("arenaClimb").addEventListener("click", () => { ensureAudio(); startRun("arena"); });
   $("arenaBot").addEventListener("click", () => {
     ensureAudio();
-    const me = fighterInfo(fairPlayer(save.arena.f));
+    const me = fighterInfo(fairPlayer(myFighter()));
     startPvp({ ...me, name: tr("Spiegel-Bot"), skill: 0.85 }, null);
   });
   $("arenaHost").addEventListener("click", () => { ensureAudio(); openLobby(true, newRoomCode()); });
   $("arenaJoin").addEventListener("click", () => { ensureAudio(); const c = cleanRoomCode($("arenaCode").value); if (c.length === 5) openLobby(false, c); else renderArena(tr("Der Raum-Code hat 5 Zeichen")); });
   $("arenaCancel").addEventListener("click", () => { closeLobby(); renderArena(); });
+  $("arenaInvite").addEventListener("click", () => shareInvite());
   $("missionsBtn").addEventListener("click", () => { ensureAudio(); renderMissions(); show(ui.missions); });
   for (const b of document.querySelectorAll("#missionTabs button")) b.addEventListener("click", () => { missionTab = b.dataset.tab; renderMissions(); });
   $("passBtn").addEventListener("click", () => { ensureAudio(); renderPass(); show(ui.pass); });
@@ -9655,7 +9707,7 @@
   $("shakeBtn").addEventListener("click", () => { save.shakeFx = save.shakeFx === false; persist(); renderSettings(); });
   // v3.1 Kamera-Perspektive: Übersicht → Nah → Third Person (Taste C, Gamepad Select, Einstellungen, Pause)
   function cycleCam(silent) {
-    const i = CAM_ORDER.indexOf(save.cam || "top");
+    const i = CAM_ORDER.indexOf(save.cam || "tp");
     save.cam = CAM_ORDER[(i + 1) % CAM_ORDER.length]; persist();
     if (webgl && Render3D.setCamMode) Render3D.setCamMode(save.cam);
     renderSettings();
@@ -9702,7 +9754,7 @@
   $("vibBtn").addEventListener("click", () => { save.vibration = !save.vibration; persist(); renderSettings(); if (save.vibration) Platform.vibrate(40); });
   $("privacyOptsBtn").addEventListener("click", () => Platform.ads.showPrivacyOptions());
   $("gfxBtn").addEventListener("click", () => {
-    quality = (quality + 1) % 3;
+    quality = quality >= 2 ? 1 : 2; // nur 3D-Stufen
     resStep = 0;
     save.gfx = quality;
     persist();

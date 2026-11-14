@@ -2,10 +2,13 @@
 // Für den Android-Build erzeugt mobile/scripts/build-web.mjs diese Datei neu –
 // die Werte kommen dann aus Umgebungsvariablen bzw. GitHub-Secrets.
 window.OUTBREAK_CONFIG = {
-  version: "4.3.0",
+  version: "4.4.0",
   // Link zur Play-Store-Seite (für den "Hol dir die App"-Button der Web-Version).
   playStoreUrl: "",
   privacyUrl: "privacy.html",
+  // Öffentliche Web-Version (GitHub Pages) – Einladungslinks der Arena zeigen von der App aus dorthin,
+  // damit auch iPhone-Freunde im Browser beitreten können.
+  webUrl: "https://denis369schmidt-web.github.io/demnggg/zombie/",
   admob: {
     // Offizielle Google-Test-Anzeigenblöcke. Für den Release eigene IDs als
     // GitHub-Secrets ADMOB_REWARDED_ID / ADMOB_INTERSTITIAL_ID hinterlegen.

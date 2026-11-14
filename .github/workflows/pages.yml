@@ -1,7 +1,8 @@
 # Veröffentlicht die Web-Version (zombie/) auf GitHub Pages.
 # Einmalig aktivieren: Settings → Pages → Source: "GitHub Actions".
-# Danach erreichbar unter https://<user>.github.io/<repo>/ – die
-# Datenschutzerklärung unter .../privacy.html (URL für die Play Console).
+# Alternativ ohne Workflow: Settings → Pages → "Deploy from a branch", Ordner "/ (root)" – gleiche Adresse.
+# Danach erreichbar unter https://<user>.github.io/<repo>/zombie/ – die
+# Datenschutzerklärung unter .../zombie/privacy.html (URL für die Play Console).
 name: Web-Version (GitHub Pages)
 
 on:
@@ -32,6 +33,6 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: zombie
+          path: .
       - id: deployment
         uses: actions/deploy-pages@v4

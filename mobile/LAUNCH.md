@@ -39,7 +39,7 @@ kann niemand für dich erledigen.
 
 - [ ] In `zombie/privacy.html` alle gelb markierten Felder (**BITTE AUSFÜLLEN**) ausfüllen: Name, Anschrift, E-Mail.
 - [ ] GitHub Pages aktivieren: *Settings → Pages → Source: GitHub Actions*. Nach dem nächsten Push auf `main`
-      ist das Spiel unter `https://<user>.github.io/<repo>/` und die Erklärung unter `…/privacy.html` online.
+      ist das Spiel unter `https://<user>.github.io/<repo>/zombie/` und die Erklärung unter `…/zombie/privacy.html` online.
 - [ ] Repository-Variable `PRIVACY_URL` auf diese URL setzen.
 
 ## 3. AdMob einrichten

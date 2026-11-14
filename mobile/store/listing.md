@@ -187,4 +187,4 @@ Can you make it out of Germany?
 | Enthält Werbung | Ja |
 | In-App-Käufe | Ja |
 | Kontakt-E-Mail | deine Support-Adresse |
-| Datenschutzerklärung | `https://<user>.github.io/<repo>/privacy.html` |
+| Datenschutzerklärung | `https://<user>.github.io/<repo>/zombie/privacy.html` |

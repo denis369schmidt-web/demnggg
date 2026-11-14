@@ -1903,7 +1903,8 @@
       if (!(p.shieldHitAt > run.time - 0.25)) { p.shieldHitAt = run.time; fxRing(p.x, p.y, 38, POWERUPS.shield.rgb, 0.25); fxSparks(p.x, p.y, rand(0, TAU), Math.PI, 5, POWERUPS.shield.rgb, 200); }
       return;
     }
-    if (Math.random() < p.dodge) {
+    if (run.mode === "pvp") dmg *= (1 - Math.min(FAIR.dodgeCap, p.dodge)) * pvpRamp(); // 1 gegen 1: Ausweichen als feste Schadensminderung
+    else if (Math.random() < p.dodge) {
       addText(p.x, p.y - 30, tr("AUSGEWICHEN"), "#9ee6ff", 15);
       p.invuln = 0.3;
       return;
@@ -2448,6 +2449,7 @@
     if (e.dead) return;
     if (e.rival && run.pvp) {
       if (run.pvp.over || run.pvp.cd > 0) return;
+      if (!run.pvp.net) dmg *= pvpRamp(); // online rechnet die getroffene Seite den Sudden-Death-Faktor
       if (run.pvp.net) { // online entscheidet das Gerät des Gegners über Kugeltreffer; nur Flächenschaden wird gemeldet
         e.hitT = 0.08;
         if (!o.bullet && !o.silent && dmg < 1e5) run.pvp.link.send({ t: "h", d: +dmg.toFixed(1) });
@@ -2460,7 +2462,8 @@
     if (!o.silent) {
       const critChance = p.crit;
       // Absoluter Nullpunkt: verlangsamte Zombies werden immer kritisch getroffen
-      if (Math.random() < critChance || (p.evo.frost && e.slowT > 0)) { dmg *= p.critMul; crit = true; }
+      if (e.rival) dmg *= 1 + Math.min(1, critChance) * (p.critMul - 1); // 1 gegen 1: Krit als fester Erwartungswert, kein Würfelglück
+      else if (Math.random() < critChance || (p.evo.frost && e.slowT > 0)) { dmg *= p.critMul; crit = true; }
       if (p.evo.vamp && p.hp < p.maxHp * 0.35) dmg *= 1.5;
       if (p.bigGame && (e.elite || e.def.boss)) dmg *= p.bigGame; // Seuchenjäger
       if (p.perfectT > run.time) dmg *= 1.25; // nach perfektem Ausweichen
@@ -2474,7 +2477,7 @@
       }
       if (!e.def.boss && p.headshot > 0 && Math.random() < p.headshot) { dmg = e.hp; crit = true; exec = true; }
       // … und zerspringen unter 30 % Leben
-      if (p.evo.frost && e.slowT > 0 && !e.def.boss && e.hp - dmg < e.maxHp * 0.3) { dmg = e.hp; crit = true; exec = true; o.shatter = true; }
+      if (p.evo.frost && e.slowT > 0 && !e.def.boss && !e.rival && e.hp - dmg < e.maxHp * 0.3) { dmg = e.hp; crit = true; exec = true; o.shatter = true; }
     }
     // Panzerung (Riot-Zombie) schluckt einen Teil des Schadens – Exekution ignoriert sie
     const armor = Math.max(e.def.armor || 0, e.aff && e.aff.includes("armored") ? 0.4 : 0, e.evoArmor || 0); // v3.7 Knochenpanzer
@@ -4245,6 +4248,7 @@
     run.ultFx = null;
   }
   function activateUlt() {
+    if (run && run.mode === "pvp") return; // Turnierregeln
     const p = player, sp = heroSpecial(save.skin), U = powerUnit();
     run.ult = 0;
     p.ultT = 0.7;
@@ -5266,6 +5270,34 @@
     p.hp = p.maxHp; p.revives = 0;
     return p;
   }
+  // v4.3 Turnierregeln: Im 1 gegen 1 zählen nur die im Aufstieg gewählten Skills, Evolutionen, Sets, Waffen-Mods und die
+  // Waffenwahl. Talente, Waffenstufe, Ausrüstung, Heldenstufe, Heldenfähigkeit, Album und Boosts bleiben draußen –
+  // wer mehr Geld oder Zeit investiert hat, ist dort nicht stärker. Jede Waffe wird auf dieselbe Grund-DPS gebracht.
+  const FAIR = { hp: 600, speed: 190, power: 20, dps: 60, shortRange: 400, shortBonus: 1.15, dodgeCap: 0.5, sudden: 45, ramp: 0.03, bestOf: 3, elo: 1000, k: 32 };
+  const weaponDps = (w) => w.dmg * (w.pellets || 1) * w.rate;
+  // Krit-Erwartung der Waffe herausrechnen; kurze Reichweite und langsame Geschosse (leichter auszuweichen) etwas aufwerten
+  const fairWeaponK = (w) => (FAIR.dps / (weaponDps(w) * (1 + 0.05 + (w.crit || 0))))
+    * (w.range < FAIR.shortRange ? FAIR.shortBonus : 1) * (w.speed > 0 && w.speed < 600 ? 1.1 : 1);
+  function fairPlayer(f) {
+    const wid = WEAPONS[f.weaponId] ? f.weaponId : "pistol", w = WEAPONS[wid];
+    const p = newPlayer();
+    Object.assign(p, {
+      weaponId: wid, weapon: w, tier: f.tier || 0, skin: f.skin || "soldier", level: f.level || 1,
+      maxHp: FAIR.hp, hp: FAIR.hp, speed: FAIR.speed, power: FAIR.power, dmgMul: fairWeaponK(w), rateMul: 1,
+      crit: 0.05 + (w.crit || 0), critMul: 2, skills: {}, evo: {}, mods: [], revives: 0,
+    });
+    for (const [id, n] of Object.entries(f.skills || {})) {
+      const s = skillById(id);
+      if (!s) continue;
+      for (let i = 0; i < Math.min(n, s.max || n); i++) { p.skills[id] = (p.skills[id] || 0) + 1; s.apply(p); }
+    }
+    for (const id of Object.keys(f.evo || {})) { const ev = EVOLUTIONS.find((q) => q.id === id); if (ev && f.evo[id]) ev.apply(p); }
+    for (const set of Object.values(SKILL_SETS)) { const lv = set.ids.reduce((a, id) => a + (p.skills[id] || 0), 0); for (const t of set.tiers) if (lv >= t[0]) t[2](p); }
+    for (const id of f.mods || []) { const m = WEAPON_MODS.find((q) => q.id === id); if (m) { m.apply(p); p.mods.push(id); } }
+    p.revives = 0; p.headshot = 0; // keine Sofort-Kills, kein zweites Leben
+    p.hp = p.maxHp;
+    return p;
+  }
   // Kennzahlen für Anzeige, Gegenstelle und Bot
   function fighterInfo(f) {
     const w = WEAPONS[f.weaponId] || WEAPONS.pistol;
@@ -5396,23 +5428,26 @@
     e.body = Object.assign(newPlayer(), { skin: lk.skin, weaponId: lk.w, weapon: WEAPONS[lk.w], tier: lk.tier, orbit: 0, drones: 0 });
     run.pvp.cd = PVP.count;
     player.fireCd = PVP.count;
-    const myPow = fighterInfo(save.arena.f).pow;
+    const myPow = fighterInfo(fairPlayer(save.arena.f)).pow;
     showBanner(tr("1 GEGEN 1"), `${e.def.name} · ${tr("Level {n}", { n: o.lv || 1 })}${o.pow ? ` · ${tr("Kampfwert {a} gegen {b}", { a: num(myPow), b: num(o.pow) })}` : ""}`, 2.6);
   }
-  function startPvp(opp, link) {
+  let pvpMatch = null; // Best of 3 über mehrere Runden
+  function startPvp(opp, link, next = false) {
     const a = save.arena;
     if (!a || !a.f) return;
     duel = null;
     startRun("pvp");
     run.pet = null;
-    player = playerFromFighter(a.f);
+    player = fairPlayer(a.f);
     syncGearLook();
-    run.pvp = { opp, net: !!link, link: link || null, sendT: 0, rival: null, cd: PVP.count, over: false, quiet: 0 };
+    run.belt = {}; run.ult = 0; // Turnierregeln: keine Wurfwaffen, keine Spezialfähigkeit
+    if (!next) pvpMatch = { me: 0, them: 0, round: 1, net: !!link }; else pvpMatch.round++;
+    run.pvp = { opp, net: !!link, link: link || null, sendT: 0, rival: null, cd: PVP.count, over: false, quiet: 0, t: 0, sudden: false };
     setupPvpRoom();
     const pvNow = run.pvp;
     if (link) {
       link.onmsg = pvpMessage;
-      link.onclose = () => { if (run && run.pvp === pvNow && !pvNow.over) endPvp(true, tr("Gegner hat aufgegeben")); };
+      link.onclose = () => { if (run && run.pvp === pvNow && !pvNow.over) endPvp(true, tr("Gegner hat aufgegeben"), true); };
     }
     track("arenaFights");
   }
@@ -5431,7 +5466,7 @@
       const k = Math.min(1, dt * 14), dx = e.tx - e.x, dy = e.ty - e.y;
       if (Math.abs(dx) + Math.abs(dy) > 1) e.anim += dt * 9;
       e.x += dx * k; e.y += dy * k;
-      if ((pv.quiet += dt) > PVP.timeout) endPvp(true, tr("Verbindung zum Gegner verloren"));
+      if ((pv.quiet += dt) > PVP.timeout) endPvp(true, tr("Verbindung zum Gegner verloren"), true);
       return;
     }
     // Bot: hält mittlere Distanz, läuft seitlich, wechselt die Richtung, zielt mit Vorhalt
@@ -5496,34 +5531,56 @@
       if ((pv.inH = (pv.inH || 0) + 1) <= 30) hurtPlayer(clamp(+m.d || 0, 0, 5000) * PVP.dmg);
     }
     else if (m.t === "dead") endPvp(true);
-    else if (m.t === "lost") endPvp(false, tr("Zeit überschritten – Verbindung zu langsam oder Spiel pausiert"));
+    else if (m.t === "forfeit") endPvp(true, tr("Gegner hat aufgegeben"), true);
+    else if (m.t === "lost") endPvp(false, tr("Zeit überschritten – Verbindung zu langsam oder Spiel pausiert"), true);
   }
-  function endPvp(won, why = "") {
+  const arenaElo = () => Math.round((save.arena && save.arena.elo) || FAIR.elo);
+  // Elo: Erwartung aus der Differenz, K = 32. Gegen den Bot ändert sich nichts (Training).
+  function eloAfter(me, opp, score) { return Math.round(me + FAIR.k * (score - 1 / (1 + 10 ** ((opp - me) / 400)))); }
+  // Rundenende. final = Aufgabe/Verbindung weg: das Match ist sofort entschieden.
+  function endPvp(won, why = "", final = false) {
     const pv = run.pvp;
     if (pv.over) return;
     pv.over = true; pv.won = won;
-    // Ergebnis mitteilen: wer fällt, meldet „dead“; wer (auch per Zeitüberschreitung) gewinnt, sagt es dem anderen –
-    // sonst sähen sich nach einer Pause beide als Sieger
-    if (pv.net) { pv.link.send({ t: won ? "lost" : "dead" }); armRematch(pv); } // Leitung bleibt offen: Revanche ohne neuen Code
-    const a = save.arena || (save.arena = { w: 0, l: 0 });
-    let prize = 0;
-    if (won) { a.w = (a.w || 0) + 1; prize = pv.net ? 120 : 30; save.coins += prize; track("arenaWins"); } else a.l = (a.l || 0) + 1;
-    persist();
+    const m = pvpMatch || (pvpMatch = { me: 0, them: 0, round: 1 });
+    if (won) m.me++; else m.them++;
+    const need = Math.ceil(FAIR.bestOf / 2), done = final || m.me >= need || m.them >= need;
+    const matchWon = final ? won : m.me >= need;
+    // Ergebnis mitteilen: wer fällt, meldet „dead“; wer per Zeitüberschreitung gewinnt „lost“; wer aufgibt „forfeit“
+    if (pv.net) pv.link.send({ t: final && !won ? "forfeit" : won ? "lost" : "dead" });
     slowMo = Math.max(slowMo, 0.6); shake = Math.max(shake, 8);
     if (won && pv.rival && !pv.rival.dead) { pv.rival.hp = 0; fxBlood(pv.rival.x, pv.rival.y, rand(0, TAU), 14, RED, 220); pv.rival.dead = true; }
     eBullets = [];
-    showBanner(won ? tr("SIEG!") : tr("NIEDERLAGE"), why || (won ? tr("Der Platz gehört dir") : tr("Nächstes Mal")), 2.2);
     if (window.GameAudio) GameAudio.stinger(won ? "victory" : "death");
+    if (!done) {
+      // nächste Runde: beide Seiten warten gleich lang, dann startet derselbe Raum neu (Countdown fängt Laufzeit-Unterschiede ab)
+      showBanner(won ? tr("RUNDE AN DICH") : tr("RUNDE VERLOREN"), `${tr("Stand {a}:{b}", { a: m.me, b: m.them })}${why ? ` · ${why}` : ""}`, 2.2);
+      setTimeout(() => { if (run && run.pvp === pv) startPvp(pv.opp, pv.link, true); }, 2600);
+      return;
+    }
+    if (pv.net) armRematch(pv); // Leitung bleibt offen: Revanche ohne neuen Code
+    const a = save.arena || (save.arena = { w: 0, l: 0 });
+    let prize = 0, eloTxt = "";
+    if (matchWon) { a.w = (a.w || 0) + 1; prize = pv.net ? 150 : 30; save.coins += prize; track("arenaWins"); } else a.l = (a.l || 0) + 1;
+    if (pv.net) {
+      const before = arenaElo(), after = eloAfter(before, pv.opp.elo ?? FAIR.elo, matchWon ? 1 : 0);
+      a.elo = after; a.eloBest = Math.max(a.eloBest || 0, after);
+      eloTxt = `${after} (${after >= before ? "+" : ""}${after - before})`;
+    }
+    persist();
+    showBanner(matchWon ? tr("SIEG!") : tr("NIEDERLAGE"), why || tr("Endstand {a}:{b}", { a: m.me, b: m.them }), 2.2);
     setTimeout(() => {
       if (!run || run.pvp !== pv) return;
       state = "over"; joy.active = false; lastScore = null;
       const title = $("overTitle");
-      title.textContent = won ? tr("SIEG!") : tr("NIEDERLAGE"); title.classList.toggle("win", won);
+      title.textContent = matchWon ? tr("SIEG!") : tr("NIEDERLAGE"); title.classList.toggle("win", matchWon);
       const line = (icon, label, value, cls = "", i = 0) => `<span style="--i:${i}">${I(icon)}${label}</span><b class="${cls}" style="--i:${i}">${value}</b>`;
-      $("overStats").innerHTML = line("duel", tr("Gegner"), `${pv.opp.name} · ${tr("Level {n}", { n: pv.opp.lv || 1 })}`) +
-        (why ? line("info", tr("Grund"), why, "", 1) : "") +
-        line("trophy", tr("Bilanz"), tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 }), "", 2) +
-        line("coin", tr("Münzen"), coinAmt(prize, "+"), "gold", 3);
+      $("overStats").innerHTML = line("duel", tr("Gegner"), `${pv.opp.name}${pv.opp.elo ? ` · ${pv.opp.elo}` : ""}`) +
+        line("trophy", tr("Endstand"), `${m.me} : ${m.them}`, matchWon ? "gold" : "", 1) +
+        (why ? line("info", tr("Grund"), why, "", 2) : "") +
+        (eloTxt ? line("medal", tr("Wertung"), eloTxt, "", 3) : "") +
+        line("combo", tr("Bilanz"), tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 }), "", 4) +
+        line("coin", tr("Münzen"), coinAmt(prize, "+"), "gold", 5);
       for (const id of ["doubleBtn", "shareBtn", "duelShareBtn"]) $(id).classList.add("hidden");
       $("menuBtn").textContent = tr("Zur Arena");
       renderRematch(pv);
@@ -5553,13 +5610,15 @@
   function requestRematch() {
     const pv = run && run.pvp;
     if (!pv) return;
-    if (!pv.net) { startPvp(pv.opp, null); return; }
+    if (!pv.net) { startPvp(pv.opp, null); return; } // neues Match
     if (!pv.rm || pv.rm.gone || pv.rm.me) return;
     pv.rm.me = true;
     pv.link.send({ t: "again" });
     renderRematch(pv);
     tryRematch(pv);
   }
+  // Sudden Death: ab FAIR.sudden Sekunden steigt der erlittene Schaden um 3 % je Sekunde – kein Verstecken bis zum Schluss
+  const pvpRamp = () => { const pv = run && run.pvp; return pv && pv.t > FAIR.sudden ? 1 + FAIR.ramp * (pv.t - FAIR.sudden) : 1; };
   function drawPvpHud() {
     const pv = run && run.pvp;
     if (!pv || !pv.rival) return;
@@ -5571,6 +5630,11 @@
     ctx.font = "800 12px 'Barlow Condensed', sans-serif"; ctx.textBaseline = "middle";
     ctx.textAlign = "left"; ctx.fillStyle = "#efe8d4"; ctx.fillText(String(e.def.name).toUpperCase(), x + 8, y + 8);
     ctx.textAlign = "right"; ctx.fillStyle = "#ffd36a"; ctx.fillText(`${Math.ceil(k * 100)} %`, x + w - 8, y + 8);
+    if (pvpMatch) {
+      ctx.textAlign = "center"; ctx.font = "800 11px 'Barlow Condensed', sans-serif";
+      ctx.fillStyle = pv.sudden ? `rgb(255,${110 + 60 * Math.sin(run.time * 8)},90)` : "#efe8d4";
+      ctx.fillText(`${tr("RUNDE {n}", { n: pvpMatch.round })} · ${pvpMatch.me}:${pvpMatch.them}${pv.sudden ? ` · ${tr("SUDDEN DEATH")}` : ""}`, W / 2, y + 34);
+    }
     if (pv.cd > 0 && state === "play") {
       const n = Math.ceil(pv.cd), f = pv.cd - Math.floor(pv.cd);
       ctx.textAlign = "center"; ctx.font = `400 ${Math.round(110 + f * 40)}px 'Saira Stencil One', sans-serif`;
@@ -5583,12 +5647,16 @@
     const pv = run && run.pvp;
     if (!pv || state !== "play") return;
     if (pv.cd > 0) { pv.cd -= dt; if (pv.cd <= 0) { sfx("whistle"); player.fireCd = 0; } }
+    else if (!pv.over) {
+      pv.t += dt;
+      if (!pv.sudden && pv.t >= FAIR.sudden) { pv.sudden = true; showBanner(tr("SUDDEN DEATH"), tr("Jeder Treffer wird stärker"), 2); sfx("whistle"); shake = Math.max(shake, 4); }
+    }
     if (!pv.over && (pv.burnT > 0 || pv.poisonDps > 0)) {
       const p = player;
       let d = 0;
       if (pv.burnT > 0) { pv.burnT -= dt; d += pv.burnDps * dt; if (Math.random() < 0.3) fxFire(p.x + rand(-8, 8), p.y + rand(-8, 8), 0.7, 0.4); }
       if (pv.poisonDps > 0) { d += pv.poisonDps * dt; pv.poisonDps = Math.max(0, pv.poisonDps - pv.poisonDps * 0.25 * dt); if (Math.random() < 0.1) fxBubble(p.x + rand(-8, 8), p.y + rand(-6, 6)); }
-      p.hp -= d * PVP.dmg;
+      p.hp -= d * PVP.dmg * pvpRamp();
       if (p.hp <= 0) { p.hp = 0; endPvp(false, tr("An Brand oder Gift erlegen")); }
     }
     pvpSend(dt);
@@ -5610,26 +5678,26 @@
       if (lobby !== me) { link.close(); return; }
       me.link = link;
       // Vorstellung: beide schicken ihre Kennzahlen, der Gastgeber gibt das Startsignal
-      const mine = fighterInfo(save.arena.f);
+      const mine = fighterInfo(fairPlayer(save.arena.f));
       let theirs = null, started = false;
       const go = () => { if (started || !theirs) return; started = true; lobby = null; startPvp(theirs, link); };
       link.onmsg = (m) => {
-        if (m.t === "hello" && m.i) { theirs = { name: String(m.i.name || "?").slice(0, 16), lv: +m.i.lv || 1, mhp: clamp(+m.i.mhp || 600, 100, 1e5), speed: clamp(+m.i.speed || 190, 100, 400), look: safeLook(m.i.look), pow: clamp(+m.i.pow || 0, 0, 1e7) }; if (host) { link.send({ t: "go" }); go(); } }
+        if (m.t === "hello" && m.i) { theirs = { name: String(m.i.name || "?").slice(0, 16), lv: +m.i.lv || 1, mhp: clamp(+m.i.mhp || 600, 100, 1e5), speed: clamp(+m.i.speed || 190, 100, 400), look: safeLook(m.i.look), pow: clamp(+m.i.pow || 0, 0, 1e7), elo: clamp(Math.round(+m.i.elo || FAIR.elo), 0, 4000) }; if (host) { link.send({ t: "go" }); go(); } }
         else if (m.t === "go") go();
       };
       link.onclose = () => { if (lobby === me) { lobby = null; renderArena(tr("Gegner hat den Raum verlassen")); } };
-      link.send({ t: "hello", i: { name: mine.name, lv: mine.lv, mhp: mine.mhp, speed: mine.speed, look: mine.look, pow: mine.pow } });
+      link.send({ t: "hello", i: { name: mine.name, lv: mine.lv, mhp: mine.mhp, speed: mine.speed, look: mine.look, pow: mine.pow, elo: arenaElo() } });
     } catch (err) {
       if (lobby === me) { lobby = null; renderArena(tr(NET_ERR[err.message] || NET_ERR.net)); }
     }
   }
   function renderArena(msg = "") {
-    const a = save.arena || {}, f = a.f, info = f ? fighterInfo(f) : null, wname = info ? WEAPONS[info.w].name : "";
+    const a = save.arena || {}, f = a.f, info = f ? fighterInfo(fairPlayer(f)) : null, wname = info ? WEAPONS[info.w].name : "";
     $("arenaFighter").innerHTML = f
       ? `${medal("duel", a.stage >= ARENA_STAGES ? "gold" : "steel", "big")}<span><small>${tr("Dein Kämpfer")}</small><b>${tr("Level {n}", { n: info.lv })} · ${wname}</b><em>${tr("Aufstieg {n}/{m}", { n: a.stage || 0, m: ARENA_STAGES })} · ${tr("{n} Skills", { n: info.skills })} · ${num(info.mhp)} ${tr("Leben")}</em></span>`
       : `${medal("duel", "steel", "big")}<span><small>${tr("Dein Kämpfer")}</small><b>${tr("Noch keiner")}</b><em>${tr("Schaff den Aufstieg: 10 Bezirke, nach jedem ein Skill")}</em></span>`;
     $("arenaClimb").innerHTML = `<span>${f ? tr("Neuer Aufstieg") : tr("Aufstieg starten")}</span>`;
-    $("arenaRecord").textContent = tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 });
+    $("arenaRecord").textContent = `${tr("Wertung {e}", { e: arenaElo() })} · ${tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 })}`;
     const wait = !!lobby;
     for (const id of ["arenaBot", "arenaHost", "arenaJoin", "arenaCode"]) $(id).disabled = !f || wait;
     $("arenaClimb").disabled = wait;
@@ -5743,7 +5811,7 @@
     // Online lässt sich der Kampf nicht anhalten – die Gegenseite läuft weiter. Pause heißt dort: aufgeben?
     if (state === "play" && run && run.pvp && run.pvp.net && !run.pvp.over) {
       joy.active = false;
-      if (window.confirm(tr("Online-Kampf aufgeben? Das zählt als Niederlage."))) endPvp(false, tr("Aufgegeben"));
+      if (window.confirm(tr("Online-Kampf aufgeben? Das zählt als Niederlage."))) endPvp(false, tr("Aufgegeben"), true);
       return;
     }
     if (state === "play") {
@@ -9492,7 +9560,7 @@
   $("arenaClimb").addEventListener("click", () => { ensureAudio(); startRun("arena"); });
   $("arenaBot").addEventListener("click", () => {
     ensureAudio();
-    const me = fighterInfo(save.arena.f);
+    const me = fighterInfo(fairPlayer(save.arena.f));
     startPvp({ ...me, name: tr("Spiegel-Bot"), skill: 0.85 }, null);
   });
   $("arenaHost").addEventListener("click", () => { ensureAudio(); openLobby(true, newRoomCode()); });
@@ -9575,7 +9643,7 @@
   ui.pauseBtn.addEventListener("click", togglePause);
   $("resumeBtn").addEventListener("click", togglePause);
   $("quitBtn").addEventListener("click", () => {
-    if (run && run.pvp && !run.pvp.over) { show(null); state = "play"; endPvp(false, tr("Aufgegeben")); return; }
+    if (run && run.pvp && !run.pvp.over) { show(null); state = "play"; endPvp(false, tr("Aufgegeben"), true); return; }
     gameOver(true);
   });
   const soundBtn = $("soundBtn");
@@ -9657,7 +9725,7 @@
   });
   Platform.on("pause", () => {
     // Online-Kampf: wer die App verlässt, verliert – sofort und für beide sichtbar statt erst nach der Zeitüberschreitung
-    if ((state === "play" || state === "pause") && run && run.pvp && run.pvp.net && !run.pvp.over) { endPvp(false, tr("App verlassen")); return; }
+    if ((state === "play" || state === "pause") && run && run.pvp && run.pvp.net && !run.pvp.over) { endPvp(false, tr("App verlassen"), true); return; }
     if (state === "play") togglePause();
     if (actx && actx.state === "running") actx.suspend();
   });
@@ -9695,5 +9763,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP }, duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP }, duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-11-14T12:11:46.660Z",
+    "edition": "2026-11-14",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 16,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Labyrinth“, Boom Bap @ 89 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Leiser & Lauter“ (8 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-11-14 veröffentlicht (Hash c6f49c2b)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-11-13T13:07:14.827Z",
     "edition": "2026-11-13",
     "attempt": 0,
@@ -1861,41 +1896,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-09-25 veröffentlicht (Hash 13898e70)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-09-24T10:01:55.517Z",
-    "edition": "2026-09-24",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 99,
-    "durationMs": 22,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Fokus-Modus“, West Coast Bounce @ 100 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Punchline-Schmiede“ (8 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 99."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-09-24 veröffentlicht (Hash 38760570)."
       }
     ]
   }

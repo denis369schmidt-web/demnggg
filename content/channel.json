@@ -1,121 +1,121 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-11-13",
-  "generatedAt": "2026-11-13T13:07:14.827Z",
+  "edition": "2026-11-14",
+  "generatedAt": "2026-11-14T12:11:46.660Z",
   "attempt": 0,
   "theme": {
-    "id": "spiegelbild",
-    "title": "Spiegelbild",
-    "mood": "ehrlich",
-    "description": "Selbstreflexion ohne Filter – die härteste Battle-Runde.",
+    "id": "labyrinth",
+    "title": "Labyrinth",
+    "mood": "suchend",
+    "description": "Verwinkelte Gedanken, aber der Flow findet den Ausgang.",
     "keywords": [
-      "Spiegel",
-      "Wahrheit",
-      "Zweifel",
-      "Stolz",
-      "Wandel",
-      "Kern"
+      "Labyrinth",
+      "Wege",
+      "Nebel",
+      "Kompass",
+      "Suche",
+      "Ausgang"
     ]
   },
   "challenge": {
-    "id": "ein-wort-anker",
-    "title": "Ein-Wort-Anker",
-    "task": "Wähle ein Wort aus dem Paket „Gefühl & Bewegung“ und lasse es in 16 Bars zu „Spiegelbild“ in jeder Zeile auftauchen.",
-    "constraint": "Die Hook-Zeile muss eine Frage sein.",
-    "bars": 16,
-    "bpm": 142
+    "id": "leiser-lauter",
+    "title": "Leiser & Lauter",
+    "task": "Performe 8 Bars über „Labyrinth“ und steigere die Dynamik von Flüstern bis volle Energie.",
+    "constraint": "Baue genau eine bewusste Pause von einem halben Takt ein.",
+    "bars": 8,
+    "bpm": 89
   },
   "wordPacks": [
     {
-      "id": "spiegelbild-thema",
-      "title": "Thema: Spiegelbild",
-      "words": [
-        "Zweifel",
-        "Kern",
-        "Spiegel",
-        "Wahrheit",
-        "Wandel",
-        "Stolz"
-      ]
-    },
-    {
-      "id": "2026-11-13-bilder",
-      "title": "Bilder & Metaphern",
+      "id": "labyrinth-thema",
+      "title": "Thema: Labyrinth",
       "words": [
         "Kompass",
-        "Echo",
-        "Leuchtturm",
-        "Tinte",
-        "Funken",
-        "Fundament"
+        "Wege",
+        "Suche",
+        "Labyrinth",
+        "Nebel",
+        "Ausgang"
       ]
     },
     {
-      "id": "2026-11-13-energie",
+      "id": "2026-11-14-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Leuchtturm",
+        "Schatten",
+        "Anker",
+        "Antenne",
+        "Tinte",
+        "Radar"
+      ]
+    },
+    {
+      "id": "2026-11-14-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Instinkt",
-        "Frieden",
-        "Ruhe",
-        "driften",
+        "Feuer",
+        "Mut",
+        "Zweifel",
         "kreisen",
+        "gleiten",
         "klettern"
       ]
     }
   ],
   "rhymePairs": [
     {
+      "a": "Hand",
+      "b": "Verstand"
+    },
+    {
+      "a": "Meer",
+      "b": "schwer"
+    },
+    {
+      "a": "Nacht",
+      "b": "gemacht"
+    },
+    {
+      "a": "Kern",
+      "b": "fern"
+    },
+    {
+      "a": "Zeilen",
+      "b": "eilen"
+    },
+    {
       "a": "Feuer",
       "b": "teuer"
-    },
-    {
-      "a": "Klang",
-      "b": "Drang"
-    },
-    {
-      "a": "Rauch",
-      "b": "auch"
-    },
-    {
-      "a": "Kette",
-      "b": "Wette"
-    },
-    {
-      "a": "Ton",
-      "b": "davon"
-    },
-    {
-      "a": "Fluss",
-      "b": "Schluss"
     }
   ],
   "starterBars": [
     {
-      "line": "Ich stapel Silben auf Kern, bis der Pegel sich häuft",
+      "line": "Labyrinth bleibt der Anker, wenn der Offbeat mich ruft",
       "syllables": 13
     },
     {
-      "line": "Aus Kern wird ein Plan, aus dem Plan wird ein Schritt",
-      "syllables": 11
-    },
-    {
-      "line": "Satellit auf Repeat, bis die Hook von alleine läuft",
+      "line": "Ich stapel Silben auf Nebel, bis der Pegel sich häuft",
       "syllables": 14
     },
     {
-      "line": "Kern im Blick, ich bleib ruhig auf der Eins",
-      "syllables": 10
+      "line": "Der Tag war Nebel, doch die Nacht macht ihn zu meinem",
+      "syllables": 13
+    },
+    {
+      "line": "Tresor auf Repeat, bis die Hook von alleine läuft",
+      "syllables": 13
     }
   ],
   "flowTip": {
-    "id": "atem-mapping",
-    "title": "Atem-Mapping",
-    "tip": "Markiere beim Schreiben, wo du atmest. Wer die Atmung plant, verliert am Ende der Bars keine Energie."
+    "id": "doppelreim-leiter",
+    "title": "Doppelreim-Leiter",
+    "tip": "Übe Reimketten: ein Wort, dann zwei Silben, dann drei. Mehrsilbige Reime heben jeden Flow an."
   },
-  "quote": "Ein ruhiger Atem ist die beste Punchline-Versicherung.",
+  "quote": "Große Hooks entstehen oft aus kleinen Selbstgesprächen.",
   "beatPreset": {
-    "bpm": 142,
-    "pattern": "Trap Halftime",
+    "bpm": 89,
+    "pattern": "Boom Bap",
     "energy": "mittel"
   },
   "editorial": {
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-11-13",
+    "latestEdition": "2026-11-14",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

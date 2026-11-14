@@ -5335,9 +5335,10 @@
     syncGearLook();
     run.pvp = { opp, net: !!link, link: link || null, sendT: 0, rival: null, cd: PVP.count, over: false, quiet: 0 };
     setupPvpRoom();
+    const pvNow = run.pvp;
     if (link) {
       link.onmsg = pvpMessage;
-      link.onclose = () => { if (run && run.pvp && !run.pvp.over) endPvp(true, tr("Gegner hat aufgegeben")); };
+      link.onclose = () => { if (run && run.pvp === pvNow && !pvNow.over) endPvp(true, tr("Gegner hat aufgegeben")); };
     }
     track("arenaFights");
   }
@@ -5410,12 +5411,15 @@
     }
     else if (m.t === "h" && pv.cd <= 0) hurtPlayer(clamp(+m.d || 0, 0, 5000) * PVP.dmg);
     else if (m.t === "dead") endPvp(true);
+    else if (m.t === "lost") endPvp(false, tr("Zeit überschritten – Verbindung zu langsam oder Spiel pausiert"));
   }
   function endPvp(won, why = "") {
     const pv = run.pvp;
     if (pv.over) return;
     pv.over = true; pv.won = won;
-    if (pv.net) { if (!won) pv.link.send({ t: "dead" }); setTimeout(() => { try { pv.link.close(); } catch { /* zu */ } }, 400); }
+    // Ergebnis mitteilen: wer fällt, meldet „dead“; wer (auch per Zeitüberschreitung) gewinnt, sagt es dem anderen –
+    // sonst sähen sich nach einer Pause beide als Sieger
+    if (pv.net) { pv.link.send({ t: won ? "lost" : "dead" }); setTimeout(() => { try { pv.link.close(); } catch { /* zu */ } }, 400); }
     const a = save.arena || (save.arena = { w: 0, l: 0 });
     let prize = 0;
     if (won) { a.w = (a.w || 0) + 1; prize = pv.net ? 120 : 30; save.coins += prize; track("arenaWins"); } else a.l = (a.l || 0) + 1;

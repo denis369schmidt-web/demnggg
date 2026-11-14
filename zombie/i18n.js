@@ -896,6 +896,7 @@ window.I18N = (() => {
     "ALPHA BRÜLLT!": "ALPHA ROARS!",
     "ALPHA ERLEGT!": "ALPHA DOWN!",
     // v4.1 Arena
+    "ARENA": "ARENA", "1 gegen 1": "1 vs 1", "AUFSTIEG": "CLIMB",
     "Zeit überschritten – Verbindung zu langsam oder Spiel pausiert": "Timed out – connection too slow or game paused",
     "1 GEGEN 1": "1 VS 1",
     "Arena": "Arena",

@@ -7859,11 +7859,15 @@
       g.fillStyle = warn ? `rgb(255,${120 + 80 * Math.sin(run.time * 8)},90)` : "#fff"; g.font = FONT_NUM(24);
       g.fillText(fmtTime(left), 111, 46);
       segs(Math.floor(run.survT / SURV_STEP), SURVIVAL_BOSSES.map(([bt]) => Math.floor(bt / SURV_STEP)));
+    } else if (run.mode === "pvp") {
+      g.fillText(tr("ARENA"), 90, 22);
+      g.fillStyle = "#fff"; g.font = FONT_NUM(24);
+      g.fillText(tr("1 gegen 1"), 90, 46);
     } else {
-      // Stadt (klein, mit Tag der Flucht) und Stadtteil (groß, passt sich der Breite an)
-      const c = curCity(), dn = curDistrict()[0];
-      g.fillStyle = "#ffc41a"; g.fillText(c.name.toUpperCase(), 90, 22);
-      const cwid = g.measureText(c.name.toUpperCase()).width;
+      // Stadt (klein, mit Tag der Flucht) und Stadtteil (groß, passt sich der Breite an); im Aufstieg statt der Stadt „AUFSTIEG“
+      const c = curCity(), dn = curDistrict()[0], top = run.mode === "arena" ? tr("AUFSTIEG") : c.name.toUpperCase();
+      g.fillStyle = "#ffc41a"; g.fillText(top, 90, 22);
+      const cwid = g.measureText(top).width;
       g.fillStyle = "#76857b"; g.fillText(` · ${tr("Bezirk {n}/10", { n: districtIdx() + 1 })}`, 90 + cwid, 22);
       let fs = 24; g.font = FONT_NUM(fs);
       while (g.measureText(dn).width > 228 && fs > 15) g.font = FONT_NUM(--fs);

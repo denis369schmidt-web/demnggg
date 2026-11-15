@@ -1593,6 +1593,7 @@
     p.muzzle = Math.max(0, p.muzzle - dt);
     p.kick = Math.max(0, p.kick - dt * 40);
     p.hurtT = Math.max(0, p.hurtT - dt);
+    if (p.spectate) { p.moving = false; p.vx = p.vy = 0; return; } // v4.6 ausgeschieden: zuschauen bis zum Rundenende
     const v = inputVector();
     p.moving = !!v;
     // v2.6 Ausweichrolle: kurzer Sprint mit Unverwundbarkeit, Richtung = Eingabe oder Blickrichtung
@@ -1905,7 +1906,7 @@
       fxRing(p.x, p.y, 80, "168,255,62", 0.4); sfx("combo"); track("perfect");
       return;
     }
-    if (p.invuln > 0 || state !== "play") return;
+    if (p.invuln > 0 || state !== "play" || p.spectate) return;
     // v3.7 Power-up Schutzschild: schluckt jeden Treffer
     if (puOn("shield")) {
       if (!(p.shieldHitAt > run.time - 0.25)) { p.shieldHitAt = run.time; fxRing(p.x, p.y, 38, POWERUPS.shield.rgb, 0.25); fxSparks(p.x, p.y, rand(0, TAU), Math.PI, 5, POWERUPS.shield.rgb, 200); }
@@ -1929,7 +1930,7 @@
     hitStop = Math.max(hitStop, 0.05);
     sfx("hurt");
     fx4d(dmg >= p.maxHp * 0.2 ? "heavyHurt" : "hurt");
-    if (p.hp <= 0 && run.mode === "pvp") { p.hp = 0; endPvp(false); return; }
+    if (p.hp <= 0 && run.mode === "pvp") { p.hp = 0; if (run.pvp && run.pvp.party) partyDie(); else endPvp(false); return; }
     if (p.hp <= 0) {
       if (p.revives > 0) {
         p.revives--;
@@ -2110,7 +2111,7 @@
         if (!b.slug && !b.kind && Math.random() < 0.25) fxDrip(b);
         if (obstacles.some((o) => o.kind !== "bauzaun" && pointInRect(b.x, b.y, o))) { b.dead = true; acidSplash(b); continue; }
       }
-      if ((player.x - b.x) ** 2 + (player.y - b.y) ** 2 < (player.r + b.r - 3) ** 2) {
+      if (!b.friendly && !player.spectate && (player.x - b.x) ** 2 + (player.y - b.y) ** 2 < (player.r + b.r - 3) ** 2) {
         b.dead = true;
         acidSplash(b);
         hurtPlayer(b.dmg);
@@ -2460,7 +2461,7 @@
       if (!run.pvp.net) dmg *= pvpRamp(); // online rechnet die getroffene Seite den Sudden-Death-Faktor
       if (run.pvp.net) { // online entscheidet das Gerät des Gegners über Kugeltreffer; nur Flächenschaden wird gemeldet
         e.hitT = 0.08;
-        if (!o.bullet && !o.silent && dmg < 1e5) run.pvp.link.send({ t: "h", d: +dmg.toFixed(1) });
+        if (!o.bullet && !o.silent && dmg < 1e5 && run.pvp.hub) run.pvp.hub.sendTo(e.pid, { t: "h", d: +dmg.toFixed(1) });
         return;
       }
       if (dmg > e.maxHp * 0.25) dmg = e.maxHp * 0.25; // kein Sofort-Tod durch Exekution/Kopfschuss
@@ -2783,7 +2784,7 @@
   const activePowers = () => (run && run.pu ? Object.keys(POWERUPS).filter((k) => run.pu[k] > 0) : []);
 
   function killEnemy(e) {
-    if (e.rival && run.pvp) endPvp(true); // v4.1: der Arena-Gegner ist gefallen
+    if (e.rival && run.pvp && !run.pvp.net) endPvp(true); // v4.1: der Bot ist gefallen (online meldet das jedes Gerät selbst)
     if (e.dead) return;
     e.dead = true;
     run.kills++;
@@ -5360,47 +5361,126 @@
   function loadScript(src) {
     return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("load")); document.head.appendChild(s); });
   }
-  function openLocalLink(code, host) {
-    return new Promise((res) => {
-      const ch = new BroadcastChannel(roomId(code)), link = { send: (o) => ch.postMessage(o), close: () => { try { ch.postMessage({ t: "bye" }); } catch { /* zu */ } ch.close(); }, onmsg: null, onclose: null };
-      let open = false;
-      ch.onmessage = (ev) => {
-        const m = ev.data;
-        if (!open) {
-          if (host && m.t === "join") { open = true; ch.postMessage({ t: "joined" }); res(link); }
-          else if (!host && m.t === "joined") { open = true; res(link); }
-          return;
-        }
-        if (m.t === "bye") { if (link.onclose) link.onclose(); } else if (m.t !== "join" && m.t !== "joined" && link.onmsg) link.onmsg(m);
-      };
-      link.cancel = () => ch.close();
-      if (!host) ch.postMessage({ t: "join" });
-      openLocalLink.pending = link;
+  // v4.6 Netz-Knoten („Hub“) für bis zu HUB_MAX Spieler: Stern um den Gastgeber (Spieler 0). Gäste schicken alles an ihn,
+  // er stempelt den Absender (m.f) ein und leitet an alle anderen weiter (m.to = nur an diesen einen Spieler).
+  // hub: { host, me, send(m), sendTo(pid, m), close(), count(), locked, onmsg(m), onjoin(pid), onleave(pid), onclose() }
+  const HUB_MAX = 4;
+  const NO_RELAY = new Set(["ping", "pong", "hello", "ver"]);
+  function hubHostCore(hub) {
+    const conns = new Map();
+    hub.conns = conns;
+    hub.count = () => conns.size + 1;
+    hub.send = (m) => { m.f = 0; for (const c of conns.values()) c.send(m); };
+    hub.sendTo = (pid, m) => { m.f = 0; const c = conns.get(pid); if (c) c.send(m); };
+    hub.add = (pid, c) => { conns.set(pid, c); c.send({ t: "welcome", pid, f: 0 }); if (hub.onjoin) hub.onjoin(pid); };
+    hub.drop = (pid) => { if (conns.delete(pid) && hub.onleave) hub.onleave(pid); };
+    hub.kick = (pid) => { const c = conns.get(pid); if (c) { c.send({ t: "bye", f: 0 }); conns.delete(pid); setTimeout(() => c.close(), 200); } };
+    hub.recv = (pid, m) => {
+      if (!m || typeof m !== "object" || !conns.has(pid)) return;
+      m.f = pid; // Absender kann nicht gefälscht werden
+      if (m.to != null && m.to !== 0) { const c = conns.get(+m.to); if (c) c.send(m); return; }
+      if (m.to == null && !NO_RELAY.has(m.t)) for (const [q, c] of conns) if (q !== pid) c.send(m);
+      if (hub.onmsg) hub.onmsg(m);
+    };
+    return hub;
+  }
+  function openLocalHub(code, host) {
+    // BroadcastChannel zwischen Fenstern desselben Browsers (Tests, Ausprobieren am PC)
+    return new Promise((res, rej) => {
+      const bc = new BroadcastChannel(roomId(code)), hub = { host, me: host ? 0 : -1, locked: false, onmsg: null, onjoin: null, onleave: null, onclose: null };
+      let shut = false; // nach close() still nichts mehr senden
+      const ch = { postMessage: (d) => { if (!shut) try { bc.postMessage(d); } catch { /* zu */ } }, close: () => { shut = true; bc.close(); }, set onmessage(f) { bc.onmessage = f; } };
+      if (host) {
+        hubHostCore(hub);
+        let next = 1;
+        const conn = (pid) => ({ send: (m) => ch.postMessage({ k: "down", to: pid, m }), close: () => {} });
+        ch.onmessage = (ev) => {
+          const d = ev.data || {};
+          if (d.k === "join") {
+            if (hub.locked || hub.count() >= HUB_MAX) { ch.postMessage({ k: "full", rid: d.rid }); return; }
+            const pid = next++;
+            ch.postMessage({ k: "hi", rid: d.rid, pid });
+            hub.add(pid, conn(pid));
+          } else if (d.k === "up") hub.recv(+d.from, d.m);
+          else if (d.k === "leave") hub.drop(+d.from);
+        };
+        hub.close = () => { for (const pid of hub.conns.keys()) ch.postMessage({ k: "down", to: pid, m: { t: "bye", f: 0 } }); hub.conns.clear(); ch.close(); };
+        res(hub);
+      } else {
+        const rid = Math.random().toString(36).slice(2);
+        let done = false;
+        hub.send = (m) => ch.postMessage({ k: "up", from: hub.me, m });
+        hub.sendTo = (pid, m) => hub.send({ ...m, to: pid });
+        hub.count = () => 0;
+        hub.close = () => { if (done) ch.postMessage({ k: "leave", from: hub.me }); ch.close(); };
+        ch.onmessage = (ev) => {
+          const d = ev.data || {};
+          if (!done) {
+            if (d.k === "hi" && d.rid === rid) { done = true; hub.me = d.pid; clearTimeout(timer); }
+            else if (d.k === "full" && d.rid === rid) { clearTimeout(timer); ch.close(); rej(new Error("full")); }
+            return;
+          }
+          if (d.k !== "down" || d.to !== hub.me) return;
+          const m = d.m || {};
+          if (m.t === "welcome") { res(hub); return; }
+          if (m.t === "bye") { if (hub.onclose) hub.onclose(); return; }
+          if (hub.onmsg) hub.onmsg(m);
+        };
+        const timer = setTimeout(() => { if (!done) { ch.close(); rej(new Error("noroom")); } }, 4000);
+        hub.cancel = () => { clearTimeout(timer); ch.close(); rej(new Error("cancel")); };
+        openLocalHub.pending = hub;
+        ch.postMessage({ k: "join", rid });
+      }
     });
   }
-  async function openPeerLink(code, host) {
+  async function openPeerHub(code, host) {
     if (!window.Peer) await loadScript("vendor/peerjs.min.js");
     const cfg = (Platform.cfg.arena && Platform.cfg.arena.peer) || undefined; // eigener Vermittlungs-Server möglich
     return new Promise((res, rej) => {
       const peer = host ? new window.Peer(roomId(code), cfg) : new window.Peer(cfg);
+      const hub = { host, me: host ? 0 : -1, locked: false, onmsg: null, onjoin: null, onleave: null, onclose: null };
       let done = false;
       const fail = (why) => { if (!done) { done = true; try { peer.destroy(); } catch { /* weg */ } rej(new Error(why)); } };
-      const wire = (conn) => {
-        const link = { send: (o) => { if (conn.open) conn.send(o); }, close: () => { try { conn.close(); peer.destroy(); } catch { /* weg */ } }, onmsg: null, onclose: null };
-        conn.on("data", (m) => { if (link.onmsg) link.onmsg(m); });
-        conn.on("close", () => { if (link.onclose) link.onclose(); });
-        conn.on("open", () => { done = true; res(link); });
-      };
-      peer.on("error", (e) => fail(e && e.type === "peer-unavailable" ? "noroom" : e && e.type === "unavailable-id" ? "taken" : "net"));
+      peer.on("error", (e) => {
+        const why = e && e.type === "peer-unavailable" ? "noroom" : e && e.type === "unavailable-id" ? "taken" : "net";
+        if (!done) fail(why);
+      });
       // v4.4 Handy kurz im Hintergrund (Einladung teilen): Verbindung zum Vermittlungs-Dienst wieder aufnehmen
-      peer.on("disconnected", () => { if (!done) try { peer.reconnect(); } catch { /* weg */ } });
-      if (host) peer.on("connection", wire);
-      else peer.on("open", () => wire(peer.connect(roomId(code), { reliable: true })));
-      openPeerLink.cancel = () => fail("cancel");
+      peer.on("disconnected", () => { try { if (!peer.destroyed) peer.reconnect(); } catch { /* weg */ } });
+      openPeerHub.cancel = () => fail("cancel");
+      if (host) {
+        hubHostCore(hub);
+        let next = 1;
+        hub.close = () => { for (const c of hub.conns.values()) c.send({ t: "bye", f: 0 }); setTimeout(() => { try { peer.destroy(); } catch { /* weg */ } }, 150); };
+        peer.on("open", () => { done = true; res(hub); });
+        peer.on("connection", (dc) => {
+          if (hub.locked || hub.count() >= HUB_MAX) { dc.on("open", () => { dc.send({ t: "full" }); setTimeout(() => dc.close(), 300); }); return; }
+          const pid = next++, c = { send: (m) => { if (dc.open) dc.send(m); }, close: () => dc.close() };
+          dc.on("open", () => hub.add(pid, c));
+          dc.on("data", (m) => hub.recv(pid, m));
+          dc.on("close", () => hub.drop(pid));
+        });
+      } else {
+        peer.on("open", () => {
+          const dc = peer.connect(roomId(code), { reliable: true });
+          hub.send = (m) => { if (dc.open) dc.send(m); };
+          hub.sendTo = (pid, m) => hub.send({ ...m, to: pid });
+          hub.count = () => 0;
+          hub.close = () => { try { dc.close(); peer.destroy(); } catch { /* weg */ } };
+          dc.on("data", (m) => {
+            if (!m) return;
+            if (m.t === "welcome") { hub.me = m.pid; done = true; res(hub); return; }
+            if (m.t === "full") { fail("full"); return; }
+            if (m.t === "bye") { if (hub.onclose) hub.onclose(); return; }
+            if (hub.onmsg) hub.onmsg(m);
+          });
+          dc.on("close", () => { if (!done) fail("noroom"); else if (hub.onclose) hub.onclose(); });
+        });
+      }
     });
   }
-  const openLink = (code, host) => (NET_LOCAL ? openLocalLink(code, host) : openPeerLink(code, host));
-  let lobby = null; // { code, host, link, cancel }
+  const openHub = (code, host) => (NET_LOCAL ? openLocalHub(code, host) : openPeerHub(code, host));
+  let lobby = null; // { code, host, hub, players, ffa, me }
 
   // ---------------------------------------------------------------- Kampf
   const pvpMirror = (x, y) => ({ x: W - x, y: T + B - y });
@@ -5414,16 +5494,19 @@
     });
     return out;
   }
-  function setupPvpRoom() {
+  function buildPvpArena(px, py) {
     resetRoomState();
     run.room = 1;
-    player.x = W / 2; player.y = B - 150;
+    player.x = px; player.y = py;
     updateCam2D(0, true);
     makeGates(true);
     obstacles = pvpObstacles();
     floorCanvas = makeFloor();
     roomLights = [];
     initAmbient();
+  }
+  function setupPvpRoom() {
+    buildPvpArena(W / 2, B - 150);
     const o = run.pvp.opp, at = pvpMirror(player.x, player.y);
     const lock = evoLock; evoLock = true; // der Gegner mutiert nicht
     const e = spawnEnemy("walker", at.x, at.y);
@@ -5453,14 +5536,9 @@
     syncGearLook();
     run.belt = {}; run.ult = 0; // Turnierregeln: keine Wurfwaffen, keine Spezialfähigkeit
     keepAwake(true);
-    if (!next) pvpMatch = { me: 0, them: 0, round: 1, net: !!link }; else pvpMatch.round++;
-    run.pvp = { opp, net: !!link, link: link || null, sendT: 0, rival: null, cd: PVP.count, over: false, quiet: 0, t: 0, sudden: false };
+    if (!next) pvpMatch = { me: 0, them: 0, round: 1, net: false }; else pvpMatch.round++;
+    run.pvp = { opp, net: false, rival: null, cd: PVP.count, over: false, t: 0, sudden: false }; // Bot (online läuft über startParty)
     setupPvpRoom();
-    const pvNow = run.pvp;
-    if (link) {
-      link.onmsg = pvpMessage;
-      link.onclose = () => { if (run && run.pvp === pvNow && !pvNow.over) endPvp(true, tr("Gegner hat aufgegeben"), true); };
-    }
     track("arenaFights");
   }
   function rivalShoot(e, ang, list) {
@@ -5474,17 +5552,7 @@
     const pv = run.pvp, p = player;
     if (pv.over) return;
     if (pv.cd > 0) return;
-    if (pv.net) {
-      const k = Math.min(1, dt * 14), dx = e.tx - e.x, dy = e.ty - e.y;
-      if (Math.abs(dx) + Math.abs(dy) > 1) e.anim += dt * 9;
-      e.x += dx * k; e.y += dy * k;
-      // v4.4 Vorhersage: zwischen zwei Zustandsmeldungen läuft der Gegner mit seiner gemeldeten Geschwindigkeit weiter
-      // (höchstens 0,2 s, dann bleibt er stehen statt durch Wände zu gleiten)
-      if (e.tAge < 0.2) { const step = Math.min(dt, 0.2 - e.tAge); e.tx = clamp(e.tx + (e.tvx || 0) * step, L, R); e.ty = clamp(e.ty + (e.tvy || 0) * step, T, B); }
-      e.tAge = (e.tAge || 0) + dt;
-      if ((pv.quiet += dt) > PVP.timeout) endPvp(true, tr("Verbindung zum Gegner verloren"), true);
-      return;
-    }
+    if (pv.net) { netFollow(e, dt); return; }
     // Bot: hält mittlere Distanz, läuft seitlich, wechselt die Richtung, zielt mit Vorhalt
     const o = pv.opp, dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
     if ((e.strafeT -= dt) <= 0) { e.strafeT = rand(0.7, 1.8); e.strafe = Math.random() < 0.5 ? -1 : 1; }
@@ -5505,64 +5573,13 @@
       sfx("shoot");
     }
   }
-  // Eigene neue Kugeln und der Zustand gehen an die Gegenstelle
-  function pvpSend(dt) {
-    const pv = run.pvp, p = player;
-    if (!pv.net || pv.over) return;
-    const fresh = [];
-    const k = 1 + p.crit * (p.critMul - 1); // Krit-Erwartungswert: drüben wird nicht gewürfelt
-    for (const b of bullets) {
-      if (b.sent) continue;
-      b.sent = true;
-      const m = pvpMirror(b.x, b.y);
-      const fx = statusOf(p, b.burn || 0, b.freeze || 0, b.poison || 0);
-      fresh.push([Math.round(m.x), Math.round(m.y), Math.round(-b.vx), Math.round(-b.vy), +(b.dmg * k).toFixed(1), b.r, +b.life.toFixed(2)].concat(fx ? [fx.b, fx.p, fx.s] : []));
-    }
-    if (fresh.length) pv.link.send({ t: "b", l: fresh.slice(0, 40) });
-    if ((pv.sendT -= dt) <= 0) {
-      pv.sendT = 1 / PVP.sendHz;
-      const m = pvpMirror(p.x, p.y);
-      pv.link.send({ t: "s", x: Math.round(m.x), y: Math.round(m.y), vx: Math.round(-p.vx), vy: Math.round(-p.vy), a: +(p.aim + Math.PI).toFixed(2), hp: Math.max(0, Math.round(p.hp)), mhp: Math.round(p.maxHp) });
-    }
-    // v4.4 Ping: jede Sekunde eine Messung, Antwort kommt sofort zurück
-    if ((pv.pingT = (pv.pingT || 0) - dt) <= 0) { pv.pingT = 1; pv.link.send({ t: "ping", c: Math.round(performance.now()) }); }
-  }
-  function pvpMessage(m) {
-    const pv = run && run.pvp;
-    if (!pv || pv.over || !m) return;
-    const e = pv.rival;
-    pv.quiet = 0;
-    if (m.t === "ping") { pv.link.send({ t: "pong", c: m.c }); return; }
-    if (m.t === "pong") { const ms = clamp(performance.now() - (+m.c || 0), 0, 5000); pv.ping = pv.ping == null ? ms : ms < pv.ping ? pv.ping * 0.4 + ms * 0.6 : pv.ping * 0.8 + ms * 0.2; return; } // fällt schnell, steigt langsam
-    if (m.t === "s") {
-      e.tx = clamp(+m.x || 0, L, R); e.ty = clamp(+m.y || 0, T, B); e.face = +m.a || 0; e.maxHp = Math.max(1, +m.mhp || 1); e.hp = clamp(+m.hp || 0, 0, e.maxHp);
-      e.tvx = clamp(+m.vx || 0, -600, 600); e.tvy = clamp(+m.vy || 0, -600, 600); e.tAge = 0;
-    }
-    else if (m.t === "b" && Array.isArray(m.l) && pv.cd <= 0) {
-      // Drossel: höchstens 160 Kugeln je Sekunde – mehr schafft keine Waffe, mehr ist Manipulation oder Stau
-      const now = performance.now();
-      if (now - (pv.inT || 0) > 1000) { pv.inT = now; pv.inB = 0; pv.inH = 0; }
-      const room = Math.max(0, 160 - pv.inB), list = m.l.slice(0, Math.min(40, room));
-      pv.inB += list.length;
-      for (const q of list) eBullets.push({ x: +q[0], y: +q[1], vx: +q[2], vy: +q[3], r: clamp(+q[5] || 5, 2, 14), dmg: clamp(+q[4] || 0, 0, 5000) * PVP.dmg, color: "#ff6a4a", life: clamp(+q[6] || 1, 0.1, 3), dead: false, rgb: "255,106,74",
-        pfx: q.length > 7 ? { b: +q[7] || 0, p: +q[8] || 0, s: +q[9] || 0 } : null });
-      if (m.l.length) { e.flashT = 0.07; if (Math.random() < 0.5) sfx("shoot"); }
-    }
-    else if (m.t === "h" && pv.cd <= 0) {
-      const now = performance.now();
-      if (now - (pv.inT || 0) > 1000) { pv.inT = now; pv.inB = 0; pv.inH = 0; }
-      if ((pv.inH = (pv.inH || 0) + 1) <= 30) hurtPlayer(clamp(+m.d || 0, 0, 5000) * PVP.dmg);
-    }
-    else if (m.t === "dead") endPvp(true);
-    else if (m.t === "forfeit") endPvp(true, tr("Gegner hat aufgegeben"), true);
-    else if (m.t === "lost") endPvp(false, tr("Zeit überschritten – Verbindung zu langsam oder Spiel pausiert"), true);
-  }
   const arenaElo = () => Math.round((save.arena && save.arena.elo) || FAIR.elo);
   // Elo: Erwartung aus der Differenz, K = 32. Gegen den Bot ändert sich nichts (Training).
   function eloAfter(me, opp, score) { return Math.round(me + FAIR.k * (score - 1 / (1 + 10 ** ((opp - me) / 400)))); }
   // Rundenende. final = Aufgabe/Verbindung weg: das Match ist sofort entschieden.
   function endPvp(won, why = "", final = false) {
     const pv = run.pvp;
+    if (pv.party) { if (!won) partyQuit(why); return; } // Gruppenkampf: Aufgeben/App verlassen
     if (pv.over) return;
     pv.over = true; pv.won = won;
     const m = pvpMatch || (pvpMatch = { me: 0, them: 0, round: 1 });
@@ -5570,7 +5587,6 @@
     const need = Math.ceil(FAIR.bestOf / 2), done = final || m.me >= need || m.them >= need;
     const matchWon = final ? won : m.me >= need;
     // Ergebnis mitteilen: wer fällt, meldet „dead“; wer per Zeitüberschreitung gewinnt „lost“; wer aufgibt „forfeit“
-    if (pv.net) pv.link.send({ t: final && !won ? "forfeit" : won ? "lost" : "dead" });
     slowMo = Math.max(slowMo, 0.6); shake = Math.max(shake, 8);
     if (won && pv.rival && !pv.rival.dead) { pv.rival.hp = 0; fxBlood(pv.rival.x, pv.rival.y, rand(0, TAU), 14, RED, 220); pv.rival.dead = true; }
     eBullets = [];
@@ -5578,10 +5594,9 @@
     if (!done) {
       // nächste Runde: beide Seiten warten gleich lang, dann startet derselbe Raum neu (Countdown fängt Laufzeit-Unterschiede ab)
       showBanner(won ? tr("RUNDE AN DICH") : tr("RUNDE VERLOREN"), `${tr("Stand {a}:{b}", { a: m.me, b: m.them })}${why ? ` · ${why}` : ""}`, 2.2);
-      setTimeout(() => { if (run && run.pvp === pv) startPvp(pv.opp, pv.link, true); }, 2600);
+      setTimeout(() => { if (run && run.pvp === pv) startPvp(pv.opp, null, true); }, 2600);
       return;
     }
-    if (pv.net) armRematch(pv); // Leitung bleibt offen: Revanche ohne neuen Code
     const a = save.arena || (save.arena = { w: 0, l: 0 });
     let prize = 0, eloTxt = "";
     if (matchWon) { a.w = (a.w || 0) + 1; prize = pv.net ? 150 : 30; save.coins += prize; track("arenaWins"); } else a.l = (a.l || 0) + 1;
@@ -5611,39 +5626,31 @@
       refreshMenu();
     }, 1900);
   }
-  // Revanche: beide tippen „Revanche“, dann startet derselbe Raum einen neuen Kampf
-  function armRematch(pv) {
-    pv.rm = { me: false, them: false, gone: false, started: false };
-    pv.link.onmsg = (m) => { if (m && m.t === "again") { pv.rm.them = true; tryRematch(pv); renderRematch(pv); } };
-    pv.link.onclose = () => { pv.rm.gone = true; renderRematch(pv); };
-  }
-  function tryRematch(pv) {
-    if (!pv.rm || !pv.rm.me || !pv.rm.them || pv.rm.started || pv.rm.gone) return;
-    pv.rm.started = true;
-    startPvp(pv.opp, pv.link);
-  }
+  // Bot: „Nochmal“ startet sofort ein neues Match. Gruppe: der Gastgeber startet das nächste Match für alle (partyRematch).
   function renderRematch(pv) {
     if (!run || run.pvp !== pv || state !== "over") return;
     const b = $("againBtn");
-    if (!pv.net) { b.textContent = tr("Nochmal"); b.disabled = false; return; }
-    const rm = pv.rm || {};
-    b.disabled = !!(rm.gone || rm.me);
-    b.textContent = rm.gone ? tr("Gegner ist weg") : rm.me ? tr("Warte auf Gegner …") : rm.them ? tr("Revanche annehmen") : tr("Revanche");
+    if (!pv.party) { b.textContent = tr("Nochmal"); b.disabled = false; return; }
+    const left = partyPresent(pv), ok = teamsValid(left, pv.ffa);
+    if (!pv.hub.host) { b.textContent = pv.aborted ? tr("Match beendet") : tr("Warte auf Gastgeber …"); b.disabled = true; return; }
+    b.disabled = !ok;
+    b.textContent = ok ? tr("Neues Match · {m}", { m: modeLabel(left, pv.ffa) }) : tr("Zu wenige Spieler");
   }
   function requestRematch() {
     const pv = run && run.pvp;
     if (!pv) return;
-    if (!pv.net) { startPvp(pv.opp, null); return; } // neues Match
-    if (!pv.rm || pv.rm.gone || pv.rm.me) return;
-    pv.rm.me = true;
-    pv.link.send({ t: "again" });
-    renderRematch(pv);
-    tryRematch(pv);
+    if (!pv.party) { startPvp(pv.opp, null); return; } // neues Match gegen den Bot
+    if (!pv.hub.host) return;
+    const left = partyPresent(pv);
+    if (!teamsValid(left, pv.ffa)) return;
+    pv.hub.send({ t: "again", players: left, ffa: pv.ffa });
+    startParty(pv.hub, left, pv.ffa);
   }
   // Sudden Death: ab FAIR.sudden Sekunden steigt der erlittene Schaden um 3 % je Sekunde – kein Verstecken bis zum Schluss
   const pvpRamp = () => { const pv = run && run.pvp; return pv && pv.t > FAIR.sudden ? 1 + FAIR.ramp * (pv.t - FAIR.sudden) : 1; };
   function drawPvpHud() {
     const pv = run && run.pvp;
+    if (pv && pv.party) { drawPartyHud(); return; }
     if (!pv || !pv.rival) return;
     const e = pv.rival, w = 250, x = (W - w) / 2, y = 106, k = clamp(e.hp / e.maxHp, 0, 1);
     ctx.save();
@@ -5681,19 +5688,383 @@
       pv.t += dt;
       if (!pv.sudden && pv.t >= FAIR.sudden) { pv.sudden = true; showBanner(tr("SUDDEN DEATH"), tr("Jeder Treffer wird stärker"), 2); sfx("whistle"); shake = Math.max(shake, 4); }
     }
-    if (!pv.over && (pv.burnT > 0 || pv.poisonDps > 0)) {
+    if (!pv.over && !pv.dead && (pv.burnT > 0 || pv.poisonDps > 0)) {
       const p = player;
       let d = 0;
       if (pv.burnT > 0) { pv.burnT -= dt; d += pv.burnDps * dt; if (Math.random() < 0.3) fxFire(p.x + rand(-8, 8), p.y + rand(-8, 8), 0.7, 0.4); }
       if (pv.poisonDps > 0) { d += pv.poisonDps * dt; pv.poisonDps = Math.max(0, pv.poisonDps - pv.poisonDps * 0.25 * dt); if (Math.random() < 0.1) fxBubble(p.x + rand(-8, 8), p.y + rand(-6, 6)); }
       p.hp -= d * PVP.dmg * pvpRamp();
-      if (p.hp <= 0) { p.hp = 0; endPvp(false, tr("An Brand oder Gift erlegen")); }
+      if (p.hp <= 0) { p.hp = 0; if (pv.party) partyDie(); else endPvp(false, tr("An Brand oder Gift erlegen")); }
     }
-    pvpSend(dt);
+    if (pv.party) updateParty(dt);
+  }
+
+
+  // ================================================================ v4.6 Gruppenkampf (online, 2–4 Spieler)
+  // 1 gegen 1, 2 gegen 1, 2 gegen 2, 3 gegen 1 oder Jeder gegen jeden. Koordinaten im Netz sind „kanonisch“ (Sicht des
+  // Gastgebers); wer auf der oberen Seite startet (flip), spiegelt alles – so sieht jeder sich selbst unten.
+  // Treffer entscheidet weiterhin das Gerät des Getroffenen; Rundenende entscheidet der Gastgeber.
+  const PARTY_TEAM_CSS = ["#5ab0ff", "#ff6a4a"];
+  const partyKey = (pv, q) => (pv.ffa ? `p${q.pid}` : `t${q.team}`);
+  const partyLocal = (pv, x, y) => (pv.flip ? pvpMirror(x, y) : { x, y }); // kanonisch ↔ lokal (Spiegelung ist ihr eigenes Gegenstück)
+  const partyPresent = (pv) => pv.players.filter((q) => !pv.left.has(q.pid));
+  function partySide(players, ffa, q) { return ffa ? players.findIndex((x) => x.pid === q.pid) % 2 : q.team; }
+  function partySpawn(players, ffa, q) {
+    let bx;
+    if (ffa) { const i = players.findIndex((x) => x.pid === q.pid); bx = W / 2 + (i < 2 ? -140 : 140); }
+    else {
+      const team = players.filter((x) => x.team === q.team), k = team.findIndex((x) => x.pid === q.pid);
+      const offs = [[0], [-110, 110], [-150, 0, 150]][Math.min(3, team.length) - 1] || [0];
+      bx = W / 2 + (offs[k] ?? 0);
+    }
+    const at = { x: bx, y: B - 150 };
+    return partySide(players, ffa, q) === 1 ? pvpMirror(at.x, at.y) : at;
+  }
+  // Underdog-Bonus: die kleinere Seite bekommt Leben × Verhältnis und Schaden × (1 + halbes Mehr) – 2 gegen 1: ×2 Leben, ×1,5 Schaden
+  function partyUnder(players, ffa, q) {
+    if (ffa) return 1;
+    const mine = players.filter((x) => x.team === q.team).length, other = players.length - mine;
+    return Math.max(1, other / Math.max(1, mine));
+  }
+  function startParty(hub, players, ffa, next = false) {
+    if (!save.arena) save.arena = { w: 0, l: 0 };
+    duel = null;
+    startRun("pvp");
+    run.pet = null;
+    player = fairPlayer(myFighter());
+    syncGearLook();
+    run.belt = {}; run.ult = 0; // Turnierregeln: keine Wurfwaffen, keine Spezialfähigkeit
+    keepAwake(true);
+    players = players.map((q) => ({ ...q })).sort((a, b) => a.pid - b.pid);
+    const meQ = players.find((q) => q.pid === hub.me) || players[0];
+    const k = partyUnder(players, ffa, meQ);
+    if (k > 1) { player.maxHp = player.hp = Math.round(player.maxHp * k); player.dmgMul *= 1 + 0.5 * (k - 1); }
+    if (!next || !pvpMatch || !pvpMatch.party) pvpMatch = { party: true, net: true, round: 1, score: {}, me: 0, them: 0, duo: players.length === 2 };
+    else pvpMatch.round++;
+    const now = performance.now(), pv = run.pvp = {
+      net: true, party: true, hub, players, ffa, me: hub.me, meQ, flip: partySide(players, ffa, meQ) === 1,
+      ents: new Map(), allies: [], alive: new Set(players.map((q) => q.pid)), left: new Set(), seen: new Map(players.map((q) => [q.pid, now])),
+      pings: new Map(), inB: new Map(), sendT: 0, pingT: 0, cd: PVP.count, over: false, dead: false, t: 0, sudden: false,
+      opp: players.find((q) => q.pid !== hub.me) || null,
+      get rival() { for (const e of this.ents.values()) if (e.foe && !e.dead) return e; return null; }, // erster lebender Gegner (Kamera, Tests)
+    };
+    pv.myKey = partyKey(pv, meQ);
+    setupPartyRoom();
+    hub.onmsg = partyMessage;
+    hub.onjoin = (pid) => hub.kick(pid); // Match läuft: niemand kommt dazu
+    hub.onleave = (pid) => { if (run && run.pvp === pv) partyGone(pid, tr("{n} hat das Spiel verlassen", { n: partyName(pv, pid) })); };
+    hub.onclose = () => { if (run && run.pvp === pv) partyHostLeft(tr("Der Gastgeber hat das Spiel verlassen")); };
+    track("arenaFights");
+  }
+  const partyName = (pv, pid) => { const q = pv.players.find((x) => x.pid === pid); return q ? q.name : "?"; };
+  function setupPartyRoom() {
+    const pv = run.pvp, at = partyLocal(pv, ...Object.values(partySpawn(pv.players, pv.ffa, pv.meQ)));
+    buildPvpArena(at.x, at.y);
+    for (const q of pv.players) {
+      if (q.pid === pv.me) continue;
+      const pos = partyLocal(pv, ...Object.values(partySpawn(pv.players, pv.ffa, q))), lk = safeLook(q.look);
+      const foe = pv.ffa || q.team !== pv.meQ.team, mhp = Math.round(q.mhp * partyUnder(pv.players, pv.ffa, q));
+      let e;
+      if (foe) {
+        const lock = evoLock; evoLock = true;
+        e = spawnEnemy("walker", pos.x, pos.y);
+        evoLock = lock;
+        Object.assign(e, { rival: true, variant: 10, aff: null, elite: 0, spawnT: 0, scale: 1, speed: q.speed || 190, fireCd: 1, strafe: 1, strafeT: 1 });
+        e.def = { ...e.def, name: q.name, xp: 0, coins: [0, 0], dmg: 0 };
+      } else {
+        e = { ally: true, x: pos.x, y: pos.y, r: 16, anim: 0, hitT: 0, flashT: 0, dead: false, def: { name: q.name } };
+        pv.allies.push(e);
+      }
+      Object.assign(e, { pid: q.pid, team: q.team, foe, tx: pos.x, ty: pos.y, face: pos.y < (T + B) / 2 ? Math.PI / 2 : -Math.PI / 2, maxHp: mhp, hp: mhp, look: lk });
+      e.body = Object.assign(newPlayer(), { skin: lk.skin, weaponId: lk.w, weapon: WEAPONS[lk.w], tier: lk.tier, orbit: 0, drones: 0 });
+      pv.ents.set(q.pid, e);
+    }
+    pv.cd = PVP.count;
+    player.fireCd = PVP.count;
+    const mates = pv.allies.length, foes = pv.ents.size - mates;
+    showBanner(modeLabel(pv.players, pv.ffa).toUpperCase(), pv.ffa ? tr("Jeder gegen jeden – {n} Gegner", { n: foes }) : mates ? tr("Du und {n} – gegen {m}", { n: pv.allies.map((a) => a.def.name).join(", "), m: foes }) : tr("{n} Gegner", { n: foes }), 2.6);
+  }
+  // fremde Figur weich zur gemeldeten Lage führen, kurz mit der gemeldeten Geschwindigkeit vorhersagen (höchstens 0,2 s)
+  function netFollow(e, dt) {
+    const k = Math.min(1, dt * 14), dx = e.tx - e.x, dy = e.ty - e.y;
+    if (Math.abs(dx) + Math.abs(dy) > 1) e.anim += dt * 9;
+    e.x += dx * k; e.y += dy * k;
+    if (e.tAge < 0.2) { const step = Math.min(dt, 0.2 - e.tAge); e.tx = clamp(e.tx + (e.tvx || 0) * step, L, R); e.ty = clamp(e.ty + (e.tvy || 0) * step, T, B); }
+    e.tAge = (e.tAge || 0) + dt;
+    if (e.hitT > 0) e.hitT -= dt;
+    if (e.flashT > 0) e.flashT -= dt;
+  }
+  function partySend(dt) {
+    const pv = run.pvp, p = player, hub = pv.hub, f = pv.flip ? -1 : 1;
+    if (!pv.dead && !pv.over) {
+      const fresh = [], kc = 1 + p.crit * (p.critMul - 1); // Krit-Erwartungswert: drüben wird nicht gewürfelt
+      for (const b of bullets) {
+        if (b.sent) continue;
+        b.sent = true;
+        const m = partyLocal(pv, b.x, b.y), fx = statusOf(p, b.burn || 0, b.freeze || 0, b.poison || 0);
+        fresh.push([Math.round(m.x), Math.round(m.y), Math.round(b.vx * f), Math.round(b.vy * f), +(b.dmg * kc).toFixed(1), b.r, +b.life.toFixed(2)].concat(fx ? [fx.b, fx.p, fx.s] : []));
+      }
+      if (fresh.length) hub.send({ t: "b", l: fresh.slice(0, 40) });
+    }
+    if ((pv.sendT -= dt) <= 0) {
+      pv.sendT = 1 / PVP.sendHz;
+      const m = partyLocal(pv, p.x, p.y);
+      hub.send({ t: "s", x: Math.round(m.x), y: Math.round(m.y), vx: Math.round(p.vx * f), vy: Math.round(p.vy * f), a: +((p.aim || 0) + (pv.flip ? Math.PI : 0)).toFixed(2), hp: Math.max(0, Math.round(p.hp)), mhp: Math.round(p.maxHp), d: pv.dead ? 1 : 0 });
+    }
+    // Ping: der Gastgeber misst alle Gäste, jeder Gast den Gastgeber
+    if ((pv.pingT -= dt) <= 0) { pv.pingT = 1; if (hub.host) hub.send({ t: "ping", c: Math.round(performance.now()) }); else hub.send({ t: "ping", c: Math.round(performance.now()), to: 0 }); }
+  }
+  function partyMessage(m) {
+    const pv = run && run.pvp;
+    if (!pv || !pv.party || !m) return;
+    const from = +m.f;
+    pv.seen.set(from, performance.now());
+    if (m.t === "ping") { if (pv.hub.host) pv.hub.sendTo(from, { t: "pong", c: m.c }); else pv.hub.send({ t: "pong", c: m.c, to: 0 }); return; }
+    if (m.t === "pong") {
+      const ms = clamp(performance.now() - (+m.c || 0), 0, 5000), old = pv.pings.get(from);
+      pv.pings.set(from, old == null ? ms : ms < old ? old * 0.4 + ms * 0.6 : old * 0.8 + ms * 0.2); // fällt schnell, steigt langsam
+      pv.ping = Math.max(...pv.pings.values());
+      return;
+    }
+    if (from === 0 && !pv.hub.host) {
+      if (m.t === "again" && Array.isArray(m.players)) { startParty(pv.hub, m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)), !!m.ffa); return; }
+      if (m.t === "round") { partyRound(m.win == null ? null : String(m.win)); return; }
+      if (m.t === "final") { partyFinal(m.win == null ? null : String(m.win), String(m.why || "")); return; }
+      if (m.t === "gone") { partyGone(+m.pid, String(m.why || "")); return; }
+    }
+    if (m.t === "quit") { partyGone(from, tr("{n} hat aufgegeben", { n: partyName(pv, from) })); return; }
+    if (m.t === "dead") { partyDeath(from); return; }
+    const e = pv.ents.get(from);
+    if (!e || pv.over) return;
+    if (m.t === "s") {
+      const at = partyLocal(pv, +m.x || 0, +m.y || 0), f = pv.flip ? -1 : 1;
+      e.tx = clamp(at.x, L, R); e.ty = clamp(at.y, T, B); e.face = (+m.a || 0) + (pv.flip ? Math.PI : 0);
+      e.tvx = clamp((+m.vx || 0) * f, -600, 600); e.tvy = clamp((+m.vy || 0) * f, -600, 600); e.tAge = 0;
+      e.maxHp = Math.max(1, +m.mhp || 1); e.hp = clamp(+m.hp || 0, 0, e.maxHp);
+    } else if (m.t === "b" && Array.isArray(m.l) && pv.cd <= 0) {
+      // Drossel je Absender: höchstens 160 Kugeln je Sekunde
+      const now = performance.now(), q = pv.inB.get(from) || { t: 0, n: 0 };
+      if (now - q.t > 1000) { q.t = now; q.n = 0; }
+      const list = m.l.slice(0, Math.min(40, Math.max(0, 160 - q.n)));
+      q.n += list.length; pv.inB.set(from, q);
+      const f = pv.flip ? -1 : 1, col = e.foe ? ["#ff6a4a", "255,106,74"] : ["#6ad0ff", "106,208,255"];
+      for (const b of list) {
+        const at = partyLocal(pv, +b[0] || 0, +b[1] || 0);
+        eBullets.push({ x: at.x, y: at.y, vx: (+b[2] || 0) * f, vy: (+b[3] || 0) * f, r: clamp(+b[5] || 5, 2, 14), dmg: e.foe ? clamp(+b[4] || 0, 0, 5000) * PVP.dmg : 0,
+          color: col[0], rgb: col[1], life: clamp(+b[6] || 1, 0.1, 3), dead: false, friendly: !e.foe, pfx: e.foe && b.length > 7 ? { b: +b[7] || 0, p: +b[8] || 0, s: +b[9] || 0 } : null });
+      }
+      if (list.length) { e.flashT = 0.07; if (Math.random() < 0.4) sfx("shoot"); }
+    } else if (m.t === "h" && pv.cd <= 0 && e.foe && !pv.dead) {
+      const now = performance.now(), q = pv.inB.get(-from) || { t: 0, n: 0 };
+      if (now - q.t > 1000) { q.t = now; q.n = 0; }
+      if (++q.n <= 30) hurtPlayer(clamp(+m.d || 0, 0, 5000) * PVP.dmg);
+      pv.inB.set(-from, q);
+    }
+  }
+  // eigener Tod: zuschauen, die anderen erfahren es sofort
+  function partyDie() {
+    const pv = run.pvp;
+    if (!pv || pv.dead || pv.over) return;
+    pv.dead = true;
+    const p = player;
+    p.hp = 0; p.spectate = true;
+    fxBlood(p.x, p.y, rand(0, TAU), 16, RED, 240);
+    slowMo = Math.max(slowMo, 0.5); shake = Math.max(shake, 8);
+    pv.hub.send({ t: "dead" });
+    pv.alive.delete(pv.me);
+    showBanner(tr("DU BIST RAUS"), tr("Zuschauen bis zum Rundenende"), 2.2);
+    if (window.GameAudio) GameAudio.stinger("death");
+    if (pv.hub.host) partyCheck();
+  }
+  function partyDeath(pid) {
+    const pv = run.pvp;
+    if (!pv || !pv.alive.has(pid)) return;
+    pv.alive.delete(pid);
+    const e = pv.ents.get(pid);
+    if (e && !e.dead) {
+      e.hp = 0; e.dead = true;
+      fxBlood(e.x, e.y, rand(0, TAU), 14, RED, 220);
+      addText(e.x, e.y - 40, e.foe ? tr("{n} AUSGESCHALTET", { n: String(e.def.name).toUpperCase() }) : tr("{n} IST RAUS", { n: String(e.def.name).toUpperCase() }), e.foe ? "#a8ff3e" : "#ff8a6a", 16, true);
+      if (e.foe) { sfx("kill"); shake = Math.max(shake, 5); }
+    }
+    if (pv.hub.host) partyCheck();
+  }
+  // jemand ist weg (verlassen, aufgegeben, Zeitüberschreitung): zählt wie ausgeschieden, auch für die folgenden Runden
+  function partyGone(pid, why) {
+    const pv = run.pvp;
+    if (!pv || pv.left.has(pid) || pid === pv.me) return;
+    pv.left.add(pid);
+    toast(why || tr("{n} ist weg", { n: partyName(pv, pid) }), "info");
+    partyDeath(pid);
+    if (pv.hub.host) { pv.hub.send({ t: "gone", pid, why }); partyCheck(); }
+    renderRematch(pv);
+  }
+  // nur der Gastgeber: ist nur noch eine Seite da, endet die Runde – ist nur noch eine Seite anwesend, das ganze Match
+  function partyCheck() {
+    const pv = run.pvp;
+    if (!pv || pv.over || !pv.hub.host) return;
+    const present = new Set(partyPresent(pv).map((q) => partyKey(pv, q)));
+    if (present.size <= 1) {
+      const win = [...present][0] || null;
+      pv.hub.send({ t: "final", win, why: tr("Die Gegenseite hat das Spiel verlassen") });
+      partyFinal(win, tr("Die Gegenseite hat das Spiel verlassen"));
+      return;
+    }
+    const alive = new Set(pv.players.filter((q) => pv.alive.has(q.pid)).map((q) => partyKey(pv, q)));
+    if (alive.size <= 1) {
+      const win = [...alive][0] || null;
+      pv.hub.send({ t: "round", win });
+      partyRound(win);
+    }
+  }
+  function partyRound(win) {
+    const pv = run.pvp;
+    if (!pv || pv.over) return;
+    pv.over = true;
+    const m = pvpMatch;
+    if (win) m.score[win] = (m.score[win] || 0) + 1;
+    m.me = m.score[pv.myKey] || 0;
+    m.them = Math.max(0, ...Object.entries(m.score).filter(([k]) => k !== pv.myKey).map(([, v]) => v));
+    const won = win === pv.myKey, need = Math.ceil(FAIR.bestOf / 2);
+    eBullets = [];
+    if (Object.values(m.score).some((v) => v >= need)) { partyMatchEnd(won, ""); return; }
+    if (window.GameAudio) GameAudio.stinger(won ? "victory" : "death");
+    const who = !win ? tr("Unentschieden") : won ? (pv.allies.length ? tr("RUNDE AN EUCH") : tr("RUNDE AN DICH")) : tr("RUNDE VERLOREN");
+    showBanner(who, tr("Stand {a}:{b}", { a: m.me, b: m.them }), 2.2);
+    // alle Geräte warten gleich lang, dann startet derselbe Raum neu (der Countdown fängt Laufzeit-Unterschiede ab)
+    setTimeout(() => { if (run && run.pvp === pv) startParty(pv.hub, partyPresent(pv), pv.ffa, true); }, 2600);
+  }
+  function partyFinal(win, why) {
+    const pv = run.pvp;
+    if (!pv || pv.matchDone) return;
+    pv.over = true;
+    partyMatchEnd(win === pv.myKey, why);
+  }
+  // Gastgeber weg: bleibt nur meine Seite übrig, habe ich gewonnen – sonst wird das Match abgebrochen
+  function partyHostLeft(why) {
+    const pv = run.pvp;
+    if (!pv || pv.matchDone) return;
+    pv.left.add(0);
+    const keys = new Set(partyPresent(pv).map((q) => partyKey(pv, q)));
+    pv.over = true;
+    if (keys.size === 1 && keys.has(pv.myKey)) partyMatchEnd(true, why);
+    else partyMatchEnd(null, why);
+  }
+  // Aufgeben (Pause, App verlassen, Zurück): Niederlage, die anderen erfahren es, die Verbindung bleibt nicht offen
+  function partyQuit(why) {
+    const pv = run.pvp;
+    if (!pv || pv.matchDone) return;
+    try { pv.hub.send({ t: "quit" }); } catch { /* weg */ }
+    pv.over = true;
+    partyMatchEnd(false, why);
+    setTimeout(() => { try { pv.hub.close(); } catch { /* zu */ } }, 400);
+    pv.aborted = true;
+  }
+  // won: true/false, null = abgebrochen (zählt nicht)
+  function partyMatchEnd(won, why) {
+    const pv = run.pvp;
+    if (pv.matchDone) return;
+    pv.matchDone = true; pv.over = true; pv.won = won;
+    const m = pvpMatch, a = save.arena || (save.arena = { w: 0, l: 0 });
+    let prize = 0, eloTxt = "";
+    if (won === true) { a.w = (a.w || 0) + 1; prize = 150; save.coins += prize; track("arenaWins"); }
+    else if (won === false) a.l = (a.l || 0) + 1;
+    else pv.aborted = true;
+    // Wertung nur im echten 1 gegen 1
+    if (won != null && m.duo && pv.opp) {
+      const before = arenaElo(), after = eloAfter(before, pv.opp.elo ?? FAIR.elo, won ? 1 : 0);
+      a.elo = after; a.eloBest = Math.max(a.eloBest || 0, after);
+      eloTxt = `${after} (${after >= before ? "+" : ""}${after - before})`;
+    }
+    persist();
+    eBullets = [];
+    if (window.GameAudio) GameAudio.stinger(won ? "victory" : "death");
+    const title = won === true ? tr("SIEG!") : won === false ? tr("NIEDERLAGE") : tr("ABGEBROCHEN");
+    showBanner(title, why || tr("Endstand {a}:{b}", { a: m.me, b: m.them }), 2.2);
+    setTimeout(() => {
+      if (!run || run.pvp !== pv) return;
+      state = "over"; joy.active = false; lastScore = null;
+      const t = $("overTitle");
+      t.textContent = title; t.classList.toggle("win", won === true);
+      const line = (icon, label, value, cls = "", i = 0) => `<span style="--i:${i}">${I(icon)}${label}</span><b class="${cls}" style="--i:${i}">${value}</b>`;
+      const others = pv.players.filter((q) => q.pid !== pv.me);
+      const mates = others.filter((q) => !pv.ffa && q.team === pv.meQ.team), foes = others.filter((q) => pv.ffa || q.team !== pv.meQ.team);
+      $("overStats").innerHTML = line("duel", tr("Modus"), modeLabel(pv.players, pv.ffa)) +
+        (mates.length ? line("hand", tr("Mit dir"), mates.map((q) => escHtml(q.name)).join(", "), "", 1) : "") +
+        line("skull", foes.length > 1 ? tr("Gegner") : tr("Gegner"), foes.map((q) => `${escHtml(q.name)}${m.duo && q.elo ? ` · ${q.elo}` : ""}`).join(", "), "", 2) +
+        line("trophy", tr("Endstand"), `${m.me} : ${m.them}`, won ? "gold" : "", 3) +
+        (why ? line("info", tr("Grund"), escHtml(why), "", 4) : "") +
+        (eloTxt ? line("medal", tr("Wertung"), eloTxt, "", 5) : "") +
+        line("combo", tr("Bilanz"), tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 }), "", 6) +
+        line("coin", tr("Münzen"), coinAmt(prize, "+"), "gold", 7);
+      for (const id of ["doubleBtn", "shareBtn", "duelShareBtn"]) $(id).classList.add("hidden");
+      $("menuBtn").textContent = tr("Zur Arena");
+      renderRematch(pv);
+      show(ui.over);
+      refreshMenu();
+    }, 1900);
+  }
+  function updateParty(dt) {
+    const pv = run.pvp;
+    for (const a of pv.allies) if (!a.dead) netFollow(a, dt);
+    partySend(dt);
+    // Stille: Gäste ohne Nachricht fliegen raus (entscheidet der Gastgeber), ohne Gastgeber endet das Match
+    const now = performance.now(), lim = PVP.timeout * 1000;
+    if (pv.hub.host) { for (const q of pv.players) if (q.pid !== 0 && !pv.left.has(q.pid) && now - (pv.seen.get(q.pid) || now) > lim) partyGone(q.pid, tr("Verbindung zu {n} verloren", { n: q.name })); }
+    else if (!pv.matchDone && now - (pv.seen.get(0) || now) > lim) partyHostLeft(tr("Verbindung zum Gastgeber verloren"));
+    pv.quiet = (now - Math.max(...[...pv.seen.entries()].filter(([pid]) => pid !== pv.me && !pv.left.has(pid)).map(([, t]) => t), now - 1)) / 1000;
+  }
+  function drawPartyHud() {
+    const pv = run.pvp, w = 250, x = (W - w) / 2;
+    let y = 106;
+    ctx.save();
+    ctx.textBaseline = "middle";
+    // Lebensbalken: zuerst die Gegner (rot), dann die eigenen Leute (blau)
+    const list = [...pv.ents.values()].sort((a, b) => (a.foe === b.foe ? a.pid - b.pid : a.foe ? -1 : 1));
+    const big = list.length === 1;
+    for (const e of list) {
+      const k = e.dead ? 0 : clamp(e.hp / e.maxHp, 0, 1), h = big ? 24 : 18;
+      ctx.globalAlpha = e.dead ? 0.45 : 1;
+      ctx.fillStyle = "rgba(12,14,12,0.8)"; ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = e.foe ? "#3a1512" : "#122a3a"; ctx.fillRect(x + 3, y + h - 8, w - 6, 5);
+      ctx.fillStyle = e.foe ? "#e2561f" : "#5ab0ff"; ctx.fillRect(x + 3, y + h - 8, (w - 6) * k, 5);
+      ctx.font = `800 ${big ? 12 : 11}px 'Barlow Condensed', sans-serif`;
+      ctx.textAlign = "left"; ctx.fillStyle = "#efe8d4"; ctx.fillText(`${String(e.def.name).toUpperCase()}${e.dead ? ` · ${tr("RAUS")}` : ""}`, x + 8, y + (big ? 8 : 6));
+      ctx.textAlign = "right"; ctx.fillStyle = e.foe ? "#ffd36a" : "#9fd4ff"; ctx.fillText(`${Math.ceil(k * 100)} %`, x + w - 8, y + (big ? 8 : 6));
+      y += h + 3;
+    }
+    ctx.globalAlpha = 1;
+    // Runde, Stand, Sudden Death, Ping
+    ctx.font = "800 11px 'Barlow Condensed', sans-serif";
+    ctx.textAlign = "center"; ctx.fillStyle = pv.sudden ? `rgb(255,${110 + 60 * Math.sin(run.time * 8)},90)` : "#efe8d4";
+    ctx.fillText(`${tr("RUNDE {n}", { n: pvpMatch.round })} · ${pvpMatch.me}:${pvpMatch.them}${pv.sudden ? ` · ${tr("SUDDEN DEATH")}` : ""}`, W / 2, y + 8);
+    const lag = pv.quiet > 1, ms = pv.ping == null ? null : Math.round(pv.ping);
+    ctx.textAlign = "right"; ctx.fillStyle = lag ? "#ff6a4a" : ms == null || ms < 90 ? "#9fe08a" : ms < 180 ? "#ffd36a" : "#ff8a3a";
+    ctx.fillText(lag ? tr("Verbindung hakt … {s} s", { s: Math.max(0, Math.ceil(PVP.timeout - pv.quiet)) }) : ms == null ? tr("Ping …") : tr("Ping {n} ms", { n: ms }), x + w, y + 8);
+    // Namen über den Köpfen: blau = mit dir, rot = Gegner
+    ctx.font = "800 12px 'Barlow Condensed', sans-serif"; ctx.textAlign = "center";
+    for (const e of list) {
+      if (e.dead) continue;
+      const q = scr(e.x, e.y, 64);
+      if (!q || q.behind) continue;
+      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.75)"; ctx.fillStyle = e.foe ? "#ff8a6a" : "#8fd0ff";
+      ctx.strokeText(e.def.name, q.x, q.y - 34); ctx.fillText(e.def.name, q.x, q.y - 34);
+    }
+    if (pv.dead && !pv.over) {
+      ctx.font = "400 26px 'Saira Stencil One', sans-serif"; ctx.fillStyle = "#efe8d4"; ctx.strokeStyle = "#1c1913"; ctx.lineWidth = 5;
+      ctx.strokeText(tr("ZUSCHAUEN"), W / 2, H * 0.3); ctx.fillText(tr("ZUSCHAUEN"), W / 2, H * 0.3);
+    }
+    if (pv.cd > 0 && state === "play") {
+      const n = Math.ceil(pv.cd), f = pv.cd - Math.floor(pv.cd);
+      ctx.textAlign = "center"; ctx.font = `400 ${Math.round(110 + f * 40)}px 'Saira Stencil One', sans-serif`;
+      ctx.globalAlpha = 0.35 + f * 0.65; ctx.fillStyle = "#efe8d4"; ctx.strokeStyle = "#1c1913"; ctx.lineWidth = 8;
+      ctx.strokeText(String(n), W / 2, H * 0.42); ctx.fillText(String(n), W / 2, H * 0.42);
+    }
+    ctx.restore();
   }
 
   // ---------------------------------------------------------------- Fenster „Arena“
-  const NET_ERR = { noroom: "Raum nicht gefunden – stimmt der Code und hat dein Freund die Arena noch offen?", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst – Internet prüfen und nochmal versuchen", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
+  const NET_ERR = { full: "Der Raum ist voll (höchstens 4 Spieler) oder das Match läuft schon", noroom: "Raum nicht gefunden – stimmt der Code und hat dein Freund die Arena noch offen?", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst – Internet prüfen und nochmal versuchen", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
   // v4.5 Beide Geräte brauchen dieselbe Spielversion (Hauptnummer.Unternummer), sonst passen die Regeln nicht zusammen
   const netVersion = () => String(Platform.cfg.version || "").split(".").slice(0, 2).join(".");
   // v4.5 Bildschirm bleibt an, solange auf den Freund gewartet oder gekämpft wird
@@ -5740,39 +6111,77 @@
       cv.dataset.code = code; cv.classList.remove("hidden");
     } catch { cv.classList.add("hidden"); }
   }
+  // ---------------------------------------------------------------- v4.6 Lobby für 2–4 Spieler
+  // Gastgeber = Spieler 0. Gäste stellen sich mit „hello“ vor, der Gastgeber verteilt die Liste („lobby“) und startet („go“).
+  // v4.6 eigener Spielername (sonst der Dienstgrad) – bei 4 Spielern muss jeder wissen, wer wer ist
+  const playerName = () => String(save.pname || "").trim().slice(0, 14) || rankOf(bestScore()).name;
+  const playerInfo = () => { const mine = fighterInfo(fairPlayer(myFighter())); return { name: playerName(), lv: mine.lv, mhp: mine.mhp, speed: mine.speed, look: mine.look, pow: mine.pow, elo: arenaElo(), v: netVersion() }; };
+  function cleanInfo(i, pid) {
+    return { pid, name: String((i && i.name) || "?").slice(0, 16), lv: clamp(+i.lv || 1, 1, 999), mhp: clamp(+i.mhp || 600, 100, 1e5), speed: clamp(+i.speed || 190, 100, 400),
+      look: safeLook(i.look), pow: clamp(+i.pow || 0, 0, 1e7), elo: clamp(Math.round(+i.elo || FAIR.elo), 0, 4000), team: +i.team === 1 ? 1 : 0 };
+  }
+  // fremde Namen nie ungeprüft ins HTML
+  const escHtml = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const VER_TXT = "Dein Freund hat eine andere Spielversion ({b}) als du ({a}) – bitte beide neu laden bzw. aktualisieren";
   function closeLobby() {
     if (!lobby) return;
     if (!(run && run.pvp)) keepAwake(false);
-    try { if (lobby.link) lobby.link.close(); else if (NET_LOCAL && openLocalLink.pending) openLocalLink.pending.cancel(); else if (openPeerLink.cancel) openPeerLink.cancel(); } catch { /* zu */ }
+    try { if (lobby.hub) lobby.hub.close(); else if (NET_LOCAL && openLocalHub.pending) openLocalHub.pending.cancel(); else if (openPeerHub.cancel) openPeerHub.cancel(); } catch { /* zu */ }
     lobby = null;
   }
+  function lobbyBroadcast() {
+    if (!lobby || !lobby.host || !lobby.hub) return;
+    lobby.hub.send({ t: "lobby", players: lobby.players, ffa: lobby.ffa });
+    renderArena();
+  }
+  const autoTeam = (players) => (players.filter((q) => q.team === 0).length <= players.filter((q) => q.team === 1).length ? 0 : 1);
   async function openLobby(host, code, retry = 1) {
     closeLobby();
-    const me = lobby = { code, host, link: null };
+    const me = lobby = { code, host, hub: null, players: [], ffa: false, me: host ? 0 : -1 };
     renderArena();
     keepAwake(true);
     try {
-      const link = await openLink(code, host);
-      if (lobby !== me) { link.close(); return; }
-      me.link = link;
-      // Vorstellung: beide schicken ihre Kennzahlen, der Gastgeber gibt das Startsignal
-      const mine = fighterInfo(fairPlayer(myFighter()));
-      let theirs = null, started = false;
-      const go = () => { if (started || !theirs) return; started = true; lobby = null; if (save.vibration) Platform.vibrate(80); startPvp(theirs, link); };
-      link.onmsg = (m) => {
-        if (m.t === "hello" && m.i && String(m.i.v || "") !== netVersion()) {
-          // verschiedene Versionen: freundlich abbrechen statt mit falschen Regeln zu kämpfen
-          link.send({ t: "ver", v: netVersion() });
-          lobby = null; link.close();
-          renderArena(tr("Dein Freund hat eine andere Spielversion ({b}) als du ({a}) – bitte beide neu laden bzw. aktualisieren", { a: netVersion(), b: m.i.v || "alt" }));
-          return;
-        }
-        if (m.t === "ver") { lobby = null; link.close(); renderArena(tr("Dein Freund hat eine andere Spielversion ({b}) als du ({a}) – bitte beide neu laden bzw. aktualisieren", { a: netVersion(), b: String(m.v || "?") })); return; }
-        if (m.t === "hello" && m.i) { theirs = { name: String(m.i.name || "?").slice(0, 16), lv: +m.i.lv || 1, mhp: clamp(+m.i.mhp || 600, 100, 1e5), speed: clamp(+m.i.speed || 190, 100, 400), look: safeLook(m.i.look), pow: clamp(+m.i.pow || 0, 0, 1e7), elo: clamp(Math.round(+m.i.elo || FAIR.elo), 0, 4000) }; if (host) { link.send({ t: "go" }); go(); } }
-        else if (m.t === "go") go();
-      };
-      link.onclose = () => { if (lobby === me) { lobby = null; renderArena(tr("Gegner hat den Raum verlassen")); } };
-      link.send({ t: "hello", i: { name: mine.name, lv: mine.lv, mhp: mine.mhp, speed: mine.speed, look: mine.look, pow: mine.pow, elo: arenaElo(), v: netVersion() } });
+      const hub = await openHub(code, host);
+      if (lobby !== me) { hub.close(); return; }
+      me.hub = hub; me.me = hub.me;
+      const info = playerInfo();
+      if (host) {
+        me.players = [cleanInfo(info, 0)];
+        hub.onleave = (pid) => { if (lobby === me) { me.players = me.players.filter((q) => q.pid !== pid); lobbyBroadcast(); } };
+        hub.onmsg = (m) => {
+          if (lobby !== me || m.t !== "hello" || !m.i) return;
+          if (String(m.i.v || "") !== netVersion()) {
+            // verschiedene Versionen: freundlich abweisen statt mit falschen Regeln zu kämpfen
+            hub.sendTo(m.f, { t: "ver", v: netVersion() });
+            setTimeout(() => hub.kick(m.f), 300);
+            me.note = tr(VER_TXT, { a: netVersion(), b: m.i.v || "alt" }); // bleibt stehen, bis jemand Passendes kommt
+            renderArena();
+            return;
+          }
+          if (me.players.some((q) => q.pid === m.f)) return;
+          const q = cleanInfo(m.i, m.f);
+          q.team = autoTeam(me.players);
+          me.players.push(q);
+          me.note = "";
+          if (save.vibration) Platform.vibrate(60);
+          sfx("coin");
+          lobbyBroadcast();
+        };
+      } else {
+        hub.onmsg = (m) => {
+          if (lobby !== me) return;
+          if (m.t === "ver") { closeLobby(); renderArena(tr(VER_TXT, { a: netVersion(), b: String(m.v || "?") })); return; }
+          if (m.t === "lobby" && Array.isArray(m.players)) { me.players = m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)); me.ffa = !!m.ffa; renderArena(); }
+          else if (m.t === "go" && Array.isArray(m.players)) {
+            lobby = null;
+            if (save.vibration) Platform.vibrate(80);
+            startParty(hub, m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)), !!m.ffa);
+          }
+        };
+        hub.onclose = () => { if (lobby === me) { lobby = null; keepAwake(false); renderArena(tr("Der Gastgeber hat den Raum geschlossen")); } };
+        hub.send({ t: "hello", i: info });
+      }
+      renderArena();
     } catch (err) {
       if (lobby !== me) return;
       // Vermittlung kurz weg (Funkloch, Dienst überlastet): einmal still neu versuchen
@@ -5783,6 +6192,34 @@
       }
       lobby = null; keepAwake(false); renderArena(tr(NET_ERR[err.message] || NET_ERR.net));
     }
+  }
+  // Teams brauchen auf beiden Seiten mindestens einen Spieler, Jeder gegen jeden mindestens zwei Spieler
+  function teamsValid(players, ffa) {
+    if (players.length < 2) return false;
+    return ffa || (players.some((q) => q.team === 0) && players.some((q) => q.team === 1));
+  }
+  function modeLabel(players, ffa) {
+    if (ffa) return tr("Jeder gegen jeden");
+    const a = players.filter((q) => q.team === 0).length, b = players.length - a;
+    return tr("{a} gegen {b}", { a: Math.max(a, b), b: Math.min(a, b) });
+  }
+  function startLobbyMatch() {
+    const lb = lobby;
+    if (!lb || !lb.host || !lb.hub || !teamsValid(lb.players, lb.ffa)) return;
+    lb.hub.locked = true; // während des Matches kommt niemand mehr dazu
+    lb.hub.send({ t: "go", players: lb.players, ffa: lb.ffa });
+    lobby = null;
+    startParty(lb.hub, lb.players, lb.ffa);
+  }
+  function toggleTeam(pid) {
+    if (!lobby || !lobby.host || lobby.ffa) return;
+    const q = lobby.players.find((x) => x.pid === pid);
+    if (q) { q.team ^= 1; lobbyBroadcast(); }
+  }
+  function toggleFfa() {
+    if (!lobby || !lobby.host) return;
+    lobby.ffa = !lobby.ffa;
+    lobbyBroadcast();
   }
   // v4.4 Einladung: Link öffnet das Spiel (Web-Version, auch auf dem iPhone) direkt im Raum
   function inviteUrl(code) {
@@ -5806,15 +6243,35 @@
     $("arenaClimb").innerHTML = `<span>${f ? tr("Neuer Aufstieg") : tr("Aufstieg starten")}</span>`;
     $("arenaRecord").textContent = `${tr("Wertung {e}", { e: arenaElo() })} · ${tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 })}`;
     const wait = !!lobby;
+    if (document.activeElement !== $("arenaName")) { $("arenaName").value = save.pname || ""; $("arenaName").placeholder = rankOf(bestScore()).name; }
+    $("arenaName").disabled = wait;
     for (const id of ["arenaBot", "arenaHost", "arenaJoin", "arenaCode", "arenaPaste"]) $(id).disabled = wait;
-    const hosting = wait && lobby.host;
-    $("arenaRoom").classList.toggle("hidden", !hosting);
-    $("arenaHost").classList.toggle("hidden", hosting);
-    $("arenaJoinRow").classList.toggle("hidden", hosting);
-    if (hosting) { $("arenaRoomCode").textContent = lobby.code; if ($("arenaQr").dataset.code !== lobby.code) drawRoomQr(lobby.code); }
+    const hosting = wait && lobby.host, inRoom = wait && !!lobby.hub;
+    $("arenaRoom").classList.toggle("hidden", !inRoom && !hosting);
+    $("arenaHost").classList.toggle("hidden", wait);
+    $("arenaJoinRow").classList.toggle("hidden", hosting || inRoom);
+    for (const id of ["arenaQr", "arenaInvite", "arenaCopy", "arenaMode", "arenaStart"]) $(id).classList.toggle("hidden", !hosting);
+    $("arenaRoomHint").classList.toggle("hidden", !hosting);
+    if (hosting || inRoom) { $("arenaRoomCode").textContent = lobby.code; if (hosting && $("arenaQr").dataset.code !== lobby.code) drawRoomQr(lobby.code); }
+    // v4.6 Spielerliste: Teamfarbe, Gastgeber tippt einen Spieler an = Team wechseln
+    const lb = lobby, list = $("arenaParty");
+    list.classList.toggle("hidden", !inRoom);
+    if (inRoom) {
+      list.innerHTML = lb.players.map((q) => `<button class="party-chip t${lb.ffa ? "x" : q.team}${q.pid === lb.me ? " me" : ""}" data-pid="${q.pid}" ${hosting && !lb.ffa ? "" : "disabled"}>` +
+        `${I(q.pid === 0 ? "crown" : "duel")}<b>${escHtml(q.name)}${q.pid === lb.me ? ` (${tr("du")})` : ""}</b><em>${lb.ffa ? tr("Allein") : q.team ? tr("Team Rot") : tr("Team Blau")} · ${tr("Level {n}", { n: q.lv })}</em></button>`).join("") +
+        Array.from({ length: HUB_MAX - lb.players.length }, () => `<span class="party-chip empty">${tr("Platz frei")}</span>`).join("");
+      $("arenaMode").textContent = lb.ffa ? tr("Modus: Jeder gegen jeden") : tr("Modus: Teams");
+      const ok = teamsValid(lb.players, lb.ffa);
+      $("arenaStart").disabled = !ok;
+      $("arenaStart").textContent = ok ? tr("Kampf starten · {m}", { m: modeLabel(lb.players, lb.ffa) }) : lb.players.length < 2 ? tr("Warte auf Mitspieler …") : tr("Beide Teams brauchen Spieler");
+    }
     $("arenaClimb").disabled = wait;
     $("arenaCancel").classList.toggle("hidden", !wait);
-    $("arenaStatus").textContent = msg || (wait ? (lobby.host ? tr("Warte auf deinen Freund …") : tr("Verbinde mit Raum {c} …", { c: lobby.code })) : tr("Code vom Freund eintippen oder einfügen – bei 5 Zeichen geht es von selbst los"));
+    $("arenaCancel").textContent = inRoom && !hosting ? tr("Raum verlassen") : tr("Abbrechen");
+    $("arenaStatus").textContent = msg || (wait && lobby.note) || (wait
+      ? (hosting ? tr("{n} von {m} Spielern im Raum – tippe einen Spieler an, um sein Team zu wechseln", { n: lb.players.length, m: HUB_MAX })
+        : inRoom ? tr("Du bist drin! Warte auf den Start durch den Gastgeber …") : tr("Verbinde mit Raum {c} …", { c: lobby.code }))
+      : tr("Code vom Freund eintippen oder einfügen – bei 5 Zeichen geht es von selbst los"));
     $("arenaStatus").classList.toggle("live", wait && !msg);
   }
   function updateAmbient(dt) {
@@ -6471,6 +6928,14 @@
     get survivors() { return run && run.obj && run.obj.list ? run.obj.list : NO_SURVIVORS; },
     get pet() { return run && run.pet && run.pet.id !== "hugin" ? run.pet : null; },
     get rival() { return run && run.pvp && run.pvp.rival && !run.pvp.rival.dead ? run.pvp.rival : null; },
+    get rivals() { // v4.6 alle fremden Spieler (Gegner und Mitspieler) als Heldenmodelle
+      const pv = run && run.pvp;
+      if (!pv) return NO_SURVIVORS;
+      if (!pv.party) return pv.rival && !pv.rival.dead ? [pv.rival] : NO_SURVIVORS;
+      return [...pv.ents.values()].filter((e) => !e.dead);
+    },
+    get spectate() { return !!(player && player.spectate); },
+    get allies() { return run && run.pvp && run.pvp.allies ? run.pvp.allies : NO_SURVIVORS; },
     get powers() { return state === "play" || state === "pick" ? activePowers().map((k) => POWERUPS[k].rgb) : NO_SURVIVORS; }, // v3.7 Aura-Farben
     get hazards() { return hazards; },
     get slowPu() { return state === "play" && puOn("slow"); },
@@ -6744,6 +7209,7 @@
       ctx.beginPath(); ctx.arc(mx(e.x), my(e.y), r, 0, TAU); ctx.fill();
       if (boss) { ctx.strokeStyle = `rgba(255,58,36,${0.4 + 0.4 * Math.sin(t * 8)})`; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(mx(e.x), my(e.y), r + 3, 0, TAU); ctx.stroke(); }
     }
+    if (run.pvp && run.pvp.allies) { ctx.fillStyle = "#5ab0ff"; for (const a of run.pvp.allies) if (!a.dead) { ctx.beginPath(); ctx.arc(mx(a.x), my(a.y), 3, 0, TAU); ctx.fill(); } }
     // Held: Pfeil in Blickrichtung
     ctx.translate(mx(p.x), my(p.y)); ctx.rotate(p.aim || -Math.PI / 2);
     ctx.fillStyle = "#f4f1e6"; ctx.strokeStyle = "rgba(0,0,0,0.8)"; ctx.lineWidth = 1.2;
@@ -7408,14 +7874,18 @@
     actorList.length = 0;
     for (const e of enemies) actorList.push(e);
     if (run.obj && run.obj.list) for (const s of run.obj.list) actorList.push(s);
-    actorList.push(player);
+    if (run.pvp && run.pvp.allies) for (const a of run.pvp.allies) if (!a.dead) actorList.push(a); // v4.6 Mitspieler
+    if (!player.spectate) actorList.push(player);
     actorList.sort((a, b) => a.y - b.y);
-    for (const a of actorList) { if (a === player) { drawPet2D(); drawPlayer(); } else if (a.isSurvivor) drawSurvivor(a); else drawEnemy(a); }
+    for (const a of actorList) { if (a === player) { drawPet2D(); drawPlayer(); } else if (a.isSurvivor) drawSurvivor(a); else if (a.ally) drawRival2D(a); else drawEnemy(a); }
   }
 
   // v4.2 Arena-Gegner: als Held gezeichnet (eigene Figur und Waffe), dafür kurz den Spieler tauschen
   function drawRival2D(e) {
     const b = e.body, me = player;
+    // v4.6 Teamring unter fremden Spielern: blau = mit dir, rot = Gegner
+    ctx.strokeStyle = e.foe === false ? "rgba(90,176,255,0.85)" : "rgba(255,106,74,0.85)"; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.ellipse(e.x, e.y + 12, 22, 10, 0, 0, TAU); ctx.stroke();
     b.x = e.x; b.y = e.y; b.aim = e.face;
     b.moving = Math.abs(e.anim - (b.lastAnim ?? e.anim)) > 1e-3; b.lastAnim = e.anim; b.walkT = e.anim;
     b.invuln = e.hitT > 0 ? 0.05 : 0; b.kick = e.flashT > 0 ? 3 : 0;
@@ -8183,7 +8653,7 @@
     } else if (run.mode === "pvp") {
       g.fillText(tr("ARENA"), 90, 22);
       g.fillStyle = "#fff"; g.font = FONT_NUM(24);
-      g.fillText(tr("1 gegen 1"), 90, 46);
+      g.fillText(run.pvp && run.pvp.party ? modeLabel(run.pvp.players, run.pvp.ffa) : tr("1 gegen 1"), 90, 46);
     } else {
       // Stadt (klein, mit Tag der Flucht) und Stadtteil (groß, passt sich der Breite an); im Aufstieg statt der Stadt „AUFSTIEG“
       const c = curCity(), dn = curDistrict()[0], top = run.mode === "arena" ? tr("AUFSTIEG") : c.name.toUpperCase();
@@ -9585,7 +10055,7 @@
   function toMenu() {
     keepAwake(false); // v4.5 Bildschirm darf wieder ausgehen
     state = "menu";
-    if (run && run.pvp && run.pvp.link) { try { run.pvp.link.close(); } catch { /* zu */ } }
+    if (run && run.pvp && run.pvp.hub) { try { run.pvp.hub.close(); } catch { /* zu */ } }
     closeLobby();
     run = null; duel = null;
     try { if (webgl) Render3D.stopPreview(); } catch { /* Menü-Vorschau */ }
@@ -9704,6 +10174,10 @@
   });
   $("arenaCancel").addEventListener("click", () => { closeLobby(); renderArena(); });
   $("arenaInvite").addEventListener("click", () => shareInvite());
+  $("arenaParty").addEventListener("click", (ev) => { const b = ev.target.closest(".party-chip[data-pid]"); if (b && !b.disabled) toggleTeam(+b.dataset.pid); });
+  $("arenaMode").addEventListener("click", () => toggleFfa());
+  $("arenaName").addEventListener("change", (ev) => { save.pname = String(ev.target.value || "").replace(/[<>]/g, "").trim().slice(0, 14); persist(); });
+  $("arenaStart").addEventListener("click", () => { ensureAudio(); startLobbyMatch(); });
   $("missionsBtn").addEventListener("click", () => { ensureAudio(); renderMissions(); show(ui.missions); });
   for (const b of document.querySelectorAll("#missionTabs button")) b.addEventListener("click", () => { missionTab = b.dataset.tab; renderMissions(); });
   $("passBtn").addEventListener("click", () => { ensureAudio(); renderPass(); show(ui.pass); });

@@ -1572,6 +1572,21 @@ canvas.stamp-art { width: auto; max-width: 100%; }
 .room-qr { width: 112px; height: 112px; border-radius: 3px; background: #efe8d4; image-rendering: pixelated; }
 .room-hint { margin: 0; font: 600 12px/1.35 var(--f-ui); color: var(--text-2); text-wrap: pretty; }
 .room-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* v4.6 Spielerliste der Lobby: Teamfarbe am linken Rand, Gastgeber mit Krone */
+.arena-box .name-field span { color: var(--text-3); }
+.arena-box .name-field input { color: #efe8d4; background: rgba(0, 0, 0, 0.35); border-bottom-color: #6b6452; }
+.party-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.party-chip { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 8px; align-items: center; min-height: 48px; padding: 6px 8px 6px 12px; border: 0; border-radius: 3px; text-align: left; color: #efe8d4; background: rgba(255, 255, 255, 0.06); font: 600 12px/1.15 var(--f-ui); cursor: pointer; }
+.party-chip::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 3px 0 0 3px; background: #8a8470; }
+.party-chip.t0::before { background: #5ab0ff; }
+.party-chip.t1::before { background: #ff6a4a; }
+.party-chip.tx::before { background: #ffd36a; }
+.party-chip > svg, .party-chip > i { grid-row: span 2; width: 18px; height: 18px; color: #ffd36a; }
+.party-chip b { font: 800 14px/1.1 var(--f-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.party-chip em { font-style: normal; color: var(--text-3); }
+.party-chip.me { box-shadow: inset 0 0 0 1px rgba(255, 211, 106, 0.55); }
+.party-chip:disabled { cursor: default; opacity: 1; }
+.party-chip.empty { display: grid; place-items: center; grid-template-columns: 1fr; color: var(--text-3); border: 1px dashed rgba(255, 255, 255, 0.16); background: none; }
 .arena-join .field > span { color: var(--text-3); }
 .arena-join .field input { color: #efe8d4; background: rgba(0, 0, 0, 0.35); border-bottom-color: #6b6452; letter-spacing: 0.3em; }
 .arena-join .field input::placeholder { color: rgba(239, 232, 212, 0.25); }

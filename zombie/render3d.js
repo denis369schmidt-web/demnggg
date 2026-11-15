@@ -673,6 +673,8 @@ window.Render3D = (() => {
       const dd = Math.hypot(e.x - hx, e.y - hz);
       if (dd < (e.def.boss ? P.danger * 1.8 : P.danger)) near.push(e);
     }
+    // v4.6 Mitspieler in der Nähe gehören auch ins Bild
+    for (const a of w.allies || []) if (!a.dead && Math.hypot(a.x - hx, a.y - hz) < P.danger * 1.2) near.push(a);
     let s = 1;
     for (; s < P.sMax; s += 0.08) {
       const C = shoulderPose(P, hx, hz, s);
@@ -4717,24 +4719,30 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     }
     for (const [s, M] of survModels) if (!seen.has(s)) { releaseModel(M); survModels.delete(s); }
   }
-  // v4.2 Arena-Gegner: zweites Heldenmodell mit Skin und Waffe der Gegenseite
-  let rivalModel = null;
+  // v4.2/v4.6 Arena: fremde Spieler (Gegner und Mitspieler) als eigene Heldenmodelle mit Skin und Waffe der Gegenseite
+  const rivalModels = new Map(); // Figur → Modell
+  const NO_RIVALS = [];
   function syncRival(w, t) {
-    const e = w.rival;
-    const key = e && e.look ? `${e.look.skin}|${e.look.w}|${e.look.tier}` : "";
-    if (rivalModel && rivalModel.key !== key) { scene.remove(rivalModel.root); disposeTree(rivalModel.root); rivalModel = null; }
-    if (!e || !e.look) return;
-    if (!rivalModel) { rivalModel = buildPlayerModel(e.look.skin, e.look.w, e.look.tier, e.look.w === "flame", {}); rivalModel.key = key; scene.add(rivalModel.root); cast(rivalModel.root); }
-    const M = rivalModel, moving = Math.abs(e.anim - (M.la ?? e.anim)) > 1e-3;
-    M.la = e.anim;
-    M.root.position.set(e.x, 0, e.y);
-    M.root.rotation.set(0, -e.face, 0);
-    M.root.scale.setScalar(PLAYER_SCALE);
-    M.root.visible = !(e.hitT > 0 && Math.floor(t * 30) % 2 === 0);
-    const ph = (e.anim / 8) * TAU;
-    for (const L of M.legs) L.g.rotation.z = moving ? Math.sin(ph + (L.s > 0 ? Math.PI : 0)) * 0.6 : 0;
-    M.body.position.y = moving ? Math.abs(Math.sin(ph)) * 0.8 : Math.sin(t * 2.4) * 0.35;
-    if (M.extra.weapon) M.extra.weapon.position.x = M.extra.gripX - (e.flashT > 0 ? 2.4 : 0);
+    const list = w.rivals || (w.rival ? [w.rival] : NO_RIVALS), seen = new Set();
+    for (const e of list) {
+      if (!e || !e.look) continue;
+      seen.add(e);
+      const key = `${e.look.skin}|${e.look.w}|${e.look.tier}`;
+      let M = rivalModels.get(e);
+      if (M && M.key !== key) { scene.remove(M.root); disposeTree(M.root); M = null; rivalModels.delete(e); }
+      if (!M) { M = buildPlayerModel(e.look.skin, e.look.w, e.look.tier, e.look.w === "flame", {}); M.key = key; scene.add(M.root); cast(M.root); rivalModels.set(e, M); }
+      const moving = Math.abs(e.anim - (M.la ?? e.anim)) > 1e-3;
+      M.la = e.anim;
+      M.root.position.set(e.x, 0, e.y);
+      M.root.rotation.set(0, -e.face, 0);
+      M.root.scale.setScalar(PLAYER_SCALE);
+      M.root.visible = !(e.hitT > 0 && Math.floor(t * 30) % 2 === 0);
+      const ph = (e.anim / 8) * TAU;
+      for (const L of M.legs) L.g.rotation.z = moving ? Math.sin(ph + (L.s > 0 ? Math.PI : 0)) * 0.6 : 0;
+      M.body.position.y = moving ? Math.abs(Math.sin(ph)) * 0.8 : Math.sin(t * 2.4) * 0.35;
+      if (M.extra.weapon) M.extra.weapon.position.x = M.extra.gripX - (e.flashT > 0 ? 2.4 : 0);
+    }
+    for (const [e, M] of rivalModels) if (!seen.has(e)) { scene.remove(M.root); disposeTree(M.root); rivalModels.delete(e); }
   }
   // v4.0 Begleiter: Hund als eigenes Modell neben dem Helden (der Rabe fliegt in der Vogel-Schar mit)
   let petModel = null;
@@ -4840,7 +4848,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     M.root.position.set(p.x, 0, p.y);
     M.root.rotation.set(0, -p.aim, 0);
     M.root.scale.setScalar(PLAYER_SCALE);
-    M.root.visible = !(p.invuln > 0 && w.state === "play" && Math.floor(p.invuln * 16) % 2 === 0);
+    M.root.visible = !w.spectate && !(p.invuln > 0 && w.state === "play" && Math.floor(p.invuln * 16) % 2 === 0);
     const ph = p.moving ? (p.walkT / 8) * TAU : 0;
     for (const L of M.legs) L.g.rotation.z = p.moving ? Math.sin(ph + (L.s > 0 ? Math.PI : 0)) * 0.6 : 0;
     M.body.position.y = p.moving ? Math.abs(Math.sin(ph)) * 0.8 : 0;

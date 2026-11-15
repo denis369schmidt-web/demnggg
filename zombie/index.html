@@ -381,24 +381,28 @@
     <section id="arena" class="overlay screen hidden">
       <header class="bar">
         <button class="back" data-back aria-label="Zurück"></button>
-        <div class="title"><small data-i18n>1 GEGEN 1</small><h2 data-i18n>Arena</h2></div>
+        <div class="title"><small data-i18n>1–4 SPIELER</small><h2 data-i18n>Arena</h2></div>
         <div class="wallet"><i class="coin" data-ic="coin"></i><b class="coinsVal">0</b></div>
       </header>
       <div class="body">
         <div class="fighter-card" id="arenaFighter"></div>
         <div class="arena-box">
-          <h3 data-i18n>Gegen einen Freund</h3>
-          <button class="btn amber big" id="arenaHost"><i data-ic="duel"></i><span data-i18n>Freund einladen</span></button>
+          <h3 data-i18n>Mit Freunden (2–4 Spieler)</h3>
+          <label class="field name-field"><span data-i18n>Dein Name</span><input id="arenaName" type="text" maxlength="14" autocomplete="nickname" spellcheck="false" /></label>
+          <button class="btn amber big" id="arenaHost"><i data-ic="duel"></i><span data-i18n>Raum erstellen</span></button>
           <div class="room-box hidden" id="arenaRoom">
             <div class="room-top">
               <div class="room-code-wrap"><small data-i18n>Dein Raum-Code</small><b class="room-code" id="arenaRoomCode">·····</b></div>
               <canvas class="room-qr" id="arenaQr" width="132" height="132" aria-label="QR-Code"></canvas>
             </div>
-            <p class="room-hint" data-i18n>Freund scannt den QR-Code mit der Handykamera, öffnet deinen Link oder gibt den Code ein. Lass dieses Fenster offen.</p>
+            <p class="room-hint" id="arenaRoomHint" data-i18n>Freunde scannen den QR-Code mit der Handykamera, öffnen deinen Link oder geben den Code ein – bis zu 4 Spieler. Lass dieses Fenster offen.</p>
             <div class="room-actions">
               <button class="btn amber" id="arenaInvite" data-i18n>Link schicken</button>
               <button class="btn steel" id="arenaCopy" data-i18n>Code kopieren</button>
             </div>
+            <div class="party-list" id="arenaParty"></div>
+            <button class="btn ghost" id="arenaMode">Modus: Teams</button>
+            <button class="btn amber big" id="arenaStart" disabled>Kampf starten</button>
           </div>
           <div class="arena-join" id="arenaJoinRow">
             <label class="field"><span data-i18n>Code vom Freund</span><input id="arenaCode" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="5" placeholder="·····" /></label>

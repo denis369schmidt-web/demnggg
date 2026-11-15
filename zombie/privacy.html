@@ -57,13 +57,15 @@
   Beim Aufruf verarbeitet GitHub technisch notwendige Daten wie die IP-Adresse in Server-Logs
   (Art. 6 Abs. 1 lit. f DSGVO, berechtigtes Interesse an der sicheren Bereitstellung). Die Web-Version zeigt keine Werbung.</p>
 
-  <h2>5a. Online-Arena (1 gegen 1)</h2>
-  <p>Die Online-Arena ist freiwillig. Öffnest du einen Raum oder trittst einem bei, stellt die App eine
-  direkte Verbindung (WebRTC) zwischen deinem Gerät und dem deines Gegners her. Zur Vermittlung wird der
-  öffentliche Dienst PeerJS (<code>0.peerjs.com</code>) kontaktiert; er erhält dabei deine IP-Adresse und den
-  Raum-Code. Während des Kampfes werden nur Spieldaten (Position, Schüsse, Lebenspunkte, Dienstgrad, Level)
-  direkt zwischen den beiden Geräten übertragen; dein Gegner kann dabei technisch bedingt deine IP-Adresse
-  sehen. Es werden keine Konten angelegt und keine Kämpfe auf Servern gespeichert.</p>
+  <h2>5a. Online-Arena (1 bis 4 Spieler)</h2>
+  <p>Die Online-Arena ist freiwillig. Öffnest du einen Raum oder trittst einem bei, werden Spieldaten (Spielername,
+  Position, Schüsse, Lebenspunkte, Dienstgrad, Level) zwischen den Geräten der Mitspieler übertragen. Dafür nutzt die App
+  öffentliche, kostenlose Nachrichten-Server (MQTT: <code>broker.emqx.io</code>, <code>broker.hivemq.com</code>,
+  <code>test.mosquitto.org</code>), die die Nachrichten eines Raums weiterreichen; sie erhalten dabei deine IP-Adresse
+  und die Spieldaten des Raums. Diese Server sind nicht verschlüsselt pro Raum – gib im Spielernamen keine persönlichen
+  Daten an. Zusätzlich kann eine direkte Verbindung (WebRTC) über den Vermittlungsdienst PeerJS (<code>0.peerjs.com</code>)
+  aufgebaut werden; dabei können die Mitspieler technisch bedingt deine IP-Adresse sehen. Es werden keine Konten angelegt
+  und keine Kämpfe von uns gespeichert.</p>
 
   <h2>6. Kinder</h2>
   <p>Das Spiel richtet sich nicht an Kinder unter 16 Jahren.</p>
@@ -84,9 +86,11 @@
   ("Werbe-Einwilligung ändern"). Rewarded videos are optional; the "No Ads" purchase removes interstitial ads.</p>
   <p><strong>In-app purchases</strong> are processed by Google Play. We never receive payment details, only a purchase confirmation used to unlock content.</p>
   <p><strong>Web version</strong> is hosted on GitHub Pages; GitHub processes server logs (IP address). The web version shows no ads.</p>
-  <p><strong>Online arena (1 vs 1, optional):</strong> fights run directly between the two devices (WebRTC). To connect, the public
-  PeerJS service (<code>0.peerjs.com</code>) briefly receives your IP address and the room code; your opponent can technically see your
-  IP address. Only game data (position, shots, health, rank, level) is exchanged. No accounts, nothing stored on servers.</p>
+  <p><strong>Online arena (1–4 players, optional):</strong> game data (player name, position, shots, health, rank, level) is relayed
+  through free public MQTT servers (<code>broker.emqx.io</code>, <code>broker.hivemq.com</code>, <code>test.mosquitto.org</code>),
+  which receive your IP address and the room's game data – don't put personal data in your player name. A direct WebRTC connection
+  via the PeerJS service (<code>0.peerjs.com</code>) may also be used; other players can then technically see your IP address.
+  No accounts, nothing stored by us.</p>
   <p><strong>Children:</strong> the game is not directed at children under 16.</p>
   <p><strong>Your rights</strong> under the GDPR (access, rectification, erasure, restriction, portability, objection, withdrawal of consent,
   complaint to a supervisory authority) can be exercised via the contact e-mail above.</p>

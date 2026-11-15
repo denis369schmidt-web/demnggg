@@ -5365,12 +5365,22 @@
   // er stempelt den Absender (m.f) ein und leitet an alle anderen weiter (m.to = nur an diesen einen Spieler).
   // hub: { host, me, send(m), sendTo(pid, m), close(), count(), locked, onmsg(m), onjoin(pid), onleave(pid), onclose() }
   const HUB_MAX = 4;
-  const NO_RELAY = new Set(["ping", "pong", "hello", "ver"]);
+  const NO_RELAY = new Set(["ping", "pong", "hello", "ver", "hb"]);
   function hubHostCore(hub) {
     const conns = new Map();
+    let next = 1;
     hub.conns = conns;
+    hub.nextPid = () => next++;
     hub.count = () => conns.size + 1;
-    hub.send = (m) => { m.f = 0; for (const c of conns.values()) c.send(m); };
+    // an alle (außer „except“): Gäste am selben Relais-Server bekommen die Nachricht nur einmal über dessen Sammelkanal
+    hub.fan = (m, except) => {
+      const sent = new Set();
+      for (const [q, c] of conns) {
+        if (q === except) continue;
+        if (c.bus) { if (!sent.has(c.bus)) { sent.add(c.bus); c.bus.pub(c.all, m); } } else c.send(m);
+      }
+    };
+    hub.send = (m) => { m.f = 0; hub.fan(m, -1); };
     hub.sendTo = (pid, m) => { m.f = 0; const c = conns.get(pid); if (c) c.send(m); };
     hub.add = (pid, c) => { conns.set(pid, c); c.send({ t: "welcome", pid, f: 0 }); if (hub.onjoin) hub.onjoin(pid); };
     hub.drop = (pid) => { if (conns.delete(pid) && hub.onleave) hub.onleave(pid); };
@@ -5379,7 +5389,7 @@
       if (!m || typeof m !== "object" || !conns.has(pid)) return;
       m.f = pid; // Absender kann nicht gefälscht werden
       if (m.to != null && m.to !== 0) { const c = conns.get(+m.to); if (c) c.send(m); return; }
-      if (m.to == null && !NO_RELAY.has(m.t)) for (const [q, c] of conns) if (q !== pid) c.send(m);
+      if (m.to == null && !NO_RELAY.has(m.t)) hub.fan(m, pid);
       if (hub.onmsg) hub.onmsg(m);
     };
     return hub;
@@ -5392,13 +5402,12 @@
       const ch = { postMessage: (d) => { if (!shut) try { bc.postMessage(d); } catch { /* zu */ } }, close: () => { shut = true; bc.close(); }, set onmessage(f) { bc.onmessage = f; } };
       if (host) {
         hubHostCore(hub);
-        let next = 1;
         const conn = (pid) => ({ send: (m) => ch.postMessage({ k: "down", to: pid, m }), close: () => {} });
         ch.onmessage = (ev) => {
           const d = ev.data || {};
           if (d.k === "join") {
             if (hub.locked || hub.count() >= HUB_MAX) { ch.postMessage({ k: "full", rid: d.rid }); return; }
-            const pid = next++;
+            const pid = hub.nextPid();
             ch.postMessage({ k: "hi", rid: d.rid, pid });
             hub.add(pid, conn(pid));
           } else if (d.k === "up") hub.recv(+d.from, d.m);
@@ -5433,53 +5442,249 @@
       }
     });
   }
-  async function openPeerHub(code, host) {
-    if (!window.Peer) await loadScript("vendor/peerjs.min.js");
-    const cfg = (Platform.cfg.arena && Platform.cfg.arena.peer) || undefined; // eigener Vermittlungs-Server möglich
+  // ---------------------------------------------------------------- v4.7 Server-Relais (MQTT über WebSocket)
+  // Direktverbindungen (WebRTC) scheitern oft in Mobilfunk-, Hotspot- und Firmennetzen. Das Relais schickt alle Nachrichten
+  // über öffentliche MQTT-Server: klappt hinter jedem NAT, braucht nur ausgehendes HTTPS/WebSocket. Der Gastgeber lauscht auf
+  // allen Servern gleichzeitig, ein Gast nimmt den ersten, über den der Gastgeber antwortet. PeerJS bleibt Ausweichweg.
+  const RELAY_DEFAULT = ["wss://broker.emqx.io:8084/mqtt", "wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081/mqtt"];
+  const relayList = () => {
+    const q = /[?&]relay=([^&]+)/.exec(location.search); // Tests: eigener Server
+    if (q) return decodeURIComponent(q[1]).split(",").filter(Boolean);
+    return (Platform.cfg.arena && Platform.cfg.arena.relays) || RELAY_DEFAULT;
+  };
+  const NO_PEER = /[?&]nopeer\b/.test(location.search);
+  const relayBase = (code) => `outbreak-germany/v47/${code}`;
+  const relayName = (url) => { try { return new URL(url).hostname.replace(/^(broker|test)\./, ""); } catch { return "Relais"; } };
+  // Minimaler MQTT-3.1.1-Client (QoS 0): verbinden, abonnieren, senden, Lebenszeichen, selbstständig neu verbinden
+  function mqttConnect(url, timeout = 6000) {
     return new Promise((res, rej) => {
-      const peer = host ? new window.Peer(roomId(code), cfg) : new window.Peer(cfg);
-      const hub = { host, me: host ? 0 : -1, locked: false, onmsg: null, onjoin: null, onleave: null, onclose: null };
-      let done = false;
-      const fail = (why) => { if (!done) { done = true; try { peer.destroy(); } catch { /* weg */ } rej(new Error(why)); } };
-      peer.on("error", (e) => {
-        const why = e && e.type === "peer-unavailable" ? "noroom" : e && e.type === "unavailable-id" ? "taken" : "net";
-        if (!done) fail(why);
+      const enc = new TextEncoder(), dec = new TextDecoder();
+      const str = (t) => { const b = enc.encode(t); return [b.length >> 8, b.length & 255, ...b]; };
+      const pkt = (type, body) => {
+        const len = []; let n = body.length;
+        do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; len.push(d); } while (n > 0);
+        const out = new Uint8Array(1 + len.length + body.length);
+        out[0] = type; out.set(len, 1); out.set(body, 1 + len.length);
+        return out;
+      };
+      let ws = null, ping = 0, done = false, closed = false, retry = 0, pid = 1;
+      const cli = {
+        url, open: false, subs: new Map(), onclose: null, onopen: null,
+        sub(topic, fn) { this.subs.set(topic, fn); if (this.open) subscribe(topic); },
+        pub(topic, obj) {
+          if (!this.open) return false;
+          const p = enc.encode(JSON.stringify(obj)), t = str(topic), body = new Uint8Array(t.length + p.length);
+          body.set(t); body.set(p, t.length);
+          return send(pkt(0x30, body));
+        },
+        close() { closed = true; clearInterval(ping); if (this.open) send(new Uint8Array([0xe0, 0])); this.open = false; try { ws.close(); } catch { /* zu */ } },
+      };
+      const send = (u8) => { if (ws && ws.readyState === 1) { ws.send(u8); return true; } return false; };
+      const subscribe = (topic) => { const id = (pid++ & 0xffff) || 1; send(pkt(0x82, [id >> 8, id & 255, ...str(topic), 0])); };
+      const fail = () => { if (!done) { done = true; closed = true; try { ws.close(); } catch { /* zu */ } rej(new Error("net")); } };
+      const tm = setTimeout(fail, timeout);
+      const open = () => {
+        let buf = new Uint8Array(0);
+        try { ws = new WebSocket(url, "mqtt"); } catch { fail(); return; }
+        ws.binaryType = "arraybuffer";
+        ws.onopen = () => {
+          const id = `og${Math.random().toString(36).slice(2, 12)}`;
+          send(pkt(0x10, [...str("MQTT"), 4, 0x02, 0, 30, ...str(id)])); // sauberer Start, 30 s Lebenszeichen
+        };
+        ws.onmessage = (ev) => {
+          const add = new Uint8Array(ev.data), nb = new Uint8Array(buf.length + add.length);
+          nb.set(buf); nb.set(add, buf.length); buf = nb;
+          for (;;) {
+            if (buf.length < 2) return;
+            let mul = 1, len = 0, i = 1, d;
+            do { if (i >= buf.length) return; d = buf[i++]; len += (d & 127) * mul; mul *= 128; } while (d & 128);
+            if (buf.length < i + len) return;
+            const h = buf[0], body = buf.subarray(i, i + len);
+            buf = buf.slice(i + len);
+            const type = h >> 4;
+            if (type === 2) { // CONNACK
+              if (body[1] !== 0) { fail(); return; }
+              cli.open = true; retry = 0;
+              for (const t of cli.subs.keys()) subscribe(t);
+              clearInterval(ping); ping = setInterval(() => send(new Uint8Array([0xc0, 0])), 20000);
+              if (!done) { done = true; clearTimeout(tm); res(cli); } else if (cli.onopen) cli.onopen();
+            } else if (type === 3) { // PUBLISH
+              const tl = (body[0] << 8) | body[1], topic = dec.decode(body.subarray(2, 2 + tl));
+              const off = 2 + tl + (((h >> 1) & 3) ? 2 : 0), fn = cli.subs.get(topic);
+              if (fn) { let m = null; try { m = JSON.parse(dec.decode(body.subarray(off))); } catch { /* kaputt */ } if (m) fn(m); }
+            }
+          }
+        };
+        ws.onclose = () => {
+          const was = cli.open; cli.open = false; clearInterval(ping);
+          if (!done) { fail(); return; }
+          if (closed) return;
+          if (was && cli.onclose) cli.onclose();
+          // Funkloch: still neu verbinden, Abos werden nach CONNACK wiederhergestellt
+          setTimeout(() => { if (!closed) open(); }, Math.min(5000, 600 * ++retry));
+        };
+        ws.onerror = () => { /* onclose folgt */ };
+      };
+      open();
+    });
+  }
+  // Gastgeber: einen Relais-Server an den gemeinsamen Hub hängen
+  function attachRelayBus(hub, bus, code) {
+    const base = relayBase(code), rids = hub.rids || (hub.rids = new Map());
+    hub.buses.push(bus);
+    {
+      const all = `${base}/all`;
+      bus.sub(`${base}/h`, (d) => {
+        if (!d || typeof d !== "object") return;
+        const rid = String(d.rid || "").slice(0, 24);
+        if (!rid) return;
+        if (d.k === "join") {
+          if (rids.has(rid)) return; // derselbe Gast über einen zweiten Server
+          if (hub.locked || hub.count() >= HUB_MAX) { bus.pub(`${base}/g/${rid}`, { t: "full" }); return; }
+          const pid = hub.nextPid();
+          rids.set(rid, pid);
+          hub.add(pid, { bus, all, via: bus.url, send: (m) => bus.pub(`${base}/g/${rid}`, m), close: () => {} });
+        } else if (d.k === "up") { const pid = rids.get(rid); if (pid != null) hub.recv(pid, d.m); }
+        else if (d.k === "leave") { const pid = rids.get(rid); if (pid != null) { rids.delete(rid); hub.drop(pid); } }
       });
-      // v4.4 Handy kurz im Hintergrund (Einladung teilen): Verbindung zum Vermittlungs-Dienst wieder aufnehmen
-      peer.on("disconnected", () => { try { if (!peer.destroyed) peer.reconnect(); } catch { /* weg */ } });
-      openPeerHub.cancel = () => fail("cancel");
-      if (host) {
-        hubHostCore(hub);
-        let next = 1;
-        hub.close = () => { for (const c of hub.conns.values()) c.send({ t: "bye", f: 0 }); setTimeout(() => { try { peer.destroy(); } catch { /* weg */ } }, 150); };
-        peer.on("open", () => { done = true; res(hub); });
-        peer.on("connection", (dc) => {
-          if (hub.locked || hub.count() >= HUB_MAX) { dc.on("open", () => { dc.send({ t: "full" }); setTimeout(() => dc.close(), 300); }); return; }
-          const pid = next++, c = { send: (m) => { if (dc.open) dc.send(m); }, close: () => dc.close() };
-          dc.on("open", () => hub.add(pid, c));
-          dc.on("data", (m) => hub.recv(pid, m));
-          dc.on("close", () => hub.drop(pid));
-        });
-      } else {
-        peer.on("open", () => {
-          const dc = peer.connect(roomId(code), { reliable: true });
-          hub.send = (m) => { if (dc.open) dc.send(m); };
-          hub.sendTo = (pid, m) => hub.send({ ...m, to: pid });
-          hub.count = () => 0;
-          hub.close = () => { try { dc.close(); peer.destroy(); } catch { /* weg */ } };
-          dc.on("data", (m) => {
-            if (!m) return;
-            if (m.t === "welcome") { hub.me = m.pid; done = true; res(hub); return; }
-            if (m.t === "full") { fail("full"); return; }
+    }
+  }
+  // Gast: alle Server parallel, der erste mit Antwort des Gastgebers gewinnt
+  function openRelayGuest(code) {
+    return new Promise((res, rej) => {
+      const base = relayBase(code), rid = Math.random().toString(36).slice(2, 14), list = relayList();
+      const hub = { host: false, me: -1, locked: false, onmsg: null, onjoin: null, onleave: null, onclose: null, via: "", count: () => 0 };
+      const buses = [];
+      let done = false, failed = 0, reached = 0;
+      const stop = (why) => { if (done) return; done = true; clearTimeout(tm); for (const b of buses) b.close(); rej(new Error(why)); };
+      const tm = setTimeout(() => stop(reached ? "noroom" : "relay"), 7000);
+      openRelayGuest.cancel = () => stop("cancel");
+      for (const url of list) {
+        mqttConnect(url).then((bus) => {
+          if (done) { bus.close(); return; }
+          buses.push(bus); reached++;
+          const inbox = (m) => {
+            if (!done) {
+              if (m.t === "welcome") {
+                done = true; clearTimeout(tm);
+                for (const b of buses) if (b !== bus) b.close();
+                hub.me = +m.pid; hub.bus = bus; hub.via = url;
+                hub.send = (msg) => bus.pub(`${base}/h`, { k: "up", rid, m: msg });
+                hub.sendTo = (q, msg) => hub.send({ ...msg, to: q });
+                hub.close = () => { bus.pub(`${base}/h`, { k: "leave", rid }); setTimeout(() => bus.close(), 150); };
+                bus.onopen = () => bus.pub(`${base}/h`, { k: "join", rid }); // nach Funkloch: Gastgeber kennt uns noch (rid)
+                res(hub);
+              } else if (m.t === "full") stop("full");
+              return;
+            }
+            if (hub.bus !== bus) return;
             if (m.t === "bye") { if (hub.onclose) hub.onclose(); return; }
+            if (+m.f === hub.me) return; // eigene Nachricht über den Sammelkanal
             if (hub.onmsg) hub.onmsg(m);
-          });
-          dc.on("close", () => { if (!done) fail("noroom"); else if (hub.onclose) hub.onclose(); });
-        });
+          };
+          bus.sub(`${base}/g/${rid}`, inbox);
+          bus.sub(`${base}/all`, inbox);
+          bus.pub(`${base}/h`, { k: "join", rid });
+        }, () => { if (++failed === list.length) stop("relay"); });
       }
     });
   }
-  const openHub = (code, host) => (NET_LOCAL ? openLocalHub(code, host) : openPeerHub(code, host));
+  // PeerJS (WebRTC) – Gastgeber-Seite an den Hub hängen
+  async function attachPeerHost(hub, code) {
+    if (!window.Peer) await loadScript("vendor/peerjs.min.js");
+    const cfg = (Platform.cfg.arena && Platform.cfg.arena.peer) || undefined; // eigener Vermittlungs-Server möglich
+    return new Promise((res, rej) => {
+      const peer = new window.Peer(roomId(code), cfg);
+      let done = false;
+      hub.peer = peer;
+      const tm = setTimeout(() => { if (!done) { done = true; rej(new Error("net")); } }, 8000);
+      peer.on("error", (e) => { if (!done) { done = true; clearTimeout(tm); rej(new Error(e && e.type === "unavailable-id" ? "taken" : "net")); } });
+      // v4.4 Handy kurz im Hintergrund (Einladung teilen): Verbindung zum Vermittlungs-Dienst wieder aufnehmen
+      peer.on("disconnected", () => { try { if (!peer.destroyed) peer.reconnect(); } catch { /* weg */ } });
+      peer.on("open", () => { if (hub.closed) { try { peer.destroy(); } catch { /* weg */ } } if (!done) { done = true; clearTimeout(tm); res(); } });
+      peer.on("connection", (dc) => {
+        if (hub.locked || hub.count() >= HUB_MAX) { dc.on("open", () => { dc.send({ t: "full" }); setTimeout(() => dc.close(), 300); }); return; }
+        const pid = hub.nextPid(), c = { via: "p2p", send: (m) => { if (dc.open) dc.send(m); }, close: () => dc.close() };
+        dc.on("open", () => hub.add(pid, c));
+        dc.on("data", (m) => hub.recv(pid, m));
+        dc.on("close", () => hub.drop(pid));
+      });
+    });
+  }
+  async function openPeerGuest(code) {
+    if (!window.Peer) await loadScript("vendor/peerjs.min.js");
+    const cfg = (Platform.cfg.arena && Platform.cfg.arena.peer) || undefined;
+    return new Promise((res, rej) => {
+      const peer = new window.Peer(cfg);
+      const hub = { host: false, me: -1, locked: false, onmsg: null, onjoin: null, onleave: null, onclose: null, via: "p2p", count: () => 0 };
+      let done = false;
+      const fail = (why) => { if (!done) { done = true; clearTimeout(tm); try { peer.destroy(); } catch { /* weg */ } rej(new Error(why)); } };
+      const tm = setTimeout(() => fail("noroom"), 12000);
+      openPeerGuest.cancel = () => fail("cancel");
+      peer.on("error", (e) => fail(e && e.type === "peer-unavailable" ? "noroom" : "net"));
+      peer.on("disconnected", () => { try { if (!peer.destroyed) peer.reconnect(); } catch { /* weg */ } });
+      peer.on("open", () => {
+        const dc = peer.connect(roomId(code), { reliable: true });
+        hub.send = (m) => { if (dc.open) dc.send(m); };
+        hub.sendTo = (q, m) => hub.send({ ...m, to: q });
+        hub.close = () => { try { dc.close(); peer.destroy(); } catch { /* weg */ } };
+        dc.on("data", (m) => {
+          if (!m) return;
+          if (m.t === "welcome") { hub.me = m.pid; done = true; clearTimeout(tm); res(hub); return; }
+          if (m.t === "full") { fail("full"); return; }
+          if (m.t === "bye") { if (hub.onclose) hub.onclose(); return; }
+          if (hub.onmsg) hub.onmsg(m);
+        });
+        dc.on("close", () => { if (!done) fail("noroom"); else if (hub.onclose) hub.onclose(); });
+      });
+    });
+  }
+  // Gastgeber: Relais + Direktverbindung gleichzeitig – der Raum ist offen, sobald der erste Weg steht
+  async function openNetHost(code) {
+    const hub = hubHostCore({ host: true, me: 0, locked: false, onmsg: null, onjoin: null, onleave: null, onclose: null, buses: [], ways: { relays: 0, peer: false } });
+    let closed = false;
+    const later = () => { if (!closed && lobby && lobby.hub === hub) renderArena(); };
+    const tasks = relayList().map((u) => mqttConnect(u).then((bus) => {
+      if (closed) { bus.close(); return false; }
+      attachRelayBus(hub, bus, code); hub.ways.relays++; later(); return true;
+    }, () => false));
+    if (!NO_PEER) tasks.push(attachPeerHost(hub, code).then(() => { hub.ways.peer = true; later(); return true; }, () => false));
+    const any = await new Promise((res) => { let left = tasks.length; for (const t of tasks) t.then((ok) => { if (ok) res(true); else if (--left === 0) res(false); }); });
+    hub.close = () => {
+      closed = true; hub.closed = true;
+      for (const c of hub.conns.values()) if (!c.bus) c.send({ t: "bye", f: 0 });
+      for (const bus of hub.buses || []) bus.pub(`${relayBase(code)}/all`, { t: "bye", f: 0 });
+      setTimeout(() => { for (const bus of hub.buses || []) bus.close(); try { if (hub.peer) hub.peer.destroy(); } catch { /* weg */ } }, 200);
+    };
+    if (!any) { hub.close(); throw new Error("net"); }
+    return hub;
+  }
+  // Gast: zuerst das Relais (verbindet in 1–2 s fast überall), dann die Direktverbindung
+  async function openNetGuest(code) {
+    let first;
+    try { return await openRelayGuest(code); } catch (e) { first = e; }
+    if (first.message === "full" || first.message === "cancel" || NO_PEER) throw first;
+    try { return await openPeerGuest(code); } catch (e) { throw e.message === "net" && first.message === "noroom" ? first : e; }
+  }
+  const openHub = (code, host) => (NET_LOCAL ? openLocalHub(code, host) : host ? openNetHost(code) : openNetGuest(code));
+  // v4.7 Verbindungstest: welche Wege funktionieren in diesem Netz?
+  async function testConnection() {
+    const urls = relayList();
+    const relay = await Promise.all(urls.map((u) => mqttConnect(u, 5000).then((c) => { c.close(); return true; }, () => false)));
+    let peer = false;
+    if (!NO_PEER) {
+      try {
+        if (!window.Peer) await loadScript("vendor/peerjs.min.js");
+        peer = await new Promise((res) => {
+          const p = new window.Peer((Platform.cfg.arena && Platform.cfg.arena.peer) || undefined);
+          const end = (ok) => { clearTimeout(tm); try { p.destroy(); } catch { /* weg */ } res(ok); };
+          const tm = setTimeout(() => end(false), 6000);
+          p.on("open", () => end(true)); p.on("error", () => end(false));
+        });
+      } catch { peer = false; }
+    }
+    return { relay: urls.map((u, i) => ({ name: relayName(u), ok: relay[i] })), peer };
+  }
   let lobby = null; // { code, host, hub, players, ffa, me }
 
   // ---------------------------------------------------------------- Kampf
@@ -6065,7 +6270,7 @@
   }
 
   // ---------------------------------------------------------------- Fenster „Arena“
-  const NET_ERR = { full: "Der Raum ist voll (höchstens 4 Spieler) oder das Match läuft schon", noroom: "Raum nicht gefunden – stimmt der Code und hat dein Freund die Arena noch offen?", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst – Internet prüfen und nochmal versuchen", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
+  const NET_ERR = { relay: "Keine Verbindung zu den Spiel-Servern – Internet prüfen (WLAN/Mobilfunk) und nochmal versuchen", full: "Der Raum ist voll (höchstens 4 Spieler) oder das Match läuft schon", noroom: "Raum nicht gefunden – stimmt der Code und hat dein Freund die Arena noch offen?", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst – Internet prüfen und nochmal versuchen", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
   // v4.5 Beide Geräte brauchen dieselbe Spielversion (Hauptnummer.Unternummer), sonst passen die Regeln nicht zusammen
   const netVersion = () => String(Platform.cfg.version || "").split(".").slice(0, 2).join(".");
   // v4.5 Bildschirm bleibt an, solange auf den Freund gewartet oder gekämpft wird
@@ -6127,7 +6332,11 @@
   function closeLobby() {
     if (!lobby) return;
     if (!(run && run.pvp)) keepAwake(false);
-    try { if (lobby.hub) lobby.hub.close(); else if (NET_LOCAL && openLocalHub.pending) openLocalHub.pending.cancel(); else if (openPeerHub.cancel) openPeerHub.cancel(); } catch { /* zu */ }
+    try {
+      if (lobby.hub) lobby.hub.close();
+      else if (NET_LOCAL && openLocalHub.pending) openLocalHub.pending.cancel();
+      else { if (openRelayGuest.cancel) openRelayGuest.cancel(); if (openPeerGuest.cancel) openPeerGuest.cancel(); }
+    } catch { /* zu */ }
     lobby = null;
   }
   function lobbyBroadcast() {
@@ -6145,12 +6354,30 @@
       const hub = await openHub(code, host);
       if (lobby !== me) { hub.close(); return; }
       me.hub = hub; me.me = hub.me;
+      me.via = hub.via || (hub.ways ? "host" : "");
       const info = playerInfo();
+      // v4.7 Lebenszeichen in der Lobby: wer 10 s nichts hört, weiß Bescheid (Funkloch, App geschlossen)
+      const seen = new Map(), HB = 2000, LOST = 10000;
+      me.hb = setInterval(() => {
+        if (lobby !== me) { clearInterval(me.hb); return; }
+        const now = performance.now();
+        if (host) {
+          hub.send({ t: "hb" });
+          for (const q of me.players) if (q.pid !== 0 && now - (seen.get(q.pid) || now) > LOST) { hub.kick(q.pid); me.players = me.players.filter((x) => x.pid !== q.pid); me.note = tr("{n} hat keine Verbindung mehr", { n: q.name }); lobbyBroadcast(); }
+        } else {
+          hub.send({ t: "hb" });
+          if (!me.players.some((q) => q.pid === me.me)) hub.send({ t: "hello", i: info }); // Vorstellung ging verloren: nochmal
+          if (now - (seen.get(0) || now) > LOST) { closeLobby(); renderArena(tr("Verbindung zum Gastgeber verloren – nochmal beitreten")); }
+        }
+      }, HB);
       if (host) {
         me.players = [cleanInfo(info, 0)];
         hub.onleave = (pid) => { if (lobby === me) { me.players = me.players.filter((q) => q.pid !== pid); lobbyBroadcast(); } };
+        hub.onjoin = (pid) => seen.set(pid, performance.now());
         hub.onmsg = (m) => {
-          if (lobby !== me || m.t !== "hello" || !m.i) return;
+          if (lobby !== me) return;
+          seen.set(+m.f, performance.now());
+          if (m.t !== "hello" || !m.i) return;
           if (String(m.i.v || "") !== netVersion()) {
             // verschiedene Versionen: freundlich abweisen statt mit falschen Regeln zu kämpfen
             hub.sendTo(m.f, { t: "ver", v: netVersion() });
@@ -6159,7 +6386,7 @@
             renderArena();
             return;
           }
-          if (me.players.some((q) => q.pid === m.f)) return;
+          if (me.players.some((q) => q.pid === m.f)) { lobbyBroadcast(); return; } // doppelte Vorstellung: Liste nochmal schicken
           const q = cleanInfo(m.i, m.f);
           q.team = autoTeam(me.players);
           me.players.push(q);
@@ -6169,8 +6396,10 @@
           lobbyBroadcast();
         };
       } else {
+        seen.set(0, performance.now());
         hub.onmsg = (m) => {
           if (lobby !== me) return;
+          if (+m.f === 0) seen.set(0, performance.now());
           if (m.t === "ver") { closeLobby(); renderArena(tr(VER_TXT, { a: netVersion(), b: String(m.v || "?") })); return; }
           if (m.t === "lobby" && Array.isArray(m.players)) { me.players = m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)); me.ffa = !!m.ffa; renderArena(); }
           else if (m.t === "go" && Array.isArray(m.players)) {
@@ -6236,6 +6465,7 @@
     catch { toast(code, "duel"); }
   }
   let roomLinkUsed = false;
+  let arenaTestTxt = "";
   function renderArena(msg = "") {
     const a = save.arena || {}, f = a.f, info = f ? fighterInfo(fairPlayer(f)) : null, wname = info ? WEAPONS[info.w].name : "";
     $("arenaFighter").innerHTML = f
@@ -6274,6 +6504,12 @@
         : inRoom ? tr("Du bist drin! Warte auf den Start durch den Gastgeber …") : tr("Verbinde mit Raum {c} …", { c: lobby.code }))
       : tr("Code vom Freund eintippen oder einfügen – bei 5 Zeichen geht es von selbst los"));
     $("arenaStatus").classList.toggle("live", wait && !msg);
+    // v4.7 Verbindungsweg anzeigen (hilft beim Fehlersuchen am Arbeitsplatz)
+    const hb = wait && lobby.hub;
+    if (hb && hb.ways) $("arenaVia").textContent = tr("Erreichbar über {r} Spiel-Server{p}", { r: hb.ways.relays, p: hb.ways.peer ? ` + ${tr("Direktverbindung")}` : "" });
+    else if (hb) $("arenaVia").textContent = hb.via === "p2p" ? tr("Verbunden: Direktverbindung") : hb.via ? tr("Verbunden über Spiel-Server {n}", { n: relayName(hb.via) }) : "";
+    else if (!arenaTestTxt) $("arenaVia").textContent = "";
+    $("arenaTest").disabled = wait;
   }
   function updateAmbient(dt) {
     const th = theme();
@@ -10179,6 +10415,15 @@
   $("arenaMode").addEventListener("click", () => toggleFfa());
   $("arenaName").addEventListener("change", (ev) => { save.pname = String(ev.target.value || "").replace(/[<>]/g, "").trim().slice(0, 14); persist(); });
   $("arenaStart").addEventListener("click", () => { ensureAudio(); startLobbyMatch(); });
+  $("arenaTest").addEventListener("click", async () => {
+    const b = $("arenaTest"), v = $("arenaVia");
+    b.disabled = true; arenaTestTxt = "…"; v.textContent = tr("Prüfe Verbindung …");
+    const r = NET_LOCAL ? { relay: [{ name: "lokal", ok: true }], peer: true } : await testConnection();
+    const ok = (x) => `<span class="${x ? "ok" : "no"}">${x ? tr("OK") : tr("blockiert")}</span>`;
+    const good = r.relay.some((x) => x.ok) || r.peer;
+    v.innerHTML = `${r.relay.map((x) => `${escHtml(x.name)} ${ok(x.ok)}`).join(" · ")} · ${tr("Direktverbindung")} ${ok(r.peer)}<br>${good ? tr("Online-Spiel ist in diesem Netz möglich.") : tr("In diesem Netz ist kein Online-Spiel möglich – probier Mobilfunk statt WLAN.")}`;
+    arenaTestTxt = v.textContent; b.disabled = false;
+  });
   $("missionsBtn").addEventListener("click", () => { ensureAudio(); renderMissions(); show(ui.missions); });
   for (const b of document.querySelectorAll("#missionTabs button")) b.addEventListener("click", () => { missionTab = b.dataset.tab; renderMissions(); });
   $("passBtn").addEventListener("click", () => { ensureAudio(); renderPass(); show(ui.pass); });

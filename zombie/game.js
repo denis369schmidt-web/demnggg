@@ -5741,9 +5741,9 @@
     if (k > 1) { player.maxHp = player.hp = Math.round(player.maxHp * k); player.dmgMul *= 1 + 0.5 * (k - 1); }
     if (!next || !pvpMatch || !pvpMatch.party) pvpMatch = { party: true, net: true, round: 1, score: {}, me: 0, them: 0, duo: players.length === 2 };
     else pvpMatch.round++;
-    const now = performance.now(), pv = run.pvp = {
+    const pv = run.pvp = {
       net: true, party: true, hub, players, ffa, me: hub.me, meQ, flip: partySide(players, ffa, meQ) === 1,
-      ents: new Map(), allies: [], alive: new Set(players.map((q) => q.pid)), left: new Set(), seen: new Map(players.map((q) => [q.pid, now])),
+      ents: new Map(), allies: [], alive: new Set(players.map((q) => q.pid)), left: new Set(), seen: new Map(players.map((q) => [q.pid, 0])),
       pings: new Map(), inB: new Map(), sendT: 0, pingT: 0, cd: PVP.count, over: false, dead: false, t: 0, sudden: false,
       opp: players.find((q) => q.pid !== hub.me) || null,
       get rival() { for (const e of this.ents.values()) if (e.foe && !e.dead) return e; return null; }, // erster lebender Gegner (Kamera, Tests)
@@ -5818,7 +5818,7 @@
     const pv = run && run.pvp;
     if (!pv || !pv.party || !m) return;
     const from = +m.f;
-    pv.seen.set(from, performance.now());
+    pv.seen.set(from, 0); // Stille in Spielzeit (ruckelnde Geräte fliegen nicht fälschlich raus)
     if (m.t === "ping") { if (pv.hub.host) pv.hub.sendTo(from, { t: "pong", c: m.c }); else pv.hub.send({ t: "pong", c: m.c, to: 0 }); return; }
     if (m.t === "pong") {
       const ms = clamp(performance.now() - (+m.c || 0), 0, 5000), old = pv.pings.get(from);
@@ -6008,11 +6008,12 @@
     const pv = run.pvp;
     for (const a of pv.allies) if (!a.dead) netFollow(a, dt);
     partySend(dt);
-    // Stille: Gäste ohne Nachricht fliegen raus (entscheidet der Gastgeber), ohne Gastgeber endet das Match
-    const now = performance.now(), lim = PVP.timeout * 1000;
-    if (pv.hub.host) { for (const q of pv.players) if (q.pid !== 0 && !pv.left.has(q.pid) && now - (pv.seen.get(q.pid) || now) > lim) partyGone(q.pid, tr("Verbindung zu {n} verloren", { n: q.name })); }
-    else if (!pv.matchDone && now - (pv.seen.get(0) || now) > lim) partyHostLeft(tr("Verbindung zum Gastgeber verloren"));
-    pv.quiet = (now - Math.max(...[...pv.seen.entries()].filter(([pid]) => pid !== pv.me && !pv.left.has(pid)).map(([, t]) => t), now - 1)) / 1000;
+    // Stille (Sekunden Spielzeit seit der letzten Nachricht): Gäste fliegen raus (entscheidet der Gastgeber), ohne Gastgeber endet das Match
+    let quiet = 0;
+    for (const [pid, t] of pv.seen) { if (pid === pv.me || pv.left.has(pid)) continue; const q = t + Math.min(dt, 0.1); pv.seen.set(pid, q); quiet = Math.max(quiet, q); }
+    pv.quiet = quiet;
+    if (pv.hub.host) { for (const q of pv.players) if (q.pid !== 0 && !pv.left.has(q.pid) && (pv.seen.get(q.pid) || 0) > PVP.timeout) partyGone(q.pid, tr("Verbindung zu {n} verloren", { n: q.name })); }
+    else if (!pv.matchDone && (pv.seen.get(0) || 0) > PVP.timeout) partyHostLeft(tr("Verbindung zum Gastgeber verloren"));
   }
   function drawPartyHud() {
     const pv = run.pvp, w = 250, x = (W - w) / 2;

@@ -5452,6 +5452,7 @@
     player = fairPlayer(myFighter());
     syncGearLook();
     run.belt = {}; run.ult = 0; // Turnierregeln: keine Wurfwaffen, keine Spezialfähigkeit
+    keepAwake(true);
     if (!next) pvpMatch = { me: 0, them: 0, round: 1, net: !!link }; else pvpMatch.round++;
     run.pvp = { opp, net: !!link, link: link || null, sendT: 0, rival: null, cd: PVP.count, over: false, quiet: 0, t: 0, sudden: false };
     setupPvpRoom();
@@ -5692,16 +5693,64 @@
   }
 
   // ---------------------------------------------------------------- Fenster „Arena“
-  const NET_ERR = { noroom: "Diesen Raum gibt es nicht (mehr)", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
+  const NET_ERR = { noroom: "Raum nicht gefunden – stimmt der Code und hat dein Freund die Arena noch offen?", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst – Internet prüfen und nochmal versuchen", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
+  // v4.5 Beide Geräte brauchen dieselbe Spielversion (Hauptnummer.Unternummer), sonst passen die Regeln nicht zusammen
+  const netVersion = () => String(Platform.cfg.version || "").split(".").slice(0, 2).join(".");
+  // v4.5 Bildschirm bleibt an, solange auf den Freund gewartet oder gekämpft wird
+  let wakeLock = null, wakeWanted = false;
+  async function keepAwake(on) {
+    wakeWanted = on;
+    try {
+      if (on && !wakeLock && navigator.wakeLock && document.visibilityState === "visible") { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); }
+      else if (!on && wakeLock) { const w = wakeLock; wakeLock = null; await w.release(); }
+    } catch { wakeLock = null; }
+  }
+  document.addEventListener("visibilitychange", () => { if (wakeWanted && document.visibilityState === "visible") keepAwake(true); });
+  // Code aus beliebigem Text holen: Einladungslink (…?room=ABCDE) oder der Code selbst
+  function codeFromText(t) {
+    const s = String(t || "");
+    const m = /[?&]room=([A-Za-z0-9]{5})/.exec(s);
+    if (m) return cleanRoomCode(m[1]);
+    // sonst ein freistehendes Wort aus 5 Zeichen des Code-Alphabets (ohne 0/O/1/I – „hallo“ ist kein Code)
+    // das letzte passende Wort gewinnt – im Einladungstext steht der Code am Ende („… Arena … Raum-Code ABCDE“)
+    let hit = "";
+    for (const w of s.toUpperCase().split(/[^A-Z0-9]+/)) if (w.length === 5 && [...w].every((ch) => DUEL_ABC.includes(ch))) hit = w;
+    return hit;
+  }
+  function hostRoom() {
+    ensureAudio();
+    openLobby(true, newRoomCode());
+    // auf dem Handy gleich das Teilen-Menü öffnen (muss im selben Tipp passieren)
+    if (navigator.share && (Platform.isNative || matchMedia("(pointer: coarse)").matches)) shareInvite();
+  }
+  function joinRoom(c) {
+    ensureAudio();
+    c = cleanRoomCode(c);
+    if (c.length === 5) openLobby(false, c); else renderArena(tr("Der Raum-Code hat 5 Zeichen"));
+  }
+  // QR-Code des Einladungslinks (Bibliothek wird erst bei Bedarf geladen)
+  async function drawRoomQr(code) {
+    const cv = $("arenaQr"), url = inviteUrl(code) || code;
+    try {
+      if (!window.qrcode) await loadScript("vendor/qrcode.js");
+      const q = window.qrcode(0, "M"); q.addData(url); q.make();
+      const n = q.getModuleCount(), pad = 2, k = Math.floor(cv.width / (n + pad * 2)), off = Math.floor((cv.width - k * n) / 2), g = cv.getContext("2d");
+      g.fillStyle = "#efe8d4"; g.fillRect(0, 0, cv.width, cv.height); g.fillStyle = "#14130f";
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect(off + c * k, off + r * k, k, k);
+      cv.dataset.code = code; cv.classList.remove("hidden");
+    } catch { cv.classList.add("hidden"); }
+  }
   function closeLobby() {
     if (!lobby) return;
+    if (!(run && run.pvp)) keepAwake(false);
     try { if (lobby.link) lobby.link.close(); else if (NET_LOCAL && openLocalLink.pending) openLocalLink.pending.cancel(); else if (openPeerLink.cancel) openPeerLink.cancel(); } catch { /* zu */ }
     lobby = null;
   }
-  async function openLobby(host, code) {
+  async function openLobby(host, code, retry = 1) {
     closeLobby();
     const me = lobby = { code, host, link: null };
     renderArena();
+    keepAwake(true);
     try {
       const link = await openLink(code, host);
       if (lobby !== me) { link.close(); return; }
@@ -5709,15 +5758,30 @@
       // Vorstellung: beide schicken ihre Kennzahlen, der Gastgeber gibt das Startsignal
       const mine = fighterInfo(fairPlayer(myFighter()));
       let theirs = null, started = false;
-      const go = () => { if (started || !theirs) return; started = true; lobby = null; startPvp(theirs, link); };
+      const go = () => { if (started || !theirs) return; started = true; lobby = null; if (save.vibration) Platform.vibrate(80); startPvp(theirs, link); };
       link.onmsg = (m) => {
+        if (m.t === "hello" && m.i && String(m.i.v || "") !== netVersion()) {
+          // verschiedene Versionen: freundlich abbrechen statt mit falschen Regeln zu kämpfen
+          link.send({ t: "ver", v: netVersion() });
+          lobby = null; link.close();
+          renderArena(tr("Dein Freund hat eine andere Spielversion ({b}) als du ({a}) – bitte beide neu laden bzw. aktualisieren", { a: netVersion(), b: m.i.v || "alt" }));
+          return;
+        }
+        if (m.t === "ver") { lobby = null; link.close(); renderArena(tr("Dein Freund hat eine andere Spielversion ({b}) als du ({a}) – bitte beide neu laden bzw. aktualisieren", { a: netVersion(), b: String(m.v || "?") })); return; }
         if (m.t === "hello" && m.i) { theirs = { name: String(m.i.name || "?").slice(0, 16), lv: +m.i.lv || 1, mhp: clamp(+m.i.mhp || 600, 100, 1e5), speed: clamp(+m.i.speed || 190, 100, 400), look: safeLook(m.i.look), pow: clamp(+m.i.pow || 0, 0, 1e7), elo: clamp(Math.round(+m.i.elo || FAIR.elo), 0, 4000) }; if (host) { link.send({ t: "go" }); go(); } }
         else if (m.t === "go") go();
       };
       link.onclose = () => { if (lobby === me) { lobby = null; renderArena(tr("Gegner hat den Raum verlassen")); } };
-      link.send({ t: "hello", i: { name: mine.name, lv: mine.lv, mhp: mine.mhp, speed: mine.speed, look: mine.look, pow: mine.pow, elo: arenaElo() } });
+      link.send({ t: "hello", i: { name: mine.name, lv: mine.lv, mhp: mine.mhp, speed: mine.speed, look: mine.look, pow: mine.pow, elo: arenaElo(), v: netVersion() } });
     } catch (err) {
-      if (lobby === me) { lobby = null; renderArena(tr(NET_ERR[err.message] || NET_ERR.net)); }
+      if (lobby !== me) return;
+      // Vermittlung kurz weg (Funkloch, Dienst überlastet): einmal still neu versuchen
+      if (retry > 0 && (err.message === "net" || (err.message === "noroom" && !host))) {
+        renderArena(tr("Verbindung wird erneut versucht …"));
+        setTimeout(() => { if (lobby === me) openLobby(host, code, retry - 1); }, err.message === "noroom" ? 2500 : 1500);
+        return;
+      }
+      lobby = null; keepAwake(false); renderArena(tr(NET_ERR[err.message] || NET_ERR.net));
     }
   }
   // v4.4 Einladung: Link öffnet das Spiel (Web-Version, auch auf dem iPhone) direkt im Raum
@@ -5742,11 +5806,15 @@
     $("arenaClimb").innerHTML = `<span>${f ? tr("Neuer Aufstieg") : tr("Aufstieg starten")}</span>`;
     $("arenaRecord").textContent = `${tr("Wertung {e}", { e: arenaElo() })} · ${tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 })}`;
     const wait = !!lobby;
-    for (const id of ["arenaBot", "arenaHost", "arenaJoin", "arenaCode"]) $(id).disabled = wait;
-    $("arenaInvite").classList.toggle("hidden", !(wait && lobby.host));
+    for (const id of ["arenaBot", "arenaHost", "arenaJoin", "arenaCode", "arenaPaste"]) $(id).disabled = wait;
+    const hosting = wait && lobby.host;
+    $("arenaRoom").classList.toggle("hidden", !hosting);
+    $("arenaHost").classList.toggle("hidden", hosting);
+    $("arenaJoinRow").classList.toggle("hidden", hosting);
+    if (hosting) { $("arenaRoomCode").textContent = lobby.code; if ($("arenaQr").dataset.code !== lobby.code) drawRoomQr(lobby.code); }
     $("arenaClimb").disabled = wait;
     $("arenaCancel").classList.toggle("hidden", !wait);
-    $("arenaStatus").textContent = msg || (wait ? (lobby.host ? tr("Raum {c} ist offen – gib den Code deinem Gegner", { c: lobby.code }) : tr("Verbinde mit Raum {c} …", { c: lobby.code })) : tr("Raum erstellen und Einladung schicken – oder dem Raum eines Freundes beitreten"));
+    $("arenaStatus").textContent = msg || (wait ? (lobby.host ? tr("Warte auf deinen Freund …") : tr("Verbinde mit Raum {c} …", { c: lobby.code })) : tr("Code vom Freund eintippen oder einfügen – bei 5 Zeichen geht es von selbst los"));
     $("arenaStatus").classList.toggle("live", wait && !msg);
   }
   function updateAmbient(dt) {
@@ -9515,6 +9583,7 @@
 
   let dailyShown = false;
   function toMenu() {
+    keepAwake(false); // v4.5 Bildschirm darf wieder ausgehen
     state = "menu";
     if (run && run.pvp && run.pvp.link) { try { run.pvp.link.close(); } catch { /* zu */ } }
     closeLobby();
@@ -9614,8 +9683,25 @@
     const me = fighterInfo(fairPlayer(myFighter()));
     startPvp({ ...me, name: tr("Spiegel-Bot"), skill: 0.85 }, null);
   });
-  $("arenaHost").addEventListener("click", () => { ensureAudio(); openLobby(true, newRoomCode()); });
-  $("arenaJoin").addEventListener("click", () => { ensureAudio(); const c = cleanRoomCode($("arenaCode").value); if (c.length === 5) openLobby(false, c); else renderArena(tr("Der Raum-Code hat 5 Zeichen")); });
+  $("arenaHost").addEventListener("click", () => hostRoom());
+  $("arenaJoin").addEventListener("click", () => joinRoom($("arenaCode").value));
+  // Code-Feld: nur gültige Zeichen, bei 5 Zeichen sofort beitreten; eingefügte Links werden erkannt
+  $("arenaCode").addEventListener("input", (ev) => {
+    const el = ev.target, raw = el.value, c = raw.length > 5 ? codeFromText(raw) : cleanRoomCode(raw);
+    if (el.value !== c) el.value = c;
+    if (c.length === 5 && !lobby) joinRoom(c);
+  });
+  $("arenaPaste").addEventListener("click", async () => {
+    let t = "";
+    try { t = await navigator.clipboard.readText(); } catch { /* keine Erlaubnis */ }
+    const c = codeFromText(t);
+    if (c.length === 5) { $("arenaCode").value = c; joinRoom(c); }
+    else { $("arenaCode").focus(); renderArena(tr("Kein Code in der Zwischenablage – bitte eintippen")); }
+  });
+  $("arenaCopy").addEventListener("click", async () => {
+    if (!lobby) return;
+    try { await navigator.clipboard.writeText(lobby.code); toast(tr("Code {c} kopiert", { c: lobby.code }), "duel"); } catch { toast(lobby.code, "duel"); }
+  });
   $("arenaCancel").addEventListener("click", () => { closeLobby(); renderArena(); });
   $("arenaInvite").addEventListener("click", () => shareInvite());
   $("missionsBtn").addEventListener("click", () => { ensureAudio(); renderMissions(); show(ui.missions); });
@@ -9815,5 +9901,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP }, duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP, codeFromText, netVersion, get wake() { return wakeWanted; } }, duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

@@ -386,6 +386,28 @@
       </header>
       <div class="body">
         <div class="fighter-card" id="arenaFighter"></div>
+        <div class="arena-box">
+          <h3 data-i18n>Gegen einen Freund</h3>
+          <button class="btn amber big" id="arenaHost"><i data-ic="duel"></i><span data-i18n>Freund einladen</span></button>
+          <div class="room-box hidden" id="arenaRoom">
+            <div class="room-top">
+              <div class="room-code-wrap"><small data-i18n>Dein Raum-Code</small><b class="room-code" id="arenaRoomCode">·····</b></div>
+              <canvas class="room-qr" id="arenaQr" width="132" height="132" aria-label="QR-Code"></canvas>
+            </div>
+            <p class="room-hint" data-i18n>Freund scannt den QR-Code mit der Handykamera, öffnet deinen Link oder gibt den Code ein. Lass dieses Fenster offen.</p>
+            <div class="room-actions">
+              <button class="btn amber" id="arenaInvite" data-i18n>Link schicken</button>
+              <button class="btn steel" id="arenaCopy" data-i18n>Code kopieren</button>
+            </div>
+          </div>
+          <div class="arena-join" id="arenaJoinRow">
+            <label class="field"><span data-i18n>Code vom Freund</span><input id="arenaCode" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="5" placeholder="·····" /></label>
+            <button class="btn ghost" id="arenaPaste" data-i18n>Einfügen</button>
+            <button class="btn steel" id="arenaJoin" data-i18n>Beitreten</button>
+          </div>
+          <p class="arena-status" id="arenaStatus"></p>
+          <button class="btn ghost hidden" id="arenaCancel" data-i18n>Abbrechen</button>
+        </div>
         <button class="btn primary" id="arenaClimb"></button>
         <p class="note" data-i18n>Aufstieg: zehn Bezirke Heilbronn, nach jedem ein Skill. Dein bester Kämpfer bleibt gespeichert.</p>
         <div class="rules-card">
@@ -396,17 +418,6 @@
             <li data-i18n>Kein Würfelglück: Krit und Ausweichen wirken als feste Werte, keine Sofort-Kills, keine Wurfwaffen und Spezialfähigkeiten.</li>
             <li data-i18n>Best of 3. Ab 45 Sekunden Sudden Death: jeder Treffer wird stärker.</li>
           </ul>
-        </div>
-        <div class="arena-box">
-          <h3 data-i18n>Online-Kampf</h3>
-          <button class="btn amber" id="arenaHost" data-i18n>Raum erstellen</button>
-          <div class="arena-join">
-            <label class="field"><span data-i18n>Raum-Code</span><input id="arenaCode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="5" placeholder="·····" /></label>
-            <button class="btn steel" id="arenaJoin" data-i18n>Beitreten</button>
-          </div>
-          <p class="arena-status" id="arenaStatus"></p>
-          <button class="btn amber hidden" id="arenaInvite" data-i18n>Einladung schicken</button>
-          <button class="btn ghost hidden" id="arenaCancel" data-i18n>Abbrechen</button>
         </div>
         <button class="btn steel" id="arenaBot" data-i18n>Gegen Bot üben</button>
         <button class="btn ghost" id="duelBtn"><span data-i18n>Duell-Code: Punktzahl schlagen (ohne Verbindung)</span></button>

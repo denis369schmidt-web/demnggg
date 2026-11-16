@@ -1,7 +1,6 @@
-# Veröffentlicht die Web-Version (zombie/) auf GitHub Pages.
-# Einmalig aktivieren: Settings → Pages → Source: "GitHub Actions".
-# Alternativ ohne Workflow: Settings → Pages → "Deploy from a branch", Ordner "/ (root)" – gleiche Adresse.
-# Danach erreichbar unter https://<user>.github.io/<repo>/zombie/ – die
+# Veröffentlicht die Web-Version auf GitHub Pages.
+# Pages liest den Zweig gh-pages (Ordner /), deshalb schiebt dieser Ablauf den neuesten Stand dorthin.
+# Erreichbar unter https://<user>.github.io/<repo>/zombie/ – die
 # Datenschutzerklärung unter .../zombie/privacy.html (URL für die Play Console).
 name: Web-Version (GitHub Pages)
 
@@ -14,27 +13,18 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  publish:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
         with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          fetch-depth: 0
+      - name: Stand nach gh-pages schieben
+        run: git push --force origin HEAD:refs/heads/gh-pages

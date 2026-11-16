@@ -70,6 +70,13 @@ window.Sprites = (() => {
   const rgba = (h, a) => { const [r, g, b] = hex2rgb(h); return `rgba(${r},${g},${b},${a})`; };
 
   function ell(g, x, y, rx, ry, rot = 0) { g.beginPath(); g.ellipse(x, y, Math.max(0.1, rx), Math.max(0.1, ry), rot, 0, TAU); }
+  // v4.9 weicher Glanzfleck (Pfützen): zur Mitte voll nass, am Rand auslaufend – harte Ovale wirkten aus der Schulterkamera wie Nebelflecken
+  function softEll(g, x, y, rx, ry, rot = 0) {
+    g.save(); g.translate(x, y); g.rotate(rot); g.scale(1, Math.max(0.1, ry) / Math.max(0.1, rx));
+    const gr = g.createRadialGradient(0, 0, 0, 0, 0, Math.max(0.1, rx));
+    gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(0.62, "rgba(255,255,255,0.85)"); gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, Math.max(0.1, rx), 0, TAU); g.fill(); g.restore();
+  }
   function circ(g, x, y, r) { g.beginPath(); g.arc(x, y, Math.max(0.1, r), 0, TAU); }
   function rr(g, x, y, w, h, r) {
     r = Math.min(r, w / 2, h / 2);
@@ -2036,7 +2043,7 @@ window.Sprites = (() => {
         g.fillStyle = "rgba(225,225,215,0.5)"; g.fillRect(x, B - 120, 16, 70);
         q.fillStyle = gray(110); q.fillRect(x, B - 120, 16, 70);
       }
-      noise(g, L, B - 125, aw, 80, 900, ["rgba(42,45,49,0.9)"], R, 2.2);
+      noise(g, L, B - 125, aw, 80, 320, ["rgba(42,45,49,0.5)"], R, 3); // v4.9 abgefahren statt verrauscht
       noise(g, W / 2 - 4, T, 8, ah, 300, ["rgba(42,45,49,0.85)"], R, 2);
       // Gullydeckel mit Rand
       const mx = L + 70 + R() * (aw - 140), my = T + 120 + R() * (ah - 300);
@@ -2060,7 +2067,7 @@ window.Sprites = (() => {
         g.fillStyle = "rgba(10,16,24,0.62)"; ell(g, px, py, rx, ry, rot); g.fill();
         g.strokeStyle = "rgba(160,190,220,0.2)"; g.lineWidth = 1; g.stroke();
         g.fillStyle = "rgba(150,180,220,0.12)"; ell(g, px - rx * 0.3, py - ry * 0.3, rx * 0.35, ry * 0.25, rot); g.fill();
-        q.fillStyle = "#fff"; ell(q, px, py, rx, ry, rot); q.fill();
+        softEll(q, px, py, rx * 1.05, ry * 1.05, rot);
       }
       // Ölflecken mit Schimmer
       for (let i = 0; i < 4 * AK; i++) {
@@ -2142,7 +2149,7 @@ window.Sprites = (() => {
       for (let i = 0; i < 5 * AK; i++) {
         const px = L + 40 + R() * (aw - 80), py = T + 60 + R() * (ah - 140), rx = 18 + R() * 26, ry = 9 + R() * 12, rot = R();
         g.fillStyle = "rgba(10,14,20,0.45)"; ell(g, px, py, rx, ry, rot); g.fill();
-        q.fillStyle = "#fff"; ell(q, px, py, rx * 0.85, ry * 0.85, rot); q.fill();
+        softEll(q, px, py, rx * 0.95, ry * 0.95, rot);
       }
       g.restore();
     } else {

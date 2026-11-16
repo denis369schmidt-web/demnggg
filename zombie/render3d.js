@@ -2318,9 +2318,9 @@ void main() {
     floorMat.onBeforeCompile = (sh) => {
       sh.uniforms.uFloorWet = floorWetU; sh.uniforms.uFloorSky = floorSkyU;
       sh.fragmentShader = "uniform float uFloorWet;\nuniform vec3 uFloorSky;\n" + sh.fragmentShader.replace("#include <opaque_fragment>",
-        "{ float fr = pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 2.5);\n\t  outgoingLight += mix(uFloorSky * 0.3, uFloorSky * 1.25, fr) * specularStrength * uFloorWet; }\n\t#include <opaque_fragment>");
+        "{ float fr = pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 2.5);\n\t  outgoingLight += mix(uFloorSky * 0.16, uFloorSky * 0.72, fr) * specularStrength * uFloorWet; }\n\t#include <opaque_fragment>");
     };
-    floorMat.customProgramCacheKey = () => "floor:v36";
+    floorMat.customProgramCacheKey = () => "floor:v49"; // v4.9 Himmelsspiegelung gedämpft (Pfützen wirkten aus flachem Winkel grau)
     const floor = mesh(new T3.PlaneGeometry(aw, ah), floorMat, (D.L + D.R) / 2, 0, (D.T + D.B) / 2);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
@@ -3779,15 +3779,10 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     const key = evo ? `${type}:${pi}:e${evo}` : `${type}:${pi}`;
     const list = pools.get(key);
     let M = list && list.pop();
-    if (!M) {
-      const P = evo ? evoPal3D(pal[pi], evo) : pal[pi];
-      M = (builders[type] || ((rr, pp) => buildHumanoid(type, rr, pp)))(r, P);
-      M.evo = evo;
-      bake(M);
-      M.key = key;
-      M.mats.forEach((m) => { m.userData.base = m.color.clone(); });
-      cast(M.root);
-    }
+    if (M) pooled--;
+    if (!M) M = buildModel(type, r, pi, evo, key);
+    // v4.9 Vorrat: diesen Typ gibt es jetzt im Kampf – in ruhigen Bildern Ersatzmodelle vorbauen
+    if (!spareWant.has(key)) spareWant.set(key, { type, r, pi, evo });
     M.root.visible = true;
     // Wunden des Vorbesitzers aus dem Pool abwaschen
     if (M.parts && M.parts.wounds) { M.parts.colAttr.array.set(M.parts.col0); M.parts.colAttr.needsUpdate = true; M.parts.wounds = 0; }
@@ -3800,13 +3795,43 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     scene.add(M.root);
     return M;
   }
-  const POOL_MAX = 8; // pro Typ/Variante – mehr gleichzeitige Gegner kommen kaum vor
+  function buildModel(type, r, pi, evo, key) {
+    const pal = PAL[type] || PAL.walker;
+    const P = evo ? evoPal3D(pal[pi], evo) : pal[pi];
+    const M = (builders[type] || ((rr, pp) => buildHumanoid(type, rr, pp)))(r, P);
+    M.evo = evo;
+    bake(M);
+    M.key = key;
+    M.mats.forEach((m) => { m.userData.base = m.color.clone(); });
+    cast(M.root);
+    return M;
+  }
+  // v4.9 Ersatzmodelle: kommt eine Horde, werden sonst 20 Figuren im selben Bild gebaut (spürbarer Ruckler).
+  // Je gesehenem Typ liegen bis zu SPARE fertige Modelle bereit; gebaut wird nur in ruhigen Phasen
+  // (wenige Gegner da), höchstens eins je viertem Bild – im Kampf kostet das sonst Bildzeit.
+  const SPARE = 6, spareWant = new Map();
+  let spareTick = 0;
+  function topUpSpares() {
+    if (!spareWant.size || pooled >= POOL_TOTAL || (++spareTick & 3)) return;
+    for (const [key, w] of spareWant) {
+      const list = pools.get(key) || (pools.set(key, []), pools.get(key));
+      if (list.length >= SPARE) continue;
+      const M = buildModel(w.type, w.r, w.pi, w.evo, key);
+      M.root.visible = true;
+      list.push(M); pooled++;
+      return;
+    }
+  }
+  // v4.9 Horden haben bis zu 85 Gegner – mit nur 8 Modellen je Typ wurde im Kampf ständig neu gebaut
+  // (bakeParts) und weggeworfen. Jetzt bleiben bis zu 32 je Typ/Variante, höchstens 260 insgesamt.
+  const POOL_MAX = 32, POOL_TOTAL = 260;
+  let pooled = 0;
   function releaseModel(M) {
     if (M.ghost) setGhost(M, 0); // aus dem Pool wieder deckend herausgeben
     scene.remove(M.root);
     if (!pools.has(M.key)) pools.set(M.key, []);
     const list = pools.get(M.key);
-    if (list.length < POOL_MAX) list.push(M); else disposeTree(M.root);
+    if (list.length < POOL_MAX && pooled < POOL_TOTAL) { list.push(M); pooled++; } else disposeTree(M.root);
   }
 
   function animate(M, e, t, near = false) {
@@ -5992,6 +6017,7 @@ void main() {
   function render(w, dt, shake) {
     if (!ready) return;
     time += dt;
+    if (w.state === "play" && (w.enemies ? w.enemies.length : 99) < 14) topUpSpares();
     const t = time;
     if (w.floorCanvas !== builtFloor) buildRoom(w);
     // Neue Blutspuren erst gesammelt hochladen (Textur-Upload ist auf Handys teuer)

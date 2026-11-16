@@ -456,8 +456,11 @@
   const QUALITY_DPR = [1, 1.5, 2];
   // Dynamische Auflösung: unter Last zuerst die 3D-Auflösung stufenweise senken (kaum sichtbar),
   // erst danach eine ganze Qualitätsstufe (Schatten aus bzw. 2D)
-  const RES_STEPS = [1, 0.85, 0.72, 0.6];
-  let resStep = 0;
+  // v4.9 feinere Stufen bis 0,5; die zuletzt passende Stufe merkt sich das Gerät (save.resStep),
+  // damit schwache Handys nicht bei jedem Start erst ein paar Sekunden ruckeln
+  const RES_STEPS = [1, 0.88, 0.77, 0.67, 0.58, 0.5];
+  let resStep = clamp(Math.round(save.resStep ?? 0), 0, RES_STEPS.length - 1);
+  const rememberRes = () => { if (save.resStep !== resStep) { save.resStep = resStep; persist(); } };
   const QUALITY_PARTICLES = [350, 600, 900];
   // 3D (WebGL) wird beim ersten Bedarf gestartet; schlägt das fehl, läuft das Spiel in 2D.
   let webgl = null;
@@ -489,7 +492,8 @@
       Render3D.setBloom(save.bloom !== false);
       Render3D.setCamMode(save.cam || "tp");
       // 3D-Auflösung bewusst begrenzt: Füllrate ist auf Handys der Engpass, das HUD bleibt trotzdem scharf
-      Render3D.resize(W * scale, H * scale, Math.min(window.devicePixelRatio || 1, quality >= 2 ? 1.5 : 1) * RES_STEPS[resStep]);
+      // v4.9 Retina-Displays: Stufe 2 bis 1,75-fach, Stufe 1 bis 1,25-fach (vorher 1,5 bzw. 1) – die Auto-Anpassung senkt bei Bedarf
+      Render3D.resize(W * scale, H * scale, Math.min(window.devicePixelRatio || 1, quality >= 2 ? 1.75 : 1.25) * RES_STEPS[resStep]);
     }
   }
   window.addEventListener("resize", () => { resize(); frameMenuStage(); });
@@ -9272,12 +9276,12 @@
       if (mode3d && resStep < RES_STEPS.length - 1) resStep++;
       else if (quality > 1) { quality--; resStep = 0; save.gfx = quality; persist(); } // v4.4: nie automatisch in die 2D-Draufsicht
       else return;
-      resize();
+      resize(); rememberRes();
       console.log(`[Outbreak] Grafik → Stufe ${quality}, Auflösung ${RES_STEPS[resStep]} (Ø ${avg.toFixed(1)} ms/Bild)`);
     } else if (resStep > 0 && avg < target * 1.06 && ++perf.good >= 3) {
       perf.good = 0;
       resStep--;
-      resize();
+      resize(); rememberRes();
     }
   }
   let pauseFrames = 0, splashGone = false;
@@ -10715,6 +10719,7 @@
   $("gfxBtn").addEventListener("click", () => {
     quality = quality >= 2 ? 1 : 2; // nur 3D-Stufen
     resStep = 0;
+    save.resStep = 0;
     save.gfx = quality;
     persist();
     resize();

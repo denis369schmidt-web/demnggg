@@ -1986,7 +1986,7 @@ window.Sprites = (() => {
     const shard = (x, y) => { g.fillStyle = "rgba(220,240,255,0.8)"; g.fillRect(x, y, 1.2, 1.2); q.fillStyle = "#fff"; q.fillRect(x - 1, y - 1, 3, 3); };
 
     if (theme === "street") {
-      g.fillStyle = "#2a2d31"; g.fillRect(L, T, aw, ah);
+      g.fillStyle = "#32363b"; g.fillRect(L, T, aw, ah); // v5.0 etwas heller: Asphalt soff im Dunkeln ab
       q.fillStyle = gray(34); q.fillRect(L, T, aw, ah);
       // Flickstellen mit Nähten
       for (let i = 0; i < 7 * AK; i++) {

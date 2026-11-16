@@ -784,7 +784,8 @@ window.Render3D = (() => {
     wien: { fog: 0x10141c, sky: 0xb8c8d8, moon: 0xe8f0ff, hemiMul: 0.92, exposure: 1.04, fogNear: 1250, fogFar: 2350 },
     prag: { fog: 0x12100c, sky: 0xb8a078, moon: 0xffd8a0, hemiMul: 1.0, exposure: 1.08, fogNear: 1400, fogFar: 2500 },
   };
-  const ROOF = { street: "#221d1a", hospital: "#2b322e", lab: "#1b2125", markt: "#6e2a1c" };
+  // v5.0 Dächer heller (mondbeschienenes Bitumen statt Schwarz) – in der weiten Schulteransicht füllen sie ein Drittel des Bildes
+  const ROOF = { street: "#3b3f47", hospital: "#3c4641", lab: "#2c353c", markt: "#6e2a1c" };
   const EDGE = { street: "#6b5a50", hospital: "#c9d4ce", lab: "#56626a", markt: "#8a7a62" };
   const PROP = { street: "#3a3532", hospital: "#5b6661", lab: "#38434a" };
   const LAMP = { street: "255,176,90", hospital: "205,255,235", lab: "130,255,150", markt: "255,196,120" };
@@ -1007,6 +1008,17 @@ void main() {
       }
       // ausgebesserte Stellen (dunkler Teer), dann feiner Kies
       for (let k = 0; k < 4; k++) { g.fillStyle = "rgba(0,0,0,0.18)"; g.fillRect(R() * 110, R() * 110, 10 + R() * 26, 6 + R() * 16); }
+      // v5.0 Bitumenbahnen mit hellen Schweißnähten, Dachfenster (eins erleuchtet), Kiesstreifen am Rand
+      for (let x = 0; x < 128; x += 42) { g.fillStyle = "rgba(255,255,255,0.05)"; g.fillRect(x, 0, 1.2, 128); g.fillStyle = "rgba(0,0,0,0.22)"; g.fillRect(x + 1.2, 0, 1, 128); }
+      for (let k = 0; k < 2; k++) {
+        const sx = 12 + R() * 84, sy = 10 + R() * 90, lit = k === 0 && kind !== "lab";
+        g.fillStyle = "rgba(0,0,0,0.45)"; g.fillRect(sx + 1.5, sy + 1.5, 22, 15);
+        g.fillStyle = "#70777f"; g.fillRect(sx - 1.5, sy - 1.5, 23, 16);
+        const sg = g.createLinearGradient(sx, sy, sx + 20, sy + 13);
+        if (lit) { sg.addColorStop(0, "#ffd9a0"); sg.addColorStop(1, "#d99a4e"); } else { sg.addColorStop(0, "#5b6b80"); sg.addColorStop(0.5, "#27303c"); sg.addColorStop(1, "#3a4656"); }
+        g.fillStyle = sg; g.fillRect(sx, sy, 20, 13);
+        g.fillStyle = "rgba(20,24,30,0.8)"; g.fillRect(sx + 9.5, sy, 1, 13);
+      }
       for (let k = 0; k < 3600; k++) { g.fillStyle = `rgba(${R() > 0.5 ? "255,255,255" : "0,0,0"},${0.04 + R() * 0.1})`; const sz = 0.5 + R() * 1.1; g.fillRect(R() * 128, R() * 128, sz, sz); }
       g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 1; for (let y = 0; y < 128; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke(); }
       g.strokeStyle = "rgba(255,255,255,0.06)"; g.lineWidth = 0.5; for (let y = 1; y < 128; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke(); }
@@ -2139,7 +2151,7 @@ void main() {
   const SKY_W = 3400, SKY_H = 700, SKY_BACK = 320, SKY_Y0 = -60; // Welteinheiten; sichtbar ist (Schulterkamera) das Band ≈ 70–530 über dem Boden
   function skylineTexture(id) {
     const fires = [];
-    const t = tex(`sky:${id}`, 1024, 210, (g, W, H) => {
+    const t = tex(`sky5:${id}`, 1024, 210, (g, W, H) => {
       let s = Math.floor(strHash(`sky|${id}`) * 4294967296) >>> 0;
       const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
       const py = (wy) => H - (wy - SKY_Y0) / SKY_H * H; // Welthöhe → Bildzeile
@@ -2188,12 +2200,13 @@ void main() {
         const fg = g.createRadialGradient(fx, fy, 0, fx, fy, 60); fg.addColorStop(0, "rgba(255,150,60,0.6)"); fg.addColorStop(0.4, "rgba(220,80,30,0.28)"); fg.addColorStop(1, "rgba(120,30,10,0)");
         g.fillStyle = fg; g.fillRect(fx - 60, fy - 60, 120, 120);
       }
-      row(90, 220, "#0c1018", 0.09, 20);
+      row(90, 220, "#121826", 0.2, 20); // v5.0 vordere Reihe: mehr erleuchtete Fenster, nicht mehr fast schwarz
+      { const sg = g.createLinearGradient(0, py(70), 0, py(0)); sg.addColorStop(0, "rgba(255,150,70,0)"); sg.addColorStop(1, "rgba(255,150,70,0.22)"); g.fillStyle = sg; g.fillRect(0, py(70), W, py(0) - py(70)); } // Straßenlicht am Fuß
       for (const [u] of fires) { // Flammen auf den vorderen Dächern
         const fx = u * W;
         for (let f = 0; f < 10; f++) { g.fillStyle = `rgba(255,${120 + R() * 110 | 0},40,${0.65 + R() * 0.3})`; const w2 = 2 + R() * 4, h2 = 5 + R() * 14, x0 = fx - 16 + R() * 32, y0 = py(170 + R() * 40); g.beginPath(); g.moveTo(x0 - w2, y0); g.quadraticCurveTo(x0, y0 - h2, x0 + w2, y0); g.fill(); }
       }
-      g.fillStyle = "#06080b"; g.fillRect(0, py(0), W, H - py(0));
+      g.fillStyle = "#0c0f14"; g.fillRect(0, py(0), W, H - py(0));
     }, false);
     t.userData.fires = t.userData.fires || fires;
     return t;
@@ -2326,7 +2339,26 @@ void main() {
     floor.receiveShadow = true;
     g.add(floor);
     // Umgebung außerhalb der Arena (dunkler Boden)
-    const outer = mesh(new T3.PlaneGeometry(D.W * 4, WHt * 4), slam("#0a0d0c"), D.W / 2, -0.5, WHt / 2);
+    // v5.0 statt einer schwarzen Fläche: Stadt von oben (dunkle Häuserblöcke, Straßen mit Laternenpunkten, einzelne helle Fenster)
+    const outerTex = tex("fx:citynight", 256, 256, (cg) => {
+      let s2 = 977; const R2 = () => { s2 = (s2 * 1664525 + 1013904223) >>> 0; return s2 / 4294967296; };
+      cg.fillStyle = "#0b0e12"; cg.fillRect(0, 0, 256, 256);
+      for (let by = 0; by < 4; by++) for (let bx = 0; bx < 4; bx++) {
+        const x0 = bx * 64 + 7, y0 = by * 64 + 7;
+        for (let k = 0; k < 4; k++) {
+          const w0 = 18 + R2() * 12, h0 = 18 + R2() * 12, x1 = x0 + (k % 2) * 26 + R2() * 3, y1 = y0 + (k >> 1) * 26 + R2() * 3, v = 22 + R2() * 16 | 0;
+          cg.fillStyle = `rgb(${v},${v + 3},${v + 8})`; cg.fillRect(x1, y1, w0, h0);
+          cg.fillStyle = "rgba(255,255,255,0.05)"; cg.fillRect(x1, y1, w0, 1); cg.fillStyle = "rgba(0,0,0,0.35)"; cg.fillRect(x1, y1 + h0 - 1.5, w0, 1.5);
+          if (R2() < 0.45) { cg.fillStyle = R2() < 0.8 ? "rgba(255,196,120,0.85)" : "rgba(150,190,255,0.8)"; cg.fillRect(x1 + 3 + R2() * (w0 - 8), y1 + 3 + R2() * (h0 - 8), 2.2, 1.6); }
+        }
+      }
+      for (let i = 0; i < 4; i++) for (let k = 0; k < 6; k++) { // Laternen entlang der Straßen
+        const gl = (x, y) => { const gr = cg.createRadialGradient(x, y, 0, x, y, 7); gr.addColorStop(0, "rgba(255,170,90,0.5)"); gr.addColorStop(1, "rgba(255,170,90,0)"); cg.fillStyle = gr; cg.fillRect(x - 7, y - 7, 14, 14); };
+        gl(i * 64 + 2, k * 43 + 10); gl(k * 43 + 20, i * 64 + 2);
+      }
+    }, true);
+    const outerMap = outerTex.clone(); outerMap.needsUpdate = true; outerMap.repeat.set(D.W * 4 / 620, WHt * 4 / 620);
+    const outer = mesh(new T3.PlaneGeometry(D.W * 4, WHt * 4), new T3.MeshBasicMaterial({ map: outerMap, color: 0xe0e4ea, fog: false }), D.W / 2, -0.5, WHt / 2);
     outer.rotation.x = -Math.PI / 2;
     g.add(outer);
 
@@ -5564,7 +5596,8 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     if (room) for (let i = 0; i < room.lamps.length; i++) {
       const l = room.lamps[i];
       const fl = lampLevel(l, t);
-      flat(floorB, l.px, 0.8, l.pz, 0, 92, 92, CELL.glow, room.lampRgb, 0.3 * fl);
+      flat(floorB, l.px, 0.8, l.pz, 0, 100, 100, CELL.glow, room.lampRgb, 0.4 * fl);
+      flat(floorB, l.px, 0.7, l.pz, 0, 230, 230, CELL.glow, room.lampRgb, 0.17 * fl); // v5.0 weiter Lichthof: warme Inseln auf dem dunklen Boden
       bill(addB, l.x, 48, l.z, 15, CELL.glow, room.lampRgb, 0.95 * fl);
       bill(addB, l.x, 48, l.z, 5, CELL.glow, "255,255,240", fl);
     }

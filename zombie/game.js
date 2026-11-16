@@ -1418,6 +1418,7 @@
     if (state !== "play" || e.target !== canvas && e.target !== stage) return;
     ensureAudio();
     const p = toWorld(e);
+    if (quickTap(p)) return; // v4.8 Schnell-Nachrichten im Gruppenkampf
     // Knopf unten rechts oder Doppeltipp = Ausweichrolle
     const db = dashBtn();
     if ((p.x - db.x) ** 2 + (p.y - db.y) ** 2 < (db.r + 8) ** 2) { requestDash(); return; }
@@ -1445,18 +1446,21 @@
   let dashWanted = false;
   const DASH_T = 0.18, DASH_CD = 2.4;
   const requestDash = () => { if (state === "play") dashWanted = true; };
-  const dashBtn = () => ({ x: R - 46, y: SB - 58, r: 34 });
+  // v4.8 Linkshänder: Aktionsknöpfe gespiegelt auf der linken Seite
+  const hx = (d) => (save.leftHand ? L + d : R - d);
+  const dashBtn = () => ({ x: hx(46), y: SB - 58, r: 34 });
   // v2.9 Wurfwaffe (über der Rolle), Art wechseln (kleiner Chip), Spezialfähigkeit (links neben der Rolle)
   let throwWanted = false, ultWanted = false;
   const requestThrow = () => { if (state === "play") throwWanted = true; };
   const requestUlt = () => { if (state === "play") ultWanted = true; };
-  const throwBtn = () => ({ x: R - 46, y: SB - 146, r: 30 });
-  const swapBtn = () => ({ x: R - 88, y: SB - 180, r: 16 });
-  const ultBtn = () => ({ x: R - 130, y: SB - 58, r: 32 });
+  const throwBtn = () => ({ x: hx(46), y: SB - 146, r: 30 });
+  const swapBtn = () => ({ x: hx(88), y: SB - 180, r: 16 });
+  const ultBtn = () => ({ x: hx(130), y: SB - 58, r: 32 });
   let lastTap = { t: 0, x: 0, y: 0 };
   window.addEventListener("keydown", (e) => {
     if ((e.key === " " || e.key === "Shift") && !e.repeat) { requestDash(); if (state === "play") e.preventDefault(); }
     const kk = e.key.toLowerCase();
+    if (!e.repeat && state === "play" && run && run.pvp && run.pvp.party && kk >= "1" && kk <= String(QUICK_MSGS.length)) { sendQuick(+kk - 1); return; }
     if (!e.repeat && state === "play") { if (kk === "q") requestThrow(); else if (kk === "r") cycleThrow(); else if (kk === "e") requestUlt(); else if (kk === "c" && mode3d) cycleCam(); }
     keys.add(e.key.toLowerCase());
     if (e.key === "Escape" || e.key === "p") togglePause();
@@ -2114,6 +2118,7 @@
       if (!b.friendly && !player.spectate && (player.x - b.x) ** 2 + (player.y - b.y) ** 2 < (player.r + b.r - 3) ** 2) {
         b.dead = true;
         acidSplash(b);
+        if (b.from != null && run.pvp) run.pvp.lastBy = b.from; // v4.8 wer zuletzt getroffen hat, bekommt den Abschuss
         hurtPlayer(b.dmg);
         if (b.pfx) pvpStatus(b.pfx); // v4.2 Arena: Brand, Gift, Frost des Gegners
         if (b.kind === "paper") debuff("slowT", 2.2, "AUSGEBREMST");
@@ -6037,8 +6042,9 @@
       if (m.t === "final") { partyFinal(m.win == null ? null : String(m.win), String(m.why || "")); return; }
       if (m.t === "gone") { partyGone(+m.pid, String(m.why || "")); return; }
     }
+    if (m.t === "qc") { showQuick(from, m.i); return; }
     if (m.t === "quit") { partyGone(from, tr("{n} hat aufgegeben", { n: partyName(pv, from) })); return; }
-    if (m.t === "dead") { partyDeath(from); return; }
+    if (m.t === "dead") { if (pv.alive.has(from)) partyTally(from, m.by == null ? null : +m.by); partyDeath(from); return; }
     const e = pv.ents.get(from);
     if (!e || pv.over) return;
     if (m.t === "s") {
@@ -6056,13 +6062,13 @@
       for (const b of list) {
         const at = partyLocal(pv, +b[0] || 0, +b[1] || 0);
         eBullets.push({ x: at.x, y: at.y, vx: (+b[2] || 0) * f, vy: (+b[3] || 0) * f, r: clamp(+b[5] || 5, 2, 14), dmg: e.foe ? clamp(+b[4] || 0, 0, 5000) * PVP.dmg : 0,
-          color: col[0], rgb: col[1], life: clamp(+b[6] || 1, 0.1, 3), dead: false, friendly: !e.foe, pfx: e.foe && b.length > 7 ? { b: +b[7] || 0, p: +b[8] || 0, s: +b[9] || 0 } : null });
+          color: col[0], rgb: col[1], life: clamp(+b[6] || 1, 0.1, 3), dead: false, friendly: !e.foe, from, pfx: e.foe && b.length > 7 ? { b: +b[7] || 0, p: +b[8] || 0, s: +b[9] || 0 } : null });
       }
       if (list.length) { e.flashT = 0.07; if (Math.random() < 0.4) sfx("shoot"); }
     } else if (m.t === "h" && pv.cd <= 0 && e.foe && !pv.dead) {
       const now = performance.now(), q = pv.inB.get(-from) || { t: 0, n: 0 };
       if (now - q.t > 1000) { q.t = now; q.n = 0; }
-      if (++q.n <= 30) hurtPlayer(clamp(+m.d || 0, 0, 5000) * PVP.dmg);
+      if (++q.n <= 30) { pv.lastBy = from; hurtPlayer(clamp(+m.d || 0, 0, 5000) * PVP.dmg); }
       pv.inB.set(-from, q);
     }
   }
@@ -6075,7 +6081,8 @@
     p.hp = 0; p.spectate = true;
     fxBlood(p.x, p.y, rand(0, TAU), 16, RED, 240);
     slowMo = Math.max(slowMo, 0.5); shake = Math.max(shake, 8);
-    pv.hub.send({ t: "dead" });
+    pv.hub.send({ t: "dead", by: pv.lastBy ?? null });
+    partyTally(pv.me, pv.lastBy);
     pv.alive.delete(pv.me);
     showBanner(tr("DU BIST RAUS"), tr("Zuschauen bis zum Rundenende"), 2.2);
     if (window.GameAudio) GameAudio.stinger("death");
@@ -6093,6 +6100,122 @@
       if (e.foe) { sfx("kill"); shake = Math.max(shake, 5); }
     }
     if (pv.hub.host) partyCheck();
+  }
+  // v4.8 Schnell-Nachrichten: nur feste Sprüche (Index statt Text – nichts Anstößiges, jede Sprache)
+  const QUICK_MSGS = ["Los geht's!", "Hilfe!", "Gut gespielt!", "Nochmal?", "Warte kurz!", "Haha!"];
+  const QUICK_GAP = 1200;
+  let quickAt = 0, quickOpen = false;
+  const quickHub = () => (run && run.pvp && run.pvp.party ? run.pvp.hub : lobby && lobby.hub) || null;
+  function sendQuick(i) {
+    const hub = quickHub(), now = performance.now();
+    if (!hub || !QUICK_MSGS[i] || now - quickAt < QUICK_GAP) return false;
+    quickAt = now;
+    try { hub.send({ t: "qc", i }); } catch { return false; }
+    showQuick(hub.me, i);
+    return true;
+  }
+  // eingehend: höchstens eine Nachricht je Sekunde und Absender
+  const quickSeen = new Map();
+  function showQuick(pid, i) {
+    i = Math.floor(+i);
+    if (!QUICK_MSGS[i]) return;
+    const now = performance.now(), pv = run && run.pvp && run.pvp.party ? run.pvp : null;
+    if (pid !== (pv ? pv.me : lobby && lobby.me)) { if (now - (quickSeen.get(pid) || 0) < 900) return; quickSeen.set(pid, now); }
+    if (pv) { (pv.chat || (pv.chat = new Map())).set(pid, { i, t: now }); if (pid !== pv.me) sfx("coin"); return; }
+    if (!lobby) return;
+    const q = lobby.players.find((x) => x.pid === pid);
+    (lobby.chat || (lobby.chat = [])).push({ name: q ? q.name : "?", i, me: pid === lobby.me });
+    if (lobby.chat.length > 4) lobby.chat.shift();
+    renderQuickLog();
+  }
+  function renderQuickLog() {
+    const el = $("arenaChatLog");
+    if (!el) return;
+    const list = (lobby && lobby.chat) || [];
+    el.innerHTML = list.map((c) => `<p class="${c.me ? "me" : ""}"><b>${escHtml(c.name)}</b> ${escHtml(tr(QUICK_MSGS[c.i]))}</p>`).join("");
+    el.classList.toggle("hidden", !list.length);
+  }
+  // Knopf im Kampf: an der Stelle der Wurfwaffe (die gibt es im 1 gegen 1 nicht), Sprüche klappen nach innen auf
+  const chatBtn = () => ({ x: hx(46), y: SB - 146, r: 26 });
+  const quickChip = (i) => ({ x: hx(150), y: SB - 112 - i * 38, w: 150, h: 32 });
+  function quickTap(p) {
+    if (!run || !run.pvp || !run.pvp.party) return false;
+    if (quickOpen) {
+      for (let i = 0; i < QUICK_MSGS.length; i++) {
+        const c = quickChip(i);
+        if (Math.abs(p.x - c.x) < c.w / 2 && Math.abs(p.y - c.y) < c.h / 2 + 2) { sendQuick(i); quickOpen = false; return true; }
+      }
+    }
+    const b = chatBtn();
+    if ((p.x - b.x) ** 2 + (p.y - b.y) ** 2 < (b.r + 6) ** 2) { quickOpen = !quickOpen; return true; }
+    quickOpen = false;
+    return false;
+  }
+  function drawQuick(list) {
+    const pv = run.pvp, now = performance.now(), b = chatBtn();
+    // Sprechblasen über den Köpfen (4 s)
+    ctx.font = "700 12px 'Barlow Condensed', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    if (pv.chat) for (const [pid, c] of pv.chat) {
+      const age = now - c.t;
+      if (age > 4000) { pv.chat.delete(pid); continue; }
+      const who = pid === pv.me ? (player.spectate ? null : player) : list.find((e) => e.pid === pid && !e.dead);
+      if (!who) continue;
+      const q = scr(who.x, who.y, 64);
+      if (!q || q.behind) continue;
+      const txt = tr(QUICK_MSGS[c.i]), w = ctx.measureText(txt).width + 16, y = q.y - 56;
+      ctx.globalAlpha = clamp((4000 - age) / 400, 0, 1);
+      ctx.fillStyle = "rgba(245,240,226,0.94)";
+      ctx.beginPath(); ctx.roundRect(q.x - w / 2, y - 11, w, 22, 6); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(q.x - 5, y + 10); ctx.lineTo(q.x + 5, y + 10); ctx.lineTo(q.x, y + 16); ctx.fill();
+      ctx.fillStyle = "#1c1913"; ctx.fillText(txt, q.x, y + 1);
+    }
+    ctx.globalAlpha = 1;
+    if (state !== "play") return;
+    // Knopf
+    const ready = now - quickAt >= QUICK_GAP;
+    ctx.globalAlpha = ready ? 0.88 : 0.5;
+    ctx.fillStyle = quickOpen ? "rgba(40,60,30,0.85)" : "rgba(6,9,8,0.6)"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = quickOpen ? "#a8ff3e" : "rgba(239,232,212,0.5)"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 2, 0, TAU); ctx.stroke();
+    drawIcon(ctx, "miniRadio", b.x, b.y, 22, "#e8efe9");
+    ctx.globalAlpha = 1;
+    if (!quickOpen) return;
+    ctx.font = "700 13px 'Barlow Condensed', sans-serif";
+    QUICK_MSGS.forEach((m, i) => {
+      const c = quickChip(i);
+      ctx.fillStyle = "rgba(12,14,12,0.88)"; ctx.fillRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h);
+      ctx.fillStyle = "#a8ff3e"; ctx.fillRect(save.leftHand ? c.x - c.w / 2 : c.x + c.w / 2 - 3, c.y - c.h / 2, 3, c.h);
+      ctx.fillStyle = "#efe8d4"; ctx.textAlign = "center"; ctx.fillText(`${tr(m)}${touchSeen ? "" : `  [${i + 1}]`}`, c.x, c.y + 1);
+    });
+  }
+  // v4.8 Abschuss-Meldung und Bilanz (Abschüsse/Ausfälle je Spieler, über alle Runden des Matches)
+  const KILLFEED_T = 4.5;
+  function partyTally(victim, by) {
+    const pv = run.pvp, m = pvpMatch;
+    if (!pv || !m) return;
+    if (by != null && (by === victim || !pv.players.some((q) => q.pid === by))) by = null;
+    const st = m.stats || (m.stats = {}), row = (pid) => st[pid] || (st[pid] = { k: 0, d: 0 });
+    row(victim).d++;
+    if (by != null) row(by).k++;
+    (m.feed || (m.feed = [])).push({ by: by == null ? null : partyName(pv, by), victim: partyName(pv, victim), byMe: by === pv.me, meDied: victim === pv.me, t: performance.now() });
+    if (m.feed.length > 6) m.feed.shift();
+    if (by === pv.me) track("arenaKills");
+  }
+  function drawKillfeed(y) {
+    const m = pvpMatch, now = performance.now();
+    if (!m || !m.feed) return;
+    const list = m.feed.filter((f) => now - f.t < KILLFEED_T * 1000).slice(-3);
+    ctx.font = "800 12px 'Barlow Condensed', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (const f of list) {
+      const a = clamp((KILLFEED_T * 1000 - (now - f.t)) / 600, 0, 1), txt = f.by ? `${f.by}  ›  ${f.victim}` : tr("{n} ist gefallen", { n: f.victim });
+      const w = ctx.measureText(txt).width + 22;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = f.byMe ? "rgba(40,70,20,0.85)" : f.meDied ? "rgba(80,20,16,0.85)" : "rgba(12,14,12,0.75)";
+      ctx.fillRect(W / 2 - w / 2, y - 10, w, 20);
+      ctx.fillStyle = f.byMe ? "#c8ff8a" : f.meDied ? "#ffb09a" : "#efe8d4";
+      ctx.fillText(txt, W / 2, y + 1);
+      y += 23;
+    }
+    ctx.globalAlpha = 1;
   }
   // jemand ist weg (verlassen, aufgegeben, Zeitüberschreitung): zählt wie ausgeschieden, auch für die folgenden Runden
   function partyGone(pid, why) {
@@ -6198,6 +6321,7 @@
         (mates.length ? line("hand", tr("Mit dir"), mates.map((q) => escHtml(q.name)).join(", "), "", 1) : "") +
         line("skull", foes.length > 1 ? tr("Gegner") : tr("Gegner"), foes.map((q) => `${escHtml(q.name)}${m.duo && q.elo ? ` · ${q.elo}` : ""}`).join(", "), "", 2) +
         line("trophy", tr("Endstand"), `${m.me} : ${m.them}`, won ? "gold" : "", 3) +
+        partyTable(pv, m) +
         (why ? line("info", tr("Grund"), escHtml(why), "", 4) : "") +
         (eloTxt ? line("medal", tr("Wertung"), eloTxt, "", 5) : "") +
         line("combo", tr("Bilanz"), tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 }), "", 6) +
@@ -6208,6 +6332,16 @@
       show(ui.over);
       refreshMenu();
     }, 1900);
+  }
+  // v4.8 Endtabelle: alle Spieler nach Abschüssen, dann wenigen Ausfällen
+  function partyTable(pv, m) {
+    const st = m.stats || {}, rows = pv.players.map((q) => ({ q, k: (st[q.pid] || {}).k || 0, d: (st[q.pid] || {}).d || 0 }));
+    rows.sort((a, b) => b.k - a.k || a.d - b.d || a.q.pid - b.q.pid);
+    const body = rows.map((r, i) => {
+      const mine = r.q.pid === pv.me, team = pv.ffa ? "tx" : `t${r.q.team}`;
+      return `<tr class="${mine ? "me" : ""}"><td>${i + 1}</td><td><i class="dot ${team}"></i>${escHtml(r.q.name)}${pv.left.has(r.q.pid) ? ` <em>${tr("weg")}</em>` : ""}</td><td>${r.k}</td><td>${r.d}</td></tr>`;
+    }).join("");
+    return `<table class="party-table" style="--i:4"><thead><tr><th>#</th><th>${tr("Spieler")}</th><th>${tr("Abschüsse")}</th><th>${tr("Ausfälle")}</th></tr></thead><tbody>${body}</tbody></table>`;
   }
   function updateParty(dt) {
     const pv = run.pvp;
@@ -6247,6 +6381,8 @@
     const lag = pv.quiet > 1, ms = pv.ping == null ? null : Math.round(pv.ping);
     ctx.textAlign = "right"; ctx.fillStyle = lag ? "#ff6a4a" : ms == null || ms < 90 ? "#9fe08a" : ms < 180 ? "#ffd36a" : "#ff8a3a";
     ctx.fillText(lag ? tr("Verbindung hakt … {s} s", { s: Math.max(0, Math.ceil(PVP.timeout - pv.quiet)) }) : ms == null ? tr("Ping …") : tr("Ping {n} ms", { n: ms }), x + w, y + 8);
+    drawKillfeed(y + 32);
+    drawQuick(list);
     // Namen über den Köpfen: blau = mit dir, rot = Gegner
     ctx.font = "800 12px 'Barlow Condensed', sans-serif"; ctx.textAlign = "center";
     for (const e of list) {
@@ -6377,6 +6513,7 @@
         hub.onmsg = (m) => {
           if (lobby !== me) return;
           seen.set(+m.f, performance.now());
+          if (m.t === "qc") { showQuick(+m.f, m.i); return; }
           if (m.t !== "hello" || !m.i) return;
           if (String(m.i.v || "") !== netVersion()) {
             // verschiedene Versionen: freundlich abweisen statt mit falschen Regeln zu kämpfen
@@ -6401,6 +6538,7 @@
           if (lobby !== me) return;
           if (+m.f === 0) seen.set(0, performance.now());
           if (m.t === "ver") { closeLobby(); renderArena(tr(VER_TXT, { a: netVersion(), b: String(m.v || "?") })); return; }
+          if (m.t === "qc") { showQuick(+m.f, m.i); return; }
           if (m.t === "lobby" && Array.isArray(m.players)) { me.players = m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)); me.ffa = !!m.ffa; renderArena(); }
           else if (m.t === "go" && Array.isArray(m.players)) {
             lobby = null;
@@ -6496,6 +6634,9 @@
       $("arenaStart").disabled = !ok;
       $("arenaStart").textContent = ok ? tr("Kampf starten · {m}", { m: modeLabel(lb.players, lb.ffa) }) : lb.players.length < 2 ? tr("Warte auf Mitspieler …") : tr("Beide Teams brauchen Spieler");
     }
+    $("arenaChat").classList.toggle("hidden", !inRoom);
+    if (inRoom && !$("arenaChat").childElementCount) $("arenaChat").innerHTML = QUICK_MSGS.map((m, i) => `<button class="quick-chip" data-i="${i}">${escHtml(tr(m))}</button>`).join("");
+    if (!inRoom) $("arenaChatLog").classList.add("hidden"); else renderQuickLog();
     $("arenaClimb").disabled = wait;
     $("arenaCancel").classList.toggle("hidden", !wait);
     $("arenaCancel").textContent = inRoom && !hosting ? tr("Raum verlassen") : tr("Abbrechen");
@@ -7998,7 +8139,7 @@
     ctx.textAlign = "center";
     act.forEach((k, i) => {
       const d = POWERUPS[k], left = run.pu[k], f = Math.max(0, left / ((run.puMax && run.puMax[k]) || d.dur));
-      const x = 42 + i * 54, y = SB - 40, warn = left < 2.5 && Math.sin(run.time * 18) < 0, col = `rgb(${d.rgb})`;
+      const x = save.leftHand ? W - 42 - i * 54 : 42 + i * 54, y = SB - 40, warn = left < 2.5 && Math.sin(run.time * 18) < 0, col = `rgb(${d.rgb})`;
       glowAt(d.rgb, x, y, 34, 0.35); ctx.globalAlpha = 1;
       ctx.fillStyle = "rgba(6,9,8,0.82)"; ctx.beginPath(); ctx.arc(x, y, 22, 0, TAU); ctx.fill();
       ctx.strokeStyle = "rgba(255,255,255,0.14)"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, y, 18.5, 0, TAU); ctx.stroke();
@@ -10257,6 +10398,7 @@
     $("cineBtn").innerHTML = row("cinema", tr("Kino-Effekte"), sw(save.cine !== false));
     $("motionBtn").innerHTML = row("motion", tr("4D-Bewegung (Neigen)"), sw(save.motion !== false));
     $("shakeBtn").innerHTML = row("explosion", tr("Bildschirmwackeln"), sw(save.shakeFx !== false));
+    $("handBtn").innerHTML = row("hand", tr("Linkshänder (Knöpfe links)"), sw(!!save.leftHand));
     $("bloomBtn").innerHTML = row("star", tr("Leuchteffekte"), sw(save.bloom !== false));
     $("bloomBtn").classList.toggle("hidden", !init3d());
     $("camBtn").innerHTML = row("camView", tr("Kamera"), valTxt(tr(CAM_NAMES[save.cam || "tp"]) + (quality === 0 ? ` ${tr("(nur 3D)")}` : "")));
@@ -10412,6 +10554,7 @@
   $("arenaCancel").addEventListener("click", () => { closeLobby(); renderArena(); });
   $("arenaInvite").addEventListener("click", () => shareInvite());
   $("arenaParty").addEventListener("click", (ev) => { const b = ev.target.closest(".party-chip[data-pid]"); if (b && !b.disabled) toggleTeam(+b.dataset.pid); });
+  $("arenaChat").addEventListener("click", (ev) => { const b = ev.target.closest(".quick-chip[data-i]"); if (b) { ensureAudio(); sendQuick(+b.dataset.i); } });
   $("arenaMode").addEventListener("click", () => toggleFfa());
   $("arenaName").addEventListener("change", (ev) => { save.pname = String(ev.target.value || "").replace(/[<>]/g, "").trim().slice(0, 14); persist(); });
   $("arenaStart").addEventListener("click", () => { ensureAudio(); startLobbyMatch(); });
@@ -10511,6 +10654,7 @@
   $("soundBtn2").addEventListener("click", toggleSound);
   $("cineBtn").addEventListener("click", () => { save.cine = save.cine === false; persist(); applyCine(); renderSettings(); });
   $("shakeBtn").addEventListener("click", () => { save.shakeFx = save.shakeFx === false; persist(); renderSettings(); });
+  $("handBtn").addEventListener("click", () => { save.leftHand = !save.leftHand; persist(); renderSettings(); });
   // v3.1 Kamera-Perspektive: Übersicht → Nah → Third Person (Taste C, Gamepad Select, Einstellungen, Pause)
   function cycleCam(silent) {
     const i = CAM_ORDER.indexOf(save.cam || "tp");

@@ -1622,3 +1622,23 @@ canvas.stamp-art { width: auto; max-width: 100%; }
 .rules-card h3 { margin: 0 0 6px; font: 800 11px/1 var(--f-ui); letter-spacing: 0.2em; text-transform: uppercase; color: var(--signal-2); }
 .rules-card ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
 .rules-card li { font: 600 12.5px/1.3 var(--f-ui); color: var(--ink-2); text-wrap: pretty; }
+
+/* v4.8 Gruppenkampf: Endtabelle im Bericht */
+.stats > .party-table { grid-column: 1 / -1; width: 100%; border-collapse: collapse; font: 600 14px/1.2 var(--f-ui); color: inherit; border-bottom: 1px solid rgba(127, 127, 127, 0.3); }
+.party-table th { padding: 7px 8px; text-align: right; opacity: 0.65; font: 800 10px/1 var(--f-ui); letter-spacing: 0.12em; text-transform: uppercase; }
+.party-table td { padding: 6px 8px; text-align: right; border-top: 1px solid rgba(127, 127, 127, 0.25); font-variant-numeric: tabular-nums; }
+.party-table th:nth-child(2), .party-table td:nth-child(2) { text-align: left; width: 100%; }
+.party-table th:first-child, .party-table td:first-child { text-align: center; width: 1.5em; opacity: 0.7; }
+.party-table tr.me td { background: rgba(120, 170, 40, 0.18); font-weight: 800; }
+.party-table .dot { display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #8a8470; vertical-align: 1px; }
+.party-table .dot.t0 { background: #5ab0ff; } .party-table .dot.t1 { background: #ff6a4a; } .party-table .dot.tx { background: #ffd36a; }
+.party-table em { opacity: 0.6; font-style: normal; font-size: 11px; }
+
+/* v4.8 Schnell-Nachrichten in der Lobby */
+.quick-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.quick-chip { flex: 1 1 auto; min-height: 36px; padding: 6px 10px; border: 1px solid #2c3632; border-radius: 3px; color: #efe8d4; background: rgba(255, 255, 255, 0.05); font: 700 13px/1 var(--f-ui); cursor: pointer; }
+.quick-chip:active { background: rgba(168, 255, 62, 0.16); border-color: #a8ff3e; }
+.chat-log { margin-top: 6px; padding: 6px 10px; border-left: 3px solid #a8ff3e; background: rgba(0, 0, 0, 0.25); font: 600 13px/1.35 var(--f-ui); color: var(--text-2); }
+.chat-log p { margin: 0; }
+.chat-log b { color: #9fd4ff; margin-right: 4px; }
+.chat-log p.me b { color: #c8ff8a; }

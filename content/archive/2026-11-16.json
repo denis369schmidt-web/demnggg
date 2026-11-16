@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-11-16",
+  "generatedAt": "2026-11-16T13:40:19.682Z",
+  "attempt": 0,
+  "theme": {
+    "id": "phoenix",
+    "title": "Phönix",
+    "mood": "trotzig",
+    "description": "Rückschläge in Treibstoff verwandeln und neu starten.",
+    "keywords": [
+      "Asche",
+      "Feuer",
+      "Neustart",
+      "Flügel",
+      "Glut",
+      "Comeback"
+    ]
+  },
+  "challenge": {
+    "id": "silben-sprint",
+    "title": "Silben-Sprint",
+    "task": "Schreibe 8 Bars zum Thema „Phönix“ und lande jede Punchline exakt auf der Snare (Zählzeit 3).",
+    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
+    "bars": 8,
+    "bpm": 103
+  },
+  "wordPacks": [
+    {
+      "id": "phoenix-thema",
+      "title": "Thema: Phönix",
+      "words": [
+        "Flügel",
+        "Neustart",
+        "Asche",
+        "Feuer",
+        "Glut",
+        "Comeback"
+      ]
+    },
+    {
+      "id": "2026-11-16-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Schatten",
+        "Magnet",
+        "Skyline",
+        "Asphalt",
+        "Radar",
+        "Anker"
+      ]
+    },
+    {
+      "id": "2026-11-16-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Instinkt",
+        "Mut",
+        "Zweifel",
+        "pushen",
+        "gleiten",
+        "schweben"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Nacht",
+      "b": "gemacht"
+    },
+    {
+      "a": "Wind",
+      "b": "geschwind"
+    },
+    {
+      "a": "Kern",
+      "b": "fern"
+    },
+    {
+      "a": "Glut",
+      "b": "Mut"
+    },
+    {
+      "a": "Zeit",
+      "b": "bereit"
+    },
+    {
+      "a": "Welle",
+      "b": "Schwelle"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Mit Asphalt in der Stimme klingt selbst Stille wie ein Ruf",
+      "syllables": 14
+    },
+    {
+      "line": "Zwischen Comeback und Asphalt find ich Raum für den Reim",
+      "syllables": 14
+    },
+    {
+      "line": "Glut als Kompass und die Snare gibt den Takt",
+      "syllables": 11
+    },
+    {
+      "line": "Glut im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 10
+    }
+  ],
+  "flowTip": {
+    "id": "snare-anker",
+    "title": "Snare als Anker",
+    "tip": "Setze betonte Silben bewusst auf Zählzeit 2 und 4 – die Snare trägt deine Betonung, nicht umgekehrt."
+  },
+  "quote": "Wer den Takt fühlt, muss ihn nicht mehr zählen.",
+  "beatPreset": {
+    "bpm": 103,
+    "pattern": "Uptempo Battle",
+    "energy": "hoch"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-11-16",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

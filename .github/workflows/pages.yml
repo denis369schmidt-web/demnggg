@@ -7,7 +7,7 @@ name: Web-Version (GitHub Pages)
 
 on:
   push:
-    branches: [main]
+    branches: [main, ccr-592df8e9-oqm0to]
     paths:
       - "zombie/**"
       - ".github/workflows/pages.yml"
@@ -31,6 +31,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .

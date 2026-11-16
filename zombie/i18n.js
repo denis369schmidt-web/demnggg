@@ -1042,6 +1042,7 @@ window.I18N = (() => {
     "Aufstieg: zehn Bezirke Heilbronn, nach jedem ein Skill. Dein bester Kämpfer bleibt gespeichert.": "Climb: ten districts of Heilbronn, one skill after each. Your best fighter is kept.",
     "Online-Kampf": "Online fight",
     "Raum erstellen": "Create room",
+    "Diese Vorschau blockiert Online-Verbindungen. Öffnet das Spiel direkt: {u}": "This preview blocks online connections. Open the game directly: {u}",
     "Linkshänder (Knöpfe links)": "Left-handed (buttons on the left)",
     "Los geht's!": "Let's go!",
     "Hilfe!": "Help!",

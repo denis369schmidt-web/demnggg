@@ -6407,6 +6407,15 @@
 
   // ---------------------------------------------------------------- Fenster „Arena“
   const NET_ERR = { relay: "Keine Verbindung zu den Spiel-Servern – Internet prüfen (WLAN/Mobilfunk) und nochmal versuchen", full: "Der Raum ist voll (höchstens 4 Spieler) oder das Match läuft schon", noroom: "Raum nicht gefunden – stimmt der Code und hat dein Freund die Arena noch offen?", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst – Internet prüfen und nochmal versuchen", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
+  // v4.8 Eingebettete Vorschau (z. B. eine Seite in einem fremden Rahmen) sperrt oft Verbindungen zu fremden Servern:
+  // dann gleich auf die Web-Version verweisen statt „Internet prüfen“
+  const embedded = (() => { try { return window.top !== window.self; } catch { return true; } })();
+  function netErrText(k) {
+    const base = tr(NET_ERR[k] || NET_ERR.net);
+    if ((k === "relay" || k === "net" || k === "noroom") && embedded && !Platform.isNative && Platform.cfg.webUrl && !location.href.startsWith(Platform.cfg.webUrl))
+      return `${base} – ${tr("Diese Vorschau blockiert Online-Verbindungen. Öffnet das Spiel direkt: {u}", { u: Platform.cfg.webUrl })}`;
+    return base;
+  }
   // v4.5 Beide Geräte brauchen dieselbe Spielversion (Hauptnummer.Unternummer), sonst passen die Regeln nicht zusammen
   const netVersion = () => String(Platform.cfg.version || "").split(".").slice(0, 2).join(".");
   // v4.5 Bildschirm bleibt an, solange auf den Freund gewartet oder gekämpft wird
@@ -6558,7 +6567,7 @@
         setTimeout(() => { if (lobby === me) openLobby(host, code, retry - 1); }, err.message === "noroom" ? 2500 : 1500);
         return;
       }
-      lobby = null; keepAwake(false); renderArena(tr(NET_ERR[err.message] || NET_ERR.net));
+      lobby = null; keepAwake(false); renderArena(netErrText(err.message));
     }
   }
   // Teams brauchen auf beiden Seiten mindestens einen Spieler, Jeder gegen jeden mindestens zwei Spieler

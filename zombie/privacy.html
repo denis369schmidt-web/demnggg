@@ -61,7 +61,7 @@
   <p>Die Online-Arena ist freiwillig. Öffnest du einen Raum oder trittst einem bei, werden Spieldaten (Spielername,
   Position, Schüsse, Lebenspunkte, Dienstgrad, Level) zwischen den Geräten der Mitspieler übertragen. Dafür nutzt die App
   öffentliche, kostenlose Nachrichten-Server (MQTT: <code>broker.emqx.io</code>, <code>broker.hivemq.com</code>,
-  <code>test.mosquitto.org</code>), die die Nachrichten eines Raums weiterreichen; sie erhalten dabei deine IP-Adresse
+  <code>test.mosquitto.org</code>, <code>mqtt.eclipseprojects.io</code>, <code>public.cloud.shiftr.io</code>), die die Nachrichten eines Raums weiterreichen; sie erhalten dabei deine IP-Adresse
   und die Spieldaten des Raums. Diese Server sind nicht verschlüsselt pro Raum – gib im Spielernamen keine persönlichen
   Daten an. Zusätzlich kann eine direkte Verbindung (WebRTC) über den Vermittlungsdienst PeerJS (<code>0.peerjs.com</code>)
   aufgebaut werden; dabei können die Mitspieler technisch bedingt deine IP-Adresse sehen. Es werden keine Konten angelegt
@@ -87,7 +87,7 @@
   <p><strong>In-app purchases</strong> are processed by Google Play. We never receive payment details, only a purchase confirmation used to unlock content.</p>
   <p><strong>Web version</strong> is hosted on GitHub Pages; GitHub processes server logs (IP address). The web version shows no ads.</p>
   <p><strong>Online arena (1–4 players, optional):</strong> game data (player name, position, shots, health, rank, level) is relayed
-  through free public MQTT servers (<code>broker.emqx.io</code>, <code>broker.hivemq.com</code>, <code>test.mosquitto.org</code>),
+  through free public MQTT servers (<code>broker.emqx.io</code>, <code>broker.hivemq.com</code>, <code>test.mosquitto.org</code>, <code>mqtt.eclipseprojects.io</code>, <code>public.cloud.shiftr.io</code>),
   which receive your IP address and the room's game data – don't put personal data in your player name. A direct WebRTC connection
   via the PeerJS service (<code>0.peerjs.com</code>) may also be used; other players can then technically see your IP address.
   No accounts, nothing stored by us.</p>

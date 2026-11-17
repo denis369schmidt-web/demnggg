@@ -6893,6 +6893,8 @@
   // Web-Version: alten Stand verwerfen (Offline-Cache, Service Worker) und frisch laden – danach geht es im Raum weiter
   async function freshReload(query) {
     if (Platform.isNative || !location.protocol.startsWith("http")) return false;
+    // höchstens einmal in 2 Minuten – liefert der Browser-Cache noch den alten Stand, sonst Endlosschleife
+    try { const last = +sessionStorage.getItem("og-fresh") || 0; if (Date.now() - last < 120000) return false; sessionStorage.setItem("og-fresh", String(Date.now())); } catch { /* ohne Speicher: trotzdem einmal */ }
     try { const regs = await navigator.serviceWorker?.getRegistrations?.(); for (const r of regs || []) await r.unregister(); } catch { /* egal */ }
     try { for (const k of await caches.keys()) await caches.delete(k); } catch { /* egal */ }
     location.replace(`${location.pathname}?${query}${query ? "&" : ""}fresh=${Date.now()}`);

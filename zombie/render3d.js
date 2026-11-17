@@ -4169,6 +4169,23 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
         for (const x of [18, 26, 34]) add(mesh(box(2.4, 6.4, 4.4), slam("#1a1d22"), x, 0.2, 0));
         len = 44; break;
       }
+      // v5.13 Scharfschützengewehre
+      case "dmr":
+        add(mesh(box(15, 4.6, 3.2), slam("#2a2e33"), -8, -0.5, 0)); add(mesh(box(16, 5.6, 3.8), slam("#353a41"), 6, 0, 0)); add(mesh(box(4, 7, 2.6), steel2, 8, -5, 0));
+        add(along(mesh(cyl(1.1, 1.1, 22, 6), steel2, 25, 0.6, 0))); add(along(mesh(cyl(1.7, 1.7, 4, 6), slam("#1e2024"), 37, 0.6, 0)));
+        add(along(mesh(cyl(1.6, 1.6, 13, 8), slam("#16181b"), 7, 4.4, 0))); add(mesh(cyl(1.4, 1.4, 0.4, 8), sbasic("#ff5a3a"), 13.8, 4.4, 0)).rotation.z = -Math.PI / 2;
+        len = 39; break;
+      case "jagd":
+        add(mesh(box(20, 5, 3), wood, -7, -0.6, 0)); add(mesh(box(10, 4.6, 3.4), steel, 7, 0.2, 0)); add(mesh(box(0.8, 3.6, 0.8), steel2, 8, 1.4, 2.4)); add(mesh(ico(0.9, 1), steel2, 8, 0, 2.9));
+        add(along(mesh(cyl(1.05, 1.05, 30, 6), steel2, 26, 0.6, 0))); add(mesh(box(13, 2.2, 3.2), wood, 16, -1.2, 0));
+        add(along(mesh(cyl(1.8, 1.8, 18, 8), slam("#16181b"), 7, 4.6, 0))); add(mesh(cyl(1.6, 1.6, 0.4, 8), sbasic("#ffd36a"), 16.3, 4.6, 0)).rotation.z = -Math.PI / 2;
+        len = 41; break;
+      case "fifty":
+        add(mesh(box(16, 6, 4), slam("#2c3036"), -8, -0.5, 0)); add(mesh(box(20, 7, 5), slam("#3b4048"), 8, 0, 0)); add(mesh(box(5, 7, 3.4), steel2, 10, -6, 0));
+        add(along(mesh(cyl(1.6, 1.6, 26, 8), slam("#2c3036"), 31, 0.6, 0))); add(mesh(box(6, 4.6, 4.6), slam("#1b1d21"), 46, 0.6, 0));
+        for (const zz of [-1.8, 1.8]) { const leg = add(mesh(box(0.8, 9, 0.8), steel2, 37, -4, zz)); leg.rotation.x = zz * 0.12; }
+        add(along(mesh(cyl(2.2, 2.2, 20, 8), slam("#16181b"), 8, 5.6, 0))); add(mesh(cyl(1.9, 1.9, 0.4, 8), sbasic("#4ab0ff"), 18.3, 5.6, 0)).rotation.z = -Math.PI / 2;
+        len = 49; break;
       case "smg": add(mesh(box(18, 5, 4), steel, 6, 0, 0)); add(mesh(box(3, 8, 3), steel2, 8, -5, 0)); add(mesh(box(8, 2, 2), steel2, -7, 0, 0)); add(along(mesh(cyl(1.2, 1.2, 8, 6), steel2, 18, 0.5, 0))); len = 22; break;
       case "shotgun": add(mesh(box(12, 4.5, 3), wood, -8, -0.5, 0)); add(mesh(box(10, 5, 4), steel, 3, 0, 0)); add(along(mesh(cyl(1.4, 1.4, 24, 6), steel2, 19, 1, 0))); add(along(mesh(cyl(1.2, 1.2, 18, 6), steel, 16, -1.6, 0))); add(mesh(box(8, 3.4, 4.2), wood, 14, -1.6, 0)); len = 31; break;
       case "crossbow": {
@@ -4227,7 +4244,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       }
     }
     // v5.11 Detail-Durchgang für Feuerwaffen: Schiene mit Rillen, Leuchtpunkt-Visier, Mündungsbremse, Abzugsbügel, Leuchtakzent
-    const FIRE_DETAIL = { pistol: [2.6, 1], smg: [2.8, 1], rifle: [3, 1], sniper: [2.6, 0], magnum: [3, 1], shotgun: [2.8, 0], dbl: [2.8, 0], minigun: [4.8, 1], nailgun: [4.6, 1] };
+    const FIRE_DETAIL = { pistol: [2.6, 1], smg: [2.8, 1], rifle: [3, 1], sniper: [2.6, 0], magnum: [3, 1], shotgun: [2.8, 0], dbl: [2.8, 0], minigun: [4.8, 1], nailgun: [4.6, 1], dmr: [2.6, 0], jagd: [2.5, 0], fifty: [3.4, 0] };
     const fd = FIRE_DETAIL[id];
     if (fd) {
       const [top, dot] = fd, rail = slam("#1b1d21");
@@ -5345,6 +5362,9 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     magnum: { core: "255,252,236", len: 50, w: 2.7, halo: 17, trail: 6, ta: 0.42, ring: true, imp: 1.5 },
     sniper: { core: "255,255,248", len: 130, w: 2.1, halo: 15, trail: 12, ta: 0.5, linger: 0.8, contrail: true, imp: 1.6 },
     railgun: { core: "235,255,255", len: 170, w: 2.6, halo: 22, trail: 16, ta: 0.6, linger: 1.0, helix: true, imp: 2.2 },
+    dmr: { core: "255,250,236", len: 90, w: 1.8, halo: 12, trail: 9, ta: 0.42, linger: 0.45, contrail: true, imp: 1.3 }, // v5.13
+    jagd: { core: "255,248,226", len: 120, w: 2.2, halo: 15, trail: 11, ta: 0.5, linger: 0.8, contrail: true, imp: 1.7 },
+    fifty: { core: "255,244,220", len: 160, w: 3.2, halo: 22, trail: 14, ta: 0.6, linger: 1.3, contrail: true, ring: true, imp: 2.6 },
     cryo: { core: "238,250,255", len: 34, w: 2.3, halo: 15, trail: 7, ta: 0.4, frost: true },
   };
   const trails = new WeakMap(); // Kugel → [[x, y, z], …] (neueste zuerst)
@@ -5494,6 +5514,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     shotgun: { s: 1.5, cone: 3, ring: true, smoke: 3 }, dbl: { s: 1.8, cone: 4, ring: true, smoke: 4 }, magnum: { s: 1.3, cone: 2, ring: true, smoke: 2 },
     sniper: { s: 1.4, cone: 2, ring: true, smoke: 3, side: true }, rifle: { s: 1, cone: 2, smoke: 1 }, minigun: { s: 1.1, cone: 2, smoke: 1 },
     smg: { s: 0.85, cone: 1, smoke: 1 }, pistol: { s: 0.9, cone: 1, smoke: 1 }, nailgun: { s: 0.5, cone: 0, smoke: 1 },
+    dmr: { s: 1.1, cone: 2, smoke: 2, side: true }, jagd: { s: 1.4, cone: 2, ring: true, smoke: 3 }, fifty: { s: 2.1, cone: 3, ring: true, smoke: 5, side: true }, // v5.13
     railgun: { s: 1.6, cone: 2, ring: true, smoke: 0, col: "140,245,255" }, cryo: { s: 1, cone: 1, col: "170,230,255" }, laser: { s: 0.9, cone: 0, col: "255,110,110" },
     grenade: { s: 1.2, cone: 1, smoke: 3 }, rocket: { s: 1.4, cone: 1, smoke: 5, back: true },
   };
@@ -6055,7 +6076,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     }
     for (const b of w.bullets) if (b.kind === "rocket") lightCands.push([b.x, 26, b.y, "255,160,60", 2, 160, 6]);
     for (const q of impacts) if (q.s > 1.1) lightCands.push([q.x, q.z, q.y, q.rgb, 1.6 * q.s * (q.life / q.max), 120, 5]); // v5.11 schwere Treffer leuchten auf
-    for (const b of w.bullets) if (b.wid === "railgun" || b.wid === "sniper") lightCands.push([b.x, 26, b.y, b.tracer, 1.4, 140, 5]);
+    for (const b of w.bullets) if (b.wid === "railgun" || b.wid === "sniper" || b.wid === "fifty" || b.wid === "jagd") lightCands.push([b.x, 26, b.y, b.tracer, 1.4, 140, 5]);
     let fires = 0;
     for (const b of w.bullets) if (b.kind === "flame" && fires++ % 6 === 0) lightCands.push([b.x, 22, b.y, "255,150,50", 1.8, 160, 5]);
     for (const l of w.roomLights) lightCands.push([l.x, 50, l.y, l.rgb, (1.3 + 0.2 * Math.sin(t * 3 + l.x)) * glowLevel(l, t), l.r * 1.8, 2]);

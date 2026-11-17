@@ -540,6 +540,14 @@ window.GameAudio = (() => {
       case "dbl": punch(85, 25, 0.34, 0.8); crack(2200, 240, 0.18, 0.36); punch(90, 26, 0.28, 0.6, 0.035); crack(2000, 220, 0.16, 0.3, 0.035); air(800, 0.55, 0.26); click(0.5, 1200, 0.1, 0.04); break; // zwei Läufe, Kipplauf
       case "magnum": punch(70, 24, 0.34, 0.8); crack(3000, 240, 0.14, 0.32); air(700, 0.5, 0.22); click(0.26, 2400, 0.07); break; // Trommel dreht
       case "sniper": punch(60, 20, 0.4, 0.82); crack(6200, 420, 0.2, 0.34, 0, 0.9); air(520, 0.85, 0.24); click(0.42, 1700, 0.1, 0.025); click(0.55, 2200, 0.1, 0.025); shell(0.8); break; // Kammerverschluss
+      // v5.13 Scharfschützengewehre
+      case "dmr": punch(95, 30, 0.16, 0.55); crack(5600, 700, 0.11, 0.3, 0, 0.7); air(800, 0.42, 0.14); shell(0.6); break; // trocken, schnell
+      case "jagd": punch(65, 22, 0.36, 0.78); crack(5200, 380, 0.18, 0.32, 0, 0.85); air(480, 0.8, 0.22); click(0.38, 1500, 0.12, 0.03); click(0.5, 2100, 0.12, 0.03); click(0.62, 1700, 0.1, 0.02); shell(0.9); break; // Kammer auf – zurück – vor
+      case "fifty": { // .50: tiefer Donner, Druckwelle, langer Nachhall über der Stadt
+        punch(42, 14, 0.7, 1); punch(70, 24, 0.4, 0.6, 0.012); crack(4200, 260, 0.26, 0.42, 0, 1);
+        air(380, 1.4, 0.32); air(260, 1.8, 0.14, 0.18); click(0.6, 1100, 0.14, 0.04); shell(1);
+        break;
+      }
       case "railgun": { // Spulen-Entladung: Zischen nach oben, Knall, tiefer Donner, nachklingender Resonanzton
         zap(300, 2600, 0.07, 0.12); zap(2400, 140, 0.22, 0.22, "square");
         crack(8000, 1600, 0.12, 0.26, 0.02, 0.9); punch(55, 18, 0.5, 0.8, 0.02); air(600, 0.9, 0.2, 0.02);

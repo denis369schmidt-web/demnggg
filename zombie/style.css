@@ -1668,5 +1668,8 @@ canvas.stamp-art { width: auto; max-width: 100%; }
 .chaos-toggle .sw.on { background: #6ea82a; }
 .chaos-toggle .sw.on::after { transform: translateX(18px); background: #f4ffe4; }
 .chaos-toggle.on { border-color: #a8ff3e; background: rgba(168, 255, 62, 0.1); }
+.sniper-toggle { margin-top: 6px; }
+.sniper-toggle.on { border-color: #7fd0ff; background: rgba(127, 208, 255, 0.1); }
+.sniper-toggle .sw.on { background: #2f86c8; }
 .chaos-toggle:disabled { cursor: default; opacity: 0.75; }
 .wpn-row.dim { opacity: 0.4; }

@@ -211,13 +211,17 @@
     dbl: { name: "Doppelflinte", desc: "Zwei Läufe, ein Donnerschlag: 8 Schrotkugeln und kräftiger Rückstoß.", price: 1150, dmg: 13, rate: 0.95, speed: 680, pellets: 8, spread: 0.62, jitter: 0.06, range: 340, pierce: 0, r: 3, color: "#ffb36b", flash: "big", casing: 2, kick: 8, shake: 4, tracer: "255,179,107", knock: 22 },
     nailgun: { name: "Nagelpistole", desc: "Aus dem Baumarkt: schnelle Nägel, die einen Zombie durchschlagen.", price: 600, dmg: 11, rate: 5, speed: 760, pellets: 1, spread: 0, jitter: 0.05, range: 650, pierce: 1, r: 3, color: "#c8ccd2", flash: "std", casing: 0, kick: 1.5, shake: 0, tracer: "200,204,210", knock: 2 },
     railgun: { name: "Railgun", desc: "Magnetbeschleuniger: durchschlägt alles in einer Linie, mit Zielfernrohr.", price: 3600, dmg: 130, rate: 0.45, speed: 3400, pellets: 1, spread: 0, jitter: 0, range: 1500, pierce: 99, r: 3, color: "#7ff3ff", crit: 0.15, long: true, flash: "tesla", casing: 0, kick: 9, shake: 5, tracer: "127,243,255", knock: 16, big: true },
+    // v5.13 drei Scharfschützengewehre (alle mit Zielfernrohr)
+    dmr: { name: "Präzisionsgewehr", desc: "Halbautomatisches Präzisionsgewehr: schnelle, genaue Schüsse auf mittlere Distanz, durchschlägt 1 Ziel.", price: 1500, dmg: 40, rate: 2.2, speed: 1700, pellets: 1, spread: 0, jitter: 0.004, range: 1300, pierce: 1, r: 3, color: "#fff3d6", crit: 0.12, flash: "std", casing: 1, kick: 4, shake: 1.2, tracer: "255,236,200", long: true, knock: 7 },
+    jagd: { name: "Jagdbüchse", desc: "Repetierer mit Holzschaft: wenige, aber vernichtende Schüsse, +25% Krit, durchschlägt 2 Ziele.", price: 1300, dmg: 112, rate: 0.6, speed: 1800, pellets: 1, spread: 0, jitter: 0, range: 1400, pierce: 2, r: 3, color: "#fff8e8", crit: 0.25, flash: "big", casing: 1, kick: 8, shake: 4, tracer: "255,226,170", long: true, knock: 16 },
+    fifty: { name: "Anti-Material-Gewehr", desc: "Kaliber .50: zerreißt alles in einer Reihe, schleudert Zombies weg – mit Wucht wie ein Hammerschlag.", price: 4200, dmg: 215, rate: 0.32, speed: 2600, pellets: 1, spread: 0, jitter: 0, range: 1600, pierce: 6, r: 4, color: "#ffffff", crit: 0.15, flash: "big", casing: 1, kick: 13, shake: 7, tracer: "255,214,150", long: true, knock: 32, big: true },
     laser: { name: "Laserkanone", desc: "Gebündelte Energie durchbohrt jede Reihe und verbrennt Zombies.", price: 3200, dmg: 17, rate: 4.2, speed: 2600, pellets: 1, spread: 0, jitter: 0.015, range: 1300, pierce: 99, r: 2.5, color: "#ff4a4a", kind: "laser", long: true, flash: "laser", casing: 0, kick: 1, shake: 0, tracer: "255,70,70" },
   };
   // v3.4 Wirtschaft: weniger Münzen, höhere Preise, Freischaltungen an den Fortschritt (erreichte Stadt) gebunden
   const ECON = { earn: 0.6, price: 1.7 };
   const econPrice = (v) => Math.round((v * ECON.price) / 10) * 10;
   for (const w of Object.values(WEAPONS)) w.price = econPrice(w.price);
-  const WEAPON_REQ = { shotgun: 0, smg: 1, crossbow: 1, magnum: 2, flame: 2, rifle: 3, sniper: 3, disc: 4, grenade: 4, cryo: 5, tesla: 5, rocket: 6, minigun: 7, laser: 8, nailgun: 1, dbl: 3 };
+  const WEAPON_REQ = { shotgun: 0, smg: 1, crossbow: 1, magnum: 2, flame: 2, rifle: 3, sniper: 3, disc: 4, grenade: 4, cryo: 5, tesla: 5, rocket: 6, minigun: 7, laser: 8, nailgun: 1, dbl: 3, jagd: 2, dmr: 4 };
   const reqLocked = (req) => (req || 0) > (save.cityMax || 0);
   // v5.5 Waffen, die man nicht kaufen kann – nur freispielen (Fortschritt aus dem Spielstand, gilt für alle Modi)
   const WEAPON_UNLOCK = {
@@ -227,6 +231,7 @@
     minigun: { text: "Erreiche Köln in der Kampagne", need: 7, cur: () => save.cityMax || 0, city: true },
     laser: { text: "Erreiche Hamburg in der Kampagne", need: 8, cur: () => save.cityMax || 0, city: true },
     railgun: { text: "Gewinne 10 Arena-Matches", need: 10, cur: () => (save.arena && save.arena.w) || 0 }, // v5.8
+    fifty: { text: "Gewinne 3 Matches im Sniper-Modus", need: 3, cur: () => (save.arena && save.arena.sw) || 0 }, // v5.13
   };
   const unlockOnly = (id) => !!WEAPON_UNLOCK[id];
   function checkUnlocks(quiet = false) {
@@ -1689,6 +1694,9 @@
     laser: { reach: 240, fov: 0.26, dmg: 0.1 },
     magnum: { reach: 160, fov: 0.18, dmg: 0.1 },
     railgun: { reach: 320, fov: 0.38, dmg: 0.2 }, // v5.8
+    dmr: { reach: 250, fov: 0.3, dmg: 0.15 }, // v5.13
+    jagd: { reach: 290, fov: 0.34, dmg: 0.25 },
+    fifty: { reach: 340, fov: 0.42, dmg: 0.2 },
   };
   const hasScope = () => !!(player && SCOPES[player.weaponId]);
   let scopeOn = false;
@@ -2060,7 +2068,7 @@
       for (let k = 0; k < w.pellets; k++) {
         const s = w.pellets > 1 ? (k / (w.pellets - 1) - 0.5) * w.spread : 0;
         const sk = p.scopeK || 0, a = d.a + s * (1 - 0.5 * sk) + rand(-w.jitter, w.jitter) * (1 - 0.7 * (p.plant || 0)) * (1 - 0.85 * sk);
-        const scopeDmg = (sk > 0.5 && SCOPES[p.weaponId] && run.mode !== "pvp" ? 1 + SCOPES[p.weaponId].dmg : 1) * ((p.z || 0) >= 20 ? 1.15 : 1); // v5.5 Höhenvorteil
+        const scopeDmg = (sk > 0.5 && SCOPES[p.weaponId] && (run.mode !== "pvp" || run.sniper) ? 1 + SCOPES[p.weaponId].dmg : 1) * ((p.z || 0) >= 20 ? 1.15 : 1); // v5.5 Höhenvorteil
         bullets.push(makeBullet(gx + px, gy + py, a, {
           z: (p.z || 0) > 4 ? p.z + 22 : 0,
           dmg: w.dmg * p.dmgMul * scopeDmg, speed: w.speed * (w.kind === "flame" ? rand(0.85, 1.15) : 1), r: w.r, color: w.color,
@@ -6654,6 +6662,62 @@
     persist();
     if (lobby && lobby.host) { lobby.chaos = a.chaos; lobbyBroadcast(); } else renderArena();
   }
+  // ================================================================ v5.13 Sniper-Modus
+  // Nur Waffen mit Zielfernrohr (SCOPES). Allein: eigene Visier-Waffe (sonst Scharfschützengewehr);
+  // zusammen mit dem Zufallsmodus: jede Runde eine zufällige Visier-Waffe. Halbes Leben, mehr Schaden je Treffer,
+  // der Zielfernrohr-Bonus gilt auch gegen Spieler, und wer durchs Zielfernrohr schaut, verrät sich durch einen Linsenreflex.
+  const SNIPER = { hp: 0.5, dmg: 1.5, range: 1150 };
+  const SNIPER_W = () => Object.keys(SCOPES).filter((id) => WEAPONS[id]);
+  const sniperOn = () => !!(save.arena && save.arena.sniper);
+  function sniperize(f, random) {
+    const ok = SNIPER_W();
+    return { ...f, weaponId: random || !ok.includes(f.weaponId) ? (random ? pick(ok) : "sniper") : f.weaponId };
+  }
+  function applySniper(p) {
+    p.maxHp = p.hp = Math.round(p.maxHp * SNIPER.hp);
+    p.dmgMul *= SNIPER.dmg;
+    return p;
+  }
+  function toggleSniper() {
+    const a = save.arena || (save.arena = { w: 0, l: 0 });
+    if (lobby && !lobby.host) return;
+    if (lobby && lobby.host && !a.sniper && lobby.players.some((q) => q.old)) { toast(tr("Ein Mitspieler hat eine ältere Version – der Sniper-Modus braucht 5.13 oder neuer"), "info"); return; }
+    a.sniper = !a.sniper;
+    persist();
+    if (lobby && lobby.host) { lobby.sniper = a.sniper; lobbyBroadcast(); } else renderArena();
+  }
+  function sniperBanner(pv) {
+    showBanner(tr("SNIPER-MODUS"), `${WEAPONS[player.weaponId].name} · ${tr("Halbes Leben – zielen lohnt sich, aber das Glas blitzt")}`, 3);
+  }
+  // Linsenreflex: Gegner, die gerade durchs Zielfernrohr schauen (online aus dem Zustand „s“, Bot kurz vor dem Schuss).
+  // Wird auch über Tarnhecken hinweg gezeichnet – der Reflex verrät die Stellung.
+  function scopeGlintOf(e) {
+    const pv = run && run.pvp;
+    if (!pv || !e || e.dead || pv.cd > 0) return 0;
+    if (pv.net || pv.party) return (e.scopeK || 0) > 0.3 ? e.scopeK : 0;
+    const o = pv.opp;
+    return o && o.sniper && e.fireCd < 0.7 ? clamp(1 - e.fireCd / 0.7, 0, 1) : 0;
+  }
+  function drawScopeGlints() {
+    const pv = run && run.pvp;
+    if (!pv || !run.sniper) return;
+    const list = pv.party ? [...pv.ents.values()].filter((e) => e.foe) : pv.rival ? [pv.rival] : [];
+    for (const e of list) {
+      const k = scopeGlintOf(e);
+      if (k <= 0) continue;
+      const a = e.face || 0, q = scr(e.x + Math.cos(a) * 18, e.y + Math.sin(a) * 18 - (mode3d ? 0 : 14 + (e.z || 0) * 0.8), mode3d ? (e.z || 0) + 40 : 0);
+      if (!q || q.behind) continue;
+      const tw = 0.8 + 0.2 * Math.sin(performance.now() / 70), r = (16 + 22 * k) * tw;
+      ctx.save(); ctx.globalCompositeOperation = "lighter";
+      const g = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, r);
+      g.addColorStop(0, `rgba(255,255,255,${0.95 * k})`); g.addColorStop(0.25, `rgba(190,230,255,${0.6 * k})`); g.addColorStop(1, "rgba(120,180,255,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(230,245,255,${0.85 * k})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(q.x - r * 3, q.y); ctx.lineTo(q.x + r * 3, q.y); ctx.moveTo(q.x, q.y - r * 1.5); ctx.lineTo(q.x, q.y + r * 1.5); ctx.stroke();
+      ctx.fillStyle = `rgba(255,255,255,${k})`; ctx.beginPath(); ctx.arc(q.x, q.y, 3.5, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+  }
   function pickPvpWeapon(id) {
     if (lobby || !WEAPONS[id]) return;
     const a = save.arena || (save.arena = { w: 0, l: 0 });
@@ -6667,21 +6731,24 @@
     duel = null;
     startRun("pvp");
     run.pet = null;
-    const chaos = chaosOn();
-    player = fairPlayer(chaos ? chaosFighter() : myFighter());
+    const chaos = chaosOn(), sniper = sniperOn();
+    const mine = chaos ? chaosFighter() : myFighter();
+    player = fairPlayer(sniper ? sniperize(mine, chaos) : mine);
+    if (sniper) { applySniper(player); run.sniper = true; }
     syncGearLook();
     run.belt = {}; run.ult = 0; // Turnierregeln: keine Wurfwaffen, keine Spezialfähigkeit
     if (chaos) {
       applyChaos(pick(MUTATORS));
-      if (opp && opp.bot) opp = { ...fighterInfo(fairPlayer(chaosFighter())), name: opp.name, skill: opp.skill, bot: true }; // Bot lost jede Runde neu
+      if (opp && opp.bot && !sniper) opp = { ...fighterInfo(fairPlayer(chaosFighter())), name: opp.name, skill: opp.skill, bot: true }; // Bot lost jede Runde neu
     }
+    if (sniper && opp && opp.bot) opp = { ...fighterInfo(applySniper(fairPlayer(sniperize(chaos ? chaosFighter() : myFighter(), true)))), name: opp.name, skill: opp.skill, bot: true, sniper: true }; // v5.13 Bot mit zufälliger Visier-Waffe
     keepAwake(true);
     if (!next) pvpMatch = { me: 0, them: 0, round: 1, net: false }; else pvpMatch.round++;
     run.pvp = { opp, net: false, rival: null, cd: PVP.count, over: false, t: 0, sudden: false, myKey: "me", players: [] }; // Bot (online läuft über startParty)
-    setArena(chaos ? (arenaForce || pick(ARENA_ORDER)) : "hbf"); // v5.12 Zufallsmodus: zufälliger Kampfplatz
+    setArena(chaos || sniper ? (arenaForce || pick(ARENA_ORDER)) : "hbf"); // v5.12 Zufallsmodus (v5.13 auch Sniper-Modus): zufälliger Kampfplatz
     setupPvpRoom();
     arenaObjSetup(run.pvp, run.chaos ? pick(["elim", "hold", "loot"]) : "elim");
-    if (run.chaos) chaosBanner(run.pvp);
+    if (run.chaos) chaosBanner(run.pvp); else if (run.sniper) sniperBanner(run.pvp);
     track("arenaFights");
   }
   function rivalShoot(e, ang, list) {
@@ -6699,7 +6766,7 @@
     // Bot: hält mittlere Distanz, läuft seitlich, wechselt die Richtung, zielt mit Vorhalt
     const o = pv.opp, dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
     if ((e.strafeT -= dt) <= 0) { e.strafeT = rand(0.7, 1.8); e.strafe = Math.random() < 0.5 ? -1 : 1; }
-    const want = d > 380 ? 1 : d < 230 ? -1 : 0, goal = botGoal(e, pv); // v5.9 Ziele: Zone, Geldsack, Sanitätsstation, raus aus dem Gas
+    const far = o.sniper ? 1.7 : 1, want = d > 380 * far ? 1 : d < 230 * far ? -1 : 0, goal = botGoal(e, pv); // v5.9 Ziele: Zone, Geldsack, Sanitätsstation, raus aus dem Gas
     let mx = (dx / d) * want + (-dy / d) * e.strafe * 0.9, my = (dy / d) * want + (dx / d) * e.strafe * 0.9;
     if (goal) {
       const gx = goal.x - e.x, gy = goal.y - e.y, gd = Math.hypot(gx, gy) || 1, k = gd > 24 ? 1 : 0;
@@ -6712,7 +6779,7 @@
     if (e.stunT > 0 || pv.meHidden || p.spectate) return; // getarnt oder gerade ausgeschaltet: der Bot sieht dich nicht
     const lead = d / (o.bspeed || 700), ang = Math.atan2(p.y + p.vy * lead * o.skill - e.y, p.x + p.vx * lead * o.skill - e.x);
     e.face = ang;
-    if ((e.fireCd -= dt) <= 0 && d < 620) {
+    if ((e.fireCd -= dt) <= 0 && d < (o.sniper ? SNIPER.range : 620)) {
       e.fireCd = 1 / Math.max(0.6, o.rate * o.skill);
       const n = Math.min(7, o.shots), list = [];
       for (let i = 0; i < n; i++) list.push([ang + (i - (n - 1) / 2) * 0.09 + rand(-0.05, 0.05) / o.skill, o.dmg * PVP.dmg, o.bspeed, o.br, o.fx]);
@@ -6763,7 +6830,7 @@
     }
     const a = save.arena || (save.arena = { w: 0, l: 0 });
     let prize = 0, eloTxt = "";
-    if (matchWon) { a.w = (a.w || 0) + 1; track("arenaWins"); } else a.l = (a.l || 0) + 1;
+    if (matchWon) { a.w = (a.w || 0) + 1; if (run.sniper) a.sw = (a.sw || 0) + 1; track("arenaWins"); } else a.l = (a.l || 0) + 1;
     const pay = final && !won ? { total: 0, text: "" } : pvpPayout(!!pv.net, matchWon, m.me, m.me, !!run.chaos);
     prize = pay.total;
     if (pv.net) {
@@ -6811,7 +6878,7 @@
     const left = partyPresent(pv);
     if (!teamsValid(left, pv.ffa)) return;
     pv.hub.chaosSeed = randi(1, 999999999);
-    pv.hub.send({ t: "again", players: left, ffa: pv.ffa, seed: pv.hub.chaosSeed });
+    pv.hub.send({ t: "again", players: left, ffa: pv.ffa, seed: pv.hub.chaosSeed, chaos: !!pv.hub.chaos, sniper: !!pv.hub.sniper });
     startParty(pv.hub, left, pv.ffa);
   }
   // Sudden Death: ab FAIR.sudden Sekunden steigt der erlittene Schaden um 3 % je Sekunde – kein Verstecken bis zum Schluss
@@ -6909,7 +6976,9 @@
     duel = null;
     startRun("pvp");
     run.pet = null;
-    player = fairPlayer(hub.chaos ? chaosFighter() : myFighter());
+    const mine = hub.chaos ? chaosFighter() : myFighter();
+    player = fairPlayer(hub.sniper ? sniperize(mine, hub.chaos) : mine);
+    if (hub.sniper) { applySniper(player); run.sniper = true; }
     player.skin = randomSkin();
     syncGearLook();
     run.belt = {}; run.ult = 0; // Turnierregeln: keine Wurfwaffen, keine Spezialfähigkeit
@@ -6929,11 +6998,12 @@
       get rival() { for (const e of this.ents.values()) if (e.foe && !e.dead) return e; return null; }, // erster lebender Gegner (Kamera, Tests)
     };
     pv.myKey = partyKey(pv, meQ);
-    setArena(hub.chaos ? pickArena(hub.chaosSeed || 0, pvpMatch.round) : "hbf"); // v5.12 Zufallsmodus: Kampfplatz je Runde
+    setArena(hub.chaos || hub.sniper ? pickArena(hub.chaosSeed || 0, pvpMatch.round) : "hbf"); // v5.12 Zufallsmodus: Kampfplatz je Runde
     setupPartyRoom();
     pv.taken = new Set();
     arenaObjSetup(pv, hub.chaos ? pickObjective(hub.chaosSeed || 0, pvpMatch.round, players, ffa) : "elim");
     if (hub.chaos) { pv.chaos = true; chaosBanner(pv); }
+    else if (hub.sniper) sniperBanner(pv);
     else { const sk = SKINS.find((q) => q.id === player.skin); if (sk) showBanner(tr("ZUFALLS-SKIN"), sk.name, 2.2); }
     const sendLook = () => { if (run && run.pvp === pv) try { hub.send({ t: "lk", w: player.weaponId, s: player.skin }); } catch { /* weg */ } };
     sendLook(); setTimeout(sendLook, 1200); // Zufallswaffe und -Skin den anderen zeigen (zweimal – Nachzügler starten etwas später)
@@ -6997,7 +7067,7 @@
     if ((pv.sendT -= dt) <= 0) {
       pv.sendT = 1 / PVP.sendHz;
       const m = partyLocal(pv, p.x, p.y);
-      hub.send({ t: "s", x: Math.round(m.x), y: Math.round(m.y), vx: Math.round(p.vx * f), vy: Math.round(p.vy * f), a: +((p.aim || 0) + (pv.flip ? Math.PI : 0)).toFixed(2), hp: Math.max(0, Math.round(p.hp)), mhp: Math.round(p.maxHp), d: pv.dead ? 1 : 0, z: Math.round(p.z || 0) });
+      hub.send({ t: "s", x: Math.round(m.x), y: Math.round(m.y), vx: Math.round(p.vx * f), vy: Math.round(p.vy * f), a: +((p.aim || 0) + (pv.flip ? Math.PI : 0)).toFixed(2), hp: Math.max(0, Math.round(p.hp)), mhp: Math.round(p.maxHp), d: pv.dead ? 1 : 0, z: Math.round(p.z || 0), sc: Math.round((p.scopeK || 0) * 10) });
     }
     // Ping: der Gastgeber misst alle Gäste, jeder Gast den Gastgeber
     if ((pv.pingT -= dt) <= 0) { pv.pingT = 1; if (hub.host) hub.send({ t: "ping", c: Math.round(performance.now()) }); else hub.send({ t: "ping", c: Math.round(performance.now()), to: 0 }); }
@@ -7060,6 +7130,7 @@
       e.tx = clamp(at.x, L, R); e.ty = clamp(at.y, T, B); e.face = (+m.a || 0) + (pv.flip ? Math.PI : 0);
       e.tvx = clamp((+m.vx || 0) * f, -600, 600); e.tvy = clamp((+m.vy || 0) * f, -600, 600); e.tAge = 0;
       e.maxHp = Math.max(1, +m.mhp || 1); e.hp = clamp(+m.hp || 0, 0, e.maxHp);
+      e.scopeK = clamp((+m.sc || 0) / 10, 0, 1); // v5.13 Linsenreflex
     } else if (m.t === "b" && Array.isArray(m.l) && pv.cd <= 0) {
       // Drossel je Absender: höchstens 160 Kugeln je Sekunde
       const now = performance.now(), q = pv.inB.get(from) || { t: 0, n: 0 };
@@ -7308,7 +7379,7 @@
     pv.matchDone = true; pv.over = true; pv.won = won;
     const m = pvpMatch, a = save.arena || (save.arena = { w: 0, l: 0 });
     let prize = 0, eloTxt = "";
-    if (won === true) { a.w = (a.w || 0) + 1; track("arenaWins"); }
+    if (won === true) { a.w = (a.w || 0) + 1; if (run.sniper) a.sw = (a.sw || 0) + 1; track("arenaWins"); }
     else if (won === false) a.l = (a.l || 0) + 1;
     else pv.aborted = true;
     // v5.5 Münzen auch ohne Sieg: Abschüsse und gewonnene Runden zählen (Aufgeben = nichts)
@@ -7360,7 +7431,7 @@
     if (!hub) return;
     pv.hub = null; // toMenu soll die Leitung nicht schließen
     toMenu();
-    const me = lobby = { code: hub.code, host: hub.host, hub: null, players: players.map((q) => ({ ...q })), ffa, chaos: !!chaos, me: hub.me };
+    const me = lobby = { code: hub.code, host: hub.host, hub: null, players: players.map((q) => ({ ...q })), ffa, chaos: !!chaos, sniper: !!hub.sniper, me: hub.me };
     bindLobby(me, hub);
     keepAwake(true);
     renderArena(); show(ui.arena);
@@ -7547,14 +7618,14 @@
   }
   function lobbyBroadcast() {
     if (!lobby || !lobby.host || !lobby.hub) return;
-    lobby.hub.send({ t: "lobby", players: lobby.players, ffa: lobby.ffa, chaos: !!lobby.chaos });
+    lobby.hub.send({ t: "lobby", players: lobby.players, ffa: lobby.ffa, chaos: !!lobby.chaos, sniper: !!lobby.sniper });
     renderArena();
   }
   const autoTeam = (players) => (players.filter((q) => q.team === 0).length <= players.filter((q) => q.team === 1).length ? 0 : 1);
   // v5.3 Netz-Protokoll statt App-Version: Geräte mit verschiedenen App-Ständen dürfen zusammen spielen, solange das
   // Protokoll passt. NET_PROTO nur erhöhen, wenn sich Nachrichten inkompatibel ändern. Ältere Stände ohne „p“ (5.0/5.1)
   // sprechen dasselbe Protokoll – ihnen fehlt nur der Zufallsmodus.
-  const NET_PROTO = 60, NET_LEGACY = ["5.0", "5.1"];
+  const NET_PROTO = 61, NET_LEGACY = ["5.0", "5.1"];
   const verNum = (v) => String(v || "").split(".").slice(0, 3).reduce((n, x, i) => n + (parseInt(x, 10) || 0) * [1e6, 1e3, 1][i], 0);
   function netCompatible(i, chaos) {
     if (!i) return false;
@@ -7587,7 +7658,7 @@
   const NET_TRIES = 4; // v5.10 Gäste versuchen es mehrmals (Server-Wechsel, Funkloch, langsamer Verbindungsaufbau)
   async function openLobby(host, code, retry = host ? 1 : NET_TRIES, waitUntil = 0) {
     closeLobby();
-    const me = lobby = { code, host, hub: null, players: [], ffa: false, chaos: host ? chaosOn() : false, me: host ? 0 : -1 };
+    const me = lobby = { code, host, hub: null, players: [], ffa: false, chaos: host ? chaosOn() : false, sniper: host ? sniperOn() : false, me: host ? 0 : -1 };
     renderArena();
     keepAwake(true);
     // v5.3 vor dem Verbinden: neuere Web-Version da? Dann erst aktualisieren – sonst passen die Geräte nicht zusammen
@@ -7658,7 +7729,7 @@
         seen.set(+m.f, performance.now());
         if (m.t === "qc") { showQuick(+m.f, m.i); return; }
         if (m.t !== "hello" || !m.i) return;
-        if (!netCompatible(m.i, me.chaos)) {
+        if (!netCompatible(m.i, me.chaos || me.sniper)) {
           // nicht passende Version: freundlich abweisen – das ältere Gerät aktualisiert sich (Web) und kommt wieder
           const theirs = String(m.i.v || "alt"), older = verNum(theirs) < verNum(Platform.cfg.version);
           hub.sendTo(m.f, { t: "ver", v: netVersion(), full: Platform.cfg.version, p: NET_PROTO, chaos: !!me.chaos });
@@ -7686,10 +7757,11 @@
         if (+m.f === 0) seen.set(0, performance.now());
         if (m.t === "ver") { lobbyVersion(me, m); return; }
         if (m.t === "qc") { showQuick(+m.f, m.i); return; }
-        if (m.t === "lobby" && Array.isArray(m.players)) { me.players = m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)); me.ffa = !!m.ffa; me.chaos = !!m.chaos; renderArena(); }
+        if (m.t === "lobby" && Array.isArray(m.players)) { me.players = m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)); me.ffa = !!m.ffa; me.chaos = !!m.chaos; me.sniper = !!m.sniper; renderArena(); }
         else if ((m.t === "go" || m.t === "again") && Array.isArray(m.players) && +m.f === 0) {
           lobby = null;
           if (m.t === "go" || m.chaos != null) hub.chaos = !!m.chaos;
+          if (m.t === "go" || m.sniper != null) hub.sniper = !!m.sniper; // v5.13
           if (m.seed != null) hub.chaosSeed = +m.seed || 0;
           if (save.vibration) Platform.vibrate(80);
           startParty(hub, m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)), !!m.ffa);
@@ -7733,8 +7805,8 @@
     if (!lb || !lb.host || !lb.hub || !teamsValid(lb.players, lb.ffa)) return;
     lb.hub.locked = true; // während des Matches kommt niemand mehr dazu
     lb.hub.chaosSeed = randi(1, 999999999);
-    lb.hub.send({ t: "go", players: lb.players, ffa: lb.ffa, chaos: !!lb.chaos, seed: lb.hub.chaosSeed });
-    lb.hub.chaos = !!lb.chaos;
+    lb.hub.send({ t: "go", players: lb.players, ffa: lb.ffa, chaos: !!lb.chaos, sniper: !!lb.sniper, seed: lb.hub.chaosSeed });
+    lb.hub.chaos = !!lb.chaos; lb.hub.sniper = !!lb.sniper;
     lobby = null;
     startParty(lb.hub, lb.players, lb.ffa);
   }
@@ -7778,10 +7850,17 @@
     $("arenaChaos").innerHTML = `${I("gift")}<span><b>${tr("Zufallsmodus")}</b><em>${chaosLocked ? tr("legt der Gastgeber fest") : tr("Alles erlaubt und zufällig: Waffe, Fähigkeiten, Wurfwaffen, Spezial, Mods und eine Runden-Regel")}</em></span><i class="sw${chaos ? " on" : ""}"></i>`;
     $("arenaChaos").classList.toggle("on", chaos);
     $("arenaChaos").disabled = chaosLocked;
+    // v5.13 Sniper-Modus: nur Visier-Waffen
+    const sniper = wait && lobby.hub ? !!lobby.sniper : sniperOn(), sw = SNIPER_W();
+    $("arenaSniper").innerHTML = `${I("scope")}<span><b>${tr("Sniper-Modus")}</b><em>${chaosLocked ? tr("legt der Gastgeber fest") : chaos ? tr("Nur Waffen mit Zielfernrohr – mit Zufallsmodus jede Runde eine zufällige") : tr("Nur Waffen mit Zielfernrohr, halbes Leben, das Glas blitzt beim Zielen")}</em></span><i class="sw${sniper ? " on" : ""}"></i>`;
+    $("arenaSniper").classList.toggle("on", sniper);
+    $("arenaSniper").disabled = chaosLocked;
     wl.classList.toggle("dim", chaos);
-    wl.innerHTML = Object.entries(WEAPONS).map(([id, w]) => `<button class="wpn-chip${id === cur && !chaos ? " on" : ""}" data-w="${id}" ${wait || chaos ? "disabled" : ""} aria-pressed="${id === cur}">` +
+    const shown = sniper && !chaos && !sw.includes(cur) ? "sniper" : cur;
+    wl.innerHTML = Object.entries(WEAPONS).filter(([id]) => !sniper || sw.includes(id)).map(([id, w]) => `<button class="wpn-chip${id === shown && !chaos ? " on" : ""}" data-w="${id}" ${wait || chaos ? "disabled" : ""} aria-pressed="${id === shown}">` +
       `<img src="${Sprites.weaponIcon(id, 0)}" alt="" /><span>${escHtml(w.name)}</span>${id === own ? `<em>${tr("Deine")}</em>` : ""}</button>`).join("");
-    $("arenaWeaponInfo").textContent = chaos ? tr("Zufallsmodus an: Jede Runde bekommt jeder eine zufällige Waffe, 6 Fähigkeiten, 3 Wurfwaffen, eine Spezialfähigkeit und 2 Waffen-Mods. Dazu gilt eine Runden-Regel für alle (z. B. Mondschwerkraft, Sprengmunition, Vampire) und Power-up-Kapseln tauchen auf.") : `${WEAPONS[cur].name}: ${tr(WEAPONS[cur].desc)}`;
+    requestAnimationFrame(() => { const c = wl.querySelector(".wpn-chip.on"); if (c) wl.scrollLeft = Math.max(0, c.offsetLeft - wl.offsetLeft - (wl.clientWidth - c.offsetWidth) / 2); }); // v5.13 gewählte Waffe sichtbar
+    $("arenaWeaponInfo").textContent = sniper && chaos ? tr("Zufalls-Sniper: Jede Runde bekommt jeder eine zufällige Waffe mit Zielfernrohr – dazu Fähigkeiten, Wurfwaffen, Spezial und eine Runden-Regel.") : sniper ? `${WEAPONS[shown].name}: ${tr(WEAPONS[shown].desc)}` : chaos ? tr("Zufallsmodus an: Jede Runde bekommt jeder eine zufällige Waffe, 6 Fähigkeiten, 3 Wurfwaffen, eine Spezialfähigkeit und 2 Waffen-Mods. Dazu gilt eine Runden-Regel für alle (z. B. Mondschwerkraft, Sprengmunition, Vampire) und Power-up-Kapseln tauchen auf.") : `${WEAPONS[cur].name}: ${tr(WEAPONS[cur].desc)}`;
     if (document.activeElement !== $("arenaName")) { $("arenaName").value = save.pname || ""; $("arenaName").placeholder = rankOf(bestScore()).name; }
     $("arenaName").disabled = wait;
     for (const id of ["arenaBot", "arenaHost", "arenaJoin", "arenaCode", "arenaPaste"]) $(id).disabled = wait;
@@ -8930,7 +9009,7 @@
     if (state === "play") { drawOffscreen(); drawMinimap(); }
     if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); drawScopeButton(); drawJumpButton(); }
     drawCombo();
-    if (state === "play" || state === "pick") { drawPowerBadges(); drawLooterBadges(); drawFeeding(); drawPetMarks(); drawPowerHud(); drawDuelHud(); drawPvpHud(); }
+    if (state === "play" || state === "pick") { drawPowerBadges(); drawLooterBadges(); drawFeeding(); drawPetMarks(); drawPowerHud(); drawDuelHud(); drawPvpHud(); drawScopeGlints(); }
     // Kinobalken bei Boss-Auftritt und Boss-Tod
     const bossIntro = enemies.some((e) => e.def.boss && e.spawnT > 0);
     cine += ((bossIntro || cineT > 0 ? 1 : 0) - cine) * Math.min(1, frameDt * 5);
@@ -11867,7 +11946,7 @@
   $("arenaBot").addEventListener("click", () => {
     ensureAudio();
     const me = fighterInfo(fairPlayer(myFighter()));
-    startPvp({ ...me, name: chaosOn() ? tr("Zufalls-Bot") : tr("Spiegel-Bot"), skill: 0.85, bot: true }, null);
+    startPvp({ ...me, name: sniperOn() ? tr("Sniper-Bot") : chaosOn() ? tr("Zufalls-Bot") : tr("Spiegel-Bot"), skill: 0.85, bot: true }, null);
   });
   $("arenaHost").addEventListener("click", () => hostRoom());
   $("arenaJoin").addEventListener("click", () => joinRoom($("arenaCode").value));
@@ -11892,6 +11971,7 @@
   $("arenaInvite").addEventListener("click", () => shareInvite());
   $("arenaParty").addEventListener("click", (ev) => { const b = ev.target.closest(".party-chip[data-pid]"); if (b && !b.disabled) toggleTeam(+b.dataset.pid); });
   $("arenaChaos").addEventListener("click", () => toggleChaos());
+  $("arenaSniper").addEventListener("click", () => toggleSniper());
   $("arenaWeapons").addEventListener("click", (ev) => { const b = ev.target.closest(".wpn-chip[data-w]"); if (b && !b.disabled) pickPvpWeapon(b.dataset.w); });
   $("arenaChat").addEventListener("click", (ev) => { const b = ev.target.closest(".quick-chip[data-i]"); if (b) { ensureAudio(); sendQuick(+b.dataset.i); } });
   $("arenaMode").addEventListener("click", () => toggleFfa());
@@ -12107,5 +12187,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP, codeFromText, netVersion, netCompatible, verNum, lobbyVersion, NET_PROTO, get spoof() { return netSpoof; }, get wake() { return wakeWanted; }, pvpPayout, MUTATORS, chaosMut, PVP_PAY, ARENAS, pickArena, set forceArena(v) { arenaForce = v; }, get arenaId() { return run && run.arena; }, get cranes() { return run && run.pvp && run.pvp.cranes; }, ARENA_OBJ, pickObjective, objSetup: (k) => arenaObjSetup(run.pvp, k), gasEdge: () => gasEdge(run.pvp), PVP_LEN, get arenaH() { return ARENA.h; } }, unlock: { check: checkUnlocks, WEAPON_UNLOCK }, jump: () => requestJump(), supportAt: (x, y, z) => supportAt(x, y, z), topOf: (o) => topOf(o), duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP, codeFromText, netVersion, netCompatible, verNum, lobbyVersion, NET_PROTO, get spoof() { return netSpoof; }, get wake() { return wakeWanted; }, pvpPayout, MUTATORS, chaosMut, PVP_PAY, ARENAS, pickArena, set forceArena(v) { arenaForce = v; }, get arenaId() { return run && run.arena; }, get cranes() { return run && run.pvp && run.pvp.cranes; }, ARENA_OBJ, pickObjective, objSetup: (k) => arenaObjSetup(run.pvp, k), gasEdge: () => gasEdge(run.pvp), PVP_LEN, get arenaH() { return ARENA.h; }, SNIPER, SNIPER_W, sniperize, glint: (e) => scopeGlintOf(e) }, unlock: { check: checkUnlocks, WEAPON_UNLOCK }, jump: () => requestJump(), supportAt: (x, y, z) => supportAt(x, y, z), topOf: (o) => topOf(o), duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

@@ -383,7 +383,7 @@
     <section id="arena" class="overlay screen hidden">
       <header class="bar">
         <button class="back" data-back aria-label="Zurück"></button>
-        <div class="title"><small data-i18n>1–4 SPIELER</small><h2 data-i18n>Arena</h2></div>
+        <div class="title"><small data-i18n>1–6 SPIELER</small><h2 data-i18n>Arena</h2></div>
         <div class="wallet"><i class="coin" data-ic="coin"></i><b class="coinsVal">0</b></div>
       </header>
       <div class="body">
@@ -391,12 +391,13 @@
         <div class="wpn-pick">
           <h3 data-i18n>Waffe im Duell – alle frei</h3>
           <button class="chaos-toggle" id="arenaChaos"></button>
+          <button class="chaos-toggle sniper-toggle" id="arenaSniper"></button>
           <div class="wpn-row" id="arenaWeapons"></div>
           <p class="wpn-info" id="arenaWeaponInfo"></p>
           <p class="wpn-note" data-i18n>Im Duell sind alle Waffen gleich stark gemacht – du wählst nur deinen Spielstil.</p>
         </div>
         <div class="arena-box">
-          <h3 data-i18n>Mit Freunden (2–4 Spieler)</h3>
+          <h3 data-i18n>Mit Freunden (2–6 Spieler)</h3>
           <label class="field name-field"><span data-i18n>Dein Name</span><input id="arenaName" type="text" maxlength="14" autocomplete="nickname" spellcheck="false" /></label>
           <button class="btn amber big" id="arenaHost"><i data-ic="duel"></i><span data-i18n>Raum erstellen</span></button>
           <div class="room-box hidden" id="arenaRoom">

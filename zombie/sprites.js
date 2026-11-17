@@ -1039,6 +1039,9 @@ window.Sprites = (() => {
     dbl: { len: 44, grip: 13, muzzle: 44 }, // v5.8 Doppelflinte
     nailgun: { len: 30, grip: 9, muzzle: 30 }, // v5.8 Nagelpistole
     railgun: { len: 60, grip: 16, muzzle: 60 }, // v5.8 Railgun
+    dmr: { len: 54, grip: 15, muzzle: 54 }, // v5.13 Präzisionsgewehr
+    jagd: { len: 56, grip: 15, muzzle: 56 }, // v5.13 Jagdbüchse
+    fifty: { len: 66, grip: 18, muzzle: 66 }, // v5.13 Anti-Material-Gewehr
   };
   const TIER_COLOR = ["#7c8590", "#ffcf4a", "#ffcf4a"];
 
@@ -1068,6 +1071,26 @@ window.Sprites = (() => {
         g.fillStyle = "#7ff3ff"; g.fillRect(28, y + 0.8, 31, 1.4);
         for (const x of [32, 40, 48]) { g.fillStyle = "#1a1d22"; g.fillRect(x, y - 3.5, 3, 8); g.fillStyle = "#7ff3ff"; g.fillRect(x + 0.8, y - 2.8, 1.4, 6.4); }
         stripe(16, 10); gem(22); break;
+      // v5.13 Präzisionsgewehr: dunkles Polymer, Magazin, kurzes Zielfernrohr, Mündungsbremse
+      case "dmr":
+        steel(0, 15, 6, "#2a2e33"); steel(14, 17, 7, "#353a41"); steel(30, 20, 3, "#3d4148"); steel(49, 5, 4.4, "#1e2024");
+        g.fillStyle = "#1e2024"; g.fillRect(20, y + 3, 5, 8);
+        g.fillStyle = "#16181b"; rr(g, 16, y - 6.6, 15, 4.4, 2); g.fill(); g.fillStyle = "#ff5a3a"; circ(g, 31, y - 4.4, 1.3); g.fill();
+        stripe(15, 12); gem(22); break;
+      // v5.13 Jagdbüchse: Holzschaft, Kammerstängel, langes Zielfernrohr mit Glas
+      case "jagd":
+        wood(0, 22, 7); steel(21, 10, 5, "#30343a"); steel(30, 26, 2.8, "#3a3d42");
+        g.fillStyle = "#30343a"; g.fillRect(24, y + 2.4, 2, 4); circ(g, 25, y + 6.8, 1.6); g.fill();
+        g.fillStyle = "#16181b"; rr(g, 17, y - 7, 20, 4.8, 2.2); g.fill(); g.fillStyle = "#ffd36a"; circ(g, 37, y - 4.6, 1.5); g.fill();
+        stripe(4, 14); gem(12); break;
+      // v5.13 Anti-Material-Gewehr: massiver Verschluss, Zweibein, riesige Mündungsbremse
+      case "fifty":
+        steel(0, 16, 8, "#2c3036"); steel(15, 22, 9, "#3b4048"); steel(36, 24, 3.6, "#2c3036"); steel(59, 7, 7, "#1b1d21");
+        g.fillStyle = "#0e0f11"; g.fillRect(61, y - 3.5, 1, 7); g.fillRect(63.5, y - 3.5, 1, 7);
+        g.fillStyle = "#1e2024"; g.fillRect(24, y + 4.5, 6, 8);
+        g.strokeStyle = "#2a2d31"; g.lineWidth = 1.4; g.beginPath(); g.moveTo(44, y + 1.8); g.lineTo(40, y + 9); g.moveTo(46, y + 1.8); g.lineTo(50, y + 9); g.stroke();
+        g.fillStyle = "#16181b"; rr(g, 17, y - 8, 22, 5.4, 2.4); g.fill(); g.fillStyle = "#4ab0ff"; circ(g, 39, y - 5.3, 1.8); g.fill();
+        stripe(16, 16); gem(26); break;
       case "pistol":
         steel(4, 9, 7, "#25282d"); steel(4, 20, 6); stripe(9, 12); gem(13);
         g.fillStyle = "#111"; circ(g, 23.5, y, 1.2); g.fill(); break;

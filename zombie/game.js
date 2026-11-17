@@ -1732,7 +1732,7 @@
       if (pad.rx || pad.ry) ang = assistAim(p, Math.atan2(pad.ry, pad.rx));
       return { ang, fire: pad.fire, src: "pad" };
     }
-    if (mouse.on) {
+    if (mouse.on && mouse.down) { // v5.6 nur mit gedrückter Taste – sonst übernimmt im Stand die Automatik
       const o = playerOnScreen(p);
       if (!o) return null;
       const dx = mouse.x - o.x, dy = mouse.y - o.y;
@@ -1878,8 +1878,11 @@
     const scopeWant = hasScope() && (scopeOn || pad.scope) && !p.spectate;
     if (!hasScope()) scopeOn = false;
     p.scopeK = clamp((p.scopeK || 0) + (scopeWant ? dt * 6 : -dt * 8), 0, 1);
-    if (manualAim()) {
-      const aim = readAim(p);
+    // v5.6 Mischbetrieb: wer selbst zielt, zielt selbst – wer nur steht, visiert automatisch den nächsten Gegner an und feuert
+    const aimIn = manualAim() ? readAim(p) : null;
+    if (manualAim() && !aimIn) { p.aiming = false; p.firing = false; autoFire(p, dt); }
+    else if (manualAim()) {
+      const aim = aimIn;
       p.aiming = !!aim; p.firing = !!(aim && aim.fire);
       if (aim) {
         // durchs Zielfernrohr dreht der Daumen/Stick langsamer – feines Nachführen statt Springen
@@ -8246,7 +8249,8 @@
   }
   function drawOverlay() {
     drawGhosts();
-    if (manualAim()) drawAimSight(); else drawLockOn();
+    if (manualAim()) drawAimSight();
+    if (!player || !player.aiming) drawLockOn(); // v5.6 automatische Zielerfassung im Stand
     drawScreenFx();
     drawHud();
     drawObjectiveHud();
@@ -8424,11 +8428,11 @@
     const t = performance.now() / 1000, y = (ST + SB) / 2 + 36, fired = !!player.firing;
     const how = pad.on ? "pad" : touchSeen ? "touch" : "keys";
     const lines = {
-      touch: ["Linker Daumen = laufen · Rechter Daumen = zielen & schießen", "2× tippen = springen: auf Autos & Container – von oben schießen"],
-      keys: ["WASD = laufen · Maus = zielen · Klick = schießen", "Leertaste = springen · Shift = Rolle · Rechtsklick/V = Zielfernrohr"],
-      pad: ["Linker Stick = laufen · Rechter Stick = zielen & schießen", "A = springen · X = Rolle · RT = schießen · LT = Zielfernrohr"],
+      touch: ["Stehen bleiben = automatisch schießen · Rechter Daumen = selbst zielen", "2× tippen = springen: auf Autos & Container – von oben schießen"],
+      keys: ["Stehen = automatisch schießen · Maus + Klick = selbst zielen", "Leertaste = springen · Shift = Rolle · Rechtsklick/V = Zielfernrohr"],
+      pad: ["Stehen = automatisch schießen · Rechter Stick = selbst zielen", "A = springen · X = Rolle · RT = schießen · LT = Zielfernrohr"],
     }[how];
-    if (save.leftHand && how === "touch") lines[0] = "Rechter Daumen = laufen · Linker Daumen = zielen & schießen";
+    if (save.leftHand && how === "touch") lines[0] = "Stehen bleiben = automatisch schießen · Linker Daumen = selbst zielen";
     ctx.save();
     ctx.globalAlpha = 0.88;
     ctx.fillStyle = "rgba(6,9,8,0.78)"; roundRect(W / 2 - 230, y, 460, 78, 6); ctx.fill();

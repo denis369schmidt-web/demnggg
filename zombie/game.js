@@ -5376,6 +5376,14 @@
   // hub: { host, me, send(m), sendTo(pid, m), close(), count(), locked, onmsg(m), onjoin(pid), onleave(pid), onclose() }
   const HUB_MAX = 4;
   const NO_RELAY = new Set(["ping", "pong", "hello", "ver", "hb"]);
+  // v5.3 jemand klopft an, während das Match läuft: der Gastgeber erfährt es (höchstens alle 8 s ein Hinweis)
+  function hubKnock(hub) {
+    if (!hub.locked) return;
+    const now = performance.now();
+    if (now - (hub.knockAt || -1e9) < 8000) return;
+    hub.knockAt = now;
+    try { toast(tr("Ein Freund möchte in den Raum – nach dem Match „Zurück in den Raum“ tippen"), "duel"); } catch { /* früh */ }
+  }
   function hubHostCore(hub) {
     const conns = new Map();
     let next = 1;
@@ -5416,7 +5424,7 @@
         ch.onmessage = (ev) => {
           const d = ev.data || {};
           if (d.k === "join") {
-            if (hub.locked || hub.count() >= HUB_MAX) { ch.postMessage({ k: "full", rid: d.rid }); return; }
+            if (hub.locked || hub.count() >= HUB_MAX) { ch.postMessage({ k: "full", rid: d.rid, busy: !!hub.locked }); hubKnock(hub); return; }
             const pid = hub.nextPid();
             ch.postMessage({ k: "hi", rid: d.rid, pid });
             hub.add(pid, conn(pid));
@@ -5436,7 +5444,7 @@
           const d = ev.data || {};
           if (!done) {
             if (d.k === "hi" && d.rid === rid) { done = true; hub.me = d.pid; clearTimeout(timer); }
-            else if (d.k === "full" && d.rid === rid) { clearTimeout(timer); ch.close(); rej(new Error("full")); }
+            else if (d.k === "full" && d.rid === rid) { clearTimeout(timer); ch.close(); rej(new Error(d.busy ? "busy" : "full")); }
             return;
           }
           if (d.k !== "down" || d.to !== hub.me) return;
@@ -5550,7 +5558,7 @@
         if (!rid) return;
         if (d.k === "join") {
           if (rids.has(rid)) return; // derselbe Gast über einen zweiten Server
-          if (hub.locked || hub.count() >= HUB_MAX) { bus.pub(`${base}/g/${rid}`, { t: "full" }); return; }
+          if (hub.locked || hub.count() >= HUB_MAX) { bus.pub(`${base}/g/${rid}`, { t: "full", busy: !!hub.locked }); hubKnock(hub); return; }
           const pid = hub.nextPid();
           rids.set(rid, pid);
           hub.add(pid, { bus, all, via: bus.url, send: (m) => bus.pub(`${base}/g/${rid}`, m), close: () => {} });
@@ -5584,7 +5592,7 @@
                 hub.close = () => { bus.pub(`${base}/h`, { k: "leave", rid }); setTimeout(() => bus.close(), 150); };
                 bus.onopen = () => bus.pub(`${base}/h`, { k: "join", rid }); // nach Funkloch: Gastgeber kennt uns noch (rid)
                 res(hub);
-              } else if (m.t === "full") stop("full");
+              } else if (m.t === "full") stop(m.busy ? "busy" : "full");
               return;
             }
             if (hub.bus !== bus) return;
@@ -5613,7 +5621,7 @@
       peer.on("disconnected", () => { try { if (!peer.destroyed) peer.reconnect(); } catch { /* weg */ } });
       peer.on("open", () => { if (hub.closed) { try { peer.destroy(); } catch { /* weg */ } } if (!done) { done = true; clearTimeout(tm); res(); } });
       peer.on("connection", (dc) => {
-        if (hub.locked || hub.count() >= HUB_MAX) { dc.on("open", () => { dc.send({ t: "full" }); setTimeout(() => dc.close(), 300); }); return; }
+        if (hub.locked || hub.count() >= HUB_MAX) { const busy = !!hub.locked; dc.on("open", () => { dc.send({ t: "full", busy }); setTimeout(() => dc.close(), 300); }); hubKnock(hub); return; }
         const pid = hub.nextPid(), c = { via: "p2p", send: (m) => { if (dc.open) dc.send(m); }, close: () => dc.close() };
         dc.on("open", () => hub.add(pid, c));
         dc.on("data", (m) => hub.recv(pid, m));
@@ -5641,7 +5649,7 @@
         dc.on("data", (m) => {
           if (!m) return;
           if (m.t === "welcome") { hub.me = m.pid; done = true; clearTimeout(tm); res(hub); return; }
-          if (m.t === "full") { fail("full"); return; }
+          if (m.t === "full") { fail(m.busy ? "busy" : "full"); return; }
           if (m.t === "bye") { if (hub.onclose) hub.onclose(); return; }
           if (hub.onmsg) hub.onmsg(m);
         });
@@ -5673,7 +5681,7 @@
   async function openNetGuest(code) {
     let first;
     try { return await openRelayGuest(code); } catch (e) { first = e; }
-    if (first.message === "full" || first.message === "cancel" || NO_PEER) throw first;
+    if (first.message === "full" || first.message === "busy" || first.message === "cancel" || NO_PEER) throw first;
     try { return await openPeerGuest(code); } catch (e) { throw e.message === "net" && first.message === "noroom" ? first : e; }
   }
   const openHub = (code, host) => (NET_LOCAL ? openLocalHub(code, host) : host ? openNetHost(code) : openNetGuest(code));
@@ -5768,6 +5776,7 @@
   function toggleChaos() {
     const a = save.arena || (save.arena = { w: 0, l: 0 });
     if (lobby && !lobby.host) return; // im Raum entscheidet der Gastgeber
+    if (lobby && lobby.host && !a.chaos && lobby.players.some((q) => q.old)) { toast(tr("Ein Mitspieler hat eine ältere Version – der Zufallsmodus braucht 5.2 oder neuer"), "info"); return; }
     a.chaos = !a.chaos;
     persist();
     if (lobby && lobby.host) { lobby.chaos = a.chaos; lobbyBroadcast(); } else renderArena();
@@ -6088,6 +6097,7 @@
       return;
     }
     if (from === 0 && !pv.hub.host) {
+      if (m.t === "lobby" && Array.isArray(m.players) && pv.matchDone) { backToRoom(pv, m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)), !!m.ffa, !!m.chaos); return; }
       if (m.t === "again" && Array.isArray(m.players)) { startParty(pv.hub, m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)), !!m.ffa); return; }
       if (m.t === "round") { partyRound(m.win == null ? null : String(m.win)); return; }
       if (m.t === "final") { partyFinal(m.win == null ? null : String(m.win), String(m.why || "")); return; }
@@ -6379,11 +6389,32 @@
         line("combo", tr("Bilanz"), tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 }), "", 6) +
         line("coin", tr("Münzen"), coinAmt(prize, "+"), "gold", 7);
       for (const id of ["doubleBtn", "shareBtn", "duelShareBtn"]) $(id).classList.add("hidden");
-      $("menuBtn").textContent = tr("Zur Arena");
+      $("menuBtn").textContent = pv.aborted ? tr("Zur Arena") : tr("Zurück in den Raum");
       renderRematch(pv);
       show(ui.over);
       refreshMenu();
     }, 1900);
+    // v5.3 Gastgeber meldet sich weiter, damit Gäste schon im Raum warten können
+    if (pv.hub.host && !pv.aborted) {
+      const hb = setInterval(() => { if (!run || run.pvp !== pv || !pv.hub) { clearInterval(hb); return; } try { pv.hub.send({ t: "hb" }); } catch { /* weg */ } }, 2000);
+    }
+  }
+  // v5.3 nach dem Match zurück in den Raum: die Leitung bleibt offen, Neue können dazukommen, der Gastgeber startet neu
+  function backToRoom(pv, players, ffa, chaos) {
+    const hub = pv.hub;
+    if (!hub) return;
+    pv.hub = null; // toMenu soll die Leitung nicht schließen
+    toMenu();
+    const me = lobby = { code: hub.code, host: hub.host, hub: null, players: players.map((q) => ({ ...q })), ffa, chaos: !!chaos, me: hub.me };
+    bindLobby(me, hub);
+    keepAwake(true);
+    renderArena(); show(ui.arena);
+  }
+  function partyToRoom() {
+    const pv = run && run.pvp;
+    if (!pv || !pv.party || !pv.hub || pv.aborted) return false;
+    backToRoom(pv, pv.hub.host ? partyPresent(pv) : pv.players, pv.ffa, !!pv.hub.chaos);
+    return true;
   }
   // v4.8 Endtabelle: alle Spieler nach Abschüssen, dann wenigen Ausfällen
   function partyTable(pv, m) {
@@ -6458,7 +6489,7 @@
   }
 
   // ---------------------------------------------------------------- Fenster „Arena“
-  const NET_ERR = { relay: "Keine Verbindung zu den Spiel-Servern – Internet prüfen (WLAN/Mobilfunk) und nochmal versuchen", full: "Der Raum ist voll (höchstens 4 Spieler) oder das Match läuft schon", noroom: "Raum nicht gefunden – stimmt der Code und hat dein Freund die Arena noch offen?", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst – Internet prüfen und nochmal versuchen", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
+  const NET_ERR = { relay: "Keine Verbindung zu den Spiel-Servern – Internet prüfen (WLAN/Mobilfunk) und nochmal versuchen", full: "Der Raum ist voll (höchstens 4 Spieler)", busy: "Dort läuft immer noch ein Match – später nochmal versuchen", noroom: "Raum nicht gefunden – stimmt der Code und hat dein Freund die Arena noch offen?", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst – Internet prüfen und nochmal versuchen", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
   // v4.8 Eingebettete Vorschau (z. B. eine Seite in einem fremden Rahmen) sperrt oft Verbindungen zu fremden Servern:
   // dann gleich auf die Web-Version verweisen statt „Internet prüfen“
   const embedded = (() => { try { return window.top !== window.self; } catch { return true; } })();
@@ -6518,7 +6549,8 @@
   // Gastgeber = Spieler 0. Gäste stellen sich mit „hello“ vor, der Gastgeber verteilt die Liste („lobby“) und startet („go“).
   // v4.6 eigener Spielername (sonst der Dienstgrad) – bei 4 Spielern muss jeder wissen, wer wer ist
   const playerName = () => String(save.pname || "").trim().slice(0, 14) || rankOf(bestScore()).name;
-  const playerInfo = () => { const mine = fighterInfo(fairPlayer(myFighter())); return { name: playerName(), lv: mine.lv, mhp: mine.mhp, speed: mine.speed, look: mine.look, pow: mine.pow, elo: arenaElo(), v: netVersion() }; };
+  const playerInfo = () => { const mine = fighterInfo(fairPlayer(myFighter())); return { name: playerName(), lv: mine.lv, mhp: mine.mhp, speed: mine.speed, look: mine.look, pow: mine.pow, elo: arenaElo(), v: netSpoof && lobby && netSpoof.code === lobby.code ? netSpoof.v : netVersion(), p: NET_PROTO }; };
+  let netSpoof = null; // v5.3 älterer Gastgeber (5.0/5.1) vergleicht stur die Version: dann stellen wir uns mit seiner vor
   function cleanInfo(i, pid) {
     return { pid, name: String((i && i.name) || "?").slice(0, 16), lv: clamp(+i.lv || 1, 1, 999), mhp: clamp(+i.mhp || 600, 100, 1e5), speed: clamp(+i.speed || 190, 100, 400),
       look: safeLook(i.look), pow: clamp(+i.pow || 0, 0, 1e7), elo: clamp(Math.round(+i.elo || FAIR.elo), 0, 4000), team: +i.team === 1 ? 1 : 0 };
@@ -6542,86 +6574,167 @@
     renderArena();
   }
   const autoTeam = (players) => (players.filter((q) => q.team === 0).length <= players.filter((q) => q.team === 1).length ? 0 : 1);
-  async function openLobby(host, code, retry = 1) {
+  // v5.3 Netz-Protokoll statt App-Version: Geräte mit verschiedenen App-Ständen dürfen zusammen spielen, solange das
+  // Protokoll passt. NET_PROTO nur erhöhen, wenn sich Nachrichten inkompatibel ändern. Ältere Stände ohne „p“ (5.0/5.1)
+  // sprechen dasselbe Protokoll – ihnen fehlt nur der Zufallsmodus.
+  const NET_PROTO = 52, NET_LEGACY = ["5.0", "5.1"];
+  const verNum = (v) => String(v || "").split(".").slice(0, 3).reduce((n, x, i) => n + (parseInt(x, 10) || 0) * [1e6, 1e3, 1][i], 0);
+  function netCompatible(i, chaos) {
+    if (!i) return false;
+    if (+i.p === NET_PROTO) return true;
+    return !i.p && NET_LEGACY.includes(String(i.v || "")) && !chaos;
+  }
+  // Web-Version: alten Stand verwerfen (Offline-Cache, Service Worker) und frisch laden – danach geht es im Raum weiter
+  async function freshReload(query) {
+    if (Platform.isNative || !location.protocol.startsWith("http")) return false;
+    try { const regs = await navigator.serviceWorker?.getRegistrations?.(); for (const r of regs || []) await r.unregister(); } catch { /* egal */ }
+    try { for (const k of await caches.keys()) await caches.delete(k); } catch { /* egal */ }
+    location.replace(`${location.pathname}?${query}${query ? "&" : ""}fresh=${Date.now()}`);
+    return true;
+  }
+  // gibt es eine neuere Web-Version? (config.js am Server, am Cache vorbei – höchstens 2,5 s warten)
+  async function newerWebVersion() {
+    if (Platform.isNative || !location.protocol.startsWith("http") || NET_LOCAL) return "";
+    try {
+      const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 2500);
+      const txt = await (await fetch(`config.js?ts=${Date.now()}`, { cache: "no-store", signal: ctl.signal })).text();
+      clearTimeout(tm);
+      const v = /version:\s*"([\d.]+)"/.exec(txt)?.[1] || "";
+      return verNum(v) > verNum(Platform.cfg.version) ? v : "";
+    } catch { return ""; }
+  }
+  const VER_OLD_HOST = "Der Gastgeber hat eine ältere Spielversion ({b}) – er muss das Spiel neu laden (Web: Seite neu laden, App: aktualisieren). Danach nochmal beitreten.";
+  const VER_APP = "Deine App ist älter ({a}) als die deines Freundes ({b}) – bitte die App aktualisieren oder die Web-Version nutzen: {u}";
+  async function openLobby(host, code, retry = 1, waitUntil = 0) {
     closeLobby();
     const me = lobby = { code, host, hub: null, players: [], ffa: false, chaos: host ? chaosOn() : false, me: host ? 0 : -1 };
     renderArena();
     keepAwake(true);
+    // v5.3 vor dem Verbinden: neuere Web-Version da? Dann erst aktualisieren – sonst passen die Geräte nicht zusammen
+    if (!waitUntil && retry === 1) {
+      const nv = await newerWebVersion();
+      if (lobby !== me) return;
+      if (nv) { renderArena(tr("Neue Version {v} wird geladen …", { v: nv })); if (await freshReload(host ? "host=1" : `room=${code}`)) return; }
+    }
     try {
       const hub = await openHub(code, host);
       if (lobby !== me) { hub.close(); return; }
-      me.hub = hub; me.me = hub.me;
-      me.via = hub.via || (hub.ways ? "host" : "");
-      const info = playerInfo();
-      // v4.7 Lebenszeichen in der Lobby: wer 10 s nichts hört, weiß Bescheid (Funkloch, App geschlossen)
-      const seen = new Map(), HB = 2000, LOST = 10000;
-      me.hb = setInterval(() => {
-        if (lobby !== me) { clearInterval(me.hb); return; }
-        const now = performance.now();
-        if (host) {
-          hub.send({ t: "hb" });
-          for (const q of me.players) if (q.pid !== 0 && now - (seen.get(q.pid) || now) > LOST) { hub.kick(q.pid); me.players = me.players.filter((x) => x.pid !== q.pid); me.note = tr("{n} hat keine Verbindung mehr", { n: q.name }); lobbyBroadcast(); }
-        } else {
-          hub.send({ t: "hb" });
-          if (!me.players.some((q) => q.pid === me.me)) hub.send({ t: "hello", i: info }); // Vorstellung ging verloren: nochmal
-          if (now - (seen.get(0) || now) > LOST) { closeLobby(); renderArena(tr("Verbindung zum Gastgeber verloren – nochmal beitreten")); }
-        }
-      }, HB);
-      if (host) {
-        me.players = [cleanInfo(info, 0)];
-        hub.onleave = (pid) => { if (lobby === me) { me.players = me.players.filter((q) => q.pid !== pid); lobbyBroadcast(); } };
-        hub.onjoin = (pid) => seen.set(pid, performance.now());
-        hub.onmsg = (m) => {
-          if (lobby !== me) return;
-          seen.set(+m.f, performance.now());
-          if (m.t === "qc") { showQuick(+m.f, m.i); return; }
-          if (m.t !== "hello" || !m.i) return;
-          if (String(m.i.v || "") !== netVersion()) {
-            // verschiedene Versionen: freundlich abweisen statt mit falschen Regeln zu kämpfen
-            hub.sendTo(m.f, { t: "ver", v: netVersion() });
-            setTimeout(() => hub.kick(m.f), 300);
-            me.note = tr(VER_TXT, { a: netVersion(), b: m.i.v || "alt" }); // bleibt stehen, bis jemand Passendes kommt
-            renderArena();
-            return;
-          }
-          if (me.players.some((q) => q.pid === m.f)) { lobbyBroadcast(); return; } // doppelte Vorstellung: Liste nochmal schicken
-          const q = cleanInfo(m.i, m.f);
-          q.team = autoTeam(me.players);
-          me.players.push(q);
-          me.note = "";
-          if (save.vibration) Platform.vibrate(60);
-          sfx("coin");
-          lobbyBroadcast();
-        };
-      } else {
-        seen.set(0, performance.now());
-        hub.onmsg = (m) => {
-          if (lobby !== me) return;
-          if (+m.f === 0) seen.set(0, performance.now());
-          if (m.t === "ver") { closeLobby(); renderArena(tr(VER_TXT, { a: netVersion(), b: String(m.v || "?") })); return; }
-          if (m.t === "qc") { showQuick(+m.f, m.i); return; }
-          if (m.t === "lobby" && Array.isArray(m.players)) { me.players = m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)); me.ffa = !!m.ffa; me.chaos = !!m.chaos; renderArena(); }
-          else if (m.t === "go" && Array.isArray(m.players)) {
-            lobby = null;
-            hub.chaos = !!m.chaos;
-            if (save.vibration) Platform.vibrate(80);
-            startParty(hub, m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)), !!m.ffa);
-          }
-        };
-        hub.onclose = () => { if (lobby === me) { lobby = null; keepAwake(false); renderArena(tr("Der Gastgeber hat den Raum geschlossen")); } };
-        hub.send({ t: "hello", i: info });
-      }
+      bindLobby(me, hub);
+      if (!host) hub.send({ t: "hello", i: playerInfo() });
       renderArena();
     } catch (err) {
       if (lobby !== me) return;
+      // v5.3 Match läuft gerade: still weiter anklopfen (bis 10 min), nach dem Match geht es von selbst rein
+      if (err.message === "busy" && !host) {
+        const until = waitUntil || performance.now() + 600000;
+        if (performance.now() < until) {
+          me.note = tr("Dort läuft gerade ein Match – du kommst automatisch rein, sobald es vorbei ist");
+          renderArena();
+          setTimeout(() => { if (lobby === me) openLobby(false, code, retry, until); }, 4000);
+          return;
+        }
+      }
       // Vermittlung kurz weg (Funkloch, Dienst überlastet): einmal still neu versuchen
       if (retry > 0 && (err.message === "net" || (err.message === "noroom" && !host))) {
         renderArena(tr("Verbindung wird erneut versucht …"));
-        setTimeout(() => { if (lobby === me) openLobby(host, code, retry - 1); }, err.message === "noroom" ? 2500 : 1500);
+        setTimeout(() => { if (lobby === me) openLobby(host, code, retry - 1, waitUntil || 1); }, err.message === "noroom" ? 2500 : 1500);
         return;
       }
       lobby = null; keepAwake(false); renderArena(netErrText(err.message));
     }
+  }
+  // Lobby-Logik an eine Leitung hängen – beim Beitreten und (v5.3) nach einem Match im selben Raum
+  function bindLobby(me, hub) {
+    const host = me.host;
+    me.hub = hub; me.me = hub.me; hub.code = me.code;
+    me.via = hub.via || (hub.ways ? "host" : "");
+    hub.locked = false;
+    const info = playerInfo();
+    // v4.7 Lebenszeichen in der Lobby: wer 10 s nichts hört, weiß Bescheid (Funkloch, App geschlossen)
+    const seen = new Map(), HB = 2000, LOST = 10000;
+    for (const q of me.players) seen.set(q.pid, performance.now());
+    seen.set(0, performance.now());
+    clearInterval(me.hb);
+    me.hb = setInterval(() => {
+      if (lobby !== me) { clearInterval(me.hb); return; }
+      const now = performance.now();
+      if (host) {
+        hub.send({ t: "hb" });
+        for (const q of me.players) if (q.pid !== 0 && now - (seen.get(q.pid) || now) > LOST) { hub.kick(q.pid); me.players = me.players.filter((x) => x.pid !== q.pid); me.note = tr("{n} hat keine Verbindung mehr", { n: q.name }); lobbyBroadcast(); }
+      } else {
+        hub.send({ t: "hb" });
+        if (!me.players.some((q) => q.pid === me.me)) hub.send({ t: "hello", i: info }); // Vorstellung ging verloren: nochmal
+        if (now - (seen.get(0) || now) > LOST) { closeLobby(); renderArena(tr("Verbindung zum Gastgeber verloren – nochmal beitreten")); }
+      }
+    }, HB);
+    if (host) {
+      if (!me.players.length) me.players = [cleanInfo(info, 0)];
+      hub.onleave = (pid) => { if (lobby === me) { me.players = me.players.filter((q) => q.pid !== pid); lobbyBroadcast(); } };
+      hub.onjoin = (pid) => seen.set(pid, performance.now());
+      hub.onclose = null;
+      hub.onmsg = (m) => {
+        if (lobby !== me) return;
+        seen.set(+m.f, performance.now());
+        if (m.t === "qc") { showQuick(+m.f, m.i); return; }
+        if (m.t !== "hello" || !m.i) return;
+        if (!netCompatible(m.i, me.chaos)) {
+          // nicht passende Version: freundlich abweisen – das ältere Gerät aktualisiert sich (Web) und kommt wieder
+          const theirs = String(m.i.v || "alt"), older = verNum(theirs) < verNum(Platform.cfg.version);
+          hub.sendTo(m.f, { t: "ver", v: netVersion(), full: Platform.cfg.version, p: NET_PROTO, chaos: !!me.chaos });
+          setTimeout(() => hub.kick(m.f), 300);
+          me.note = older ? tr("Ein Freund hat eine ältere Version ({b}) – sein Gerät lädt neu und kommt gleich wieder", { b: theirs })
+            : tr("Ein Freund hat eine neuere Version ({b}) – lade das Spiel neu, dann klappt es", { b: theirs });
+          renderArena();
+          return;
+        }
+        if (me.players.some((q) => q.pid === m.f)) { lobbyBroadcast(); return; } // doppelte Vorstellung: Liste nochmal schicken
+        const q = cleanInfo(m.i, m.f);
+        q.team = autoTeam(me.players);
+        if (!m.i.p) q.old = true; // älterer Stand: kein Zufallsmodus
+        me.players.push(q);
+        me.note = "";
+        if (save.vibration) Platform.vibrate(60);
+        sfx("coin");
+        lobbyBroadcast();
+      };
+      lobbyBroadcast();
+    } else {
+      hub.onjoin = null; hub.onleave = null;
+      hub.onmsg = (m) => {
+        if (lobby !== me) return;
+        if (+m.f === 0) seen.set(0, performance.now());
+        if (m.t === "ver") { lobbyVersion(me, m); return; }
+        if (m.t === "qc") { showQuick(+m.f, m.i); return; }
+        if (m.t === "lobby" && Array.isArray(m.players)) { me.players = m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)); me.ffa = !!m.ffa; me.chaos = !!m.chaos; renderArena(); }
+        else if ((m.t === "go" || m.t === "again") && Array.isArray(m.players) && +m.f === 0) {
+          lobby = null;
+          if (m.t === "go" || m.chaos != null) hub.chaos = !!m.chaos;
+          if (save.vibration) Platform.vibrate(80);
+          startParty(hub, m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)), !!m.ffa);
+        }
+      };
+      hub.onclose = () => { if (lobby === me) { lobby = null; keepAwake(false); renderArena(tr("Der Gastgeber hat den Raum geschlossen")); } };
+    }
+  }
+  // Gast wurde wegen der Version abgewiesen: wer älter ist, aktualisiert – die Web-Version von selbst
+  async function lobbyVersion(me, m) {
+    const hostV = String(m.full || m.v || "?"), mine = Platform.cfg.version;
+    const code = me.code;
+    closeLobby();
+    // älterer Gastgeber mit gleichem Protokoll: mit seiner Versionsnummer nochmal anklopfen
+    if (!m.p && NET_LEGACY.includes(String(m.v || "")) && !(netSpoof && netSpoof.code === code)) {
+      netSpoof = { code, v: String(m.v) };
+      renderArena(tr("Verbinde mit älterer Version {v} …", { v: String(m.v) }));
+      setTimeout(() => { if (!lobby) openLobby(false, code, 1, 1); }, 900);
+      return;
+    }
+    if (m.chaos && +m.p === NET_PROTO) { renderArena(tr("Der Gastgeber spielt im Zufallsmodus – dafür braucht ihr beide Version 5.2 oder neuer")); return; }
+    if (verNum(hostV) > verNum(mine)) {
+      if (Platform.isNative) { renderArena(tr(VER_APP, { a: mine, b: hostV, u: inviteUrl(code) || Platform.cfg.webUrl || "" })); return; }
+      renderArena(tr("Neue Version {v} wird geladen …", { v: hostV }));
+      if (await freshReload(`room=${code}`)) return;
+    }
+    renderArena(tr(VER_OLD_HOST, { a: mine, b: hostV }));
   }
   // Teams brauchen auf beiden Seiten mindestens einen Spieler, Jeder gegen jeden mindestens zwei Spieler
   function teamsValid(players, ffa) {
@@ -10525,6 +10638,11 @@
     if (linked && duelDecode(linked)) { duelLinkUsed = true; dailyShown = true; show(ui.menu); renderDuel(linked); show(ui.duel); return; }
     // v4.4 Einladung (?room=CODE): Arena öffnen und dem Raum sofort beitreten
     const room = !roomLinkUsed && cleanRoomCode(/[?&]room=([\w]+)/.exec(location.search)?.[1] || "");
+    // v5.3 nach dem Aktualisieren: Raum wieder eröffnen
+    if (!roomLinkUsed && /[?&]host=1\b/.test(location.search)) {
+      roomLinkUsed = true; dailyShown = true; show(ui.menu); renderArena(); show(ui.arena); openLobby(true, newRoomCode());
+      return;
+    }
     if (room && room.length === 5) {
       roomLinkUsed = true; dailyShown = true; show(ui.menu);
       $("arenaCode").value = room; renderArena(); show(ui.arena); openLobby(false, room);
@@ -10674,6 +10792,7 @@
     renderPatrol(); refreshMenu();
   });
   $("menuBtn").addEventListener("click", () => leaveOver(() => {
+    if (partyToRoom()) return;
     const arena = lastMode === "pvp";
     toMenu();
     if (arena) { renderArena(); show(ui.arena); }
@@ -10842,5 +10961,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP, codeFromText, netVersion, get wake() { return wakeWanted; } }, duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP, codeFromText, netVersion, netCompatible, verNum, lobbyVersion, NET_PROTO, get spoof() { return netSpoof; }, get wake() { return wakeWanted; } }, duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

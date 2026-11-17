@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-16",
-  "generatedAt": "2026-10-16T09:50:15.200Z",
-  "attempt": 0,
+  "edition": "2026-11-17",
+  "generatedAt": "2026-11-17T14:24:34.350Z",
+  "attempt": 2,
   "theme": {
     "id": "neon-horizont",
     "title": "Neon-Horizont",
@@ -18,105 +18,105 @@
     ]
   },
   "challenge": {
-    "id": "leiser-lauter",
-    "title": "Leiser & Lauter",
-    "task": "Performe 12 Bars über „Neon-Horizont“ und steigere die Dynamik von Flüstern bis volle Energie.",
+    "id": "vokal-fessel",
+    "title": "Vokal-Fessel",
+    "task": "Schreibe 12 Bars über „Neon-Horizont“, in denen jede Zeile auf denselben Vokalklang endet.",
     "constraint": "Kein Wort darf doppelt als Zeilenende vorkommen.",
     "bars": 12,
-    "bpm": 99
+    "bpm": 118
   },
   "wordPacks": [
     {
       "id": "neon-horizont-thema",
       "title": "Thema: Neon-Horizont",
       "words": [
-        "Signal",
-        "Lichter",
-        "Vision",
         "Neon",
+        "Lichter",
+        "Signal",
+        "Vision",
         "Zukunft",
         "Horizont"
       ]
     },
     {
-      "id": "2026-10-16-bilder",
+      "id": "2026-11-17-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Tresor",
-        "Echo",
-        "Kompass",
-        "Skyline",
-        "Anker",
-        "Neonlicht"
+        "Funken",
+        "Leuchtturm",
+        "Magnet",
+        "Schatten",
+        "Asphalt",
+        "Radar"
       ]
     },
     {
-      "id": "2026-10-16-energie",
+      "id": "2026-11-17-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Ruhe",
+        "Fokus",
         "Stolz",
-        "Haltung",
-        "klettern",
-        "starten",
-        "gleiten"
+        "Respekt",
+        "driften",
+        "pushen",
+        "tauchen"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Nacht",
-      "b": "gemacht"
+      "a": "Beben",
+      "b": "schweben"
+    },
+    {
+      "a": "Weite",
+      "b": "Seite"
     },
     {
       "a": "Kette",
       "b": "Wette"
     },
     {
-      "a": "Traum",
-      "b": "Raum"
+      "a": "Klang",
+      "b": "Drang"
+    },
+    {
+      "a": "Nebel",
+      "b": "Pegel"
     },
     {
       "a": "Leben",
       "b": "geben"
-    },
-    {
-      "a": "Welle",
-      "b": "Schwelle"
-    },
-    {
-      "a": "Zeit",
-      "b": "bereit"
     }
   ],
   "starterBars": [
+    {
+      "line": "Asphalt in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 13
+    },
+    {
+      "line": "Ich stapel Silben auf Signal, bis der Pegel sich häuft",
+      "syllables": 14
+    },
     {
       "line": "Der Tag war Signal, doch die Nacht macht ihn zu meinem",
       "syllables": 13
     },
     {
-      "line": "Zwischen Vision und Asphalt find ich Raum für den Reim",
-      "syllables": 13
-    },
-    {
-      "line": "Vision bleibt der Anker, wenn der Offbeat mich ruft",
+      "line": "Signal als Kompass und die Snare gibt den Takt",
       "syllables": 12
-    },
-    {
-      "line": "Ich stapel Silben auf Signal, bis der Pegel sich häuft",
-      "syllables": 14
     }
   ],
   "flowTip": {
-    "id": "tempo-treppe",
-    "title": "Tempo-Treppe",
-    "tip": "Trainiere denselben Text bei 85, 95 und 110 BPM. Wer die Treppe hochkommt, sitzt bei jedem Beat."
+    "id": "aufnahme-check",
+    "title": "Der 24-Stunden-Check",
+    "tip": "Höre jede Aufnahme erst am nächsten Tag erneut. Frische Ohren erkennen Timing-Fehler sofort."
   },
-  "quote": "Der Unterschied zwischen Probe und Performance ist nur das Publikum.",
+  "quote": "Große Hooks entstehen oft aus kleinen Selbstgesprächen.",
   "beatPreset": {
-    "bpm": 99,
-    "pattern": "West Coast Bounce",
-    "energy": "mittel"
+    "bpm": 118,
+    "pattern": "Uptempo Battle",
+    "energy": "hoch"
   },
   "editorial": {
     "score": 100,
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-16",
+    "latestEdition": "2026-11-17",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

@@ -1,120 +1,120 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-11-16",
-  "generatedAt": "2026-11-16T13:40:19.682Z",
-  "attempt": 0,
+  "edition": "2026-11-17",
+  "generatedAt": "2026-11-17T14:24:34.350Z",
+  "attempt": 2,
   "theme": {
-    "id": "phoenix",
-    "title": "Phönix",
-    "mood": "trotzig",
-    "description": "Rückschläge in Treibstoff verwandeln und neu starten.",
+    "id": "neon-horizont",
+    "title": "Neon-Horizont",
+    "mood": "verträumt",
+    "description": "Zukunftsbilder zwischen Synthesizern und Stadtlichtern.",
     "keywords": [
-      "Asche",
-      "Feuer",
-      "Neustart",
-      "Flügel",
-      "Glut",
-      "Comeback"
+      "Neon",
+      "Horizont",
+      "Zukunft",
+      "Lichter",
+      "Vision",
+      "Signal"
     ]
   },
   "challenge": {
-    "id": "silben-sprint",
-    "title": "Silben-Sprint",
-    "task": "Schreibe 8 Bars zum Thema „Phönix“ und lande jede Punchline exakt auf der Snare (Zählzeit 3).",
-    "constraint": "Die letzte Bar zitiert die erste Bar mit neuem Kontext.",
-    "bars": 8,
-    "bpm": 103
+    "id": "vokal-fessel",
+    "title": "Vokal-Fessel",
+    "task": "Schreibe 12 Bars über „Neon-Horizont“, in denen jede Zeile auf denselben Vokalklang endet.",
+    "constraint": "Kein Wort darf doppelt als Zeilenende vorkommen.",
+    "bars": 12,
+    "bpm": 118
   },
   "wordPacks": [
     {
-      "id": "phoenix-thema",
-      "title": "Thema: Phönix",
+      "id": "neon-horizont-thema",
+      "title": "Thema: Neon-Horizont",
       "words": [
-        "Flügel",
-        "Neustart",
-        "Asche",
-        "Feuer",
-        "Glut",
-        "Comeback"
+        "Neon",
+        "Lichter",
+        "Signal",
+        "Vision",
+        "Zukunft",
+        "Horizont"
       ]
     },
     {
-      "id": "2026-11-16-bilder",
+      "id": "2026-11-17-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Schatten",
+        "Funken",
+        "Leuchtturm",
         "Magnet",
-        "Skyline",
+        "Schatten",
         "Asphalt",
-        "Radar",
-        "Anker"
+        "Radar"
       ]
     },
     {
-      "id": "2026-11-16-energie",
+      "id": "2026-11-17-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Instinkt",
-        "Mut",
-        "Zweifel",
+        "Fokus",
+        "Stolz",
+        "Respekt",
+        "driften",
         "pushen",
-        "gleiten",
-        "schweben"
+        "tauchen"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Nacht",
-      "b": "gemacht"
+      "a": "Beben",
+      "b": "schweben"
     },
     {
-      "a": "Wind",
-      "b": "geschwind"
+      "a": "Weite",
+      "b": "Seite"
     },
     {
-      "a": "Kern",
-      "b": "fern"
+      "a": "Kette",
+      "b": "Wette"
     },
     {
-      "a": "Glut",
-      "b": "Mut"
+      "a": "Klang",
+      "b": "Drang"
     },
     {
-      "a": "Zeit",
-      "b": "bereit"
+      "a": "Nebel",
+      "b": "Pegel"
     },
     {
-      "a": "Welle",
-      "b": "Schwelle"
+      "a": "Leben",
+      "b": "geben"
     }
   ],
   "starterBars": [
     {
-      "line": "Mit Asphalt in der Stimme klingt selbst Stille wie ein Ruf",
+      "line": "Asphalt in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 13
+    },
+    {
+      "line": "Ich stapel Silben auf Signal, bis der Pegel sich häuft",
       "syllables": 14
     },
     {
-      "line": "Zwischen Comeback und Asphalt find ich Raum für den Reim",
-      "syllables": 14
+      "line": "Der Tag war Signal, doch die Nacht macht ihn zu meinem",
+      "syllables": 13
     },
     {
-      "line": "Glut als Kompass und die Snare gibt den Takt",
-      "syllables": 11
-    },
-    {
-      "line": "Glut im Blick, ich bleib ruhig auf der Eins",
-      "syllables": 10
+      "line": "Signal als Kompass und die Snare gibt den Takt",
+      "syllables": 12
     }
   ],
   "flowTip": {
-    "id": "snare-anker",
-    "title": "Snare als Anker",
-    "tip": "Setze betonte Silben bewusst auf Zählzeit 2 und 4 – die Snare trägt deine Betonung, nicht umgekehrt."
+    "id": "aufnahme-check",
+    "title": "Der 24-Stunden-Check",
+    "tip": "Höre jede Aufnahme erst am nächsten Tag erneut. Frische Ohren erkennen Timing-Fehler sofort."
   },
-  "quote": "Wer den Takt fühlt, muss ihn nicht mehr zählen.",
+  "quote": "Große Hooks entstehen oft aus kleinen Selbstgesprächen.",
   "beatPreset": {
-    "bpm": 103,
+    "bpm": 118,
     "pattern": "Uptempo Battle",
     "energy": "hoch"
   },
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-11-16",
+    "latestEdition": "2026-11-17",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

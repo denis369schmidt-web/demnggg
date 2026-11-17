@@ -682,10 +682,18 @@ window.Render3D = (() => {
     }
     return Math.min(P.sMax, s);
   }
+  const scopeCam = { k: 0, x: 0, z: 0, south: 0 };
   function placeShoulderCamera(P, hx, hz, s) {
     const C = shoulderPose(P, hx, hz, s);
     camPos.set(C.x, C.y, C.z);
     camLook.set(C.x, C.y - Math.sin(shCam.pitch) * 100, C.z - Math.cos(shCam.pitch) * 100);
+    // v5.4 Zielfernrohr: Blick zum Zielpunkt schwenken (nach hinten zielen geht ohne Drehen nicht – dann nur Zoom)
+    const b = scopeCam.k * Math.max(0, 1 - scopeCam.south * 1.4);
+    if (b > 0.001) {
+      const lx = camLook.x - C.x, ly = camLook.y - C.y, lz = camLook.z - C.z, ll = Math.hypot(lx, ly, lz);
+      const tx = scopeCam.x - C.x, ty = 18 - C.y, tz = scopeCam.z - C.z, tl = Math.hypot(tx, ty, tz) || 1;
+      camLook.set(C.x + (lx / ll + (tx / tl - lx / ll) * b) * 100, C.y + (ly / ll + (ty / tl - ly / ll) * b) * 100, C.z + (lz / ll + (tz / tl - lz / ll) * b) * 100);
+    }
     applyCam(P.fov, 0);
   }
   // sichtbarer Bodenausschnitt (für die Minikarte): Bildecken auf den Boden projiziert
@@ -6077,13 +6085,18 @@ void main() {
     if (w.menuCam) placeMenuCamera(t, w);
     else if (camMode !== "top") {
       const P = CAM_MODES[camMode], pl = w.player, kf = Math.min(1, dt * P.follow);
+      // v5.4 Zielfernrohr: Kamera schaut in Zielrichtung voraus und zoomt heran
+      // Schulterkamera bleibt hinter dem Helden und schwenkt nur den Blick aufs Ziel (scopeCam), die Nahkamera fährt voraus
+      const sc = w.scope, sk = sc ? sc.k : 0, ahead = P.shoulderCam ? 0 : 1, lookX = sk ? Math.cos(sc.ang) * sc.reach * sk * ahead : 0, lookZ = sk ? Math.sin(sc.ang) * sc.reach * sk * ahead : 0;
+      scopeCam.k = sk; if (sk) { scopeCam.x = pl.x + Math.cos(sc.ang) * sc.reach * 2.2; scopeCam.z = pl.y + Math.sin(sc.ang) * sc.reach * 2.2; scopeCam.south = Math.max(0, Math.sin(sc.ang)); }
       if (!CAM.fol) CAM.fol = { x: pl.x, z: pl.y };
-      CAM.fol.x += (pl.x - CAM.fol.x) * kf; CAM.fol.z += (pl.y - CAM.fol.z) * kf;
-      const wantFov = P.fov + (punch.fov || 0) * 1.4;
+      CAM.fol.x += (pl.x + lookX - CAM.fol.x) * kf; CAM.fol.z += (pl.y + lookZ - CAM.fol.z) * kf;
+      const wantFov = P.fov * (1 - (sk ? sc.fov * sk : 0)) + (punch.fov || 0) * 1.4;
       if (!fly && Math.abs(camera.fov - wantFov) > 0.04) { camera.fov = wantFov; camera.updateProjectionMatrix(); }
       if (P.shoulderCam) {
         // Schulterkamera: Zoom aus Gefahrenlage – raus schnell, wieder heran langsam
-        const want = shoulderZoom(P, w, CAM.fol.x, CAM.fol.z, P.fov);
+        let want = shoulderZoom(P, w, CAM.fol.x, CAM.fol.z, P.fov);
+        if (sk) want += (0.85 - want) * sk; // durchs Visier etwas näher an die Schulter
         shCam.s += (want - shCam.s) * Math.min(1, dt * (want > shCam.s ? 4.5 : 1.1));
         ghostOccluders(P, pl, dt);
         placeShoulderCamera(P, CAM.fol.x + sx * 0.7, CAM.fol.z + sz * 0.7, shCam.s * (1 + 0.6 * intro * intro + 0.35 * CAM.boss));
@@ -6091,8 +6104,10 @@ void main() {
     } else {
       const wantFov = CAM.fov + (punch.fov || 0);
       if (Math.abs(camera.fov - wantFov) > 0.04) { camera.fov = wantFov; camera.updateProjectionMatrix(); }
-      const kk = CAM.kill || 0;
-      placeCamera(CAM.dist * (1 - 0.3 * CAM.boss - 0.2 * kk + 0.22 * intro * intro), sx + CAM.fx + bx * 0.6 * CAM.boss + (CAM.kx || 0) * 0.45 * kk, sz + CAM.fz + bz * 0.6 * CAM.boss + (CAM.kz || 0) * 0.45 * kk - 60 * intro * intro);
+      const kk = CAM.kill || 0, sc = w.scope, sk = sc ? sc.k : 0;
+      CAM.sx = (CAM.sx || 0) + ((sk ? Math.cos(sc.ang) * sc.reach * sk * 0.7 : 0) - (CAM.sx || 0)) * k;
+      CAM.sz = (CAM.sz || 0) + ((sk ? Math.sin(sc.ang) * sc.reach * sk * 0.7 : 0) - (CAM.sz || 0)) * k;
+      placeCamera(CAM.dist * (1 - 0.3 * CAM.boss - 0.2 * kk + 0.22 * intro * intro - (sk ? sc.fov * sk * 0.6 : 0)), CAM.sx + sx + CAM.fx + bx * 0.6 * CAM.boss + (CAM.kx || 0) * 0.45 * kk, CAM.sz + sz + CAM.fz + bz * 0.6 * CAM.boss + (CAM.kz || 0) * 0.45 * kk - 60 * intro * intro);
     }
     followSun(w);
     updateAtmo(dt, t);

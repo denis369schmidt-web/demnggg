@@ -5,12 +5,13 @@ Von Heilbronn quer durch die Republik bis nach Hamburg, wo die letzte Fähre –
 
 Bis Version 2.9 hieß das Spiel „Escape from Germany“.
 
-Room-Clearing-Shooter: Laufen = ausweichen, **Stehenbleiben = automatisch schießen**.
+Room-Clearing-Twin-Stick-Shooter: **linker Daumen = laufen, rechter Daumen = zielen und schießen** (Maus/Klick bzw. rechter Stick am Controller). Visier-Waffen haben ein Zielfernrohr.
 Bezirke säubern, durch die Tür nach oben, bei jedem Level-Up 1 von 3 Skills wählen.
 (Interne Kennungen wie Paket-ID `de.outbreakhero.game`, Speicherstand `outbreak-hero-v1` und `window.__outbreak` stammen vom früheren Namen „Outbreak Hero“ und bleiben, damit Spielstände und Store-Eintrag erhalten bleiben.)
 Läuft im Browser, als installierbare PWA und als Android-App ([`../mobile`](../mobile)).
 
 ## Inhalt
+- **v5.4 – Zielen & Zielfernrohr:** Kein Auto-Feuer mehr – du zielst selbst: linker Daumen läuft, rechter Daumen zielt und schießt, auch beides gleichzeitig. Am PC zielt die Maus (Klick = schießen), am Controller der rechte Stick (RT = schießen). Eine abschaltbare Zielhilfe zieht in einem schmalen Kegel aufs Ziel. Scharfschützengewehr, Sturmgewehr, Armbrust, Laserkanone und Magnum haben ein Zielfernrohr (Knopf VISIER, Rechtsklick/V, LT): Zoom in Zielrichtung, Laservisier mit Entfernung, kaum Streuung, mehr Schaden, dafür langsameres Laufen. Online kommt ein vierter Spiel-Server über Port 443 dazu (für strenge WLANs), die Spielversion steht im Arena-Fenster.
 - **v5.3 – Beitreten mit jedem Gerät:** Handy, Tablet, App oder Browser – verschiedene Spielstände dürfen jetzt zusammen in einen Raum. Ist ein Gerät veraltet, lädt die Web-Version die neue Version von selbst und tritt danach automatisch wieder bei. Läuft im Raum gerade ein Match, wartet ein dritter Spieler und kommt danach rein: Nach dem Match geht es mit „Zurück in den Raum“ gemeinsam in die Lobby.
 - **v5.2 – Zufallsmodus:** Ein Schalter in der Arena, und jede Runde wird alles ausgelost: Waffe, sechs Fähigkeiten, zwei Wurfwaffen und eine Spezialfähigkeit – für dich, deine Freunde und den Bot. Wurfwaffen und Spezialfähigkeiten sind im Zufallsmodus auch im Duell erlaubt. Im Raum entscheidet der Gastgeber.
 - **v5.1 – Freie Waffenwahl im Duell:** In der Arena kannst du jetzt jede der 15 Waffen wählen – auch ohne sie gekauft zu haben. Die Turnierregeln gleichen alle Waffen auf dieselbe Grundstärke an, du entscheidest nur über deinen Spielstil.

@@ -205,7 +205,7 @@
     cryo: { name: "Kryo-Kanone", desc: "Eisgeschosse frieren Zombies ein – gefroren zerspringen sie.", price: 1600, dmg: 13, rate: 3.2, speed: 680, pellets: 1, spread: 0, jitter: 0.04, range: 700, pierce: 1, r: 6, color: "#9fe8ff", cryo: true, flash: "tesla", casing: 0, kick: 2, shake: 0, tracer: "160,230,255", knock: 2 },
     tesla: { name: "Tesla-Gewehr", desc: "Kettenblitz springt auf 3 weitere Zombies.", price: 2000, dmg: 22, rate: 1.7, speed: 0, pellets: 1, spread: 0, jitter: 0, range: 430, pierce: 0, r: 0, color: "#7fe7ff", kind: "tesla", chain: 3, flash: "tesla", casing: 0, kick: 1.5, shake: 1, tracer: "127,231,255" },
     rocket: { name: "Raketenwerfer", desc: "Zielsuchende Raketen mit riesiger Explosion.", price: 2300, dmg: 60, rate: 0.7, speed: 380, pellets: 1, spread: 0, jitter: 0, range: 900, pierce: 0, r: 7, color: "#ffb36b", kind: "rocket", aoe: 95, flash: "big", casing: 0, kick: 8, shake: 3, tracer: "255,170,90" },
-    minigun: { name: "Minigun", desc: "Läuft im Stand warm – dann ein Bleigewitter.", price: 2600, dmg: 8, rate: 13, speed: 900, pellets: 1, spread: 0, jitter: 0.11, range: 820, pierce: 0, r: 3, color: "#ffd36a", spin: true, flash: "big", casing: 1, kick: 1.2, shake: 0.6, tracer: "255,211,106" },
+    minigun: { name: "Minigun", desc: "Läuft bei Dauerfeuer warm – dann ein Bleigewitter.", price: 2600, dmg: 8, rate: 13, speed: 900, pellets: 1, spread: 0, jitter: 0.11, range: 820, pierce: 0, r: 3, color: "#ffd36a", spin: true, flash: "big", casing: 1, kick: 1.2, shake: 0.6, tracer: "255,211,106" },
     laser: { name: "Laserkanone", desc: "Gebündelte Energie durchbohrt jede Reihe und verbrennt Zombies.", price: 3200, dmg: 17, rate: 4.2, speed: 2600, pellets: 1, spread: 0, jitter: 0.015, range: 1300, pierce: 99, r: 2.5, color: "#ff4a4a", kind: "laser", long: true, flash: "laser", casing: 0, kick: 1, shake: 0, tracer: "255,70,70" },
   };
   // v3.4 Wirtschaft: weniger Münzen, höhere Preise, Freischaltungen an den Fortschritt (erreichte Stadt) gebunden
@@ -1412,6 +1412,10 @@
   // Input: schwebender Joystick + Tastatur
   // ============================================================
   const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0, active: false };
+  // v5.4 Zielen: zweiter Stick (rechter Daumen), Maus (zeigen + Klick) bzw. rechter Gamepad-Stick – kein Auto-Feuer mehr
+  const aimJoy = { id: null, ox: 0, oy: 0, x: 0, y: 0, active: false };
+  const mouse = { x: 0, y: 0, down: false, on: false, id: null };
+  const manualAim = () => !save.autoFire; // save.autoFire = altes Auto-Feuer (nur noch für ältere Tests)
   const keys = new Set();
   function toWorld(e) {
     const rect = canvas.getBoundingClientRect();
@@ -1427,11 +1431,28 @@
     const db = dashBtn();
     if ((p.x - db.x) ** 2 + (p.y - db.y) ** 2 < (db.r + 8) ** 2) { requestDash(); return; }
     const hitB = (b, extra = 6) => (p.x - b.x) ** 2 + (p.y - b.y) ** 2 < (b.r + extra) ** 2;
+    if (hasScope() && hitB(scopeBtn())) { toggleScope(); return; }
     if (run.mode !== "pvp" || run.chaos) {
       if (beltKinds().length > 1 && hitB(swapBtn(), 4)) { cycleThrow(); return; }
       if (hitB(throwBtn())) { requestThrow(); return; }
       if (hitB(ultBtn())) { requestUlt(); return; }
     }
+    // v5.4 Maus: zeigen = zielen, linke Taste = schießen, rechte Taste = Zielfernrohr (laufen über WASD)
+    if (e.pointerType === "mouse" && manualAim()) {
+      Object.assign(mouse, { x: p.x, y: p.y, on: true });
+      if (e.button === 2) { toggleScope(); return; }
+      if (e.button === 0) { mouse.down = true; mouse.id = e.pointerId; try { stage.setPointerCapture(e.pointerId); } catch { /* egal */ } }
+      return;
+    }
+    mouse.on = false;
+    // v5.4 Touch: eine Bildschirmhälfte läuft, die andere zielt und schießt (Linkshänder: getauscht)
+    const aimSide = manualAim() && (save.leftHand ? p.x < W / 2 : p.x >= W / 2);
+    if (manualAim() && !aimJoy.active && (aimSide || joy.active)) {
+      Object.assign(aimJoy, { id: e.pointerId, ox: p.x, oy: p.y, x: p.x, y: p.y, active: true });
+      try { stage.setPointerCapture(e.pointerId); } catch { /* egal */ }
+      return;
+    }
+    if (joy.active) return;
     const now = performance.now();
     if (now - lastTap.t < 280 && (p.x - lastTap.x) ** 2 + (p.y - lastTap.y) ** 2 < 50 * 50) requestDash();
     lastTap = { t: now, x: p.x, y: p.y };
@@ -1439,11 +1460,18 @@
     try { stage.setPointerCapture(e.pointerId); } catch { /* egal */ }
   });
   stage.addEventListener("pointermove", (e) => {
+    if (e.pointerType === "mouse" && manualAim()) { const p = toWorld(e); mouse.x = p.x; mouse.y = p.y; mouse.on = true; return; }
+    if (aimJoy.active && e.pointerId === aimJoy.id) { const p = toWorld(e); aimJoy.x = p.x; aimJoy.y = p.y; return; }
     if (!joy.active || e.pointerId !== joy.id) return;
     const p = toWorld(e);
     joy.x = p.x; joy.y = p.y;
   });
-  const endJoy = (e) => { if (e.pointerId === joy.id) { joy.active = false; joy.id = null; } };
+  stage.addEventListener("contextmenu", (e) => { if (state === "play") e.preventDefault(); });
+  const endJoy = (e) => {
+    if (e.pointerId === joy.id) { joy.active = false; joy.id = null; }
+    if (e.pointerId === aimJoy.id) { aimJoy.active = false; aimJoy.id = null; }
+    if (e.pointerId === mouse.id) { mouse.down = false; mouse.id = null; }
+  };
   stage.addEventListener("pointerup", endJoy);
   stage.addEventListener("pointercancel", endJoy);
   // v2.6 Ausweichrolle anfordern (wird im nächsten Spielschritt ausgeführt)
@@ -1465,7 +1493,7 @@
     if ((e.key === " " || e.key === "Shift") && !e.repeat) { requestDash(); if (state === "play") e.preventDefault(); }
     const kk = e.key.toLowerCase();
     if (!e.repeat && state === "play" && run && run.pvp && run.pvp.party && kk >= "1" && kk <= String(QUICK_MSGS.length)) { sendQuick(+kk - 1); return; }
-    if (!e.repeat && state === "play") { if (kk === "q") requestThrow(); else if (kk === "r") cycleThrow(); else if (kk === "e") requestUlt(); else if (kk === "c" && mode3d) cycleCam(); }
+    if (!e.repeat && state === "play") { if (kk === "q") requestThrow(); else if (kk === "r") cycleThrow(); else if (kk === "e") requestUlt(); else if (kk === "c" && mode3d) cycleCam(); else if (kk === "v") toggleScope(); }
     keys.add(e.key.toLowerCase());
     if (e.key === "Escape" || e.key === "p") togglePause();
   });
@@ -1475,7 +1503,7 @@
   let touchSeen = "ontouchstart" in window && navigator.maxTouchPoints > 0;
 
   // v2.4 Controller (Gamepad API): Stick/Steuerkreuz laufen bzw. wählen, A bestätigt, B zurück, Start pausiert
-  const pad = { x: 0, y: 0, on: false, prev: [], navT: 0, focus: null };
+  const pad = { x: 0, y: 0, rx: 0, ry: 0, fire: false, scope: false, on: false, prev: [], navT: 0, focus: null };
   function topOverlay() {
     const list = document.querySelectorAll(".overlay:not(.hidden)");
     for (let i = list.length - 1; i >= 0; i--) if (list[i].getClientRects().length) return list[i];
@@ -1519,7 +1547,7 @@
   function pollPad(dt) {
     let gp = null;
     try { for (const g of navigator.getGamepads ? navigator.getGamepads() : []) if (g && g.connected) { gp = g; break; } } catch { /* Sandbox ohne Gamepad-Zugriff */ }
-    pad.x = pad.y = 0;
+    pad.x = pad.y = pad.rx = pad.ry = 0; pad.fire = pad.scope = false;
     if (!gp) { if (pad.on) { pad.on = false; padFocus(null); } return; }
     if (!pad.on) { pad.on = true; toast(tr("Controller verbunden"), "weapons"); }
     const b = (i) => !!(gp.buttons[i] && gp.buttons[i].pressed);
@@ -1527,11 +1555,16 @@
     if (b(14)) x = -1; else if (b(15)) x = 1;
     if (b(12)) y = -1; else if (b(13)) y = 1;
     if (Math.hypot(x, y) > 0.28) { pad.x = x; pad.y = y; }
+    // v5.4 rechter Stick zielt (und schießt), RT schießt in Blickrichtung, LT hält das Zielfernrohr
+    const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0, rl = Math.hypot(rx, ry);
+    pad.rx = rl > 0.3 ? rx : 0; pad.ry = rl > 0.3 ? ry : 0;
+    pad.fire = rl > 0.55 || b(7) || (gp.buttons[7] && gp.buttons[7].value > 0.4);
+    pad.scope = b(6) || (gp.buttons[6] && gp.buttons[6].value > 0.4);
     const edge = (i) => b(i) && !pad.prev[i];
     if (state === "play") {
       if (edge(9) || edge(1)) togglePause();
       else if (edge(0) || edge(2)) requestDash();
-      if (edge(5) || edge(7)) requestThrow();
+      if (edge(5) || (!manualAim() && edge(7))) requestThrow();
       if (edge(4)) cycleThrow();
       if (edge(3)) requestUlt();
       if (edge(8) && mode3d) cycleCam();
@@ -1593,6 +1626,78 @@
     player[key] = Math.max(player[key] || 0, t);
     if (fresh) addText(player.x, player.y - 34, tr(label), key === "jamT" ? "#ffd84a" : "#c9d4ff", 16);
   }
+  // ============================================================
+  // v5.4 Zielen & Zielfernrohr
+  // ============================================================
+  // Visier-Waffen: reach = Blick nach vorn (Welt-Einheiten), fov = Zoom (Anteil enger), dmg = Bonus für ruhige Schüsse
+  const SCOPES = {
+    sniper: { reach: 300, fov: 0.36, dmg: 0.2 },
+    rifle: { reach: 180, fov: 0.2, dmg: 0.1 },
+    crossbow: { reach: 230, fov: 0.26, dmg: 0.15 },
+    laser: { reach: 240, fov: 0.26, dmg: 0.1 },
+    magnum: { reach: 160, fov: 0.18, dmg: 0.1 },
+  };
+  const hasScope = () => !!(player && SCOPES[player.weaponId]);
+  let scopeOn = false;
+  function toggleScope() {
+    if (state !== "play" || !hasScope()) return;
+    scopeOn = !scopeOn;
+    if (window.GameAudio) GameAudio.ui(scopeOn ? "confirm" : "swipe");
+    fx4d("tap");
+  }
+  const scopeBtn = () => ({ x: hx(46), y: SB - 232, r: 28 });
+  // Bildschirm-Richtung → Welt-Richtung (3D: die Kamera neigt, die Bild-Y-Achse ist verkürzt)
+  function screenDirToWorld(p, sx, sy) {
+    if (!mode3d) return { x: sx, y: sy };
+    const o = Render3D.project(p.x, p.y, 0), a = Render3D.project(p.x + 100, p.y, 0), b = Render3D.project(p.x, p.y + 100, 0);
+    if (o.behind || a.behind || b.behind) return { x: sx, y: sy };
+    const ax = a.x - o.x, ay = a.y - o.y, bx = b.x - o.x, by = b.y - o.y, det = ax * by - ay * bx;
+    if (Math.abs(det) < 1e-3) return { x: sx, y: sy };
+    return { x: (sx * by - sy * bx) / det, y: (ax * sy - ay * sx) / det };
+  }
+  function playerOnScreen(p) {
+    if (mode3d) { const o = Render3D.project(p.x, p.y, 30); return o.behind ? null : o; }
+    return { x: p.x, y: p.y - camY };
+  }
+  // leichte Zielhilfe für Daumen und Stick: zieht in einem schmalen Kegel auf den Gegner, den man ohnehin anvisiert
+  function assistAim(p, ang) {
+    if (save.aimAssist === false || p.scopeK > 0.3) return ang;
+    const range = (p.weapon.range || 800) * 1.05;
+    let best = null, bs = 0.13;
+    for (const e of enemies) {
+      if (e.dead || e.spawnT > 0 || e.ally || e.under) continue;
+      const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy);
+      if (d > range || d < 1) continue;
+      const sc = Math.abs(angTo(ang, Math.atan2(dy, dx))) - Math.atan2(e.r, d);
+      if (sc < bs) { bs = sc; best = e; }
+    }
+    return best ? Math.atan2(best.y - p.y, best.x - p.x) : ang;
+  }
+  // { ang, fire, src } oder null, wenn gerade nicht gezielt wird
+  function readAim(p) {
+    if (aimJoy.active) {
+      let dx = aimJoy.x - aimJoy.ox, dy = aimJoy.y - aimJoy.oy;
+      const len = Math.hypot(dx, dy);
+      if (len > 70) { aimJoy.ox = aimJoy.x - (dx / len) * 70; aimJoy.oy = aimJoy.y - (dy / len) * 70; dx = aimJoy.x - aimJoy.ox; dy = aimJoy.y - aimJoy.oy; }
+      if (len < 12) return { ang: p.aim, fire: false, src: "touch" }; // Daumen liegt auf: noch kein Schuss
+      // Sticks zielen direkt in Weltrichtung (oben = Norden): stabil, auch wenn die Kamera beim Zielfernrohr schwenkt
+      return { ang: assistAim(p, Math.atan2(dy, dx)), fire: true, src: "touch" };
+    }
+    if (pad.on && (pad.rx || pad.ry || pad.fire)) {
+      let ang = p.aim;
+      if (pad.rx || pad.ry) ang = assistAim(p, Math.atan2(pad.ry, pad.rx));
+      return { ang, fire: pad.fire, src: "pad" };
+    }
+    if (mouse.on) {
+      const o = playerOnScreen(p);
+      if (!o) return null;
+      const dx = mouse.x - o.x, dy = mouse.y - o.y;
+      if (dx * dx + dy * dy < 100) return { ang: p.aim, fire: mouse.down, src: "mouse" };
+      const v = screenDirToWorld(p, dx, dy);
+      return { ang: Math.atan2(v.y, v.x), fire: mouse.down, src: "mouse" };
+    }
+    return null;
+  }
   function updatePlayer(dt) {
     if (player.slowT > 0) player.slowT -= dt;
     if (player.jamT > 0) player.jamT -= dt;
@@ -1635,7 +1740,7 @@
       ghosts.push({ x: p.x, y: p.y, life: 0.28, max: 0.28 });
     }
     if (v) {
-      const sp = p.speed * (run.rage > 0 ? 1.15 : 1) * (p.slowT > 0 ? 0.55 : 1); // Adrenalin, Bierlache/Formular
+      const sp = p.speed * (run.rage > 0 ? 1.15 : 1) * (p.slowT > 0 ? 0.55 : 1) * (1 - 0.45 * (p.scopeK || 0)); // Adrenalin, Bierlache/Formular, Zielfernrohr
       p.x += v.x * sp * dt;
       p.y += v.y * sp * dt;
       p.aim = Math.atan2(v.y, v.x);
@@ -1681,8 +1786,36 @@
       return;
     }
 
-    // Auto-Feuer nur im Stand (Kernmechanik)
     p.fireCd -= dt;
+    // v5.4 Zielfernrohr: nur bei Visier-Waffen, sanft ein- und ausblenden
+    const scopeWant = hasScope() && (scopeOn || pad.scope) && !p.spectate;
+    if (!hasScope()) scopeOn = false;
+    p.scopeK = clamp((p.scopeK || 0) + (scopeWant ? dt * 6 : -dt * 8), 0, 1);
+    if (manualAim()) {
+      const aim = readAim(p);
+      p.aiming = !!aim; p.firing = !!(aim && aim.fire);
+      if (aim) {
+        // durchs Zielfernrohr dreht der Daumen/Stick langsamer – feines Nachführen statt Springen
+        if (p.scopeK > 0.2 && aim.src !== "mouse") { const mt = (4.5 - 2.4 * p.scopeK) * dt; p.aim += clamp(angTo(p.aim, aim.ang), -mt, mt); }
+        else p.aim = aim.ang;
+      }
+      if (p.weapon.spin) {
+        p.spin = p.firing ? Math.min(1, p.spin + dt / 1.1) : Math.max(0, p.spin - dt * 1.5);
+        p.barrel += dt * (6 + 40 * p.spin);
+      }
+      p.plant = !p.moving ? Math.min(1, (p.plant || 0) + dt * 4.2) : Math.max(0, (p.plant || 0) - dt * 6); // im Stand ruhigere Hand
+      if (p.firing) {
+        if (p.fireCd <= 0) {
+          fire();
+          const spinMul = p.weapon.spin ? 0.25 + 0.75 * p.spin : 1;
+          p.fireCd = 1 / (p.weapon.rate * p.rateMul * spinMul * (run.rage > 0 ? 1.4 : 1) * (p.jamT > 0 ? 0.5 : 1) * (puOn("frenzy") ? 2 : 1));
+        }
+      } else if (p.fireCd < 0) p.fireCd = 0;
+    } else autoFire(p, dt);
+    updateVolleys(p, dt);
+  }
+  // altes Auto-Feuer (nur mit save.autoFire, z. B. in älteren Tests)
+  function autoFire(p, dt) {
     const target = nearestEnemy(p);
     // Minigun: Läufe drehen im Stand hoch, Feuerrate steigt mit
     if (p.weapon.spin) {
@@ -1705,7 +1838,8 @@
     } else if (p.fireCd < 0) {
       p.fireCd = 0.07; // kurze Anlaufzeit nach dem Stehenbleiben
     }
-
+  }
+  function updateVolleys(p, dt) {
     // Salven-Warteschlange (Mehrfachschuss)
     for (let i = volleyQueue.length - 1; i >= 0; i--) {
       volleyQueue[i].t -= dt;
@@ -1823,9 +1957,10 @@
       const gx = p.x + Math.cos(d.a) * spawnD, gy = p.y + Math.sin(d.a) * spawnD;
       for (let k = 0; k < w.pellets; k++) {
         const s = w.pellets > 1 ? (k / (w.pellets - 1) - 0.5) * w.spread : 0;
-        const a = d.a + s + rand(-w.jitter, w.jitter) * (1 - 0.7 * (p.plant || 0));
+        const sk = p.scopeK || 0, a = d.a + s * (1 - 0.5 * sk) + rand(-w.jitter, w.jitter) * (1 - 0.7 * (p.plant || 0)) * (1 - 0.85 * sk);
+        const scopeDmg = sk > 0.5 && SCOPES[p.weaponId] && run.mode !== "pvp" ? 1 + SCOPES[p.weaponId].dmg : 1;
         bullets.push(makeBullet(gx + px, gy + py, a, {
-          dmg: w.dmg * p.dmgMul, speed: w.speed * (w.kind === "flame" ? rand(0.85, 1.15) : 1), r: w.r, color: w.color,
+          dmg: w.dmg * p.dmgMul * scopeDmg, speed: w.speed * (w.kind === "flame" ? rand(0.85, 1.15) : 1), r: w.r, color: w.color,
           life: w.range / w.speed, pierce: w.pierce + p.pierce + (puOn("rico") ? 2 : 0), wall: p.wall + (w.bounces || 0) + (puOn("rico") ? 2 : 0), rico: p.ricochet + (puOn("rico") ? 1 : 0),
           kind: w.kind, aoe: w.aoe, burn: w.burn ? 1 + p.burn : p.burn, freeze: w.cryo ? 1.5 + p.freeze : p.freeze, poison: p.poison, player: true,
           tracer: puTracer() || w.tracer, long: w.long, knock: w.knock, wid: p.weaponId, big: !!(w.big || w.long || w.pellets > 1),
@@ -1963,7 +2098,7 @@
   let reviveTimer = null;
   function offerRevive() {
     state = "revive";
-    joy.active = false;
+    joy.active = false; aimJoy.active = false; mouse.down = false;
     let left = 5;
     $("reviveCount").textContent = left;
     const ring = document.querySelector("#revive .val");
@@ -4601,7 +4736,7 @@
       }
       box.appendChild(btn);
     }
-    joy.active = false;
+    joy.active = false; aimJoy.active = false; mouse.down = false;
     state = "pick";
     show(ui.skillPick);
   }
@@ -4656,7 +4791,7 @@
   // ---------------------------------------------------------- v3.0 Mini-Spiele
   function openMini(spot) {
     const MG = window.MiniGames, info = MG.info[spot.kind];
-    state = "mini"; joy.active = false; keys.clear();
+    state = "mini"; joy.active = false; aimJoy.active = false; mouse.down = false; keys.clear();
     $("miniTitle").textContent = tr(info.title);
     $("miniSub").textContent = tr(info.sub);
     $("miniIc").innerHTML = I(info.icon);
@@ -5464,7 +5599,8 @@
   // Direktverbindungen (WebRTC) scheitern oft in Mobilfunk-, Hotspot- und Firmennetzen. Das Relais schickt alle Nachrichten
   // über öffentliche MQTT-Server: klappt hinter jedem NAT, braucht nur ausgehendes HTTPS/WebSocket. Der Gastgeber lauscht auf
   // allen Servern gleichzeitig, ein Gast nimmt den ersten, über den der Gastgeber antwortet. PeerJS bleibt Ausweichweg.
-  const RELAY_DEFAULT = ["wss://broker.emqx.io:8084/mqtt", "wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081/mqtt"];
+  // v5.4 vierter Server über Port 443 (normaler HTTPS-Port): Schul-, Firmen- und manche Mobilfunknetze sperren 8081–8884
+  const RELAY_DEFAULT = ["wss://broker.emqx.io:8084/mqtt", "wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081/mqtt", "wss://mqtt.eclipseprojects.io:443/mqtt"];
   const relayList = () => {
     const q = /[?&]relay=([^&]+)/.exec(location.search); // Tests: eigener Server
     if (q) return decodeURIComponent(q[1]).split(",").filter(Boolean);
@@ -5472,7 +5608,7 @@
   };
   const NO_PEER = /[?&]nopeer\b/.test(location.search);
   const relayBase = (code) => `outbreak-germany/v47/${code}`;
-  const relayName = (url) => { try { return new URL(url).hostname.replace(/^(broker|test)\./, ""); } catch { return "Relais"; } };
+  const relayName = (url) => { try { return new URL(url).hostname.replace(/^(broker|test|mqtt)\./, ""); } catch { return "Relais"; } };
   // Minimaler MQTT-3.1.1-Client (QoS 0): verbinden, abonnieren, senden, Lebenszeichen, selbstständig neu verbinden
   function mqttConnect(url, timeout = 6000) {
     return new Promise((res, rej) => {
@@ -5877,7 +6013,7 @@
     showBanner(matchWon ? tr("SIEG!") : tr("NIEDERLAGE"), why || tr("Endstand {a}:{b}", { a: m.me, b: m.them }), 2.2);
     setTimeout(() => {
       if (!run || run.pvp !== pv) return;
-      state = "over"; joy.active = false; lastScore = null;
+      state = "over"; joy.active = false; aimJoy.active = false; mouse.down = false; lastScore = null;
       const title = $("overTitle");
       title.textContent = matchWon ? tr("SIEG!") : tr("NIEDERLAGE"); title.classList.toggle("win", matchWon);
       const line = (icon, label, value, cls = "", i = 0) => `<span style="--i:${i}">${I(icon)}${label}</span><b class="${cls}" style="--i:${i}">${value}</b>`;
@@ -6373,7 +6509,7 @@
     showBanner(title, why || tr("Endstand {a}:{b}", { a: m.me, b: m.them }), 2.2);
     setTimeout(() => {
       if (!run || run.pvp !== pv) return;
-      state = "over"; joy.active = false; lastScore = null;
+      state = "over"; joy.active = false; aimJoy.active = false; mouse.down = false; lastScore = null;
       const t = $("overTitle");
       t.textContent = title; t.classList.toggle("win", won === true);
       const line = (icon, label, value, cls = "", i = 0) => `<span style="--i:${i}">${I(icon)}${label}</span><b class="${cls}" style="--i:${i}">${value}</b>`;
@@ -6837,6 +6973,8 @@
     if (hb && hb.ways) $("arenaVia").textContent = tr("Erreichbar über {r} Spiel-Server{p}", { r: hb.ways.relays, p: hb.ways.peer ? ` + ${tr("Direktverbindung")}` : "" });
     else if (hb) $("arenaVia").textContent = hb.via === "p2p" ? tr("Verbunden: Direktverbindung") : hb.via ? tr("Verbunden über Spiel-Server {n}", { n: relayName(hb.via) }) : "";
     else if (!arenaTestTxt) $("arenaVia").textContent = "";
+    // v5.4 Spielversion immer sichtbar – so sehen Freunde sofort, ob ein Gerät noch einen alten Stand hat
+    if (!arenaTestTxt) $("arenaVia").textContent = [$("arenaVia").textContent, `${tr("Version")} ${Platform.cfg.version}`].filter(Boolean).join(" · ");
     $("arenaTest").disabled = wait;
   }
   function updateAmbient(dt) {
@@ -6944,13 +7082,13 @@
   function togglePause() {
     // Online lässt sich der Kampf nicht anhalten – die Gegenseite läuft weiter. Pause heißt dort: aufgeben?
     if (state === "play" && run && run.pvp && run.pvp.net && !run.pvp.over) {
-      joy.active = false;
+      joy.active = false; aimJoy.active = false; mouse.down = false;
       if (window.confirm(tr("Online-Kampf aufgeben? Das zählt als Niederlage."))) endPvp(false, tr("Aufgegeben"), true);
       return;
     }
     if (state === "play") {
       state = "pause";
-      joy.active = false;
+      joy.active = false; aimJoy.active = false; mouse.down = false;
       renderSettings(); // Kamera-Knopf im Pausenmenü aktuell halten
       const grid = $("pauseSkills");
       const cell = (icon, tone, name, n, cls = "") => `<div class="sk ${cls}">${medal(icon, tone)}<em>${name}</em>${n > 1 ? `<b>${n}</b>` : ""}</div>`;
@@ -7380,7 +7518,7 @@
     if (run.mode === "arena") saveFighter(run.climbDone ? ARENA_STAGES : Math.max(0, run.room - (run.cleared ? 0 : 1)));
     bankLoot();
     if (window.GameAudio && !quit) GameAudio.stinger(won ? "victory" : "death");
-    joy.active = false;
+    joy.active = false; aimJoy.active = false; mouse.down = false;
     clearInterval(reviveTimer);
     const surv = run.mode === "survival";
     if (won) run.coins += Math.round(300 * run.greed * ECON.earn); // Siegprämie im Überlebensmodus
@@ -7503,6 +7641,10 @@
     get allies() { return run && run.pvp && run.pvp.allies ? run.pvp.allies : NO_SURVIVORS; },
     get powers() { return state === "play" || state === "pick" ? activePowers().map((k) => POWERUPS[k].rgb) : NO_SURVIVORS; }, // v3.7 Aura-Farben
     get hazards() { return hazards; },
+    get scope() { // v5.4 Zielfernrohr: Blick nach vorn und Zoom
+      const sc = player && player.scopeK > 0.01 && SCOPES[player.weaponId];
+      return sc ? { k: player.scopeK, ang: player.aim, reach: sc.reach, fov: sc.fov } : null;
+    },
     get slowPu() { return state === "play" && puOn("slow"); },
     get shield() { return (state === "play" || state === "pick") && puOn("shield") ? run.pu.shield : 0; },
     get plant() { return player ? player.plant || 0 : 0; },
@@ -7699,7 +7841,8 @@
     scrOff = 0;
   }
   // v3.4 2D-Kamera: zeigt etwas mehr vom Weg nach vorn (Tür oben); beim Raumstart springt sie direkt an den Helden
-  const cam2DTarget = () => clamp((player ? player.y : B) - 600, 0, WH - H);
+  const scopeLook = () => (player && player.scopeK > 0 && SCOPES[player.weaponId] ? SCOPES[player.weaponId].reach * player.scopeK : 0);
+  const cam2DTarget = () => clamp((player ? player.y + Math.sin(player.aim || 0) * scopeLook() : B) - 600, 0, WH - H);
   function updateCam2D(dt, snap = false) {
     const t = cam2DTarget();
     camY = snap ? t : camY + (t - camY) * Math.min(1, dt * 5);
@@ -7839,9 +7982,82 @@
     ctx.stroke();
     ctx.restore();
   }
+  // v5.4 Ziellinie (Laservisier), Fadenkreuz und Zielfernrohr-Ansicht
+  function drawAimSight() {
+    const p = player;
+    if (state !== "play" || !p || !manualAim() || p.spectate || !run) return;
+    const k = p.scopeK || 0;
+    if (!p.aiming && k < 0.05) return;
+    const w = p.weapon, mz = muzzlePoint(p), range = Math.min(w.range || 800, 1400) * (1 + 0.25 * k);
+    const ca = Math.cos(p.aim), sa = Math.sin(p.aim);
+    const end = rayEnd(mz.x, mz.y, p.aim, range), len = Math.hypot(end.x - mz.x, end.y - mz.y);
+    let hit = null, hd = len;
+    for (const e of enemies) {
+      if (e.dead || e.spawnT > 0 || e.ally || e.under) continue;
+      const ex = e.x - mz.x, ey = e.y - mz.y, along = ex * ca + ey * sa;
+      if (along < 0 || along > hd) continue;
+      if (Math.abs(-ex * sa + ey * ca) < e.r + 4) { hd = along; hit = e; }
+    }
+    const tx = mz.x + ca * hd, ty = mz.y + sa * hd, rgb = hit ? "255,84,64" : k > 0.3 ? "255,70,70" : "168,255,62";
+    ctx.save();
+    // Laserlinie in Stücken (3D: Punkte hinter der Kamera auslassen)
+    ctx.strokeStyle = `rgba(${rgb},${(p.firing ? 0.3 : 0.2) + 0.45 * k})`;
+    ctx.lineWidth = 1.2 + 0.8 * k;
+    ctx.beginPath();
+    let pen = false;
+    const N = mode3d ? 14 : 2;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N, q = scr(mz.x + (tx - mz.x) * t, mz.y + (ty - mz.y) * t, 26);
+      if (q.behind) { pen = false; continue; }
+      if (pen) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y);
+      pen = true;
+    }
+    ctx.stroke();
+    const rq = scr(tx, ty, hit ? Math.min(60, hit.r * 1.6) : 22), rx = rq.x, ry = rq.y, behind = rq.behind;
+    // Zielfernrohr: Linse um das Fadenkreuz, Rest abgedunkelt
+    if (k > 0.02 && !behind) {
+      const cx = clamp(rx, W * 0.25, W * 0.75), cy = clamp(ry, H * 0.25, H * 0.7), R = Math.min(W, H) * (0.62 - 0.18 * k);
+      const g = ctx.createRadialGradient(cx, cy, R * 0.82, cx, cy, R * 1.25);
+      g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(0.35, `rgba(2,5,4,${0.55 * k})`); g.addColorStop(1, `rgba(2,5,4,${0.86 * k})`);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = `rgba(10,14,12,${0.9 * k})`; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.arc(cx, cy, R * 0.86, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = `rgba(20,24,22,${0.55 * k})`; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(cx - R * 0.86, cy); ctx.lineTo(rx - 22, ry); ctx.moveTo(rx + 22, ry); ctx.lineTo(cx + R * 0.86, cy);
+      ctx.moveTo(cx, cy - R * 0.86); ctx.lineTo(rx, ry - 22); ctx.moveTo(rx, ry + 22); ctx.lineTo(cx, cy + R * 0.86); ctx.stroke();
+    }
+    if (!behind) {
+      const r = 10 + 6 * k + (hit ? 3 : 0);
+      ctx.strokeStyle = `rgba(${rgb},${0.55 + 0.4 * Math.max(k, hit ? 1 : 0)})`; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(rx - r - 6, ry); ctx.lineTo(rx - r * 0.35, ry); ctx.moveTo(rx + r * 0.35, ry); ctx.lineTo(rx + r + 6, ry);
+      ctx.moveTo(rx, ry - r - 6); ctx.lineTo(rx, ry - r * 0.35); ctx.moveTo(rx, ry + r * 0.35); ctx.lineTo(rx, ry + r + 6);
+      ctx.stroke();
+      if (hit || k > 0.3) { ctx.beginPath(); ctx.arc(rx, ry, r, 0, TAU); ctx.stroke(); }
+      ctx.fillStyle = `rgba(${rgb},0.9)`; ctx.beginPath(); ctx.arc(rx, ry, 1.8 + k, 0, TAU); ctx.fill();
+      if (k > 0.5) {
+        ctx.font = FONT_UI(11, 700); ctx.textAlign = "left"; ctx.fillStyle = `rgba(${rgb},${k})`;
+        ctx.fillText(`${Math.round(hd / 10)} m`, rx + r + 10, ry - 8);
+      }
+    }
+    ctx.restore();
+  }
+  function drawScopeButton() {
+    if (!manualAim() || !hasScope() || !run || player.spectate) return;
+    const b = scopeBtn(), on = scopeOn || pad.scope;
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = on ? "rgba(70,14,10,0.75)" : "rgba(6,9,8,0.6)"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = on ? "#ff5a46" : "rgba(232,239,233,0.55)"; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 2, 0, TAU); ctx.stroke();
+    drawIcon(ctx, "scope", b.x, b.y - 3, 22, on ? "#ffd2c8" : "#e8efe9");
+    ctx.font = FONT_UI(9, 700); ctx.textAlign = "center"; ctx.fillStyle = on ? "#ff8a76" : "#b3bfb6";
+    ctx.fillText(pad.on ? "LT" : touchSeen ? tr("VISIER") : "V", b.x, b.y + 18);
+    ctx.restore();
+  }
   function drawOverlay() {
     drawGhosts();
-    drawLockOn();
+    if (manualAim()) drawAimSight(); else drawLockOn();
     drawScreenFx();
     drawHud();
     drawObjectiveHud();
@@ -7849,7 +8065,7 @@
     drawMiniLabel();
     drawLandmarkLabel();
     if (state === "play") { drawOffscreen(); drawMinimap(); }
-    if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); }
+    if (state === "play" || state === "pick") { drawDashButton(); drawActionButtons(); drawScopeButton(); }
     drawCombo();
     if (state === "play" || state === "pick") { drawPowerBadges(); drawLooterBadges(); drawFeeding(); drawPetMarks(); drawPowerHud(); drawDuelHud(); drawPvpHud(); }
     // Kinobalken bei Boss-Auftritt und Boss-Tod
@@ -7861,7 +8077,8 @@
       ctx.fillRect(0, H - 92 * cine, W, 92 * cine);
     }
     if (roomFade > 0) { ctx.globalAlpha = Math.min(1, roomFade * 1.4); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
-    if (state === "play" && joy.active) drawJoystick();
+    if (state === "play" && joy.active) drawJoystick(joy);
+    if (state === "play" && aimJoy.active) drawJoystick(aimJoy, true);
     if (banner) drawBanner();
     drawBossCard();
     if (!save.tutorialDone && run.room === 1 && (state === "play" || state === "pick")) drawTutorial();
@@ -8013,7 +8230,40 @@
     ctx.drawImage(s.c, x - r * 1.3, y - r * 0.15, r * 2.6, r * 1.3);
   }
 
+  // v5.4 Tutorial für das manuelle Zielen
+  function drawAimTutorial() {
+    const t = performance.now() / 1000, y = (ST + SB) / 2 + 36, fired = !!player.firing;
+    const how = pad.on ? "pad" : touchSeen ? "touch" : "keys";
+    const lines = {
+      touch: ["Linker Daumen = laufen · Rechter Daumen = zielen & schießen", "Visier-Waffen: Knopf VISIER = Zielfernrohr"],
+      keys: ["WASD = laufen · Maus = zielen · Klick = schießen", "Rechtsklick oder V = Zielfernrohr (Visier-Waffen)"],
+      pad: ["Linker Stick = laufen · Rechter Stick = zielen & schießen", "RT = schießen · LT = Zielfernrohr (Visier-Waffen)"],
+    }[how];
+    if (save.leftHand && how === "touch") lines[0] = "Rechter Daumen = laufen · Linker Daumen = zielen & schießen";
+    ctx.save();
+    ctx.globalAlpha = 0.88;
+    ctx.fillStyle = "rgba(6,9,8,0.78)"; roundRect(W / 2 - 230, y, 460, 78, 6); ctx.fill();
+    ctx.strokeStyle = fired ? "rgba(168,255,62,0.7)" : "rgba(255,183,51,0.55)"; ctx.lineWidth = 2; roundRect(W / 2 - 230, y, 460, 78, 6); ctx.stroke();
+    ctx.textAlign = "center";
+    let fs = 19; ctx.font = FONT_UI(fs);
+    const a = tr(lines[0]);
+    while (ctx.measureText(a).width > 440 && fs > 12) ctx.font = FONT_UI(--fs);
+    ctx.fillStyle = fired ? "#a8ff3e" : "#ffb733"; ctx.fillText(a, W / 2, y + 32);
+    ctx.font = FONT_UI(14, 600); ctx.fillStyle = "#e8efe9"; ctx.fillText(tr(lines[1]), W / 2, y + 56);
+    ctx.restore();
+    if (how === "touch" && !joy.active && !aimJoy.active) {
+      const pulse = (cx, rgb, ph) => {
+        const cy = SB - 110;
+        ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.beginPath(); ctx.arc(cx, cy, 46, 0, TAU); ctx.fill();
+        ctx.fillStyle = `rgba(${rgb},0.7)`; ctx.beginPath(); ctx.arc(cx + Math.sin(t * 2.5 + ph) * 26, cy + Math.cos(t * 2.5 + ph) * 26, 18, 0, TAU); ctx.fill();
+      };
+      const left = save.leftHand;
+      pulse(left ? R - 120 : L + 90, "140,255,74", 0);
+      pulse(left ? L + 90 : R - 120, "255,110,80", 1.7);
+    }
+  }
   function drawTutorial() {
+    if (manualAim()) { drawAimTutorial(); return; }
     const t = performance.now() / 1000;
     const moving = player.moving;
     const plant = player.plant || 0;
@@ -9338,16 +9588,18 @@
     ctx.restore();
   }
 
-  function drawJoystick() {
+  function drawJoystick(j, aim = false) {
     ctx.fillStyle = "rgba(255,255,255,0.06)";
-    ctx.strokeStyle = "rgba(140,255,74,0.35)"; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(joy.ox, joy.oy, 70, 0, TAU); ctx.fill(); ctx.stroke();
-    const dx = joy.x - joy.ox, dy = joy.y - joy.oy;
+    ctx.strokeStyle = aim ? "rgba(255,110,80,0.4)" : "rgba(140,255,74,0.35)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(j.ox, j.oy, 70, 0, TAU); ctx.fill(); ctx.stroke();
+    const dx = j.x - j.ox, dy = j.y - j.oy;
     const len = Math.min(70, Math.hypot(dx, dy)), a = Math.atan2(dy, dx);
-    const kx = joy.ox + Math.cos(a) * len, ky = joy.oy + Math.sin(a) * len;
+    const kx = j.ox + Math.cos(a) * len, ky = j.oy + Math.sin(a) * len;
     const g = ctx.createRadialGradient(kx - 8, ky - 8, 2, kx, ky, 28);
-    g.addColorStop(0, "rgba(200,255,160,0.85)"); g.addColorStop(1, "rgba(80,160,40,0.55)");
+    if (aim) { g.addColorStop(0, "rgba(255,200,180,0.85)"); g.addColorStop(1, "rgba(190,60,40,0.55)"); }
+    else { g.addColorStop(0, "rgba(200,255,160,0.85)"); g.addColorStop(1, "rgba(80,160,40,0.55)"); }
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(kx, ky, 28, 0, TAU); ctx.fill();
+    if (aim) drawIcon(ctx, "aim", kx, ky, 18, "rgba(255,240,235,0.85)");
   }
 
   // Banner: Hintergrund, Titel (mit Leuchten) und Untertitel als gecachte Ebenen –
@@ -9980,7 +10232,7 @@
   // Bestiarium: Beschreibung und Taktik je Gegner (Reihenfolge = Anzeige)
   const BESTIARY = {
     walker: "Langsam, aber überall. Kommt meist in Gruppen.",
-    runner: "Schnell und wendig – stehen bleiben und schießen statt weglaufen.",
+    runner: "Schnell und wendig – ruhig zielen statt wild weglaufen.",
     crawler: "Kriecht im Rudel heran. Klein, flink, schwach.",
     rat: "Seuchenratten im Schwarm – Flächenschaden hilft.",
     dog: "Springt aus kurzer Distanz an. Kommt zu zweit.",
@@ -10586,6 +10838,7 @@
     $("motionBtn").innerHTML = row("motion", tr("4D-Bewegung (Neigen)"), sw(save.motion !== false));
     $("shakeBtn").innerHTML = row("explosion", tr("Bildschirmwackeln"), sw(save.shakeFx !== false));
     $("handBtn").innerHTML = row("hand", tr("Linkshänder (Knöpfe links)"), sw(!!save.leftHand));
+    $("aimBtn").innerHTML = row("aim", tr("Zielhilfe (Daumen & Controller)"), sw(save.aimAssist !== false));
     $("bloomBtn").innerHTML = row("star", tr("Leuchteffekte"), sw(save.bloom !== false));
     $("bloomBtn").classList.toggle("hidden", !init3d());
     $("camBtn").innerHTML = row("camView", tr("Kamera"), valTxt(tr(CAM_NAMES[save.cam || "tp"]) + (quality === 0 ? ` ${tr("(nur 3D)")}` : "")));
@@ -10850,6 +11103,7 @@
   $("cineBtn").addEventListener("click", () => { save.cine = save.cine === false; persist(); applyCine(); renderSettings(); });
   $("shakeBtn").addEventListener("click", () => { save.shakeFx = save.shakeFx === false; persist(); renderSettings(); });
   $("handBtn").addEventListener("click", () => { save.leftHand = !save.leftHand; persist(); renderSettings(); });
+  $("aimBtn").addEventListener("click", () => { save.aimAssist = save.aimAssist === false; persist(); renderSettings(); });
   // v3.1 Kamera-Perspektive: Übersicht → Nah → Third Person (Taste C, Gamepad Select, Einstellungen, Pause)
   function cycleCam(silent) {
     const i = CAM_ORDER.indexOf(save.cam || "tp");
@@ -10955,7 +11209,7 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y, evo) => { evoLock = true; try { const e = spawnEnemy(t, x, y); if (evo) mutate(e, evo, null); return e; } finally { evoLock = false; } }, freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), get miniSpot() { return miniSpot; }, get wetSpots() { return wetSpots; }, mini: (kind = "lukas") => { const s = { kind, x: player.x, y: player.y, r: 30, bob: 0, done: false, armed: false }; miniSpot = s; openMini(s); return s; }, layout: (list = [], withBarrier = false) => {
+  window.__outbreak = { get state() { return state; }, get camY() { return camY; }, get aimJoy() { return aimJoy; }, get scopeOn() { return scopeOn; }, SCOPES, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y, evo) => { evoLock = true; try { const e = spawnEnemy(t, x, y); if (evo) mutate(e, evo, null); return e; } finally { evoLock = false; } }, freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), get miniSpot() { return miniSpot; }, get wetSpots() { return wetSpots; }, mini: (kind = "lukas") => { const s = { kind, x: player.x, y: player.y, r: 30, bob: 0, done: false, armed: false }; miniSpot = s; openMini(s); return s; }, layout: (list = [], withBarrier = false) => {
     const fest = run.mode === "campaign" && run.room > 0 ? curCity().fest : "";
     const obs = (withBarrier ? genBarrier() : []).concat(list.map((q) => { const sz = OBSTACLE_SIZE[q.kind]; let w = q.w || sz[0], h = q.h || sz[2]; if (q.vert && !q.w) [w, h] = [h, w]; const o = { seed: randi(1, 1e9), fest, vert: !!q.vert, ...q, w, h }; if (DESTRUCT[q.kind]) o.hp = DESTRUCT[q.kind]; return o; }));
     obstacles = clearGates(obs); floorCanvas = makeFloor();

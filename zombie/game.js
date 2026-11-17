@@ -1881,8 +1881,11 @@
       p.aiming = !!aim; p.firing = !!(aim && aim.fire);
       if (aim) {
         // durchs Zielfernrohr dreht der Daumen/Stick langsamer – feines Nachführen statt Springen
-        if (p.scopeK > 0.2 && aim.src !== "mouse") { const mt = (4.5 - 2.4 * p.scopeK) * dt; p.aim += clamp(angTo(p.aim, aim.ang), -mt, mt); }
-        else p.aim = aim.ang;
+        if (p.scopeK > 0.2 && aim.src !== "mouse") {
+          const mt = (4.5 - 2.4 * p.scopeK) * dt, da = angTo(p.aim, aim.ang);
+          p.aim += clamp(da, -mt, mt);
+          if (Math.abs(da) > 0.2) p.firing = false; // erst ausrichten, dann schießen – sonst geht der Schuss ins Leere
+        } else p.aim = aim.ang;
       }
       if (p.weapon.spin) {
         p.spin = p.firing ? Math.min(1, p.spin + dt / 1.1) : Math.max(0, p.spin - dt * 1.5);

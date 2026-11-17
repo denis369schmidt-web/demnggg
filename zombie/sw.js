@@ -1,6 +1,6 @@
 // Offline-Cache. v5.3: zuerst das Netz (am Browser-Cache vorbei geprüft), der Cache nur ohne Netz –
 // sonst laufen Geräte nach einem Update noch mit dem alten Stand und passen online nicht zusammen.
-const CACHE = "outbreak-hero-v52";
+const CACHE = "outbreak-hero-v53";
 const FILES = [
   "./", "./index.html", "./style.css", "./config.js", "./i18n.js", "./sprites.js", "./vendor/three.min.js", "./render3d.js", "./platform.js", "./audio.js", "./minigames.js", "./game.js",
   "./manifest.webmanifest", "./icon.svg", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/maskable-512.png",

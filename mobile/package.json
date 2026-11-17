@@ -1,6 +1,6 @@
 {
   "name": "outbreak-hero-mobile",
-  "version": "5.11.0",
+  "version": "5.12.0",
   "private": true,
   "description": "Android-Build (Capacitor) für Outbreak! Germany",
   "type": "module",

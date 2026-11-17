@@ -1155,7 +1155,7 @@
   const GAUNT_Y = (i) => B - GAUNT.rows[i] + GAUNT.wallH; // Unterkante der Mauer i
 
   function makeFloor() {
-    const city = run && run.mode === "campaign" && run.room > 0 ? curCity() : null;
+    const city = run && run.mode === "campaign" && run.room > 0 ? curCity() : run && run.arena ? { id: "arena", ...arenaDef() } : null;
     const c = Sprites.floor(theme(), { W, H: WH, L, T, R, B }, randi(1, 1e9), { snow: !!city && city.weather === "snow", confetti: !!city && city.weather === "confetti", leaves: !!city && (city.fest === "wiesn" || city.fest === "wein"), tram: !!city && city.id !== "hamburg" && Math.random() < 0.55, wet: theme() === "street" || (!!city && city.weather === "rain"), gates });
     floorCtx = c.getContext("2d");
     const res = c.width / W;
@@ -1419,7 +1419,8 @@
     return best;
   }
   // v5.5 Plattformen: Oberkante (Welt-Einheiten, passt zu den 3D-Modellen) – 0 = nicht betretbar (Wand, Wahrzeichen …)
-  const CLIMB_TOP = { container: 58, bus: 44, dumpster: 40, crate: 34, medcrate: 34, labcrate: 34, tonnen: 35, barricade: 30, car: 30, polizeiauto: 30, wrack: 24, sandsack: 22, bretter: 0 };
+  const CLIMB_TOP = { container: 58, bus: 44, dumpster: 40, crate: 34, medcrate: 34, labcrate: 34, tonnen: 35, barricade: 30, car: 30, polizeiauto: 30, wrack: 24, sandsack: 22, bretter: 0,
+    fass: 32, bed: 22, cabinet: 26, bierbank: 18, strandkorb: 30 }; // v5.12 Fässer, Betten, Schränke, Bierbänke, Strandkörbe
   const topOf = (r) => (r.landmark || r.wall || r.gateBar || r.barrier ? 0 : r.top ?? (r.top = CLIMB_TOP[r.kind] || 0));
   // Boden unter einem Punkt: höchste Plattform, auf der man stehen kann (nur wenn man von oben kommt)
   function supportAt(x, y, z, r = 0) {
@@ -2325,6 +2326,19 @@
         b.x = clamp(b.x, L, R); b.y = clamp(b.y, T, B);
         if (Math.random() < 0.3) fxSparks(b.x, b.y, rand(0, TAU), Math.PI, 1, "200,210,220", 120);
         if (b.hitCd <= 0 && (player.x - b.x) ** 2 + (player.y - b.y) ** 2 < (player.r + b.r) ** 2) { b.hitCd = 0.5; hurtPlayer(b.dmg); player.kvx = (player.kvx || 0) + b.vx * 0.5; player.kvy = (player.kvy || 0) + b.vy * 0.5; }
+        continue;
+      }
+      if (b.kind === "barrel" && b.roll) { // v5.12 Wiesn: Fass walzt durch die Gasse – wer nicht springt, wird umgerissen
+        if (b.y < T - 10 || b.y > B + 10 || b.life <= 0) { b.dead = true; continue; }
+        const pr = run.pvp;
+        if (!b.hitP && !player.spectate && (player.z || 0) < 20 && (player.x - b.x) ** 2 + (player.y - b.y) ** 2 < (player.r + b.r) ** 2) {
+          b.hitP = true; player.invuln = 0; hurtPlayer(b.dmg);
+          player.kvx = (player.kvx || 0) + (player.x < b.x ? -260 : 260); player.kvy = (player.kvy || 0) + b.vy * 0.6;
+          fxDebris(b.x, b.y, 0, Math.PI, 8, "#6a4426"); sfx("kick"); shake = Math.max(shake, 4);
+          if (pr && pr.dead && !pr.party && !pr.respawn) { /* Runde vorbei */ }
+        }
+        const bot = pr && !pr.party && pr.rival && !pr.rival.dead && !(pr.rival.spawnT > 0) ? pr.rival : null;
+        if (bot && !b.hitB && (bot.x - b.x) ** 2 + (bot.y - b.y) ** 2 < (bot.r + b.r) ** 2) { b.hitB = true; bot.hp -= bot.maxHp * ROLL.dmg; bot.hitT = 0.12; bot.x += bot.x < b.x ? -40 : 40; if (bot.hp <= 0) killEnemy(bot); }
         continue;
       }
       if (b.kind === "barrel") {
@@ -5982,14 +5996,62 @@
   }
   const PVP_HALF = [["sandsack", 140, 570, 100, 30], ["sandsack", 300, 570, 100, 30], ["container", 40, 360, 120, 54], ["crate", 380, 410, 52, 46],
     ["barricade", 330, 210, 110, 28], ["dumpster", 70, 150, 78, 44], ["sandsack", 60, 30, 96, 30]];
+  // v5.12 Mehrere Kampfplätze: im Zufallsmodus je Runde gelost (online über den Startwert gleich für alle). Jeder Platz hat eine
+  // eigene Welt (Boden, Fassaden, Wetter, Fest) und eine eigene Mechanik; alle Layouts sind punktsymmetrisch (fair für beide Seiten).
+  // half: [Art, x, dy, Breite, Höhe] in der unteren Hälfte (dy = Abstand der Oberkante zur Mitte), center: liegt auf der Mitte,
+  // tac: Taktik-Felder (k: med | pad | hide | tele (mit to) | rad).
+  const ARENAS = {
+    hbf: { name: "Hauptbahnhof", feat: "Giftgas schließt die Lücken", theme: "street", weather: "rain", fest: "", fx: "",
+      half: PVP_HALF, center: [["container", -60, -27, 120, 54]], tac: null },
+    altmarkt: { name: "Altmarkt", feat: "Sturmglocke: alle 25 s sind alle Spieler 4 s lang sichtbar", theme: "markt", weather: "snow", fest: "weihnachten", fx: "bell",
+      center: [["schoenbrunnen", -56, -56, 112, 112, "Schöner Brunnen"]],
+      half: [["bude", 40, 120, 84, 50], ["bude", 416, 260, 84, 50], ["weihnachtsbaum", 247, 330, 46, 46], ["bierbank", 90, 470, 94, 36], ["bierbank", 356, 470, 94, 36], ["fass", 180, 200, 48, 48], ["fass", 330, 580, 48, 48]],
+      tac: [{ k: "med", x: 470, dy: 560, r: 34 }, { k: "hide", x: 90, dy: 300, r: 56 }, { k: "pad", x: 150, dy: 420, r: 28 }] },
+    hafen: { name: "Containerhafen", feat: "Kranlasten: Container krachen herunter und werden zu neuer Deckung", theme: "street", weather: "fog", fest: "hafen", fx: "crane",
+      center: [["leuchtturm", -36, -36, 72, 72, "Leuchtturm"]],
+      half: [["container", 24, 380, 158, 58], ["container", 334, 220, 158, 58], ["crate", 210, 470, 56, 50], ["fass", 120, 150, 48, 48], ["strandkorb", 400, 540, 52, 40], ["container", 150, 70, 158, 58]],
+      tac: [{ k: "pad", x: 110, dy: 300, r: 28 }, { k: "hide", x: 470, dy: 420, r: 52 }, { k: "med", x: 60, dy: 560, r: 32 }] },
+    labor: { name: "Sperrlabor", feat: "Teleporter an den Flanken, Strahlungsalarm in der Mittelgasse", theme: "lab", weather: "clear", fest: "", fx: "lab",
+      center: [["zentrifuge", -23, -23, 46, 46]],
+      half: [["server", 60, 140, 44, 80], ["server", 436, 300, 44, 80], ["tank", 160, 420, 58, 58], ["labcrate", 330, 470, 56, 50], ["labcrate", 230, 130, 56, 50], ["barrels", 420, 560, 52, 52]],
+      tac: [{ k: "tele", x: 60, dy: 580, r: 26, to: { x: 480, dy: 90 } }, { k: "rad", x: 270, dy: 300, r: 62 }, { k: "med", x: 480, dy: 520, r: 32 }, { k: "hide", x: 100, dy: 300, r: 50 }] },
+    klinik: { name: "Klinikhof", feat: "Stromausfall: alle 30 s wird es dunkel – nur Mündungsfeuer verrät die Gegner", theme: "hospital", weather: "clear", fest: "", fx: "blackout",
+      center: [["bed", -46, -24, 92, 48]],
+      half: [["bed", 40, 160, 92, 48], ["bed", 400, 300, 92, 48], ["cabinet", 220, 420, 52, 34], ["cabinet", 60, 520, 52, 34], ["rollstuhl", 330, 120, 32, 32], ["medcrate", 410, 560, 54, 46], ["infusion", 150, 360, 20, 20]],
+      tac: [{ k: "med", x: 480, dy: 450, r: 32 }, { k: "med", x: 60, dy: 40, r: 30 }, { k: "hide", x: 300, dy: 250, r: 52 }, { k: "pad", x: 200, dy: 560, r: 26 }] },
+    wiesn: { name: "Wiesn-Festzelt", feat: "Bierfässer rollen durch die Gassen – drüberspringen!", theme: "markt", weather: "clear", fest: "wiesn", fx: "barrels",
+      center: [["loewe", -56, -30, 112, 60, "Löwe"]],
+      half: [["bierbank", 180, 160, 94, 36], ["bierbank", 266, 300, 94, 36], ["bierbank", 180, 440, 94, 36], ["fass", 452, 220, 48, 48], ["fass", 40, 380, 48, 48], ["bierbank", 266, 560, 94, 36]],
+      tac: [{ k: "med", x: 480, dy: 560, r: 30 }, { k: "hide", x: 56, dy: 230, r: 40 }] },
+  };
+  const ARENA_ORDER = Object.keys(ARENAS);
+  let arenaForce = null; // Tests: bestimmten Platz erzwingen
+  const BARREL_LANES = [120, 420];
+  // Platz je Runde: gleich auf allen Geräten, nie zweimal hintereinander derselbe
+  function pickArena(seed, round) {
+    if (arenaForce && ARENAS[arenaForce]) return arenaForce;
+    const at = (r) => Math.floor(seedRand((seed | 0) * 29 + r * 577 + 3) * ARENA_ORDER.length);
+    let i = at(round);
+    if (round > 1 && i === at(round - 1)) i = (i + 1) % ARENA_ORDER.length;
+    return ARENA_ORDER[i];
+  }
+  const arenaDef = () => ARENAS[(run && run.arena) || "hbf"] || ARENAS.hbf;
+  function setArena(id) {
+    run.arena = ARENAS[id] ? id : "hbf";
+    run.theme = arenaDef().theme;
+  }
   function pvpObstacles() {
-    const out = [], cy = (T + B) / 2;
-    PVP_HALF.forEach(([kind, x, dy, w, h], i) => {
+    const out = [], cy = (T + B) / 2, a = arenaDef();
+    a.half.forEach(([kind, x, dy, w, h], i) => {
       const y = Math.round(cy + dy);
-      out.push({ kind, x, y, w, h, vert: false, seed: 11 + i });
-      out.push({ kind, x: W - x - w, y: T + B - y - h, w, h, vert: false, seed: 31 + i });
+      out.push({ kind, x, y, w, h, vert: false, seed: 11 + i, fest: a.fest });
+      out.push({ kind, x: W - x - w, y: T + B - y - h, w, h, vert: false, seed: 31 + i, fest: a.fest });
     });
-    out.push({ kind: "container", x: W / 2 - 60, y: Math.round(cy - 27), w: 120, h: 54, vert: false, seed: 77 }); // Wachturm in der Mitte
+    for (const [kind, dx, dy, w, h, name] of a.center) {
+      const o = { kind, x: Math.round(W / 2 + dx), y: Math.round(cy + dy), w, h, vert: false, seed: 77, fest: a.fest };
+      if (name) Object.assign(o, { landmark: true, blessed: true, name: tr(name) }); // Wahrzeichen in der Mitte: unzerstörbar, kein Segen im Duell
+      out.push(o);
+    }
     return out;
   }
   function buildPvpArena(px, py) {
@@ -6100,7 +6162,15 @@
   const GAS_T0 = 40, GAS_V = 14, GAS_MIN = 170, GAS_DPS = 0.08; // Giftgas: ab 40 s rücken beide Enden vor (nur Runden ohne Wiedereinstieg)
   function pvpZones() {
     const cy = (T + B) / 2, out = [];
-    for (const z of TAC_HALF) { out.push({ k: z.k, x: z.x, y: cy + z.dy, r: z.r, c: 1 }); out.push({ k: z.k, x: W - z.x, y: cy - z.dy, r: z.r, c: 1 }); }
+    for (const z of arenaDef().tac || TAC_HALF) {
+      const a = { k: z.k, x: z.x, y: cy + z.dy, r: z.r, c: 1 }, b = { k: z.k, x: W - z.x, y: cy - z.dy, r: z.r, c: 1 };
+      out.push(a, b);
+      if (z.to) { // Teleporter: Eingang und Ausgang sind verbunden (beide Richtungen), gespiegelt genauso
+        const a2 = { k: "tele", x: z.to.x, y: cy + z.to.dy, r: z.r, c: 1 }, b2 = { k: "tele", x: W - z.to.x, y: cy - z.to.dy, r: z.r, c: 1 };
+        a.link = a2; a2.link = a; b.link = b2; b2.link = b;
+        out.push(a2, b2);
+      }
+    }
     return out;
   }
   const inZone = (z, o, pad = 0) => (o.x - z.x) ** 2 + (o.y - z.y) ** 2 < (z.r + pad) ** 2;
@@ -6139,6 +6209,7 @@
       if (e.flashT > 0) e.revealT = 1.2; else if (e.revealT > 0) e.revealT -= dt;
       e.hidden = !e.dead && inHedge(e) && !(e.revealT > 0) && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 > TAC_SEE * TAC_SEE;
     }
+    if (updateArenaFx(pv, dt, alive, bot)) return; // v5.12 Mechanik des Kampfplatzes
     // Giftgas
     const edge = gasEdge(pv), cy = (T + B) / 2;
     if (edge < Infinity && !pv.over) {
@@ -6150,6 +6221,173 @@
       } else p.inGas = false;
       if (bot && Math.abs(bot.y - cy) > edge) { bot.hp -= bot.maxHp * GAS_DPS * dt; if (bot.hp <= 0) { killEnemy(bot); return; } }
     } else p.inGas = false;
+  }
+  // ---------------------------------------------------------------- v5.12 Mechaniken der Kampfplätze
+  // Alles hängt nur an der Rundenzeit und am Startwert – jedes Gerät rechnet dasselbe, ohne zusätzliche Nachrichten.
+  const BELL = { t0: 12, every: 25, dur: 4 }, BLACK = { t0: 20, every: 30, dur: 7, see: 170 }, RAD = { every: 16, warn: 8, on: 10, dps: 0.12 };
+  const CRANE = { t0: 15, every: 16, n: 3, warn: 2.5, dmg: 0.45 }, ROLL = { t0: 8, every: 5, v: 300, dmg: 0.22 };
+  const cycleOn = (t, c) => t >= c.t0 && ((t - c.t0) % c.every) < c.dur;
+  // Kranlasten: je Abwurf zwei Container an gespiegelten Stellen; Lage aus dem Startwert, frei von Deckung, Feldern und Startplätzen
+  function cranePlan(seed) {
+    const cy = (T + B) / 2, out = [], zones = pvpZones(), M = 18;
+    const free = (r) => !obstacles.some((o) => r.x < o.x + o.w + M && r.x + r.w > o.x - M && r.y < o.y + o.h + M && r.y + r.h > o.y - M)
+      && !zones.some((z) => circleRectOverlap({ x: z.x, y: z.y, r: z.r + 10 }, r)) && !out.some((q) => r.x < q.x + q.w + 24 && r.x + r.w > q.x - 24 && r.y < q.y + q.h + 24 && r.y + r.h > q.y - 24);
+    for (let k = 0; k < CRANE.n; k++) {
+      for (let i = 0; i < 120; i++) {
+        const sd = (seed | 0) * 41 + k * 997 + i * 13, vert = seedRand(sd + 2) < 0.5, w = vert ? 56 : 150, h = vert ? 150 : 56; // quer oder längs
+        const r = { x: Math.round(L + 8 + seedRand(sd) * (R - L - 16 - w)), y: Math.round(cy + 40 + seedRand(sd + 1) * (B - 230 - cy - 40 - h)), w, h };
+        if (r.y + r.h > B - 230 || !free(r)) continue;
+        const m = { x: W - r.x - w, y: T + B - r.y - h, w, h };
+        out.push(r, m);
+        break;
+      }
+    }
+    return out.map((r, i) => ({ ...r, at: CRANE.t0 + Math.floor(i / 2) * CRANE.every, done: false }));
+  }
+  function arenaHurt(o, frac, why, isBot) {
+    if (isBot) { o.hp -= o.maxHp * frac; o.hitT = 0.12; if (o.hp <= 0) killEnemy(o); return; }
+    player.invuln = 0;
+    hurtPlayer(player.maxHp * frac);
+  }
+  // true = Rundenende ausgelöst (dann nicht weiterrechnen)
+  function updateArenaFx(pv, dt, alive, bot) {
+    const fx = arenaDef().fx, p = player, t = pv.t;
+    if (!fx || pv.cd > 0 || pv.over) return false;
+    if (fx === "bell") {
+      const on = cycleOn(t, BELL), i = Math.floor((t - BELL.t0) / BELL.every);
+      if (on && i !== pv.bellI) { pv.bellI = i; showBanner(tr("STURMGLOCKE"), tr("Alle Spieler sind 4 Sekunden lang sichtbar"), 1.6); if (window.GameAudio) { GameAudio.mini("bell"); setTimeout(() => GameAudio.mini("bell"), 380); } shake = Math.max(shake, 2); }
+      pv.reveal = on;
+    }
+    if (fx === "blackout") {
+      const on = cycleOn(t, BLACK), i = Math.floor((t - BLACK.t0) / BLACK.every);
+      if (on && i !== pv.darkI) { pv.darkI = i; showBanner(tr("STROMAUSFALL"), tr("Nur Mündungsfeuer verrät die Gegner"), 1.6); sfx("alarm"); }
+      pv.dark = on;
+    }
+    // Sicht: Sturmglocke deckt alle auf, Stromausfall versteckt alle außer in der Nähe (Schießen verrät)
+    if (pv.reveal || pv.dark) {
+      for (const e of pvpFoes(pv)) {
+        if (pv.reveal) e.hidden = false;
+        else if (!e.dead && !(e.revealT > 0) && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 > BLACK.see * BLACK.see) e.hidden = true;
+      }
+      if (pv.reveal) pv.meHidden = false;
+      else if (bot && !(pv.revealMe > 0) && (bot.x - p.x) ** 2 + (bot.y - p.y) ** 2 > BLACK.see * BLACK.see) pv.meHidden = true;
+    }
+    if (fx === "lab") {
+      // Teleporter: hinein = am verbundenen Feld wieder heraus (kurze Sperre, damit es nicht hin und her springt)
+      if (p.teleCd > 0) p.teleCd -= dt;
+      if (alive && !(p.teleCd > 0) && (p.z || 0) < 4) for (const z of pv.zones) {
+        if (z.k !== "tele" || !z.link || !inZone(z, p, -6)) continue;
+        fxRing(p.x, p.y, 50, "200,120,255", 0.35);
+        p.x = z.link.x; p.y = z.link.y; p.teleCd = 2.5; p.invuln = Math.max(p.invuln, 0.3);
+        fxRing(p.x, p.y, 60, "200,120,255", 0.45); sfx("zap"); updateCam2D(0, true);
+        addText(p.x, p.y - 60, tr("TELEPORT"), "#d9a8ff", 14);
+        break;
+      }
+      // Strahlungsalarm: Becken warnen 2 s, dann 6 s aktiv
+      const ph = t % RAD.every;
+      pv.radWarn = ph >= RAD.warn && ph < RAD.on; pv.radOn = ph >= RAD.on;
+      if (pv.radOn && !pv.radSaid) { pv.radSaid = true; sfx("alarm"); }
+      if (!pv.radOn) pv.radSaid = false;
+      if (pv.radOn) for (const z of pv.zones) {
+        if (z.k !== "rad") continue;
+        if (alive && inZone(z, p) && (p.z || 0) < 30) {
+          p.hp -= p.maxHp * RAD.dps * dt;
+          if (Math.random() < 0.2) fxBubble(p.x + rand(-10, 10), p.y + rand(-8, 8));
+          if (p.hp <= 0) { p.hp = 0; if (pv.party) partyDie(); else endPvp(false, tr("Verstrahlt")); return true; }
+        }
+        if (bot && inZone(z, bot)) { bot.hp -= bot.maxHp * RAD.dps * dt; if (bot.hp <= 0) { killEnemy(bot); return true; } }
+      }
+    }
+    if (fx === "crane") {
+      if (!pv.cranes) pv.cranes = cranePlan((pv.obj ? pv.obj.seed : 0) + (pvpMatch ? pvpMatch.round : 1) * 7919); // je Runde andere Stellen
+      for (const c of pv.cranes) {
+        if (c.done || t < c.at) continue;
+        c.done = true;
+        const o = { kind: "container", x: c.x, y: c.y, w: c.w, h: c.h, vert: c.h > c.w, seed: 900 + c.x, dropped: true };
+        obstacles.push(o);
+        fxRing(c.x + c.w / 2, c.y + c.h / 2, 120, "220,200,170", 0.4); fxDebris(c.x + c.w / 2, c.y + c.h / 2, 0, TAU, 14, "#5a5550");
+        for (let i = 0; i < 8; i++) fxDust(c.x + rand(0, c.w), c.y + rand(0, c.h), 3, 1);
+        shake = Math.max(shake, 7); sfx("boom");
+        const pad = { x: c.x - 8, y: c.y - 8, w: c.w + 16, h: c.h + 16 };
+        if (alive && (p.z || 0) < 70 && circleRectOverlap({ x: p.x, y: p.y, r: p.r }, pad)) { arenaHurt(p, CRANE.dmg); if (pv.dead || pv.over) return true; p.z = 58; p.vz = 0; addText(p.x, p.y - 60, tr("ERWISCHT!"), "#ff8a6a", 16); }
+        if (bot && circleRectOverlap({ x: bot.x, y: bot.y, r: bot.r }, pad)) { arenaHurt(bot, CRANE.dmg, "", true); pushOutRect(bot, o); }
+      }
+      if (pv.cranes.some((c) => !c.done && t > c.at - CRANE.warn && !c.said)) { for (const c of pv.cranes) if (!c.done && t > c.at - CRANE.warn) c.said = true; sfx("alarm"); }
+    }
+    if (fx === "barrels" && t >= ROLL.t0) {
+      // Bierfässer: je Takt eins von oben (linke Gasse) und eins von unten (rechte Gasse) – gespiegelt fair
+      const i = Math.floor((t - ROLL.t0) / ROLL.every);
+      if (i !== pv.rollI) {
+        pv.rollI = i;
+        const lanes = [[BARREL_LANES[0], T + 30, ROLL.v], [BARREL_LANES[1], B - 30, -ROLL.v]];
+        for (const [x, y, vy] of lanes) {
+          const q = pv.party ? partyLocal(pv, x, y) : { x, y };
+          eBullets.push({ kind: "barrel", roll: true, x: q.x, y: q.y, vx: 0, vy: pv.party && pv.flip ? -vy : vy, r: 22, dmg: p.maxHp * ROLL.dmg, life: 7, spin: 0, color: "#8a5a2a", rgb: "200,140,70", dead: false });
+        }
+        sfx("kick");
+      }
+    }
+    return false;
+  }
+  // Anzeige: was als Nächstes passiert (unter dem Rundenstand)
+  function arenaFxLabel(pv) {
+    const fx = arenaDef().fx, t = pv.t;
+    if (!fx || pv.cd > 0) return null;
+    const next = (c) => Math.max(0, Math.ceil(t < c.t0 ? c.t0 - t : c.every - ((t - c.t0) % c.every)));
+    if (fx === "bell") return pv.reveal ? [tr("STURMGLOCKE – ALLE SICHTBAR"), "#ffd36a"] : [tr("Sturmglocke in {n} s", { n: next(BELL) }), "#efe8d4"];
+    if (fx === "blackout") return pv.dark ? [tr("STROMAUSFALL"), "#ff6a4a"] : [tr("Stromausfall in {n} s", { n: next(BLACK) }), "#efe8d4"];
+    if (fx === "lab") return pv.radOn ? [tr("STRAHLUNG AKTIV"), "#b8ff4a"] : pv.radWarn ? [tr("STRAHLUNGSALARM!"), "#ffd36a"] : null;
+    if (fx === "crane" && pv.cranes) { const c = pv.cranes.find((q) => !q.done); return c ? [t > c.at - CRANE.warn ? tr("KRANLAST!") : tr("Kranlast in {n} s", { n: Math.ceil(c.at - t) }), t > c.at - CRANE.warn ? "#ff8a6a" : "#efe8d4"] : null; }
+    if (fx === "barrels") return [tr("Fässer rollen – springen!"), "#e8b070"];
+    return null;
+  }
+  // Boden-Markierungen der Mechaniken: Teleporter, Strahlungsbecken, Kran-Warnflächen, Glocken-Ringe, Dunkelheit
+  function drawArenaFx(pv, t) {
+    const fx = arenaDef().fx;
+    if (!fx) return;
+    ctx.save();
+    for (const z of pv.zones) {
+      if (z.k !== "tele" && z.k !== "rad") continue;
+      const c = scr(z.x, z.y, 0);
+      if (!c || c.behind) continue;
+      const g = groundEllipse(z.x, z.y, z.r);
+      if (z.k === "tele") {
+        ctx.fillStyle = "rgba(170,90,255,0.18)"; ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, TAU); ctx.fill();
+        for (let k = 0; k < 3; k++) { const a0 = t * 3 + k * 2.1; ctx.strokeStyle = `rgba(210,160,255,${0.85 - k * 0.2})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx * (1 - k * 0.25), g.ry * (1 - k * 0.25), 0, a0, a0 + 3.6); ctx.stroke(); }
+        ctx.fillStyle = "#e6ccff"; ctx.beginPath(); ctx.ellipse(g.cx, g.cy, 4, 3, 0, 0, TAU); ctx.fill();
+      } else {
+        const on = pv.radOn, warn = pv.radWarn, a = on ? 0.42 + 0.1 * Math.sin(t * 8) : warn ? (Math.sin(t * 16) > 0 ? 0.3 : 0.08) : 0.1;
+        ctx.fillStyle = `rgba(170,255,60,${a})`; ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, TAU); ctx.fill();
+        ctx.setLineDash([8, 6]); ctx.strokeStyle = on ? "rgba(210,255,120,0.9)" : "rgba(255,211,106,0.7)"; ctx.lineWidth = 2.5; ctx.stroke(); ctx.setLineDash([]);
+        drawIcon(ctx, "hazard", g.cx, g.cy, 22, on ? "#e8ff9a" : "rgba(255,211,106,0.8)");
+      }
+    }
+    if (fx === "crane" && pv.cranes) for (const c of pv.cranes) {
+      if (c.done || pv.t < c.at - CRANE.warn) continue;
+      const k = 1 - (c.at - pv.t) / CRANE.warn, pts = [scr(c.x, c.y, 0), scr(c.x + c.w, c.y, 0), scr(c.x + c.w, c.y + c.h, 0), scr(c.x, c.y + c.h, 0)];
+      if (pts.some((q) => !q || q.behind)) continue;
+      ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, q.x, q.y)); ctx.closePath();
+      ctx.fillStyle = `rgba(0,0,0,${0.15 + 0.45 * k})`; ctx.fill(); // Schatten der Last wird dunkler
+      ctx.strokeStyle = Math.sin(pv.t * 18) > 0 ? "rgba(255,90,60,0.95)" : "rgba(255,211,106,0.9)"; ctx.lineWidth = 3; ctx.stroke();
+      const m = scr(c.x + c.w / 2, c.y + c.h / 2, 0);
+      drawIcon(ctx, "hazard", m.x, m.y, 24, "#ffd36a");
+    }
+    if (pv.reveal) for (const e of pvpFoes(pv)) {
+      if (e.dead) continue;
+      const g = groundEllipse(e.x, e.y, 30 + ((t * 60) % 40));
+      ctx.strokeStyle = `rgba(255,211,106,${0.8 - ((t * 60) % 40) / 50})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+    if (pv.dark && state === "play") { // Dunkelheit: nur ein Lichtkreis um den eigenen Helden
+      const q = scr(player.x, player.y, 20);
+      if (q && !q.behind) {
+        const g = groundEllipse(player.x, player.y, BLACK.see), r0 = clamp(Math.max(g.rx, g.ry), 80, 135); // nah an der Kamera wäre der Kreis größer als das Bild
+        const gr = ctx.createRadialGradient(q.x, q.y, r0 * 0.55, q.x, q.y, r0 * 1.25);
+        gr.addColorStop(0, "rgba(2,3,8,0)"); gr.addColorStop(1, `rgba(2,3,8,${0.86 + 0.04 * Math.sin(t * 30)})`);
+        ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = `rgba(255,30,20,${0.06 + 0.05 * Math.sin(t * 5)})`; ctx.fillRect(0, 0, W, H); // Notbeleuchtung
+      }
+    }
   }
   // ---------------------------------------------------------------- Einsatzziele im Zufallsmodus (je Runde gelost)
   const ARENA_OBJ = {
@@ -6282,6 +6520,7 @@
   // Bot: Ziel suchen (Zone, Geldsack, Sanitätsstation, raus aus dem Gas) – sonst Abstand halten wie bisher
   function botGoal(e, pv) {
     const ob = pv.obj, cy = (T + B) / 2;
+    if (pv.radOn || pv.radWarn) { const z = (pv.zones || []).find((q) => q.k === "rad" && inZone(q, e, 20)); if (z) { const a = Math.atan2(e.y - z.y, e.x - z.x); return { x: z.x + Math.cos(a) * (z.r + 60), y: z.y + Math.sin(a) * (z.r + 60) }; } } // v5.12 raus aus der Strahlung
     if (e.hp < e.maxHp * 0.4) {
       const m = (pv.zones || []).filter((z) => z.k === "med" && z.c > 0.3).sort((a, b) => dist2(a, e) - dist2(b, e))[0];
       if (m && dist2(m, e) < 450 * 450) return m;
@@ -6379,6 +6618,7 @@
         if (e && !e.dead && !e.hidden) mark(e);
       }
     }
+    ctx.restore(); drawArenaFx(pv, t); ctx.save();
     // Gaswand: grüner Vorhang an beiden Fronten
     const edge = gasEdge(pv);
     if (edge < Infinity) for (const sgn of [-1, 1]) {
@@ -6402,6 +6642,8 @@
     const ob = pv.obj && pv.obj.k !== "elim" ? ARENA_OBJ[pv.obj.k] : null;
     if (ob) showBanner(`${tr(ob.name).toUpperCase()} · ${tr(run.mut.name).toUpperCase()}`, `${tr(ob.desc)} · ${tr(run.mut.desc)}`, 3.6);
     else showBanner(run.chaos.title, `${tr(run.mut.desc)} · ${run.chaos.info}`, 3.4);
+    const ar = arenaDef();
+    if (run.arena !== "hbf" || pv.party) setTimeout(() => { if (run && run.pvp === pv && !pv.over) showBanner(`${tr("ARENA")}: ${tr(ar.name).toUpperCase()}`, tr(ar.feat), 2.8); }, 3800);
   }
   const mySpecialId = () => (run && run.chaos && run.chaos.sp) || (HERO_SPECIALS[save.skin] ? save.skin : "soldier");
   function toggleChaos() {
@@ -6436,6 +6678,7 @@
     keepAwake(true);
     if (!next) pvpMatch = { me: 0, them: 0, round: 1, net: false }; else pvpMatch.round++;
     run.pvp = { opp, net: false, rival: null, cd: PVP.count, over: false, t: 0, sudden: false, myKey: "me", players: [] }; // Bot (online läuft über startParty)
+    setArena(chaos ? (arenaForce || pick(ARENA_ORDER)) : "hbf"); // v5.12 Zufallsmodus: zufälliger Kampfplatz
     setupPvpRoom();
     arenaObjSetup(run.pvp, run.chaos ? pick(["elim", "hold", "loot"]) : "elim");
     if (run.chaos) chaosBanner(run.pvp);
@@ -6590,7 +6833,7 @@
       ctx.fillStyle = pv.sudden ? `rgb(255,${110 + 60 * Math.sin(run.time * 8)},90)` : "#efe8d4";
       ctx.fillText(`${tr("RUNDE {n}", { n: pvpMatch.round })} · ${pvpMatch.me}:${pvpMatch.them}${pv.sudden ? ` · ${tr("SUDDEN DEATH")}` : ""}`, W / 2, y + 34);
     }
-    drawObjHud(pv, y + 46);
+    drawArenaLine(pv, drawObjHud(pv, y + 46));
     if (pv.dead && !pv.over) drawDownText(pv);
     if (pv.net) {
       // v4.4 Verbindungsanzeige: Ping in ms, rot bei Aussetzern
@@ -6686,6 +6929,7 @@
       get rival() { for (const e of this.ents.values()) if (e.foe && !e.dead) return e; return null; }, // erster lebender Gegner (Kamera, Tests)
     };
     pv.myKey = partyKey(pv, meQ);
+    setArena(hub.chaos ? pickArena(hub.chaosSeed || 0, pvpMatch.round) : "hbf"); // v5.12 Zufallsmodus: Kampfplatz je Runde
     setupPartyRoom();
     pv.taken = new Set();
     arenaObjSetup(pv, hub.chaos ? pickObjective(hub.chaosSeed || 0, pvpMatch.round, players, ffa) : "elim");
@@ -7148,6 +7392,17 @@
     if (pv.hub.host) { for (const q of pv.players) if (q.pid !== 0 && !pv.left.has(q.pid) && (pv.seen.get(q.pid) || 0) > PVP.timeout) partyGone(q.pid, tr("Verbindung zu {n} verloren", { n: q.name })); }
     else if (!pv.matchDone && (pv.seen.get(0) || 0) > PVP.timeout) partyHostLeft(tr("Verbindung zum Gastgeber verloren"));
   }
+  function drawArenaLine(pv, y) {
+    const lab = arenaFxLabel(pv);
+    if (!lab) return y;
+    ctx.save();
+    ctx.font = "800 11px 'Barlow Condensed', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const txt = `${tr(arenaDef().name).toUpperCase()} · ${lab[0]}`, w = ctx.measureText(txt).width + 18;
+    ctx.fillStyle = "rgba(12,14,12,0.75)"; ctx.fillRect(W / 2 - w / 2, y, w, 18);
+    ctx.fillStyle = lab[1]; ctx.fillText(txt, W / 2, y + 9.5);
+    ctx.restore();
+    return y + 22;
+  }
   function drawDownText(pv) {
     const txt = pv.respawn ? tr("ZURÜCK IN {n}", { n: Math.max(1, Math.ceil(pv.respawnAt - pv.t)) }) : tr("ZUSCHAUEN");
     ctx.save();
@@ -7188,6 +7443,7 @@
     ctx.textAlign = "right"; ctx.fillStyle = lag ? "#ff6a4a" : ms == null || ms < 90 ? "#9fe08a" : ms < 180 ? "#ffd36a" : "#ff8a3a";
     ctx.fillText(lag ? tr("Verbindung hakt … {s} s", { s: Math.max(0, Math.ceil(PVP.timeout - pv.quiet)) }) : ms == null ? tr("Ping …") : tr("Ping {n} ms", { n: ms }), x + w, y + 8);
     y = drawObjHud(pv, y + 20) - 20;
+    y = drawArenaLine(pv, y + 20) - 20;
     drawKillfeed(y + 32);
     drawQuick(list);
     // Namen über den Köpfen: blau = mit dir, rot = Gegner
@@ -7298,7 +7554,7 @@
   // v5.3 Netz-Protokoll statt App-Version: Geräte mit verschiedenen App-Ständen dürfen zusammen spielen, solange das
   // Protokoll passt. NET_PROTO nur erhöhen, wenn sich Nachrichten inkompatibel ändern. Ältere Stände ohne „p“ (5.0/5.1)
   // sprechen dasselbe Protokoll – ihnen fehlt nur der Zufallsmodus.
-  const NET_PROTO = 59, NET_LEGACY = ["5.0", "5.1"];
+  const NET_PROTO = 60, NET_LEGACY = ["5.0", "5.1"];
   const verNum = (v) => String(v || "").split(".").slice(0, 3).reduce((n, x, i) => n + (parseInt(x, 10) || 0) * [1e6, 1e3, 1][i], 0);
   function netCompatible(i, chaos) {
     if (!i) return false;
@@ -9265,8 +9521,8 @@
     }
   }
   // Wetter/Fest der aktuellen Stadt (Kampagne), sonst Regen auf der Straße
-  const curWeather = () => (run && run.mode === "campaign" && run.room > 0 ? curCity().weather : "rain");
-  const curFest = () => (run && run.mode === "campaign" && run.room > 0 ? curCity().fest : "");
+  const curWeather = () => (run && run.mode === "campaign" && run.room > 0 ? curCity().weather : run && run.arena ? arenaDef().weather : "rain");
+  const curFest = () => (run && run.mode === "campaign" && run.room > 0 ? curCity().fest : run && run.arena ? arenaDef().fest : "");
 
   function drawCorpses() {
     for (const c of corpses) {
@@ -11851,5 +12107,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP, codeFromText, netVersion, netCompatible, verNum, lobbyVersion, NET_PROTO, get spoof() { return netSpoof; }, get wake() { return wakeWanted; }, pvpPayout, MUTATORS, chaosMut, PVP_PAY, ARENA_OBJ, pickObjective, objSetup: (k) => arenaObjSetup(run.pvp, k), gasEdge: () => gasEdge(run.pvp), PVP_LEN, get arenaH() { return ARENA.h; } }, unlock: { check: checkUnlocks, WEAPON_UNLOCK }, jump: () => requestJump(), supportAt: (x, y, z) => supportAt(x, y, z), topOf: (o) => topOf(o), duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP, codeFromText, netVersion, netCompatible, verNum, lobbyVersion, NET_PROTO, get spoof() { return netSpoof; }, get wake() { return wakeWanted; }, pvpPayout, MUTATORS, chaosMut, PVP_PAY, ARENAS, pickArena, set forceArena(v) { arenaForce = v; }, get arenaId() { return run && run.arena; }, get cranes() { return run && run.pvp && run.pvp.cranes; }, ARENA_OBJ, pickObjective, objSetup: (k) => arenaObjSetup(run.pvp, k), gasEdge: () => gasEdge(run.pvp), PVP_LEN, get arenaH() { return ARENA.h; } }, unlock: { check: checkUnlocks, WEAPON_UNLOCK }, jump: () => requestJump(), supportAt: (x, y, z) => supportAt(x, y, z), topOf: (o) => topOf(o), duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

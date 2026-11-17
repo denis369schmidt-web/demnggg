@@ -4798,7 +4798,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       if (!M) { M = buildPlayerModel(e.look.skin, e.look.w, e.look.tier, e.look.w === "flame", {}); M.key = key; scene.add(M.root); cast(M.root); rivalModels.set(e, M); }
       const moving = Math.abs(e.anim - (M.la ?? e.anim)) > 1e-3;
       M.la = e.anim;
-      M.root.position.set(e.x, 0, e.y);
+      M.root.position.set(e.x, e.z || 0, e.y);
       M.root.rotation.set(0, -e.face, 0);
       M.root.scale.setScalar(PLAYER_SCALE);
       M.root.visible = !(e.hitT > 0 && Math.floor(t * 30) % 2 === 0);
@@ -4910,7 +4910,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     if (playerModel && (playerModel.weaponId !== p.weaponId || playerModel.tier !== p.tier || playerModel.skin !== (p.skin || "soldier") || playerModel.gearKey !== gearKey(gearLook))) { scene.remove(playerModel.root); disposeTree(playerModel.root); playerModel = null; }
     if (!playerModel) playerModel = buildPlayer(w);
     const M = playerModel;
-    M.root.position.set(p.x, 0, p.y);
+    M.root.position.set(p.x, p.z || 0, p.y); // v5.5 Sprung/Plattform
     M.root.rotation.set(0, -p.aim, 0);
     M.root.scale.setScalar(PLAYER_SCALE);
     M.root.visible = !w.spectate && !(p.invuln > 0 && w.state === "play" && Math.floor(p.invuln * 16) % 2 === 0);

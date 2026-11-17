@@ -1632,6 +1632,7 @@ canvas.stamp-art { width: auto; max-width: 100%; }
 .party-table tr.me td { background: rgba(120, 170, 40, 0.18); font-weight: 800; }
 .party-table .dot { display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #8a8470; vertical-align: 1px; }
 .party-table .dot.t0 { background: #5ab0ff; } .party-table .dot.t1 { background: #ff6a4a; } .party-table .dot.tx { background: #ffd36a; }
+.stats > .pay-note { grid-column: 1 / -1; padding: 4px 2px 6px; font: 600 12px/1.35 var(--f-ui); opacity: 0.72; text-align: right; } /* v5.5 Aufschlüsselung der Arena-Münzen */
 .party-table em { opacity: 0.6; font-style: normal; font-size: 11px; }
 
 /* v4.8 Schnell-Nachrichten in der Lobby */

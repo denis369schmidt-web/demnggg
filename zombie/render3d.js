@@ -6203,6 +6203,7 @@ void main() {
     setGear: (look) => { gearLook = look || {}; }, get gearKey() { return gearKey(gearLook); }, clear, preview, stopPreview, showcase,
     setCinematic(on) { cinematic = on; }, get flash() { return atmo.flash; },
     setMenuFrame,
+    setArena(d) { if (!D) return; Object.assign(D, d); if (moon) moon.target.position.set((D.L + D.R) / 2, 0, (D.T + D.B) / 2); }, // v5.9 Duell-Arena länger
     menuOrbit(d, end = false) { if (end) { menuCam.drag = false; return; } menuCam.drag = true; menuCam.yaw = Math.max(-1.6, Math.min(1.6, menuCam.yaw + d)); },
     setTilt(x, y) { menuCam.tiltX += (x - menuCam.tiltX) * 0.15; menuCam.tiltY += (y - menuCam.tiltY) * 0.15; },
     get ready() { return ready; },

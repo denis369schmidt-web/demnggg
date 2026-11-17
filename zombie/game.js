@@ -15,8 +15,9 @@
   })();
   // v3.4 größere Arenas: 1,5× so lang wie bisher – der Bildschirm (H) zeigt nur einen Ausschnitt, die Kamera läuft mit.
   const ARENA = { x: 24, y: 120, w: W - 48, h: 1200 };
-  const L = ARENA.x, R = ARENA.x + ARENA.w, T = ARENA.y, B = ARENA.y + ARENA.h;
-  const WH = B + 40; // Welthöhe (Boden-Leinwand samt unterer Mauer)
+  const L = ARENA.x, R = ARENA.x + ARENA.w, T = ARENA.y;
+  let B = ARENA.y + ARENA.h; // v5.9 im Duell länger (setArenaLen)
+  let WH = B + 40; // Welthöhe (Boden-Leinwand samt unterer Mauer)
   const AREA_K = ARENA.h / 800; // Flächenfaktor gegenüber der alten Arena (Hindernisse, Bodendetails)
   const ST = 120, SB = H - 40; // Bildschirm-Ränder des Spielfelds: HUD-Knöpfe und Tutorial richten sich danach
   let camY = 0, scrOff = 0; // 2D-Kamera (Weltversatz nach oben) und Versatz für Overlay-Projektionen
@@ -719,6 +720,7 @@
   let lastMode = "campaign";
   function startRun(mode = "campaign", resume = null) {
     ensureAudio();
+    setArenaLen(mode === "pvp" ? PVP_LEN : ARENA_H0); // v5.9 Duell-Arena länger
     if (!resume && CHECKPOINT_MODES.has(mode)) save.resume = null; // neuer Lauf ersetzt den gesicherten
     lastMode = mode;
     run = {
@@ -1651,7 +1653,7 @@
   function nearestEnemy(from, exclude) {
     let best = null, bd = Infinity, hidden = null, hd = Infinity;
     for (const e of enemies) {
-      if (e.dead || e.spawnT > 0 || (exclude && exclude.has(e)) || e.x < L - 4 || e.x > R + 4) continue;
+      if (e.dead || e.spawnT > 0 || e.hidden || (exclude && exclude.has(e)) || e.x < L - 4 || e.x > R + 4) continue;
       const d = dist2(from, e);
       // v3.3 Sperrkorridor: Gegner hinter einer Container-Mauer nur, wenn sonst niemand in Sicht ist
       if (run.gauntStages && d < bd && obstacles.some((o) => o.wall && segHitsRect(from.x, from.y, e.x, e.y, o, 2))) { if (d < hd) { hd = d; hidden = e; } continue; }
@@ -1715,7 +1717,7 @@
     const range = (p.weapon.range || 800) * 1.05;
     let best = null, bs = 0.13;
     for (const e of enemies) {
-      if (e.dead || e.spawnT > 0 || e.ally || e.under) continue;
+      if (e.dead || e.spawnT > 0 || e.ally || e.under || e.hidden) continue;
       const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy);
       if (d > range || d < 1) continue;
       const sc = Math.abs(angTo(ang, Math.atan2(dy, dx))) - Math.atan2(e.r, d);
@@ -1832,7 +1834,7 @@
       ghosts.push({ x: p.x, y: p.y, life: 0.28, max: 0.28 });
     }
     if (v) {
-      const sp = p.speed * (run.rage > 0 ? 1.15 : 1) * (p.slowT > 0 ? 0.55 : 1) * (1 - 0.45 * (p.scopeK || 0)); // Adrenalin, Bierlache/Formular, Zielfernrohr
+      const sp = p.speed * (run.rage > 0 ? 1.15 : 1) * (p.slowT > 0 ? 0.55 : 1) * (1 - 0.45 * (p.scopeK || 0)) * (p.padT > 0 ? 1.6 : 1) * (p.vip ? 0.92 : 1); // Adrenalin, Bierlache/Formular, Zielfernrohr
       p.x += v.x * sp * dt;
       p.y += v.y * sp * dt;
       p.aim = Math.atan2(v.y, v.x);
@@ -3031,7 +3033,10 @@
   const activePowers = () => (run && run.pu ? Object.keys(POWERUPS).filter((k) => run.pu[k] > 0) : []);
 
   function killEnemy(e) {
-    if (e.rival && run.pvp && !run.pvp.net) endPvp(true); // v4.1: der Bot ist gefallen (online meldet das jedes Gerät selbst)
+    if (e.rival && run.pvp && !run.pvp.net) { // v4.1: der Bot ist gefallen (online meldet das jedes Gerät selbst)
+      if (run.pvp.respawn && !run.pvp.over) { botDown(e); return; } // v5.9 Wiedereinstieg
+      endPvp(true);
+    }
     if (e.dead) return;
     e.dead = true;
     run.kills++;
@@ -5945,14 +5950,25 @@
 
   // ---------------------------------------------------------------- Kampf
   const pvpMirror = (x, y) => ({ x: W - x, y: T + B - y });
-  // Punktsymmetrischer Kampfplatz: was unten links Deckung gibt, steht oben rechts genauso
+  // v5.9 Arena 2.0: 1700 lang statt 1200 – Basis mit Sandsack-Deckung, Flanken mit Container und Hecken, in der Mitte ein
+  // Container als Wachturm. Punktsymmetrisch: was unten links Deckung gibt, steht oben rechts genauso (dy = Abstand zur Mitte).
+  const ARENA_H0 = 1200, PVP_LEN = 1700;
+  function setArenaLen(h) {
+    if (ARENA.h === h) return;
+    ARENA.h = h; B = T + h; WH = B + 40;
+    try { lightCanvas.height = Math.ceil(WH / LS); } catch { /* noch nicht angelegt */ }
+    try { if (webgl && Render3D.setArena) Render3D.setArena({ B, WH }); } catch { /* ohne 3D */ }
+  }
+  const PVP_HALF = [["sandsack", 140, 570, 100, 30], ["sandsack", 300, 570, 100, 30], ["container", 40, 360, 120, 54], ["crate", 380, 410, 52, 46],
+    ["barricade", 330, 210, 110, 28], ["dumpster", 70, 150, 78, 44], ["sandsack", 60, 30, 96, 30]];
   function pvpObstacles() {
-    const half = [["container", 70, 420, 120, 54], ["sandsack", 300, 470, 96, 34], ["crate", 250, 330, 52, 46], ["barricade", 110, 250, 110, 28], ["dumpster", 380, 300, 78, 44]];
-    const out = [], cx = W / 2, cy = (T + B) / 2;
-    half.forEach(([kind, x, dy, w, h], i) => {
-      out.push({ kind, x, y: Math.round(cy + dy - 250), w, h, vert: false, seed: 11 + i });
-      out.push({ kind, x: Math.round(2 * cx - x - w), y: Math.round(cy - (dy - 250) - h), w, h, vert: false, seed: 31 + i });
+    const out = [], cy = (T + B) / 2;
+    PVP_HALF.forEach(([kind, x, dy, w, h], i) => {
+      const y = Math.round(cy + dy);
+      out.push({ kind, x, y, w, h, vert: false, seed: 11 + i });
+      out.push({ kind, x: W - x - w, y: T + B - y - h, w, h, vert: false, seed: 31 + i });
     });
+    out.push({ kind: "container", x: W / 2 - 60, y: Math.round(cy - 27), w: 120, h: 54, vert: false, seed: 77 }); // Wachturm in der Mitte
     return out;
   }
   function buildPvpArena(px, py) {
@@ -5962,6 +5978,7 @@
     updateCam2D(0, true);
     makeGates(true);
     obstacles = pvpObstacles();
+    if (run.pvp) run.pvp.zones = pvpZones();
     floorCanvas = makeFloor();
     roomLights = [];
     initAmbient();
@@ -6053,6 +6070,317 @@
     const o = dropPower(x, y, CHAOS_PU[Math.floor(seedRand(seed + 2) * CHAOS_PU.length)]);
     if (o) { o.puId = i; o.vx = o.vy = 0; }
   }
+  // ================================================================ v5.9 Arena 2.0: Taktik, Giftgas, Einsatzziele
+  // Taktik-Felder (untere Hälfte, gespiegelt): Sanitätsstation heilt (Ladung lädt nach), Sprungfeld schleudert hoch und
+  // macht in der Luft schneller, Tarnhecke versteckt vor Gegnern, die weiter als TAC_SEE entfernt sind (Schießen verrät).
+  // Alles läuft auf jedem Gerät selbst – nur Einsatzziele entscheidet der Gastgeber.
+  const TAC_HALF = [{ k: "med", x: 470, dy: 480, r: 34 }, { k: "pad", x: 270, dy: 330, r: 30 }, { k: "hide", x: 100, dy: 255, r: 64 }, { k: "hide", x: 455, dy: 70, r: 58 }];
+  const TAC_SEE = 150, PAD_V = 950, MED_CAP = 0.45, MED_RATE = 0.16, MED_RECHARGE = 14;
+  const GAS_T0 = 40, GAS_V = 14, GAS_MIN = 170, GAS_DPS = 0.08; // Giftgas: ab 40 s rücken beide Enden vor (nur Runden ohne Wiedereinstieg)
+  function pvpZones() {
+    const cy = (T + B) / 2, out = [];
+    for (const z of TAC_HALF) { out.push({ k: z.k, x: z.x, y: cy + z.dy, r: z.r, c: 1 }); out.push({ k: z.k, x: W - z.x, y: cy - z.dy, r: z.r, c: 1 }); }
+    return out;
+  }
+  const inZone = (z, o, pad = 0) => (o.x - z.x) ** 2 + (o.y - z.y) ** 2 < (z.r + pad) ** 2;
+  const inHedge = (o) => !!(run && run.pvp && run.pvp.zones && run.pvp.zones.some((z) => z.k === "hide" && inZone(z, o)));
+  const gasEdge = (pv) => (pv.gasOn && pv.t > GAS_T0 ? Math.max(GAS_MIN, (B - T) / 2 - (pv.t - GAS_T0) * GAS_V) : Infinity);
+  const pvpFoes = (pv) => (pv.party ? [...pv.ents.values()].filter((e) => e.foe) : pv.rival ? [pv.rival] : []);
+  function healAt(z, o, maxHp, dt) {
+    if (z.c <= 0.02 || o.hp >= maxHp) return false;
+    const h = Math.min(maxHp - o.hp, maxHp * MED_RATE * dt, z.c * maxHp * MED_CAP);
+    o.hp += h; z.c -= h / (maxHp * MED_CAP);
+    if (Math.random() < 0.2) fxRing(o.x, o.y, 26, "120,255,140", 0.25);
+    return true;
+  }
+  function updateArenaTac(pv, dt) {
+    const p = player, alive = !pv.dead && !p.spectate && !pv.over && pv.cd <= 0;
+    const bot = !pv.party && pv.rival && !pv.rival.dead && !(pv.rival.spawnT > 0) ? pv.rival : null;
+    for (const z of pv.zones || []) {
+      if (z.k === "med") {
+        let used = false;
+        if (alive && inZone(z, p) && (p.z || 0) < 4) { used = healAt(z, p, p.maxHp, dt); if (used && !(pv.healSaid > run.time)) { pv.healSaid = run.time + 3; addText(p.x, p.y - 60, tr("SANI-STATION"), "#8aff9a", 14); sfx("heal"); } }
+        if (bot && inZone(z, bot)) used = healAt(z, bot, bot.maxHp, dt) || used;
+        if (!used) z.c = Math.min(1, z.c + dt / MED_RECHARGE);
+      } else if (z.k === "pad" && alive && (p.z || 0) <= 2 && (p.vz || 0) <= 0 && inZone(z, p, -6) && !(p.padCd > 0)) {
+        p.vz = PAD_V * Math.sqrt(jumpMul()); p.padT = 1.4; p.padCd = 0.8;
+        fxRing(z.x, z.y, 60, "120,220,255", 0.35); fxDust(p.x, p.y, 6, 0.8);
+        if (window.GameAudio) GameAudio.ui("swipe");
+        track("jumps");
+      }
+    }
+    if (p.padCd > 0) p.padCd -= dt;
+    if (p.padT > 0) p.padT = (p.z || 0) <= 0.5 && (p.vz || 0) <= 0 ? 0 : p.padT - dt;
+    // Tarnung: in der Hecke unsichtbar für Gegner, die weiter weg sind – wer schießt, ist 1,2 s lang zu sehen
+    if (p.muzzle > 0) pv.revealMe = 1.2; else if (pv.revealMe > 0) pv.revealMe -= dt;
+    pv.meHidden = alive && inHedge(p) && !(pv.revealMe > 0);
+    for (const e of pvpFoes(pv)) {
+      if (e.flashT > 0) e.revealT = 1.2; else if (e.revealT > 0) e.revealT -= dt;
+      e.hidden = !e.dead && inHedge(e) && !(e.revealT > 0) && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 > TAC_SEE * TAC_SEE;
+    }
+    // Giftgas
+    const edge = gasEdge(pv), cy = (T + B) / 2;
+    if (edge < Infinity && !pv.over) {
+      if (!pv.gasSaid) { pv.gasSaid = true; showBanner(tr("GIFTGAS"), tr("Die Gaswand rückt von beiden Seiten vor"), 2.2); sfx("alarm"); }
+      if (alive && Math.abs(p.y - cy) > edge) {
+        p.hp -= p.maxHp * GAS_DPS * dt; p.inGas = true;
+        if (Math.random() < 0.15) fxBubble(p.x + rand(-10, 10), p.y + rand(-8, 8));
+        if (p.hp <= 0) { p.hp = 0; if (pv.party) partyDie(); else endPvp(false, tr("Im Giftgas erstickt")); return; }
+      } else p.inGas = false;
+      if (bot && Math.abs(bot.y - cy) > edge) { bot.hp -= bot.maxHp * GAS_DPS * dt; if (bot.hp <= 0) { killEnemy(bot); return; } }
+    } else p.inGas = false;
+  }
+  // ---------------------------------------------------------------- Einsatzziele im Zufallsmodus (je Runde gelost)
+  const ARENA_OBJ = {
+    elim: { name: "Ausschalten", desc: "Die letzte Seite, die steht, gewinnt die Runde", icon: "skull" },
+    hold: { name: "Stellung halten", desc: "Haltet die Zone in der Mitte – wer 100 % erreicht, gewinnt", icon: "hazard" },
+    loot: { name: "Beutezug", desc: "Wer zuerst 5 Geldsäcke sammelt, gewinnt", icon: "cash" },
+    vip: { name: "Personenschutz", desc: "Beschützt euren VIP – fällt der gegnerische, gewinnt ihr", icon: "star" },
+  };
+  const OBJ_TIME = 120, HOLD_RATE = 100 / 20, HOLD_R = 115, LOOT_NEED = 5, LOOT_EVERY = 4.5, LOOT_LIFE = 20, RESPAWN_T = 4;
+  function pickObjective(seed, round, players, ffa) {
+    const list = ["elim", "hold", "loot"];
+    if (!ffa && players.length >= 3) list.push("vip");
+    return list[Math.floor(seedRand((seed | 0) * 13 + round * 101 + 7) * list.length)];
+  }
+  function arenaObjSetup(pv, kind) {
+    const ob = pv.obj = { k: kind, s: {}, bags: [], bagI: -1, taken: new Set(), limit: OBJ_TIME, seed: pv.party ? pv.hub.chaosSeed || 0 : randi(1, 1e9) };
+    pv.respawn = kind === "hold" || kind === "loot";
+    pv.gasOn = !pv.respawn;
+    if (kind === "vip") {
+      ob.vips = {};
+      for (const team of [0, 1]) {
+        const l = pv.players.filter((q) => q.team === team).sort((a, b) => a.pid - b.pid);
+        if (l.length) ob.vips[`t${team}`] = l[Math.floor(seedRand(ob.seed * 7 + pvpMatch.round * 31 + team * 131) * l.length)].pid;
+      }
+      if (Object.values(ob.vips).includes(pv.me)) { player.maxHp = player.hp = Math.round(player.maxHp * 1.6); player.vip = true; }
+    }
+  }
+  // lebende Spieler mit Seiten-Schlüssel (für Zone und Geldsäcke)
+  function objSides(pv) {
+    const out = [];
+    if (!pv.dead && !player.spectate) out.push({ key: pv.myKey, o: player });
+    if (pv.party) { for (const e of pv.ents.values()) { if (e.dead) continue; const q = pv.players.find((x) => x.pid === e.pid); if (q) out.push({ key: partyKey(pv, q), o: e }); } }
+    else if (pv.rival && !pv.rival.dead && !(pv.rival.spawnT > 0)) out.push({ key: "bot", o: pv.rival });
+    return out;
+  }
+  function objCredit(pv, key, i) {
+    const ob = pv.obj;
+    if (ob.taken.has(i)) return;
+    ob.taken.add(i);
+    ob.s[key] = (ob.s[key] || 0) + 1;
+  }
+  function objWin(pv, win, why) {
+    if (pv.over) return;
+    if (pv.party) { pv.hub.send({ t: "round", win }); partyRound(win); return; }
+    endPvp(win === "me", why, false, true);
+  }
+  function objTick(pv, dt) {
+    const ob = pv.obj;
+    if (!ob || ob.k === "elim" || pv.over || pv.cd > 0) return;
+    const auth = !pv.party || pv.hub.host, cy = (T + B) / 2;
+    if (ob.k === "hold" && auth) {
+      const keys = new Set(objSides(pv).filter((q) => (q.o.x - W / 2) ** 2 + (q.o.y - cy) ** 2 < HOLD_R * HOLD_R).map((q) => q.key));
+      ob.contested = keys.size > 1; ob.holder = keys.size === 1 ? [...keys][0] : null;
+      if (ob.holder) ob.s[ob.holder] = Math.min(100, (ob.s[ob.holder] || 0) + HOLD_RATE * dt);
+    }
+    if (ob.k === "loot") {
+      // alle Geräte legen dieselben Säcke an dieselben Stellen (Startwert + Nummer), je Sack höchstens ein Finder
+      const i = Math.floor(pv.t / LOOT_EVERY);
+      if (i > ob.bagI) {
+        ob.bagI = i;
+        const sd = ob.seed * 97 + i * 53 + pvpMatch.round * 1009;
+        let x = L + 50 + seedRand(sd) * (R - L - 100), y = cy + (seedRand(sd + 1) - 0.5) * (B - T - 520);
+        if (pv.party) { const q = partyLocal(pv, x, y); x = q.x; y = q.y; }
+        for (const o of obstacles) if (pointInRect(x, y, o)) { y = o.y - 26; break; }
+        if (!ob.taken.has(i)) ob.bags.push({ i, x, y, t: 0, dead: false });
+      }
+      for (const b of ob.bags) {
+        if (b.dead) continue;
+        if ((b.t += dt) > LOOT_LIFE) { b.dead = true; continue; }
+        if (!pv.dead && !player.spectate && (player.x - b.x) ** 2 + (player.y - b.y) ** 2 < 30 * 30 && (player.z || 0) < 70) {
+          b.dead = true; sfx("coin"); fxRing(b.x, b.y, 44, "255,211,106", 0.3); addText(b.x, b.y - 40, tr("GELDSACK!"), "#ffd36a", 16);
+          if (pv.party) { pv.hub.send({ t: "bg", i: b.i }); if (pv.hub.host) objCredit(pv, pv.myKey, b.i); } else objCredit(pv, "me", b.i);
+        } else if (!pv.party && pv.rival && !pv.rival.dead && !(pv.rival.spawnT > 0) && (pv.rival.x - b.x) ** 2 + (pv.rival.y - b.y) ** 2 < 30 * 30) {
+          b.dead = true; objCredit(pv, "bot", b.i); fxRing(b.x, b.y, 44, "255,106,74", 0.3);
+        }
+      }
+      ob.bags = ob.bags.filter((b) => !b.dead || b.t < 0.4);
+    }
+    if (!auth) return;
+    if (pv.party && (ob.sendT = (ob.sendT || 0) - dt) <= 0) {
+      ob.sendT = 0.25;
+      const sc = {}; for (const [k, v] of Object.entries(ob.s)) sc[k] = Math.round(v * 10) / 10;
+      pv.hub.send({ t: "ob", s: sc, h: ob.holder || null, c: ob.contested ? 1 : 0, T: ob.limit });
+    }
+    const need = ob.k === "hold" ? 100 : ob.k === "loot" ? LOOT_NEED : 0;
+    for (const [k, v] of Object.entries(ob.s)) if (need && v >= need) { objWin(pv, k, ob.k === "hold" ? tr("Zone gehalten") : tr("Beute gesichert")); return; }
+    if (pv.respawn && pv.t >= ob.limit) {
+      const top = Object.entries(ob.s).sort((a, b) => b[1] - a[1]);
+      if (top.length && (top.length < 2 || top[0][1] > top[1][1]) && top[0][1] > 0) objWin(pv, top[0][0], tr("Zeit abgelaufen"));
+      else { ob.limit += 20; showBanner(tr("VERLÄNGERUNG"), tr("Gleichstand – 20 Sekunden mehr"), 1.8); if (pv.party) pv.hub.send({ t: "ob", s: ob.s, T: ob.limit, x: 1 }); }
+    }
+  }
+  // Wiedereinstieg (Stellung halten, Beutezug): nach RESPAWN_T Sekunden zurück an den eigenen Startplatz
+  function respawnMe(pv) {
+    const p = player, at = pv.party ? partyLocal(pv, ...Object.values(partySpawn(pv.players, pv.ffa, pv.meQ))) : { x: W / 2, y: B - 150 };
+    p.x = at.x; p.y = at.y; p.z = 0; p.vz = 0; p.hp = p.maxHp; p.spectate = false; p.invuln = 1.5;
+    pv.dead = false; pv.lastBy = null; pv.burnT = 0; pv.poisonDps = 0; pv.streak = 0;
+    updateCam2D(0, true);
+    fxRing(p.x, p.y, 70, "168,255,62", 0.4);
+    addText(p.x, p.y - 60, tr("ZURÜCK IM KAMPF"), "#a8ff3e", 16, true);
+    if (pv.party) { pv.alive.add(pv.me); const m = partyLocal(pv, p.x, p.y); pv.hub.send({ t: "rs", x: Math.round(m.x), y: Math.round(m.y) }); }
+  }
+  function playerDown(pv, why) {
+    const p = player;
+    pv.dead = true; p.spectate = true; p.hp = 0; pv.respawnAt = pv.t + RESPAWN_T; pv.streak = 0;
+    fxBlood(p.x, p.y, rand(0, TAU), 16, RED, 240);
+    slowMo = Math.max(slowMo, 0.5); shake = Math.max(shake, 8);
+    showBanner(tr("AUSGESCHALTET"), why || tr("Zurück in {n} s", { n: RESPAWN_T }), 1.8);
+  }
+  function botDown(e) {
+    const pv = run.pvp, at = pvpMirror(W / 2, B - 150);
+    fxBlood(e.x, e.y, rand(0, TAU), 14, RED, 220);
+    addText(e.x, e.y - 40, tr("{n} AUSGESCHALTET", { n: String(e.def.name).toUpperCase() }), "#a8ff3e", 16, true);
+    sfx("kill"); shake = Math.max(shake, 5);
+    e.x = e.tx = at.x; e.y = e.ty = at.y; e.hp = e.maxHp; e.burnT = 0; e.poisonDps = 0; e.slowT = 0; e.spawnT = RESPAWN_T;
+    pvpStreak(pv);
+  }
+  // Serien: mehrere Abschüsse ohne selbst zu fallen – ab drei gibt es 25 % Leben zurück
+  const STREAK_TXT = { 2: "DOPPELSCHLAG", 3: "DREIFACH!", 4: "VIERFACH!", 5: "UNAUFHALTSAM!" };
+  function pvpStreak(pv) {
+    pv.streak = (pv.streak || 0) + 1;
+    const m = pvpMatch;
+    if (m && !m.firstBlood) { m.firstBlood = true; showBanner(tr("ERSTES BLUT"), "", 1.4); }
+    const t = STREAK_TXT[Math.min(5, pv.streak)];
+    if (t && pv.streak >= 2) {
+      addText(player.x, player.y - 76, tr(t), "#ffd36a", 22, true); sfx("combo");
+      if (pv.streak >= 3 && !pv.dead) { player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.25); fxRing(player.x, player.y, 60, "120,255,140", 0.35); }
+    }
+  }
+  // Bot: Ziel suchen (Zone, Geldsack, Sanitätsstation, raus aus dem Gas) – sonst Abstand halten wie bisher
+  function botGoal(e, pv) {
+    const ob = pv.obj, cy = (T + B) / 2;
+    if (e.hp < e.maxHp * 0.4) {
+      const m = (pv.zones || []).filter((z) => z.k === "med" && z.c > 0.3).sort((a, b) => dist2(a, e) - dist2(b, e))[0];
+      if (m && dist2(m, e) < 450 * 450) return m;
+    }
+    if (ob && ob.k === "hold") return { x: W / 2 + Math.sin(run.time * 0.7) * 50, y: cy + Math.cos(run.time * 0.5) * 40 };
+    if (ob && ob.k === "loot") { const b = ob.bags.filter((q) => !q.dead).sort((a, c) => dist2(a, e) - dist2(c, e))[0]; if (b) return b; }
+    const edge = gasEdge(pv);
+    if (edge < Infinity && Math.abs(e.y - cy) > edge - 90) return { x: e.x < W / 2 ? W / 2 - 90 : W / 2 + 90, y: cy };
+    if (pv.meHidden) return { x: W / 2, y: cy + (e.y < cy ? -120 : 120) };
+    return null;
+  }
+  // Anzeige: Einsatzziel mit Fortschritt beider Seiten (Gegenseite = beste andere Seite)
+  function drawObjHud(pv, y) {
+    const ob = pv.obj;
+    if (!ob || ob.k === "elim") return y;
+    const def = ARENA_OBJ[ob.k], me = ob.s[pv.myKey] || 0, them = Math.max(0, ...Object.entries(ob.s).filter(([k]) => k !== pv.myKey).map(([, v]) => v));
+    const w = 250, x = (W - w) / 2, left = Math.max(0, Math.ceil(ob.limit - pv.t));
+    ctx.save();
+    ctx.fillStyle = "rgba(12,14,12,0.82)"; ctx.fillRect(x, y, w, ob.k === "vip" ? 22 : 42);
+    drawIcon(ctx, def.icon, x + 12, y + 11, 14, "#ffd36a");
+    ctx.font = "800 12px 'Barlow Condensed', sans-serif"; ctx.textBaseline = "middle"; ctx.textAlign = "left"; ctx.fillStyle = "#ffd36a";
+    ctx.fillText(tr(def.name).toUpperCase(), x + 24, y + 11);
+    ctx.textAlign = "right"; ctx.fillStyle = "#efe8d4";
+    if (ob.k === "vip") {
+      const mine = ob.vips[pv.myKey], other = Object.entries(ob.vips).find(([k]) => k !== pv.myKey);
+      ctx.fillText(`${tr("Euer VIP")}: ${mine === pv.me ? tr("DU") : partyName(pv, mine)} · ${tr("Ziel")}: ${other ? partyName(pv, other[1]) : "?"}`, x + w - 8, y + 11);
+      ctx.restore();
+      return y + 26;
+    }
+    if (pv.respawn) ctx.fillText(`${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`, x + w - 8, y + 11);
+    const need = ob.k === "hold" ? 100 : LOOT_NEED, bw = (w - 22) / 2;
+    for (const [i, v, col, lab] of [[0, me, "#5ab0ff", pv.allies && pv.allies.length ? tr("IHR") : tr("DU")], [1, them, "#e2561f", tr("GEGNER")]]) {
+      const bx = x + 8 + i * (bw + 6);
+      ctx.fillStyle = "#1c1f1c"; ctx.fillRect(bx, y + 31, bw, 7);
+      ctx.fillStyle = col; ctx.fillRect(bx, y + 31, bw * clamp(v / need, 0, 1), 7);
+      ctx.font = "800 11px 'Barlow Condensed', sans-serif"; ctx.textAlign = i ? "right" : "left"; ctx.fillStyle = "#efe8d4";
+      ctx.fillText(`${lab} ${ob.k === "hold" ? `${Math.floor(v)} %` : `${v}/${need}`}`, i ? bx + bw : bx, y + 24);
+    }
+    if (ob.k === "hold" && ob.contested) { ctx.textAlign = "center"; ctx.fillStyle = `rgb(255,${170 + 60 * Math.sin(run.time * 9)},60)`; ctx.fillText(tr("UMKÄMPFT"), W / 2, y + 24); }
+    ctx.restore();
+    return y + 46;
+  }
+  // Boden-Markierungen: Taktik-Felder, Zone, Geldsäcke, VIP, Gaswand (2D-Welt bzw. Overlay über der 3D-Welt)
+  function drawArenaMarks() {
+    const pv = run && run.pvp;
+    if (!pv || !pv.zones) return;
+    const t = run.time, cy = (T + B) / 2;
+    ctx.save();
+    for (const z of pv.zones) {
+      const c = scr(z.x, z.y, 0);
+      if (!c || c.behind) continue;
+      const g = groundEllipse(z.x, z.y, z.r);
+      ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, TAU);
+      if (z.k === "hide") {
+        ctx.fillStyle = "rgba(34,62,28,0.42)"; ctx.fill();
+        ctx.setLineDash([4, 6]); ctx.strokeStyle = "rgba(120,170,90,0.7)"; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
+        for (let i = 0; i < 9; i++) { const a = i * 2.4 + 0.3, rr = 0.35 + (i % 3) * 0.2; ctx.fillStyle = i % 2 ? "rgba(70,110,50,0.55)" : "rgba(40,80,36,0.6)"; ctx.beginPath(); ctx.ellipse(g.cx + Math.cos(a) * g.rx * rr, g.cy + Math.sin(a) * g.ry * rr, g.rx * 0.22, g.ry * 0.22, a, 0, TAU); ctx.fill(); }
+        drawIcon(ctx, "clover", g.cx, g.cy, 18, "rgba(190,230,150,0.55)");
+      } else if (z.k === "med") {
+        ctx.fillStyle = `rgba(90,230,120,${0.1 + 0.06 * Math.sin(t * 3)})`; ctx.fill();
+        ctx.strokeStyle = "rgba(90,230,120,0.5)"; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = "#7dff9a"; ctx.lineWidth = 4; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx + 5, g.ry + 5 * (g.ry / g.rx), 0, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(0.001, z.c)); ctx.stroke();
+        drawIcon(ctx, "firstAid", g.cx, g.cy, 20, z.c > 0.3 ? "#b8ffc4" : "rgba(184,255,196,0.4)");
+      } else if (z.k === "pad") {
+        ctx.fillStyle = "rgba(90,200,255,0.14)"; ctx.fill();
+        for (let k = 0; k < 3; k++) { const f = ((t * 0.9 + k / 3) % 1); ctx.strokeStyle = `rgba(120,220,255,${0.7 * (1 - f)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx * f, g.ry * f, 0, 0, TAU); ctx.stroke(); }
+        ctx.fillStyle = "#9fe6ff"; for (const dy of [0, 7]) { ctx.beginPath(); ctx.moveTo(g.cx - 8, g.cy + 2 - dy); ctx.lineTo(g.cx, g.cy - 6 - dy); ctx.lineTo(g.cx + 8, g.cy + 2 - dy); ctx.lineTo(g.cx + 5, g.cy + 4 - dy); ctx.lineTo(g.cx, g.cy - 1 - dy); ctx.lineTo(g.cx - 5, g.cy + 4 - dy); ctx.closePath(); ctx.fill(); }
+      }
+    }
+    const ob = pv.obj;
+    if (ob && ob.k === "hold") {
+      const c = scr(W / 2, cy, 0);
+      if (c && !c.behind) {
+        const g = groundEllipse(W / 2, cy, HOLD_R), mine = ob.holder === pv.myKey, col = ob.contested ? "255,211,106" : !ob.holder ? "239,232,212" : mine ? "90,176,255" : "226,86,31";
+        ctx.fillStyle = `rgba(${col},${0.1 + 0.05 * Math.sin(t * 4)})`; ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, TAU); ctx.fill();
+        ctx.setLineDash([10, 8]); ctx.lineDashOffset = -t * 30; ctx.strokeStyle = `rgba(${col},0.85)`; ctx.lineWidth = 2.5; ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+    if (ob && ob.k === "loot") for (const b of ob.bags) {
+      if (b.dead) continue;
+      const q = scr(b.x, b.y, 14 + Math.sin(t * 4 + b.i) * 4);
+      if (!q || q.behind) continue;
+      const fade = b.t > LOOT_LIFE - 4 ? 0.4 + 0.6 * Math.abs(Math.sin(t * 8)) : 1;
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = "rgba(255,211,106,0.25)"; ctx.beginPath(); ctx.arc(q.x, q.y, 18, 0, TAU); ctx.fill();
+      drawIcon(ctx, "cash", q.x, q.y, 24, "#ffd36a");
+      ctx.globalAlpha = 1;
+    }
+    if (ob && ob.k === "vip") {
+      const mark = (o) => { const q = scr(o.x, o.y, 78); if (q && !q.behind) drawIcon(ctx, "star", q.x, q.y - 24 + Math.sin(t * 4) * 2, 20, "#ffd36a"); };
+      for (const pid of Object.values(ob.vips)) {
+        if (pid === pv.me) { if (!pv.dead) mark(player); continue; }
+        const e = pv.ents.get(pid);
+        if (e && !e.dead && !e.hidden) mark(e);
+      }
+    }
+    // Gaswand: grüner Vorhang an beiden Fronten
+    const edge = gasEdge(pv);
+    if (edge < Infinity) for (const sgn of [-1, 1]) {
+      const yl = cy + sgn * edge, far = sgn > 0 ? B : T;
+      const pts = mode3d ? [scr(L, yl, 0), scr(R, yl, 0), scr(R, yl, 120), scr(L, yl, 120)] : [scr(L, yl, 0), scr(R, yl, 0), scr(R, far, 0), scr(L, far, 0)];
+      if (pts.some((q) => !q || q.behind)) continue;
+      ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, q.x, q.y)); ctx.closePath();
+      ctx.fillStyle = `rgba(120,200,60,${0.28 + 0.06 * Math.sin(t * 2 + sgn)})`; ctx.fill();
+      ctx.strokeStyle = "rgba(170,255,90,0.75)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.stroke();
+    }
+    if (pv.meHidden && !player.spectate) {
+      const q = scr(player.x, player.y, 80);
+      if (q && !q.behind) { ctx.font = "800 12px 'Barlow Condensed', sans-serif"; ctx.textAlign = "center"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.75)"; ctx.fillStyle = "#b8ffa0"; ctx.strokeText(tr("GETARNT"), q.x, q.y - 30); ctx.fillText(tr("GETARNT"), q.x, q.y - 30); }
+    }
+    ctx.restore();
+    if (player.inGas && state === "play") { const gr = ctx.createRadialGradient(W / 2, H / 2, H * 0.25, W / 2, H / 2, H * 0.7); gr.addColorStop(0, "rgba(90,170,40,0)"); gr.addColorStop(1, `rgba(90,170,40,${0.35 + 0.1 * Math.sin(t * 6)})`); ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H); }
+  }
+  // Zufallsmodus: Einsatzziel groß, Runden-Regel und Ausrüstung darunter
+  function chaosBanner(pv) {
+    const ob = pv.obj && pv.obj.k !== "elim" ? ARENA_OBJ[pv.obj.k] : null;
+    if (ob) showBanner(`${tr(ob.name).toUpperCase()} · ${tr(run.mut.name).toUpperCase()}`, `${tr(ob.desc)} · ${tr(run.mut.desc)}`, 3.6);
+    else showBanner(run.chaos.title, `${tr(run.mut.desc)} · ${run.chaos.info}`, 3.4);
+  }
   const mySpecialId = () => (run && run.chaos && run.chaos.sp) || (HERO_SPECIALS[save.skin] ? save.skin : "soldier");
   function toggleChaos() {
     const a = save.arena || (save.arena = { w: 0, l: 0 });
@@ -6085,9 +6413,10 @@
     }
     keepAwake(true);
     if (!next) pvpMatch = { me: 0, them: 0, round: 1, net: false }; else pvpMatch.round++;
-    run.pvp = { opp, net: false, rival: null, cd: PVP.count, over: false, t: 0, sudden: false }; // Bot (online läuft über startParty)
+    run.pvp = { opp, net: false, rival: null, cd: PVP.count, over: false, t: 0, sudden: false, myKey: "me", players: [] }; // Bot (online läuft über startParty)
     setupPvpRoom();
-    if (run.chaos) showBanner(run.chaos.title, `${tr(run.mut.desc)} · ${run.chaos.info}`, 3.4);
+    arenaObjSetup(run.pvp, run.chaos ? pick(["elim", "hold", "loot"]) : "elim");
+    if (run.chaos) chaosBanner(run.pvp);
     track("arenaFights");
   }
   function rivalShoot(e, ang, list) {
@@ -6105,13 +6434,17 @@
     // Bot: hält mittlere Distanz, läuft seitlich, wechselt die Richtung, zielt mit Vorhalt
     const o = pv.opp, dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
     if ((e.strafeT -= dt) <= 0) { e.strafeT = rand(0.7, 1.8); e.strafe = Math.random() < 0.5 ? -1 : 1; }
-    const want = d > 380 ? 1 : d < 230 ? -1 : 0;
+    const want = d > 380 ? 1 : d < 230 ? -1 : 0, goal = botGoal(e, pv); // v5.9 Ziele: Zone, Geldsack, Sanitätsstation, raus aus dem Gas
     let mx = (dx / d) * want + (-dy / d) * e.strafe * 0.9, my = (dy / d) * want + (dx / d) * e.strafe * 0.9;
+    if (goal) {
+      const gx = goal.x - e.x, gy = goal.y - e.y, gd = Math.hypot(gx, gy) || 1, k = gd > 24 ? 1 : 0;
+      mx = (gx / gd) * k + (-dy / d) * e.strafe * 0.45; my = (gy / gd) * k + (dx / d) * e.strafe * 0.45;
+    }
     const ml = Math.hypot(mx, my) || 1, sp = e.speed * o.skill * (e.stunT > 0 ? 0 : 1) * (e.slowT > 0 ? 0.45 : 1);
     e.x += (mx / ml) * sp * dt; e.y += (my / ml) * sp * dt; e.anim += dt * 9;
     for (const ob of obstacles) pushOutRect(e, ob);
     e.x = clamp(e.x, L + e.r, R - e.r); e.y = clamp(e.y, T + e.r, B - e.r);
-    if (e.stunT > 0) return;
+    if (e.stunT > 0 || pv.meHidden || p.spectate) return; // getarnt oder gerade ausgeschaltet: der Bot sieht dich nicht
     const lead = d / (o.bspeed || 700), ang = Math.atan2(p.y + p.vy * lead * o.skill - e.y, p.x + p.vx * lead * o.skill - e.x);
     e.face = ang;
     if ((e.fireCd -= dt) <= 0 && d < 620) {
@@ -6142,10 +6475,11 @@
     const note = k < 1 ? ` (${!net ? tr("Bot") : ""}${!net && a.payDay.n > 8 ? " · " : ""}${a.payDay.n > 8 ? tr("viele Matches heute") : ""})`.replace("( · ", "(") : "";
     return { total, text: parts.filter(([, v]) => v > 0).map(([l, v]) => `${l} ${Math.round(v * k)}`).join(" · ") + note };
   }
-  function endPvp(won, why = "", final = false) {
+  function endPvp(won, why = "", final = false, obj = false) {
     const pv = run.pvp;
     if (pv.party) { if (!won) partyQuit(why); return; } // Gruppenkampf: Aufgeben/App verlassen
     if (pv.over) return;
+    if (pv.respawn && !final && !obj && !won) { if (!pv.dead) playerDown(pv, why); return; } // v5.9 Wiedereinstieg statt Rundenende
     pv.over = true; pv.won = won;
     const m = pvpMatch || (pvpMatch = { me: 0, them: 0, round: 1 });
     if (won) m.me++; else m.them++;
@@ -6234,6 +6568,8 @@
       ctx.fillStyle = pv.sudden ? `rgb(255,${110 + 60 * Math.sin(run.time * 8)},90)` : "#efe8d4";
       ctx.fillText(`${tr("RUNDE {n}", { n: pvpMatch.round })} · ${pvpMatch.me}:${pvpMatch.them}${pv.sudden ? ` · ${tr("SUDDEN DEATH")}` : ""}`, W / 2, y + 34);
     }
+    drawObjHud(pv, y + 46);
+    if (pv.dead && !pv.over) drawDownText(pv);
     if (pv.net) {
       // v4.4 Verbindungsanzeige: Ping in ms, rot bei Aussetzern
       const lag = pv.quiet > 1, ms = pv.ping == null ? null : Math.round(pv.ping);
@@ -6267,6 +6603,10 @@
     }
     if (pv.party) updateParty(dt);
     updateChaosPvp(pv, dt);
+    if (!run.pvp || run.pvp !== pv) return;
+    updateArenaTac(pv, dt);
+    objTick(pv, dt);
+    if (pv.dead && pv.respawn && !pv.over && pv.t >= pv.respawnAt) respawnMe(pv);
   }
 
 
@@ -6326,7 +6666,8 @@
     pv.myKey = partyKey(pv, meQ);
     setupPartyRoom();
     pv.taken = new Set();
-    if (hub.chaos) { pv.chaos = true; showBanner(run.chaos.title, `${tr(run.mut.desc)} · ${run.chaos.info}`, 3.4); }
+    arenaObjSetup(pv, hub.chaos ? pickObjective(hub.chaosSeed || 0, pvpMatch.round, players, ffa) : "elim");
+    if (hub.chaos) { pv.chaos = true; chaosBanner(pv); }
     else { const sk = SKINS.find((q) => q.id === player.skin); if (sk) showBanner(tr("ZUFALLS-SKIN"), sk.name, 2.2); }
     const sendLook = () => { if (run && run.pvp === pv) try { hub.send({ t: "lk", w: player.weaponId, s: player.skin }); } catch { /* weg */ } };
     sendLook(); setTimeout(sendLook, 1200); // Zufallswaffe und -Skin den anderen zeigen (zweimal – Nachzügler starten etwas später)
@@ -6411,10 +6752,32 @@
       if (m.t === "lobby" && Array.isArray(m.players) && pv.matchDone) { backToRoom(pv, m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)), !!m.ffa, !!m.chaos); return; }
       if (m.t === "again" && Array.isArray(m.players)) { if (m.seed != null) pv.hub.chaosSeed = +m.seed || 0; startParty(pv.hub, m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)), !!m.ffa); return; }
       if (m.t === "round") { partyRound(m.win == null ? null : String(m.win)); return; }
+      if (m.t === "ob" && pv.obj && m.s && typeof m.s === "object") { // v5.9 Stand des Einsatzziels kommt vom Gastgeber
+        const sc = {}; for (const [k, v] of Object.entries(m.s).slice(0, 8)) sc[String(k).slice(0, 8)] = clamp(+v || 0, 0, 100);
+        pv.obj.s = sc; pv.obj.holder = m.h == null ? null : String(m.h); pv.obj.contested = !!m.c;
+        if (m.T) { const lim = clamp(+m.T || OBJ_TIME, OBJ_TIME, 600); if (m.x && lim > pv.obj.limit) showBanner(tr("VERLÄNGERUNG"), tr("Gleichstand – 20 Sekunden mehr"), 1.8); pv.obj.limit = lim; }
+        return;
+      }
       if (m.t === "final") { partyFinal(m.win == null ? null : String(m.win), String(m.why || "")); return; }
       if (m.t === "gone") { partyGone(+m.pid, String(m.why || "")); return; }
     }
     if (m.t === "qc") { showQuick(from, m.i); return; }
+    if (m.t === "bg" && pv.obj && pv.obj.k === "loot") { // v5.9 jemand hat einen Geldsack geholt
+      const i = Math.floor(+m.i), b = pv.obj.bags.find((q) => q.i === i && !q.dead);
+      if (b) { b.dead = true; fxRing(b.x, b.y, 44, "255,106,74", 0.3); }
+      if (pv.hub.host) { const q = pv.players.find((x) => x.pid === from); if (q) objCredit(pv, partyKey(pv, q), i); } else pv.obj.taken.add(i);
+      return;
+    }
+    if (m.t === "rs" && pv.respawn) { // v5.9 Wiedereinstieg eines anderen Spielers
+      const e = pv.ents.get(from);
+      pv.alive.add(from);
+      if (e) {
+        const at = partyLocal(pv, +m.x || W / 2, +m.y || (T + B) / 2);
+        e.dead = false; e.hp = e.maxHp; e.x = e.tx = clamp(at.x, L, R); e.y = e.ty = clamp(at.y, T, B); e.tAge = 1;
+        if (e.foe && !enemies.includes(e)) enemies.push(e);
+      }
+      return;
+    }
     if (m.t === "pk") { const i = +m.i; (pv.taken || (pv.taken = new Set())).add(i); for (const o of orbs) if (o.puId === i && !o.dead) { o.dead = true; fxRing(o.x, o.y, 40, o.rgb, 0.3); } return; } // v5.5 Kapsel hat jemand anderes geholt
     if (m.t === "lk" && WEAPONS[m.w]) {
       const e = pv.ents.get(from);
@@ -6463,7 +6826,9 @@
     pv.hub.send({ t: "dead", by: pv.lastBy ?? null });
     partyTally(pv.me, pv.lastBy);
     pv.alive.delete(pv.me);
-    showBanner(tr("DU BIST RAUS"), tr("Zuschauen bis zum Rundenende"), 2.2);
+    pv.streak = 0;
+    if (pv.respawn) { pv.respawnAt = pv.t + RESPAWN_T; showBanner(tr("AUSGESCHALTET"), tr("Zurück in {n} s", { n: RESPAWN_T }), 1.8); }
+    else showBanner(tr("DU BIST RAUS"), tr("Zuschauen bis zum Rundenende"), 2.2);
     if (window.GameAudio) GameAudio.stinger("death");
     if (pv.hub.host) partyCheck();
   }
@@ -6577,7 +6942,7 @@
     if (by != null) row(by).k++;
     (m.feed || (m.feed = [])).push({ by: by == null ? null : partyName(pv, by), victim: partyName(pv, victim), byMe: by === pv.me, meDied: victim === pv.me, t: performance.now() });
     if (m.feed.length > 6) m.feed.shift();
-    if (by === pv.me) track("arenaKills");
+    if (by === pv.me) { track("arenaKills"); pvpStreak(pv); }
   }
   function drawKillfeed(y) {
     const m = pvpMatch, now = performance.now();
@@ -6617,6 +6982,9 @@
       partyFinal(win, tr("Die Gegenseite hat das Spiel verlassen"));
       return;
     }
+    // v5.9 Personenschutz: fällt ein VIP, gewinnt die andere Seite
+    if (pv.obj && pv.obj.k === "vip") for (const [key, pid] of Object.entries(pv.obj.vips)) if (!pv.alive.has(pid)) { const win = key === "t0" ? "t1" : "t0"; pv.hub.send({ t: "round", win }); partyRound(win); return; }
+    if (pv.respawn) return; // mit Wiedereinstieg entscheidet das Einsatzziel
     const alive = new Set(pv.players.filter((q) => pv.alive.has(q.pid)).map((q) => partyKey(pv, q)));
     if (alive.size <= 1) {
       const win = [...alive][0] || null;
@@ -6758,6 +7126,14 @@
     if (pv.hub.host) { for (const q of pv.players) if (q.pid !== 0 && !pv.left.has(q.pid) && (pv.seen.get(q.pid) || 0) > PVP.timeout) partyGone(q.pid, tr("Verbindung zu {n} verloren", { n: q.name })); }
     else if (!pv.matchDone && (pv.seen.get(0) || 0) > PVP.timeout) partyHostLeft(tr("Verbindung zum Gastgeber verloren"));
   }
+  function drawDownText(pv) {
+    const txt = pv.respawn ? tr("ZURÜCK IN {n}", { n: Math.max(1, Math.ceil(pv.respawnAt - pv.t)) }) : tr("ZUSCHAUEN");
+    ctx.save();
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "400 26px 'Saira Stencil One', sans-serif"; ctx.fillStyle = "#efe8d4"; ctx.strokeStyle = "#1c1913"; ctx.lineWidth = 5;
+    ctx.strokeText(txt, W / 2, H * 0.3); ctx.fillText(txt, W / 2, H * 0.3);
+    ctx.restore();
+  }
   function drawPartyHud() {
     const pv = run.pvp, w = 250, x = (W - w) / 2;
     let y = 106;
@@ -6789,21 +7165,19 @@
     const lag = pv.quiet > 1, ms = pv.ping == null ? null : Math.round(pv.ping);
     ctx.textAlign = "right"; ctx.fillStyle = lag ? "#ff6a4a" : ms == null || ms < 90 ? "#9fe08a" : ms < 180 ? "#ffd36a" : "#ff8a3a";
     ctx.fillText(lag ? tr("Verbindung hakt … {s} s", { s: Math.max(0, Math.ceil(PVP.timeout - pv.quiet)) }) : ms == null ? tr("Ping …") : tr("Ping {n} ms", { n: ms }), x + w, y + 8);
+    y = drawObjHud(pv, y + 20) - 20;
     drawKillfeed(y + 32);
     drawQuick(list);
     // Namen über den Köpfen: blau = mit dir, rot = Gegner
     ctx.font = "800 12px 'Barlow Condensed', sans-serif"; ctx.textAlign = "center";
     for (const e of list) {
-      if (e.dead) continue;
+      if (e.dead || e.hidden) continue;
       const q = scr(e.x, e.y, 64);
       if (!q || q.behind) continue;
       ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.75)"; ctx.fillStyle = e.foe ? "#ff8a6a" : "#8fd0ff";
       ctx.strokeText(e.def.name, q.x, q.y - 34); ctx.fillText(e.def.name, q.x, q.y - 34);
     }
-    if (pv.dead && !pv.over) {
-      ctx.font = "400 26px 'Saira Stencil One', sans-serif"; ctx.fillStyle = "#efe8d4"; ctx.strokeStyle = "#1c1913"; ctx.lineWidth = 5;
-      ctx.strokeText(tr("ZUSCHAUEN"), W / 2, H * 0.3); ctx.fillText(tr("ZUSCHAUEN"), W / 2, H * 0.3);
-    }
+    if (pv.dead && !pv.over) drawDownText(pv);
     if (pv.cd > 0 && state === "play") {
       const n = Math.ceil(pv.cd), f = pv.cd - Math.floor(pv.cd);
       ctx.textAlign = "center"; ctx.font = `400 ${Math.round(110 + f * 40)}px 'Saira Stencil One', sans-serif`;
@@ -6902,7 +7276,7 @@
   // v5.3 Netz-Protokoll statt App-Version: Geräte mit verschiedenen App-Ständen dürfen zusammen spielen, solange das
   // Protokoll passt. NET_PROTO nur erhöhen, wenn sich Nachrichten inkompatibel ändern. Ältere Stände ohne „p“ (5.0/5.1)
   // sprechen dasselbe Protokoll – ihnen fehlt nur der Zufallsmodus.
-  const NET_PROTO = 52, NET_LEGACY = ["5.0", "5.1"];
+  const NET_PROTO = 59, NET_LEGACY = ["5.0", "5.1"];
   const verNum = (v) => String(v || "").split(".").slice(0, 3).reduce((n, x, i) => n + (parseInt(x, 10) || 0) * [1e6, 1e3, 1][i], 0);
   function netCompatible(i, chaos) {
     if (!i) return false;
@@ -7823,12 +8197,12 @@
     get camPunch() { return { x: punchX, y: punchY, fov: punchFov }; },
     get survivors() { return run && run.obj && run.obj.list ? run.obj.list : NO_SURVIVORS; },
     get pet() { return run && run.pet && run.pet.id !== "hugin" ? run.pet : null; },
-    get rival() { return run && run.pvp && run.pvp.rival && !run.pvp.rival.dead ? run.pvp.rival : null; },
+    get rival() { const e = run && run.pvp && run.pvp.rival; return e && !e.dead && !e.hidden && !(e.spawnT > 0) ? e : null; },
     get rivals() { // v4.6 alle fremden Spieler (Gegner und Mitspieler) als Heldenmodelle
       const pv = run && run.pvp;
       if (!pv) return NO_SURVIVORS;
-      if (!pv.party) return pv.rival && !pv.rival.dead ? [pv.rival] : NO_SURVIVORS;
-      return [...pv.ents.values()].filter((e) => !e.dead);
+      if (!pv.party) return pv.rival && !pv.rival.dead && !pv.rival.hidden && !(pv.rival.spawnT > 0) ? [pv.rival] : NO_SURVIVORS;
+      return [...pv.ents.values()].filter((e) => !e.dead && !e.hidden);
     },
     get spectate() { return !!(player && player.spectate); },
     get allies() { return run && run.pvp && run.pvp.allies ? run.pvp.allies : NO_SURVIVORS; },
@@ -8104,7 +8478,7 @@
     }
     // Gegner
     for (const e of enemies) {
-      if (e.dead || e.spawnT > 0 || e.under) continue;
+      if (e.dead || e.spawnT > 0 || e.under || e.hidden) continue;
       const boss = e.def.boss, r = boss ? 4.2 : Math.max(1.4, Math.min(3, e.r * k * 1.1));
       ctx.fillStyle = boss ? "#ff3a24" : e.looter ? "#ffe27a" : e.elite ? "#ffb733" : "#e8322a";
       ctx.beginPath(); ctx.arc(mx(e.x), my(e.y), r, 0, TAU); ctx.fill();
@@ -8125,7 +8499,7 @@
     if (!mode3d || !window.Render3D || Render3D.camMode === "top") return;
     const p = player, top = 112, bot = H - 30, pad = 18, list = [];
     for (const e of enemies) {
-      if (e.dead || e.spawnT > 0 || e.under) continue;
+      if (e.dead || e.spawnT > 0 || e.under || e.hidden) continue;
       const q = scr(e.x, e.y, e.r * 1.6);
       if (!q.behind && q.x > 0 && q.x < W && q.y > top && q.y < bot) continue;
       list.push({ e, d: (e.x - p.x) ** 2 + (e.y - p.y) ** 2 });
@@ -8906,6 +9280,7 @@
 
   // v4.2 Arena-Gegner: als Held gezeichnet (eigene Figur und Waffe), dafür kurz den Spieler tauschen
   function drawRival2D(e) {
+    if (e.hidden || e.spawnT > 0) return; // v5.9 getarnt bzw. gerade ausgeschaltet
     const b = e.body, me = player;
     // v4.6 Teamring unter fremden Spielern: blau = mit dir, rot = Gegner
     ctx.strokeStyle = e.foe === false ? "rgba(90,176,255,0.85)" : "rgba(255,106,74,0.85)"; ctx.lineWidth = 2.5;
@@ -9489,9 +9864,10 @@
 
   function drawBars() {
     drawObjectiveMarks();
+    drawArenaMarks();
     for (const e of enemies) {
       const tag = e.elite && e.aff;
-      if (e.def.boss || e.spawnT > 0 || (e.hp >= e.maxHp && !tag)) continue;
+      if (e.def.boss || e.spawnT > 0 || e.hidden || (e.hp >= e.maxHp && !tag)) continue;
       // v3.6 Balken nur nach Treffern (blendet nach 3 s aus – Horden bleiben lesbar), helle Schadensspur läuft verzögert nach
       const kk = Math.max(0, e.hp / e.maxHp);
       if (e.barHp !== e.hp) { e.barHp = e.hp; e.barAt = run.time; }
@@ -11107,6 +11483,7 @@
   let dailyShown = false;
   function toMenu() {
     keepAwake(false); // v4.5 Bildschirm darf wieder ausgehen
+    setArenaLen(ARENA_H0);
     try { checkUnlocks(); } catch { /* Spielstand früh */ }
     state = "menu";
     if (run && run.pvp && run.pvp.hub) { try { run.pvp.hub.close(); } catch { /* zu */ } }
@@ -11450,5 +11827,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP, codeFromText, netVersion, netCompatible, verNum, lobbyVersion, NET_PROTO, get spoof() { return netSpoof; }, get wake() { return wakeWanted; }, pvpPayout, MUTATORS, chaosMut, PVP_PAY }, unlock: { check: checkUnlocks, WEAPON_UNLOCK }, jump: () => requestJump(), supportAt: (x, y, z) => supportAt(x, y, z), topOf: (o) => topOf(o), duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP, codeFromText, netVersion, netCompatible, verNum, lobbyVersion, NET_PROTO, get spoof() { return netSpoof; }, get wake() { return wakeWanted; }, pvpPayout, MUTATORS, chaosMut, PVP_PAY, ARENA_OBJ, pickObjective, objSetup: (k) => arenaObjSetup(run.pvp, k), gasEdge: () => gasEdge(run.pvp), PVP_LEN, get arenaH() { return ARENA.h; } }, unlock: { check: checkUnlocks, WEAPON_UNLOCK }, jump: () => requestJump(), supportAt: (x, y, z) => supportAt(x, y, z), topOf: (o) => topOf(o), duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

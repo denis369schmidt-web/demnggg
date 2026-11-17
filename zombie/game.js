@@ -1427,7 +1427,7 @@
     const db = dashBtn();
     if ((p.x - db.x) ** 2 + (p.y - db.y) ** 2 < (db.r + 8) ** 2) { requestDash(); return; }
     const hitB = (b, extra = 6) => (p.x - b.x) ** 2 + (p.y - b.y) ** 2 < (b.r + extra) ** 2;
-    if (run.mode !== "pvp") {
+    if (run.mode !== "pvp" || run.chaos) {
       if (beltKinds().length > 1 && hitB(swapBtn(), 4)) { cycleThrow(); return; }
       if (hitB(throwBtn())) { requestThrow(); return; }
       if (hitB(ultBtn())) { requestUlt(); return; }
@@ -2468,6 +2468,7 @@
     if (e.rival && run.pvp) {
       if (run.pvp.over || run.pvp.cd > 0) return;
       if (!run.pvp.net) dmg *= pvpRamp(); // online rechnet die getroffene Seite den Sudden-Death-Faktor
+      if (run.chaos && dmg > e.maxHp * 0.25) dmg = e.maxHp * 0.25; // v5.2 Spezial/Wurfwaffe: kein Sofort-Tod
       if (run.pvp.net) { // online entscheidet das Gerät des Gegners über Kugeltreffer; nur Flächenschaden wird gemeldet
         e.hitT = 0.08;
         if (!o.bullet && !o.silent && dmg < 1e5 && run.pvp.hub) run.pvp.hub.sendTo(e.pid, { t: "h", d: +dmg.toFixed(1) });
@@ -4213,7 +4214,7 @@
     run.throwCd = Math.max(0, run.throwCd - dt);
     if (p.throwT > 0) p.throwT -= dt;
     if (p.ultT > 0) p.ultT -= dt;
-    run.ult = Math.min(100, run.ult + dt * 0.6 * (player.ultGain || 1)); // lädt auch langsam von selbst
+    run.ult = Math.min(100, run.ult + dt * (run.chaos ? 2.2 : 0.6) * (player.ultGain || 1)); // lädt auch langsam von selbst (Zufallsmodus: schneller)
     if (throwWanted) { throwWanted = false; doThrow(); }
     if (ultWanted) { ultWanted = false; if (run.ult >= 100) activateUlt(); else if (window.GameAudio) GameAudio.ui("tick"); }
     for (const q of throws) {
@@ -4266,8 +4267,8 @@
     run.ultFx = null;
   }
   function activateUlt() {
-    if (run && run.mode === "pvp") return; // Turnierregeln
-    const p = player, sp = heroSpecial(save.skin), U = powerUnit();
+    if (run && run.mode === "pvp" && !run.chaos) return; // Turnierregeln (im Zufallsmodus erlaubt)
+    const p = player, sp = heroSpecial(mySpecialId()), U = powerUnit();
     run.ult = 0;
     p.ultT = 0.7;
     endUltFx(); // eine noch laufende Wirkung zuerst sauber beenden (sonst blieben z. B. Drohnen für immer)
@@ -4276,7 +4277,7 @@
     fx4d("level"); sfx("combo");
     callout = { title: tr(sp.name).toUpperCase(), n: 1, bonus: 0, life: 1.3, max: 1.3, plain: true };
     const near = (r, max = 99) => enemies.filter((e) => !e.dead && e.spawnT <= 0 && !e.under && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < r * r).sort((a, b) => dist2(a, p) - dist2(b, p)).slice(0, max);
-    const id = HERO_SPECIALS[save.skin] ? save.skin : "soldier";
+    const id = mySpecialId();
     if (id === "soldier") {
       for (let i = 0; i < 7; i++) {
         const d = 70 + i * 68, x = clamp(p.x + Math.cos(p.aim) * d, L + 30, R - 30), y = clamp(p.y + Math.sin(p.aim) * d, T + 30, B - 30);
@@ -4372,7 +4373,7 @@
     }
   }
   function drawActionButtons() {
-    if (!run || !run.belt || run.mode === "pvp") return; // 1 gegen 1: keine Wurfwaffen/Spezial (Turnierregeln)
+    if (!run || !run.belt || (run.mode === "pvp" && !run.chaos)) return; // 1 gegen 1: keine Wurfwaffen/Spezial (Turnierregeln) – außer im Zufallsmodus
     const sel = run.beltSel, n = run.belt[sel] || 0, def = THROWABLES[sel];
     // Wurfwaffe
     const tb = throwBtn(), ready = n > 0 && run.throwCd <= 0;
@@ -4397,7 +4398,7 @@
       if (!touchSeen) { ctx.font = FONT_UI(8); ctx.fillStyle = "#b3bfb6"; ctx.fillText(pad.on ? "LB" : "R", sb.x - sb.r - 6, sb.y + 3); }
     }
     // Spezialfähigkeit
-    const ub = ultBtn(), full = run.ult >= 100, sp = heroSpecial(save.skin);
+    const ub = ultBtn(), full = run.ult >= 100, sp = heroSpecial(mySpecialId());
     ctx.globalAlpha = full ? 1 : 0.6;
     if (full) { ctx.fillStyle = `rgba(168,255,62,${0.18 + 0.14 * Math.sin(run.time * 6)})`; ctx.beginPath(); ctx.arc(ub.x, ub.y, ub.r + 8, 0, TAU); ctx.fill(); }
     ctx.fillStyle = "rgba(6,9,8,0.6)"; ctx.beginPath(); ctx.arc(ub.x, ub.y, ub.r, 0, TAU); ctx.fill();
@@ -5743,6 +5744,34 @@
   const pvpPick = () => { const k = save.arena && save.arena.pick; return k && WEAPONS[k] ? k : null; };
   const baseFighter = () => (save.arena && save.arena.f) || { weaponId: save.equipped || "pistol", skin: save.skin, level: 1, tier: 0, skills: {}, evo: {}, mods: [] };
   const myFighter = () => { const f = baseFighter(), k = pvpPick(); return k && k !== f.weaponId ? { ...f, weaponId: k, tier: 0 } : f; };
+  // v5.2 Zufallsmodus: jede Runde zufällige Waffe, 6 Fähigkeiten, 2 Wurfwaffen und eine Spezialfähigkeit
+  // (Bot-Duell: eigener Schalter; online legt der Gastgeber den Modus für den Raum fest, jedes Gerät lost selbst)
+  const CHAOS_THROW = ["frag", "molotov", "flash", "frost"];
+  const chaosOn = () => !!(save.arena && save.arena.chaos);
+  function shuffled(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function chaosFighter() {
+    const skills = {};
+    for (const sk of shuffled(SKILLS.filter((q) => typeof q.apply === "function")).slice(0, 6)) skills[sk.id] = (sk.max || 1) > 1 && Math.random() < 0.4 ? 2 : 1;
+    return { weaponId: pick(Object.keys(WEAPONS)), skin: save.skin, level: 1, tier: 0, skills, evo: {}, mods: [] };
+  }
+  // nach startRun: Gürtel mit zwei zufälligen Wurfwaffen, zufällige Spezialfähigkeit, halb volle Energie
+  function applyChaos() {
+    const ks = shuffled(CHAOS_THROW).slice(0, 2);
+    run.chaos = { sp: pick(Object.keys(HERO_SPECIALS)) };
+    run.belt = {}; for (const k of ks) run.belt[k] = 3;
+    run.beltSel = ks[0]; run.throwCd = 0; run.ult = 45;
+    const names = Object.keys(player.skills || {}).map((id) => { const q = skillById(id); return q ? tr(q.name) : id; });
+    run.chaos.info = `${WEAPONS[player.weaponId].name} · ${ks.map((k) => tr(THROWABLES[k].name)).join(" + ")} · ${tr(HERO_SPECIALS[run.chaos.sp].name)}`;
+    run.chaos.skills = names;
+  }
+  const mySpecialId = () => (run && run.chaos && run.chaos.sp) || (HERO_SPECIALS[save.skin] ? save.skin : "soldier");
+  function toggleChaos() {
+    const a = save.arena || (save.arena = { w: 0, l: 0 });
+    if (lobby && !lobby.host) return; // im Raum entscheidet der Gastgeber
+    a.chaos = !a.chaos;
+    persist();
+    if (lobby && lobby.host) { lobby.chaos = a.chaos; lobbyBroadcast(); } else renderArena();
+  }
   function pickPvpWeapon(id) {
     if (lobby || !WEAPONS[id]) return;
     const a = save.arena || (save.arena = { w: 0, l: 0 });
@@ -5756,13 +5785,19 @@
     duel = null;
     startRun("pvp");
     run.pet = null;
-    player = fairPlayer(myFighter());
+    const chaos = chaosOn();
+    player = fairPlayer(chaos ? chaosFighter() : myFighter());
     syncGearLook();
     run.belt = {}; run.ult = 0; // Turnierregeln: keine Wurfwaffen, keine Spezialfähigkeit
+    if (chaos) {
+      applyChaos();
+      if (opp && opp.bot) opp = { ...fighterInfo(fairPlayer(chaosFighter())), name: opp.name, skill: opp.skill, bot: true }; // Bot lost jede Runde neu
+    }
     keepAwake(true);
     if (!next) pvpMatch = { me: 0, them: 0, round: 1, net: false }; else pvpMatch.round++;
     run.pvp = { opp, net: false, rival: null, cd: PVP.count, over: false, t: 0, sudden: false }; // Bot (online läuft über startParty)
     setupPvpRoom();
+    if (run.chaos) showBanner(tr("ZUFALLSMODUS"), run.chaos.info, 3.2);
     track("arenaFights");
   }
   function rivalShoot(e, ang, list) {
@@ -5955,9 +5990,10 @@
     duel = null;
     startRun("pvp");
     run.pet = null;
-    player = fairPlayer(myFighter());
+    player = fairPlayer(hub.chaos ? chaosFighter() : myFighter());
     syncGearLook();
     run.belt = {}; run.ult = 0; // Turnierregeln: keine Wurfwaffen, keine Spezialfähigkeit
+    if (hub.chaos) applyChaos();
     keepAwake(true);
     players = players.map((q) => ({ ...q })).sort((a, b) => a.pid - b.pid);
     const meQ = players.find((q) => q.pid === hub.me) || players[0];
@@ -5974,6 +6010,7 @@
     };
     pv.myKey = partyKey(pv, meQ);
     setupPartyRoom();
+    if (hub.chaos) { pv.chaos = true; showBanner(tr("ZUFALLSMODUS"), run.chaos.info, 3.2); try { hub.send({ t: "lk", w: player.weaponId }); } catch { /* weg */ } } // Zufallswaffe den anderen zeigen
     hub.onmsg = partyMessage;
     hub.onjoin = (pid) => hub.kick(pid); // Match läuft: niemand kommt dazu
     hub.onleave = (pid) => { if (run && run.pvp === pv) partyGone(pid, tr("{n} hat das Spiel verlassen", { n: partyName(pv, pid) })); };
@@ -6057,6 +6094,7 @@
       if (m.t === "gone") { partyGone(+m.pid, String(m.why || "")); return; }
     }
     if (m.t === "qc") { showQuick(from, m.i); return; }
+    if (m.t === "lk" && WEAPONS[m.w]) { const e = pv.ents.get(from); if (e) { e.look = { ...e.look, w: m.w }; if (e.body) { e.body.weaponId = m.w; e.body.weapon = WEAPONS[m.w]; } } return; }
     if (m.t === "quit") { partyGone(from, tr("{n} hat aufgegeben", { n: partyName(pv, from) })); return; }
     if (m.t === "dead") { if (pv.alive.has(from)) partyTally(from, m.by == null ? null : +m.by); partyDeath(from); return; }
     const e = pv.ents.get(from);
@@ -6150,8 +6188,8 @@
     el.classList.toggle("hidden", !list.length);
   }
   // Knopf im Kampf: an der Stelle der Wurfwaffe (die gibt es im 1 gegen 1 nicht), Sprüche klappen nach innen auf
-  const chatBtn = () => ({ x: hx(46), y: SB - 146, r: 26 });
-  const quickChip = (i) => ({ x: hx(150), y: SB - 112 - i * 38, w: 150, h: 32 });
+  const chatBtn = () => (run && run.chaos ? { x: hx(150), y: SB - 150, r: 24 } : { x: hx(46), y: SB - 146, r: 26 }); // Zufallsmodus: Wurfwaffe belegt den Platz
+  const quickChip = (i) => ({ x: hx(run && run.chaos ? 190 : 150), y: SB - (run && run.chaos ? 196 : 112) - i * 38, w: 150, h: 32 });
   function quickTap(p) {
     if (!run || !run.pvp || !run.pvp.party) return false;
     if (quickOpen) {
@@ -6500,13 +6538,13 @@
   }
   function lobbyBroadcast() {
     if (!lobby || !lobby.host || !lobby.hub) return;
-    lobby.hub.send({ t: "lobby", players: lobby.players, ffa: lobby.ffa });
+    lobby.hub.send({ t: "lobby", players: lobby.players, ffa: lobby.ffa, chaos: !!lobby.chaos });
     renderArena();
   }
   const autoTeam = (players) => (players.filter((q) => q.team === 0).length <= players.filter((q) => q.team === 1).length ? 0 : 1);
   async function openLobby(host, code, retry = 1) {
     closeLobby();
-    const me = lobby = { code, host, hub: null, players: [], ffa: false, me: host ? 0 : -1 };
+    const me = lobby = { code, host, hub: null, players: [], ffa: false, chaos: host ? chaosOn() : false, me: host ? 0 : -1 };
     renderArena();
     keepAwake(true);
     try {
@@ -6562,9 +6600,10 @@
           if (+m.f === 0) seen.set(0, performance.now());
           if (m.t === "ver") { closeLobby(); renderArena(tr(VER_TXT, { a: netVersion(), b: String(m.v || "?") })); return; }
           if (m.t === "qc") { showQuick(+m.f, m.i); return; }
-          if (m.t === "lobby" && Array.isArray(m.players)) { me.players = m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)); me.ffa = !!m.ffa; renderArena(); }
+          if (m.t === "lobby" && Array.isArray(m.players)) { me.players = m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)); me.ffa = !!m.ffa; me.chaos = !!m.chaos; renderArena(); }
           else if (m.t === "go" && Array.isArray(m.players)) {
             lobby = null;
+            hub.chaos = !!m.chaos;
             if (save.vibration) Platform.vibrate(80);
             startParty(hub, m.players.slice(0, HUB_MAX).map((q) => cleanInfo(q, +q.pid)), !!m.ffa);
           }
@@ -6598,7 +6637,8 @@
     const lb = lobby;
     if (!lb || !lb.host || !lb.hub || !teamsValid(lb.players, lb.ffa)) return;
     lb.hub.locked = true; // während des Matches kommt niemand mehr dazu
-    lb.hub.send({ t: "go", players: lb.players, ffa: lb.ffa });
+    lb.hub.send({ t: "go", players: lb.players, ffa: lb.ffa, chaos: !!lb.chaos });
+    lb.hub.chaos = !!lb.chaos;
     lobby = null;
     startParty(lb.hub, lb.players, lb.ffa);
   }
@@ -6637,9 +6677,15 @@
     const wait = !!lobby;
     // v5.1 Waffenwahl fürs Duell: alle Waffen, die eigene ist markiert
     const cur = myFighter().weaponId, own = baseFighter().weaponId, wl = $("arenaWeapons");
-    wl.innerHTML = Object.entries(WEAPONS).map(([id, w]) => `<button class="wpn-chip${id === cur ? " on" : ""}" data-w="${id}" ${wait ? "disabled" : ""} aria-pressed="${id === cur}">` +
+    // v5.2 Zufallsmodus: im Raum gilt die Einstellung des Gastgebers
+    const chaos = wait && lobby.hub ? !!lobby.chaos : chaosOn(), chaosLocked = wait && !lobby.host;
+    $("arenaChaos").innerHTML = `${I("gift")}<span><b>${tr("Zufallsmodus")}</b><em>${chaosLocked ? tr("legt der Gastgeber fest") : tr("Waffe, 6 Fähigkeiten, 2 Wurfwaffen und Spezial – jede Runde neu ausgelost")}</em></span><i class="sw${chaos ? " on" : ""}"></i>`;
+    $("arenaChaos").classList.toggle("on", chaos);
+    $("arenaChaos").disabled = chaosLocked;
+    wl.classList.toggle("dim", chaos);
+    wl.innerHTML = Object.entries(WEAPONS).map(([id, w]) => `<button class="wpn-chip${id === cur && !chaos ? " on" : ""}" data-w="${id}" ${wait || chaos ? "disabled" : ""} aria-pressed="${id === cur}">` +
       `<img src="${Sprites.weaponIcon(id, 0)}" alt="" /><span>${escHtml(w.name)}</span>${id === own ? `<em>${tr("Deine")}</em>` : ""}</button>`).join("");
-    $("arenaWeaponInfo").textContent = `${WEAPONS[cur].name}: ${tr(WEAPONS[cur].desc)}`;
+    $("arenaWeaponInfo").textContent = chaos ? tr("Zufallsmodus an: Jede Runde bekommt jeder Spieler eine zufällige Waffe, 6 Fähigkeiten, 2 Wurfwaffen und eine Spezialfähigkeit.") : `${WEAPONS[cur].name}: ${tr(WEAPONS[cur].desc)}`;
     if (document.activeElement !== $("arenaName")) { $("arenaName").value = save.pname || ""; $("arenaName").placeholder = rankOf(bestScore()).name; }
     $("arenaName").disabled = wait;
     for (const id of ["arenaBot", "arenaHost", "arenaJoin", "arenaCode", "arenaPaste"]) $(id).disabled = wait;
@@ -10558,7 +10604,7 @@
   $("arenaBot").addEventListener("click", () => {
     ensureAudio();
     const me = fighterInfo(fairPlayer(myFighter()));
-    startPvp({ ...me, name: tr("Spiegel-Bot"), skill: 0.85 }, null);
+    startPvp({ ...me, name: chaosOn() ? tr("Zufalls-Bot") : tr("Spiegel-Bot"), skill: 0.85, bot: true }, null);
   });
   $("arenaHost").addEventListener("click", () => hostRoom());
   $("arenaJoin").addEventListener("click", () => joinRoom($("arenaCode").value));
@@ -10582,6 +10628,7 @@
   $("arenaCancel").addEventListener("click", () => { closeLobby(); renderArena(); });
   $("arenaInvite").addEventListener("click", () => shareInvite());
   $("arenaParty").addEventListener("click", (ev) => { const b = ev.target.closest(".party-chip[data-pid]"); if (b && !b.disabled) toggleTeam(+b.dataset.pid); });
+  $("arenaChaos").addEventListener("click", () => toggleChaos());
   $("arenaWeapons").addEventListener("click", (ev) => { const b = ev.target.closest(".wpn-chip[data-w]"); if (b && !b.disabled) pickPvpWeapon(b.dataset.w); });
   $("arenaChat").addEventListener("click", (ev) => { const b = ev.target.closest(".quick-chip[data-i]"); if (b) { ensureAudio(); sendQuick(+b.dataset.i); } });
   $("arenaMode").addEventListener("click", () => toggleFfa());

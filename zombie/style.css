@@ -1655,3 +1655,17 @@ canvas.stamp-art { width: auto; max-width: 100%; }
 .wpn-chip:disabled { opacity: 0.45; cursor: default; }
 .wpn-info { margin: 0; font: 600 13px/1.35 var(--f-ui); color: #efe8d4; }
 .wpn-note { margin: 0; font: 600 11.5px/1.35 var(--f-ui); color: var(--text-3, #9a9886); }
+
+/* v5.2 Zufallsmodus-Schalter */
+.chaos-toggle { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 1px solid #3a3d33; border-radius: 3px; background: rgba(255, 255, 255, 0.04); color: #efe8d4; text-align: left; cursor: pointer; }
+.chaos-toggle > .ic { font-size: 26px; color: var(--khaki); }
+.chaos-toggle span { display: grid; gap: 2px; min-width: 0; }
+.chaos-toggle b { font: 800 15px/1.1 var(--f-ui); letter-spacing: 0.04em; text-transform: uppercase; }
+.chaos-toggle em { font: 600 11.5px/1.3 var(--f-ui); font-style: normal; color: #b8b29c; }
+.chaos-toggle .sw { position: relative; width: 42px; height: 24px; border-radius: 12px; background: #3a3d33; }
+.chaos-toggle .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #c8c2ae; transition: transform 0.15s; }
+.chaos-toggle .sw.on { background: #6ea82a; }
+.chaos-toggle .sw.on::after { transform: translateX(18px); background: #f4ffe4; }
+.chaos-toggle.on { border-color: #a8ff3e; background: rgba(168, 255, 62, 0.1); }
+.chaos-toggle:disabled { cursor: default; opacity: 0.75; }
+.wpn-row.dim { opacity: 0.4; }

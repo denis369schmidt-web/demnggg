@@ -1462,7 +1462,7 @@
     ensureAudio();
     const p = toWorld(e);
     if (quickTap(p)) return; // v4.8 Schnell-Nachrichten im Gruppenkampf
-    // Knopf unten rechts oder Doppeltipp = Ausweichrolle
+    // Knopf unten rechts = Ausweichrolle
     const db = dashBtn();
     if ((p.x - db.x) ** 2 + (p.y - db.y) ** 2 < (db.r + 8) ** 2) { requestDash(); return; }
     const hitB = (b, extra = 6) => (p.x - b.x) ** 2 + (p.y - b.y) ** 2 < (b.r + extra) ** 2;
@@ -1481,6 +1481,11 @@
       return;
     }
     mouse.on = false;
+    // v5.6 Doppeltipp irgendwo auf dem Bildschirm = Sprung (altes Auto-Feuer: Rolle); beide Tipps nah beieinander,
+    // damit linker und rechter Daumen kurz nacheinander keinen Sprung auslösen
+    const now = performance.now();
+    if (now - lastTap.t < 300 && (p.x - lastTap.x) ** 2 + (p.y - lastTap.y) ** 2 < 80 * 80) { if (manualAim()) requestJump(); else requestDash(); lastTap = { t: 0, x: 0, y: 0 }; }
+    else lastTap = { t: now, x: p.x, y: p.y };
     // v5.4 Touch: eine Bildschirmhälfte läuft, die andere zielt und schießt (Linkshänder: getauscht)
     const aimSide = manualAim() && (save.leftHand ? p.x < W / 2 : p.x >= W / 2);
     if (manualAim() && !aimJoy.active && (aimSide || joy.active)) {
@@ -1489,9 +1494,6 @@
       return;
     }
     if (joy.active) return;
-    const now = performance.now();
-    if (now - lastTap.t < 280 && (p.x - lastTap.x) ** 2 + (p.y - lastTap.y) ** 2 < 50 * 50) requestDash();
-    lastTap = { t: now, x: p.x, y: p.y };
     Object.assign(joy, { id: e.pointerId, ox: p.x, oy: p.y, x: p.x, y: p.y, active: true });
     try { stage.setPointerCapture(e.pointerId); } catch { /* egal */ }
   });
@@ -5600,7 +5602,7 @@
   // v4.6 Netz-Knoten („Hub“) für bis zu HUB_MAX Spieler: Stern um den Gastgeber (Spieler 0). Gäste schicken alles an ihn,
   // er stempelt den Absender (m.f) ein und leitet an alle anderen weiter (m.to = nur an diesen einen Spieler).
   // hub: { host, me, send(m), sendTo(pid, m), close(), count(), locked, onmsg(m), onjoin(pid), onleave(pid), onclose() }
-  const HUB_MAX = 4;
+  const HUB_MAX = 6; // v5.6 bis 3 gegen 3
   const NO_RELAY = new Set(["ping", "pong", "hello", "ver", "hb"]);
   // v5.3 jemand klopft an, während das Match läuft: der Gastgeber erfährt es (höchstens alle 8 s ein Hinweis)
   function hubKnock(hub) {
@@ -6268,7 +6270,10 @@
   function partySide(players, ffa, q) { return ffa ? players.findIndex((x) => x.pid === q.pid) % 2 : q.team; }
   function partySpawn(players, ffa, q) {
     let bx;
-    if (ffa) { const i = players.findIndex((x) => x.pid === q.pid); bx = W / 2 + (i < 2 ? -140 : 140); }
+    if (ffa) { // Jeder gegen jeden: abwechselnd unten/oben, je Seite bis zu drei nebeneinander
+      const i = players.findIndex((x) => x.pid === q.pid), n = Math.ceil(players.length / 2);
+      bx = W / 2 + ([[0], [-140, 140], [-170, 0, 170]][Math.min(3, n) - 1][Math.floor(i / 2)] ?? 0);
+    }
     else {
       const team = players.filter((x) => x.team === q.team), k = team.findIndex((x) => x.pid === q.pid);
       const offs = [[0], [-110, 110], [-150, 0, 150]][Math.min(3, team.length) - 1] || [0];
@@ -6741,18 +6746,22 @@
     ctx.textBaseline = "middle";
     // Lebensbalken: zuerst die Gegner (rot), dann die eigenen Leute (blau)
     const list = [...pv.ents.values()].sort((a, b) => (a.foe === b.foe ? a.pid - b.pid : a.foe ? -1 : 1));
-    const big = list.length === 1;
-    for (const e of list) {
+    const big = list.length === 1, two = list.length > 3; // v5.6 ab 4 fremden Spielern (3 gegen 3) zweispaltig
+    const cw = two ? 168 : w, cx0 = two ? (W - cw * 2 - 6) / 2 : x;
+    let row = 0;
+    list.forEach((e, idx) => {
       const k = e.dead ? 0 : clamp(e.hp / e.maxHp, 0, 1), h = big ? 24 : 18;
+      const bx = two ? cx0 + (idx % 2) * (cw + 6) : x, by = two ? y + Math.floor(idx / 2) * (h + 3) : y + row * (h + 3);
+      row++;
       ctx.globalAlpha = e.dead ? 0.45 : 1;
-      ctx.fillStyle = "rgba(12,14,12,0.8)"; ctx.fillRect(x, y, w, h);
-      ctx.fillStyle = e.foe ? "#3a1512" : "#122a3a"; ctx.fillRect(x + 3, y + h - 8, w - 6, 5);
-      ctx.fillStyle = e.foe ? "#e2561f" : "#5ab0ff"; ctx.fillRect(x + 3, y + h - 8, (w - 6) * k, 5);
+      ctx.fillStyle = "rgba(12,14,12,0.8)"; ctx.fillRect(bx, by, cw, h);
+      ctx.fillStyle = e.foe ? "#3a1512" : "#122a3a"; ctx.fillRect(bx + 3, by + h - 8, cw - 6, 5);
+      ctx.fillStyle = e.foe ? "#e2561f" : "#5ab0ff"; ctx.fillRect(bx + 3, by + h - 8, (cw - 6) * k, 5);
       ctx.font = `800 ${big ? 12 : 11}px 'Barlow Condensed', sans-serif`;
-      ctx.textAlign = "left"; ctx.fillStyle = "#efe8d4"; ctx.fillText(`${String(e.def.name).toUpperCase()}${e.dead ? ` · ${tr("RAUS")}` : ""}`, x + 8, y + (big ? 8 : 6));
-      ctx.textAlign = "right"; ctx.fillStyle = e.foe ? "#ffd36a" : "#9fd4ff"; ctx.fillText(`${Math.ceil(k * 100)} %`, x + w - 8, y + (big ? 8 : 6));
-      y += h + 3;
-    }
+      ctx.textAlign = "left"; ctx.fillStyle = "#efe8d4"; ctx.fillText(`${String(e.def.name).toUpperCase().slice(0, two ? 12 : 20)}${e.dead ? ` · ${tr("RAUS")}` : ""}`, bx + 8, by + (big ? 8 : 6));
+      ctx.textAlign = "right"; ctx.fillStyle = e.foe ? "#ffd36a" : "#9fd4ff"; ctx.fillText(`${Math.ceil(k * 100)} %`, bx + cw - 8, by + (big ? 8 : 6));
+    });
+    y += (two ? Math.ceil(list.length / 2) : list.length) * ((big ? 24 : 18) + 3);
     ctx.globalAlpha = 1;
     // Runde, Stand, Sudden Death, Ping
     ctx.font = "800 11px 'Barlow Condensed', sans-serif";
@@ -6786,7 +6795,7 @@
   }
 
   // ---------------------------------------------------------------- Fenster „Arena“
-  const NET_ERR = { relay: "Keine Verbindung zu den Spiel-Servern – Internet prüfen (WLAN/Mobilfunk) und nochmal versuchen", full: "Der Raum ist voll (höchstens 4 Spieler)", busy: "Dort läuft immer noch ein Match – später nochmal versuchen", noroom: "Raum nicht gefunden – stimmt der Code und hat dein Freund die Arena noch offen?", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst – Internet prüfen und nochmal versuchen", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
+  const NET_ERR = { relay: "Keine Verbindung zu den Spiel-Servern – Internet prüfen (WLAN/Mobilfunk) und nochmal versuchen", full: "Der Raum ist voll (höchstens 6 Spieler)", busy: "Dort läuft immer noch ein Match – später nochmal versuchen", noroom: "Raum nicht gefunden – stimmt der Code und hat dein Freund die Arena noch offen?", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst – Internet prüfen und nochmal versuchen", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
   // v4.8 Eingebettete Vorschau (z. B. eine Seite in einem fremden Rahmen) sperrt oft Verbindungen zu fremden Servern:
   // dann gleich auf die Web-Version verweisen statt „Internet prüfen“
   const embedded = (() => { try { return window.top !== window.self; } catch { return true; } })();
@@ -8217,7 +8226,7 @@
     ctx.fillStyle = air ? "#d8ffb0" : "#e8efe9";
     ctx.beginPath(); ctx.moveTo(b.x, b.y - 13); ctx.lineTo(b.x + 10, b.y - 1); ctx.lineTo(b.x + 4, b.y - 1); ctx.lineTo(b.x + 4, b.y + 6); ctx.lineTo(b.x - 4, b.y + 6); ctx.lineTo(b.x - 4, b.y - 1); ctx.lineTo(b.x - 10, b.y - 1); ctx.closePath(); ctx.fill();
     ctx.font = FONT_UI(9, 700); ctx.textAlign = "center"; ctx.fillStyle = air ? "#a8ff3e" : "#b3bfb6";
-    ctx.fillText(pad.on ? "A" : touchSeen ? tr("SPRUNG") : tr("LEER"), b.x, b.y + 18);
+    ctx.fillText(pad.on ? "A" : touchSeen ? tr("2× TIPP") : tr("LEER"), b.x, b.y + 18);
     ctx.restore();
   }
   function drawScopeButton() {
@@ -8369,7 +8378,7 @@
     ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 2, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
     drawIcon(ctx, "dodge", b.x, b.y - 3, 26, k >= 1 ? "#e8efe9" : "#8a958c");
     ctx.textAlign = "center"; ctx.font = FONT_UI(9); ctx.fillStyle = "#b3bfb6";
-    ctx.fillText(pad.on ? "A" : touchSeen ? tr("2× TIPP") : tr("LEER"), b.x, b.y + 21);
+    ctx.fillText(pad.on ? (manualAim() ? "X" : "A") : touchSeen ? (manualAim() ? tr("ROLLE") : tr("2× TIPP")) : (manualAim() ? "SHIFT" : tr("LEER")), b.x, b.y + 21);
     ctx.restore();
   }
   function drawObjectiveHud() {
@@ -8413,7 +8422,7 @@
     const t = performance.now() / 1000, y = (ST + SB) / 2 + 36, fired = !!player.firing;
     const how = pad.on ? "pad" : touchSeen ? "touch" : "keys";
     const lines = {
-      touch: ["Linker Daumen = laufen · Rechter Daumen = zielen & schießen", "SPRUNG: auf Autos & Container – von oben über Hindernisse schießen"],
+      touch: ["Linker Daumen = laufen · Rechter Daumen = zielen & schießen", "2× tippen = springen: auf Autos & Container – von oben schießen"],
       keys: ["WASD = laufen · Maus = zielen · Klick = schießen", "Leertaste = springen · Shift = Rolle · Rechtsklick/V = Zielfernrohr"],
       pad: ["Linker Stick = laufen · Rechter Stick = zielen & schießen", "A = springen · X = Rolle · RT = schießen · LT = Zielfernrohr"],
     }[how];

@@ -5348,6 +5348,8 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     cryo: { core: "238,250,255", len: 34, w: 2.3, halo: 15, trail: 7, ta: 0.4, frost: true },
   };
   const trails = new WeakMap(); // Kugel → [[x, y, z], …] (neueste zuerst)
+  const origin = new WeakMap(); // Kugel → Abschussort: der Schweif ist nie länger als die geflogene Strecke (sonst ragt er durch den Helden bis in die Kamera)
+  const flown = (b) => { let o = origin.get(b); if (!o) { o = [b.x, b.y]; origin.set(b, o); } return Math.hypot(b.x - o[0], b.y - o[1]); };
   let projLast = new Set(), projT = 0;
   const ghostTrails = [], impacts = [], muzzleSmoke = [];
   let lastMuzzle = 0;
@@ -5448,7 +5450,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
         continue;
       }
       if (b.kind === "laser") {
-        const sp = Math.hypot(b.vx, b.vy) || 1, len = 160, ang = Math.atan2(b.vy, b.vx), pulse = 0.8 + 0.2 * Math.sin(t * 40);
+        const sp = Math.hypot(b.vx, b.vy) || 1, len = Math.max(6, Math.min(160, flown(b) + 6)), ang = Math.atan2(b.vy, b.vx), pulse = 0.8 + 0.2 * Math.sin(t * 40);
         const cx = b.x - (b.vx / sp) * len * 0.5, cz = b.y - (b.vy / sp) * len * 0.5;
         flat(addB, cx, z, cz, ang, len * 0.5, 9 * pulse, CELL.streak, "255,30,40", 0.45);
         flat(addB, cx, z, cz, ang, len * 0.5, 4, CELL.streak, "255,60,60", 0.9);
@@ -5459,7 +5461,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       }
       // Kugeln mit eigenem Look je Waffe
       const st = PROJ[b.wid] || { core: "255,240,210", len: b.long ? 90 : 26, w: Math.max(1.4, b.r * 0.8), halo: b.r * 3.2, trail: b.long ? 6 : 2, ta: 0.25 };
-      const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp, ang = Math.atan2(uy, ux), len = st.len;
+      const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp, ang = Math.atan2(uy, ux), len = Math.max(4, Math.min(st.len, flown(b) + 4));
       const cx = b.x - ux * len * 0.5, cy = b.y - uy * len * 0.5;
       if (st.nail) { // Nagel: metallischer Schaft mit Glanz
         flat(normB, cx, z, cy, ang, len * 0.5, 1.1, CELL.streak, "150,155,165", 1);
@@ -6371,6 +6373,6 @@ void main() {
     setTilt(x, y) { menuCam.tiltX += (x - menuCam.tiltX) * 0.15; menuCam.tiltY += (y - menuCam.tiltY) * 0.15; },
     get ready() { return ready; },
     get bloom() { return !!(post && postActive()); },
-    get debug() { return { scene, camera, renderer, models, atmo, shCam, heliFly, room: () => room, floorQuads: () => floorB && floorB.n, post: () => post, flashShadows, woundAt, proj: () => ({ ghost: ghostTrails.length, impacts: impacts.length, smoke: muzzleSmoke.length }), playerModel: () => playerModel, shocks, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
+    get debug() { return { scene, camera, renderer, models, atmo, shCam, heliFly, room: () => room, floorQuads: () => floorB && floorB.n, post: () => post, flashShadows, woundAt, proj: () => ({ ghost: ghostTrails.length, impacts: impacts.length, smoke: muzzleSmoke.length, ys: ghostTrails.map((g) => g.tr.map((q) => Math.round(q[2]))) }), playerModel: () => playerModel, shocks, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
   };
 })();

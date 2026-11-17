@@ -14,13 +14,18 @@
     return aspect > 16 / 9 ? Math.min(1170, Math.round((W * aspect) / 2) * 2) : 960;
   })();
   // v3.4 größere Arenas: 1,5× so lang wie bisher – der Bildschirm (H) zeigt nur einen Ausschnitt, die Kamera läuft mit.
-  const ARENA = { x: 24, y: 120, w: W - 48, h: 1200 };
+  const WW = 790; // v5.15 Weltbreite – die Arena ist breiter als der Bildschirm (W), die Kamera läuft seitlich mit
+  const ARENA = { x: 24, y: 120, w: WW - 48, h: 1200 };
+  const CX = WW / 2; // Arena-Mitte (Tür, Startplatz, Spiegelachse)
+  const KW = ARENA.w / 492; // Breitenfaktor gegenüber dem alten Layout (492 breit)
+  const wxp = (x) => ARENA.x + (x - ARENA.x) * KW; // alte Layout-x → neue Breite
   const L = ARENA.x, R = ARENA.x + ARENA.w, T = ARENA.y;
   let B = ARENA.y + ARENA.h; // v5.9 im Duell länger (setArenaLen)
   let WH = B + 40; // Welthöhe (Boden-Leinwand samt unterer Mauer)
-  const AREA_K = ARENA.h / 800; // Flächenfaktor gegenüber der alten Arena (Hindernisse, Bodendetails)
-  const ST = 120, SB = H - 40; // Bildschirm-Ränder des Spielfelds: HUD-Knöpfe und Tutorial richten sich danach
-  let camY = 0, scrOff = 0; // 2D-Kamera (Weltversatz nach oben) und Versatz für Overlay-Projektionen
+  const AREA_K = ARENA.h / 800; // Längenfaktor gegenüber der alten Arena (Korridor-Zeilen)
+  const AREA_A = AREA_K * KW; // v5.15 Flächenfaktor (Länge × Breite): Anzahl der Hindernisse, Staub
+  const ST = 120, SB = H - 40, SCR_L = 24, SCR_R = W - 24; // Bildschirm-Ränder des Spielfelds: HUD-Knöpfe und Tutorial richten sich danach
+  let camY = 0, camX = 0, scrOff = 0, scrOffX = 0; // 2D-Kamera (Weltversatz nach oben) und Versatz für Overlay-Projektionen
   const DOOR_W = 84;
   const ROOMS_PER_CHAPTER = 20;
   const SUPPLY_ROOMS = [5, 15];
@@ -498,7 +503,7 @@
   function init3d() {
     if (webgl === null) {
       webgl = false;
-      try { webgl = !!(window.Render3D && Render3D.init(canvas3d, { W, H, WH, L, T, R, B, DOOR_W })); } catch (e) { console.warn("[Outbreak] 3D-Start fehlgeschlagen", e); }
+      try { webgl = !!(window.Render3D && Render3D.init(canvas3d, { W, WW, H, WH, L, T, R, B, DOOR_W })); } catch (e) { console.warn("[Outbreak] 3D-Start fehlgeschlagen", e); }
       if (webgl) syncGearLook(); // v3.4: auch der Menü-Held trägt seine Ausrüstung
     }
     return webgl;
@@ -704,7 +709,7 @@
     const t = save.talents;
     const maxHp = Math.round(600 * (1 + 0.08 * t.hp));
     return {
-      x: W / 2, y: B - 70, r: 16, vx: 0, vy: 0,
+      x: CX, y: B - 70, r: 16, vx: 0, vy: 0,
       hp: maxHp, maxHp, level: 1, xp: 0, xpNeed: 12,
       speed: 190 * (1 + 0.03 * t.speed),
       weaponId: wid, weapon: WEAPONS[wid],
@@ -807,7 +812,7 @@
     // Neue Stadt: Prämie für die durchbrochene, dann der Fluchtplan (pausiert bis „Weiter“)
     if (districtIdx() === 0 && cityIdx() > 0 && !run.resumed) { run.cityBonus = Math.round(60 * cityIdx() * run.greed * ECON.earn); run.coins += run.cityBonus; }
     resetRoomState();
-    player.x = W / 2; player.y = B - 70;
+    player.x = CX; player.y = B - 70;
     heelPet();
     updateCam2D(0, true);
 
@@ -816,7 +821,7 @@
     const objKind = isBoss || isSupply ? null : objectiveFor();
     makeGates(!!isBoss || isSupply);
     const barrier = !isBoss && !isSupply && run.room > 1 && objKind !== "gauntlet" && Math.random() < 0.38 ? genBarrier() : [];
-    obstacles = clearGates(isSupply ? [] : genObstacles(Math.round((isBoss ? randi(0, 2) : randi(barrier.length ? 1 : 2, barrier.length ? 4 : 5)) * AREA_K + (isBoss ? 0 : 1)), barrier));
+    obstacles = clearGates(isSupply ? [] : genObstacles(Math.round((isBoss ? randi(0, 2) : randi(barrier.length ? 1 : 2, barrier.length ? 4 : 5)) * AREA_A + (isBoss ? 0 : 1)), barrier));
     run.gauntStages = objKind === "gauntlet" ? genGauntlet() : null; // ersetzt Gänge und Hindernisse
     // Wahrzeichen nicht in Bezirken mit eigener Kulisse (Heilbronner Wartberg = Weinberg)
     if (run.mode === "campaign" && !isSupply && objKind !== "gauntlet" && LANDMARK_DISTRICTS.includes(districtIdx()) && curDistrict()[0] !== "Wartberg") placeLandmark(LANDMARKS[curCity().id]);
@@ -828,15 +833,15 @@
     planLooter(); // v3.7
     const city = curCity(), [dName] = curDistrict();
     if (isSupply) {
-      supplyCrate = { x: W / 2, y: (T + B) / 2, r: 26, bob: 0 };
+      supplyCrate = { x: CX, y: (T + B) / 2, r: 26, bob: 0 };
       if (run.mode === "campaign" && window.MiniGames) miniSpot = { kind: MINI_ORDER[cityIdx() % MINI_ORDER.length], x: L + 96, y: (T + B) / 2 + 40, r: 30, bob: 0, done: false, armed: true };
       showBanner(dName.toUpperCase(), `${city.name} · ${tr("Versorgung – öffne die Kiste")}`);
     } else if (isBoss) {
       const by = Math.max(T + 180, player.y - 620); // v3.4: in der langen Arena nicht am anderen Ende
-      const boss = spawnEnemy(isBoss, W / 2, by);
-      if (run.bossIntel) { boss.hp *= 0.85; run.bossIntel = false; addText(W / 2, by - 60, tr("FUNKAUFKLÄRUNG: Boss geschwächt"), "#7aff8a", 16, true); }
+      const boss = spawnEnemy(isBoss, CX, by);
+      if (run.bossIntel) { boss.hp *= 0.85; run.bossIntel = false; addText(CX, by - 60, tr("FUNKAUFKLÄRUNG: Boss geschwächt"), "#7aff8a", 16, true); }
       // v2.6 Bedrohung 4+: Elite-Eskorte, 5: der Boss ist zäher und wird früher rasend
-      if ((run.threat || 0) >= 4) for (const dx of [-110, 110]) { const t = pick(wavePool().filter((q) => !ZOMBIES[q].pack && q !== "nest")); makeElite(spawnEnemy(t, W / 2 + dx, by + 50), 1); }
+      if ((run.threat || 0) >= 4) for (const dx of [-110, 110]) { const t = pick(wavePool().filter((q) => !ZOMBIES[q].pack && q !== "nest")); makeElite(spawnEnemy(t, CX + dx, by + 50), 1); }
       if ((run.threat || 0) >= 5) { boss.hp *= 1.3; boss.maxHp *= 1.3; }
       if (window.GameAudio) GameAudio.stinger("boss");
       fx4d("boss", 1100);
@@ -974,10 +979,10 @@
   function setupSurvival() {
     run.room = 1;
     resetRoomState();
-    player.x = W / 2; player.y = (T + B) / 2 + 140;
+    player.x = CX; player.y = (T + B) / 2 + 140;
     updateCam2D(0, true);
     makeGates(false);
-    obstacles = clearGates(genObstacles(Math.round(3 * AREA_K) + 1));
+    obstacles = clearGates(genObstacles(Math.round(3 * AREA_A) + 1));
     const lmk = Object.values(LANDMARKS);
     placeLandmark(lmk[dayNo() % lmk.length], 0.3); // v3.4: Wahrzeichen des Tages
     planLooter(); // v3.7
@@ -994,7 +999,7 @@
       const d2 = (p.x - player.x) ** 2 + (p.y - player.y) ** 2;
       if (d2 > 230 * 230 && d2 < 680 * 680 && !obstacles.some((o) => circleRectOverlap(p, o))) return p;
     }
-    return { x: player.x < W / 2 ? R - 40 : L + 40, y: clamp(player.y - 500, T + 60, B - 60) };
+    return { x: player.x < CX ? R - 40 : L + 40, y: clamp(player.y - 500, T + 60, B - 60) };
   }
   function updateSurvival(dt) {
     run.survT += dt;
@@ -1053,7 +1058,7 @@
     const [w, , h] = OBSTACLE_SIZE[lm.kind];
     const fest = run && run.mode === "campaign" && run.room > 0 ? curCity().fest : "";
     const o = { kind: lm.kind, w, h, vert: false, seed: randi(1, 1e9), fest, landmark: true, name: lm.name };
-    o.x = Math.round(clamp(W / 2 - w / 2 + rand(-36, 36), L + 40, R - 40 - w));
+    o.x = Math.round(clamp(CX - w / 2 + rand(-36, 36), L + 40, R - 40 - w));
     const near = (q, m) => o.x < q.x + q.w + m && o.x + o.w + m > q.x && o.y < q.y + q.h + m && o.y + o.h + m > q.y;
     for (const k of [prefer, 0.42, 0.66, 0.32, 0.75]) {
       o.y = Math.round(T + ARENA.h * k - h / 2 + rand(-30, 30));
@@ -1161,12 +1166,12 @@
 
   function makeFloor() {
     const city = run && run.mode === "campaign" && run.room > 0 ? curCity() : run && run.arena ? { id: "arena", ...arenaDef() } : null;
-    const c = Sprites.floor(theme(), { W, H: WH, L, T, R, B }, randi(1, 1e9), { snow: !!city && city.weather === "snow", confetti: !!city && city.weather === "confetti", leaves: !!city && (city.fest === "wiesn" || city.fest === "wein"), tram: !!city && city.id !== "hamburg" && Math.random() < 0.55, wet: theme() === "street" || (!!city && city.weather === "rain"), gates });
+    const c = Sprites.floor(theme(), { W: WW, H: WH, L, T, R, B }, randi(1, 1e9), { snow: !!city && city.weather === "snow", confetti: !!city && city.weather === "confetti", leaves: !!city && (city.fest === "wiesn" || city.fest === "wein"), tram: !!city && city.id !== "hamburg" && Math.random() < 0.55, wet: theme() === "street" || (!!city && city.weather === "rain"), gates });
     floorCtx = c.getContext("2d");
-    const res = c.width / W;
+    const res = c.width / WW;
     floorCtx.setTransform(res, 0, 0, res, 0, 0);
     glossCtx = c.gloss ? c.gloss.getContext("2d") : null;
-    if (glossCtx) { const gr = c.gloss.width / W; glossCtx.setTransform(gr, 0, 0, gr, 0, 0); glossCtx.fillStyle = BLOOD_GLOSS; glossCtx.globalCompositeOperation = "lighten"; }
+    if (glossCtx) { const gr = c.gloss.width / WW; glossCtx.setTransform(gr, 0, 0, gr, 0, 0); glossCtx.fillStyle = BLOOD_GLOSS; glossCtx.globalCompositeOperation = "lighten"; }
     for (const o of obstacles) if (o.landmark) paintPlaza(floorCtx, o);
     paintWallAO(floorCtx);
     return c;
@@ -1334,7 +1339,7 @@
       const p = { x: rand(L + 40, R - 40), y: rand(yMin, yMax), r: 30 };
       if (!obstacles.some((o) => circleRectOverlap(p, o))) return p;
     }
-    return { x: W / 2, y: yMin + 20 };
+    return { x: CX, y: yMin + 20 };
   }
 
   // v3.3 Schwierigkeit: Zombies halten mehr aus, treffen härter und sind etwas flinker – je Stadt (bzw. je 90 s im
@@ -1534,7 +1539,7 @@
   const requestJump = () => { if (state === "play") jumpWanted = true; };
   const jumpBtn = () => ({ x: hx(130), y: SB - 146, r: 28 });
   // v4.8 Linkshänder: Aktionsknöpfe gespiegelt auf der linken Seite
-  const hx = (d) => (save.leftHand ? L + d : R - d);
+  const hx = (d) => (save.leftHand ? SCR_L + d : SCR_R - d); // v5.15 Bildschirm-Ränder, nicht Arena-Ränder
   const dashBtn = () => ({ x: hx(46), y: SB - 58, r: 34 });
   // v2.9 Wurfwaffe (über der Rolle), Art wechseln (kleiner Chip), Spezialfähigkeit (links neben der Rolle)
   let throwWanted = false, ultWanted = false;
@@ -1718,7 +1723,7 @@
   }
   function playerOnScreen(p) {
     if (mode3d) { const o = Render3D.project(p.x, p.y, 30); return o.behind ? null : o; }
-    return { x: p.x, y: p.y - camY };
+    return { x: p.x - camX, y: p.y - camY };
   }
   // leichte Zielhilfe für Daumen und Stick: zieht in einem schmalen Kegel auf den Gegner, den man ohnehin anvisiert
   function assistAim(p, ang) {
@@ -1872,7 +1877,7 @@
     updateJump(p, dt);
 
     // Tür
-    if (run.cleared && p.y - p.r <= T + 2 && Math.abs(p.x - W / 2) < DOOR_W / 2) {
+    if (run.cleared && p.y - p.r <= T + 2 && Math.abs(p.x - CX) < DOOR_W / 2) {
       sfx("door");
       nextRoom();
       return;
@@ -2934,7 +2939,7 @@
     else if (run.room > 1 && !BOSS_ROOMS[run.room] && !SUPPLY_ROOMS.includes(run.room) && Math.random() < 0.3) run.looterAt = run.time + rand(10, 24);
   }
   function spawnLooter() {
-    const p = player, x = p.x < W / 2 ? rand(W * 0.6, R - 60) : rand(L + 60, W * 0.4), y = clamp(p.y - rand(300, 420), T + 70, B - 70);
+    const p = player, x = p.x < CX ? rand(L + ARENA.w * 0.6, R - 60) : rand(L + 60, L + ARENA.w * 0.4), y = clamp(p.y - rand(300, 420), T + 70, B - 70);
     const e = spawnEnemy("runner", x, y);
     e.looter = true; e.lootT = LOOTER_T; e.lootDrops = 8; e.side = Math.random() < 0.5 ? -1 : 1;
     e.maxHp = e.hp = e.maxHp * 4; e.speed *= 1.08;
@@ -4068,7 +4073,7 @@
     shake = Math.max(shake, 5);
     const bossDown = BOSS_ROOMS[run.room] && run.mode === "campaign" && ZOMBIES[curCity().boss];
     showBanner(tr("BEZIRK SICHER"), bossDown ? tr("Funk: {b} ist gefallen – Kurs auf {c}!", { b: ZOMBIES[curCity().boss].name, c: cityAt(cityIdx() + 1).name }) : tr("TÜR OFFEN ↑"), bossDown ? 2.8 : 1.7);
-    addText(W / 2, T + 40, tr("TÜR OFFEN ↑"), "#8cff4a", 22);
+    addText(CX, T + 40, tr("TÜR OFFEN ↑"), "#8cff4a", 22);
     if (BOSS_ROOMS[run.room] && run.mode === "campaign" && (run.threat || 0) >= (save.threatMax || 0) && (save.threatMax || 0) < THREAT_MAX) {
       save.threatMax = (save.threatMax || 0) + 1; persist();
       setTimeout(() => toast(tr("Bedrohung {n} freigeschaltet!", { n: save.threatMax }), "skull"), 1800);
@@ -4123,7 +4128,7 @@
     const ci = cityIdx();
     const o = { kind, done: false, t: 0, doneT: 0 };
     if (kind === "hold") {
-      const x = W / 2 + rand(-50, 50), y = T + (B - T) * 0.42;
+      const x = CX + rand(-50, 50), y = T + (B - T) * 0.42;
       Object.assign(o, { x, y, r: 78, prog: 0, need: 13 + Math.min(7, ci), spawnCd: 2, inside: false, strikes: [] });
       clearObstacles([{ x, y, r: o.r + 12 }]);
     } else if (kind === "rescue") {
@@ -4303,7 +4308,7 @@
         }
       } else if (s.state === "run") {
         // zur Tür und raus – Hindernisse überklettern sie
-        const tx = W / 2, ty = T - 14, dx = tx - s.x, dy = ty - s.y, d = Math.hypot(dx, dy) || 1;
+        const tx = CX, ty = T - 14, dx = tx - s.x, dy = ty - s.y, d = Math.hypot(dx, dy) || 1;
         s.x += (dx / d) * 190 * dt; s.y += (dy / d) * 190 * dt; s.face = Math.atan2(dy, dx);
         if (d < 12) s.state = "gone";
       }
@@ -4913,7 +4918,7 @@
   function afterSupply() {
     supplyCrate = null;
     run.cleared = true;
-    addText(W / 2, T + 40, tr("TÜR OFFEN ↑"), "#8cff4a", 22);
+    addText(CX, T + 40, tr("TÜR OFFEN ↑"), "#8cff4a", 22);
     resumePlay();
   }
 
@@ -5333,7 +5338,7 @@
   // Umgebungs-Partikel: Asche (Straße), Staub (Krankenhaus), Sporen (Labor)
   function initAmbient() {
     ambient = [];
-    for (let i = 0; i < Math.round(28 * AREA_K); i++) ambient.push({ x: rand(L, R), y: rand(T, B), size: rand(1, 2.4), ph: rand(0, TAU) });
+    for (let i = 0; i < Math.round(28 * AREA_A); i++) ambient.push({ x: rand(L, R), y: rand(T, B), size: rand(1, 2.4), ph: rand(0, TAU) });
   }
   // v3.4 Krähenschwarm landen lassen (Bodenvögel um einen Punkt)
   function landFlock(x, y, n) {
@@ -5992,7 +5997,7 @@
   let lobby = null; // { code, host, hub, players, ffa, me }
 
   // ---------------------------------------------------------------- Kampf
-  const pvpMirror = (x, y) => ({ x: W - x, y: T + B - y });
+  const pvpMirror = (x, y) => ({ x: WW - x, y: T + B - y });
   // v5.9 Arena 2.0: 1700 lang statt 1200 – Basis mit Sandsack-Deckung, Flanken mit Container und Hecken, in der Mitte ein
   // Container als Wachturm. Punktsymmetrisch: was unten links Deckung gibt, steht oben rechts genauso (dy = Abstand zur Mitte).
   const ARENA_H0 = 1200, PVP_LEN = 1700;
@@ -6034,7 +6039,7 @@
   };
   const ARENA_ORDER = Object.keys(ARENAS);
   let arenaForce = null; // Tests: bestimmten Platz erzwingen
-  const BARREL_LANES = [120, 420];
+  const BARREL_LANES = [120, 420].map((x) => Math.round(wxp(x))); // v5.15 breitere Arena
   // Platz je Runde: gleich auf allen Geräten, nie zweimal hintereinander derselbe
   function pickArena(seed, round) {
     if (arenaForce && ARENAS[arenaForce]) return arenaForce;
@@ -6050,13 +6055,13 @@
   }
   function pvpObstacles() {
     const out = [], cy = (T + B) / 2, a = arenaDef();
-    a.half.forEach(([kind, x, dy, w, h], i) => {
-      const y = Math.round(cy + dy);
+    a.half.forEach(([kind, x0, dy, w, h], i) => {
+      const y = Math.round(cy + dy), x = Math.round(wxp(x0 + w / 2) - w / 2); // v5.15 Layout auf die breitere Arena verteilen
       out.push({ kind, x, y, w, h, vert: false, seed: 11 + i, fest: a.fest });
-      out.push({ kind, x: W - x - w, y: T + B - y - h, w, h, vert: false, seed: 31 + i, fest: a.fest });
+      out.push({ kind, x: WW - x - w, y: T + B - y - h, w, h, vert: false, seed: 31 + i, fest: a.fest });
     });
     for (const [kind, dx, dy, w, h, name] of a.center) {
-      const o = { kind, x: Math.round(W / 2 + dx), y: Math.round(cy + dy), w, h, vert: false, seed: 77, fest: a.fest };
+      const o = { kind, x: Math.round(CX + (dx + w / 2) * KW - w / 2), y: Math.round(cy + dy), w, h, vert: false, seed: 77, fest: a.fest };
       if (name) Object.assign(o, { landmark: true, blessed: true, name: tr(name) }); // Wahrzeichen in der Mitte: unzerstörbar, kein Segen im Duell
       out.push(o);
     }
@@ -6075,7 +6080,7 @@
     initAmbient();
   }
   function setupPvpRoom() {
-    buildPvpArena(W / 2, B - 150);
+    buildPvpArena(CX, B - 150);
     const o = run.pvp.opp, at = pvpMirror(player.x, player.y);
     const lock = evoLock; evoLock = true; // der Gegner mutiert nicht
     const e = spawnEnemy("walker", at.x, at.y);
@@ -6171,10 +6176,10 @@
   function pvpZones() {
     const cy = (T + B) / 2, out = [];
     for (const z of arenaDef().tac || TAC_HALF) {
-      const a = { k: z.k, x: z.x, y: cy + z.dy, r: z.r, c: 1 }, b = { k: z.k, x: W - z.x, y: cy - z.dy, r: z.r, c: 1 };
+      const zx = wxp(z.x), a = { k: z.k, x: zx, y: cy + z.dy, r: z.r, c: 1 }, b = { k: z.k, x: WW - zx, y: cy - z.dy, r: z.r, c: 1 };
       out.push(a, b);
       if (z.to) { // Teleporter: Eingang und Ausgang sind verbunden (beide Richtungen), gespiegelt genauso
-        const a2 = { k: "tele", x: z.to.x, y: cy + z.to.dy, r: z.r, c: 1 }, b2 = { k: "tele", x: W - z.to.x, y: cy - z.to.dy, r: z.r, c: 1 };
+        const tx = wxp(z.to.x), a2 = { k: "tele", x: tx, y: cy + z.to.dy, r: z.r, c: 1 }, b2 = { k: "tele", x: WW - tx, y: cy - z.to.dy, r: z.r, c: 1 };
         a.link = a2; a2.link = a; b.link = b2; b2.link = b;
         out.push(a2, b2);
       }
@@ -6245,7 +6250,7 @@
         const sd = (seed | 0) * 41 + k * 997 + i * 13, vert = seedRand(sd + 2) < 0.5, w = vert ? 56 : 150, h = vert ? 150 : 56; // quer oder längs
         const r = { x: Math.round(L + 8 + seedRand(sd) * (R - L - 16 - w)), y: Math.round(cy + 40 + seedRand(sd + 1) * (B - 230 - cy - 40 - h)), w, h };
         if (r.y + r.h > B - 230 || !free(r)) continue;
-        const m = { x: W - r.x - w, y: T + B - r.y - h, w, h };
+        const m = { x: WW - r.x - w, y: T + B - r.y - h, w, h };
         out.push(r, m);
         break;
       }
@@ -6447,7 +6452,7 @@
     if (!ob || ob.k === "elim" || pv.over || pv.cd > 0) return;
     const auth = !pv.party || pv.hub.host, cy = (T + B) / 2;
     if (ob.k === "hold" && auth) {
-      const keys = new Set(objSides(pv).filter((q) => (q.o.x - W / 2) ** 2 + (q.o.y - cy) ** 2 < HOLD_R * HOLD_R).map((q) => q.key));
+      const keys = new Set(objSides(pv).filter((q) => (q.o.x - CX) ** 2 + (q.o.y - cy) ** 2 < HOLD_R * HOLD_R).map((q) => q.key));
       ob.contested = keys.size > 1; ob.holder = keys.size === 1 ? [...keys][0] : null;
       if (ob.holder) ob.s[ob.holder] = Math.min(100, (ob.s[ob.holder] || 0) + HOLD_RATE * dt);
     }
@@ -6490,7 +6495,7 @@
   }
   // Wiedereinstieg (Stellung halten, Beutezug): nach RESPAWN_T Sekunden zurück an den eigenen Startplatz
   function respawnMe(pv) {
-    const p = player, at = pv.party ? partyLocal(pv, ...Object.values(partySpawn(pv.players, pv.ffa, pv.meQ))) : { x: W / 2, y: B - 150 };
+    const p = player, at = pv.party ? partyLocal(pv, ...Object.values(partySpawn(pv.players, pv.ffa, pv.meQ))) : { x: CX, y: B - 150 };
     p.x = at.x; p.y = at.y; p.z = 0; p.vz = 0; p.hp = p.maxHp; p.spectate = false; p.invuln = 1.5;
     pv.dead = false; pv.lastBy = null; pv.burnT = 0; pv.poisonDps = 0; pv.streak = 0;
     updateCam2D(0, true);
@@ -6506,7 +6511,7 @@
     showBanner(tr("AUSGESCHALTET"), why || tr("Zurück in {n} s", { n: RESPAWN_T }), 1.8);
   }
   function botDown(e) {
-    const pv = run.pvp, at = pvpMirror(W / 2, B - 150);
+    const pv = run.pvp, at = pvpMirror(CX, B - 150);
     fxBlood(e.x, e.y, rand(0, TAU), 14, RED, 220);
     addText(e.x, e.y - 40, tr("{n} AUSGESCHALTET", { n: String(e.def.name).toUpperCase() }), "#a8ff3e", 16, true);
     sfx("kill"); shake = Math.max(shake, 5);
@@ -6533,11 +6538,11 @@
       const m = (pv.zones || []).filter((z) => z.k === "med" && z.c > 0.3).sort((a, b) => dist2(a, e) - dist2(b, e))[0];
       if (m && dist2(m, e) < 450 * 450) return m;
     }
-    if (ob && ob.k === "hold") return { x: W / 2 + Math.sin(run.time * 0.7) * 50, y: cy + Math.cos(run.time * 0.5) * 40 };
+    if (ob && ob.k === "hold") return { x: CX + Math.sin(run.time * 0.7) * 50, y: cy + Math.cos(run.time * 0.5) * 40 };
     if (ob && ob.k === "loot") { const b = ob.bags.filter((q) => !q.dead).sort((a, c) => dist2(a, e) - dist2(c, e))[0]; if (b) return b; }
     const edge = gasEdge(pv);
-    if (edge < Infinity && Math.abs(e.y - cy) > edge - 90) return { x: e.x < W / 2 ? W / 2 - 90 : W / 2 + 90, y: cy };
-    if (pv.meHidden) return { x: W / 2, y: cy + (e.y < cy ? -120 : 120) };
+    if (edge < Infinity && Math.abs(e.y - cy) > edge - 90) return { x: e.x < CX ? CX - 90 : CX + 90, y: cy };
+    if (pv.meHidden) return { x: CX, y: cy + (e.y < cy ? -120 : 120) };
     return null;
   }
   // Anzeige: Einsatzziel mit Fortschritt beider Seiten (Gegenseite = beste andere Seite)
@@ -6601,9 +6606,9 @@
     }
     const ob = pv.obj;
     if (ob && ob.k === "hold") {
-      const c = scr(W / 2, cy, 0);
+      const c = scr(CX, cy, 0);
       if (c && !c.behind) {
-        const g = groundEllipse(W / 2, cy, HOLD_R), mine = ob.holder === pv.myKey, col = ob.contested ? "255,211,106" : !ob.holder ? "239,232,212" : mine ? "90,176,255" : "226,86,31";
+        const g = groundEllipse(CX, cy, HOLD_R), mine = ob.holder === pv.myKey, col = ob.contested ? "255,211,106" : !ob.holder ? "239,232,212" : mine ? "90,176,255" : "226,86,31";
         ctx.fillStyle = `rgba(${col},${0.1 + 0.05 * Math.sin(t * 4)})`; ctx.beginPath(); ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, TAU); ctx.fill();
         ctx.setLineDash([10, 8]); ctx.lineDashOffset = -t * 30; ctx.strokeStyle = `rgba(${col},0.85)`; ctx.lineWidth = 2.5; ctx.stroke(); ctx.setLineDash([]);
       }
@@ -6955,12 +6960,12 @@
     let bx;
     if (ffa) { // Jeder gegen jeden: abwechselnd unten/oben, je Seite bis zu drei nebeneinander
       const i = players.findIndex((x) => x.pid === q.pid), n = Math.ceil(players.length / 2);
-      bx = W / 2 + ([[0], [-140, 140], [-170, 0, 170]][Math.min(3, n) - 1][Math.floor(i / 2)] ?? 0);
+      bx = CX + KW * ([[0], [-140, 140], [-170, 0, 170]][Math.min(3, n) - 1][Math.floor(i / 2)] ?? 0);
     }
     else {
       const team = players.filter((x) => x.team === q.team), k = team.findIndex((x) => x.pid === q.pid);
       const offs = [[0], [-110, 110], [-150, 0, 150]][Math.min(3, team.length) - 1] || [0];
-      bx = W / 2 + (offs[k] ?? 0);
+      bx = CX + KW * (offs[k] ?? 0);
     }
     const at = { x: bx, y: B - 150 };
     return partySide(players, ffa, q) === 1 ? pvpMirror(at.x, at.y) : at;
@@ -7108,7 +7113,7 @@
       const e = pv.ents.get(from);
       pv.alive.add(from);
       if (e) {
-        const at = partyLocal(pv, +m.x || W / 2, +m.y || (T + B) / 2);
+        const at = partyLocal(pv, +m.x || CX, +m.y || (T + B) / 2);
         e.dead = false; e.hp = e.maxHp; e.x = e.tx = clamp(at.x, L, R); e.y = e.ty = clamp(at.y, T, B); e.tAge = 1;
         if (e.foe && !enemies.includes(e)) enemies.push(e);
       }
@@ -8526,7 +8531,7 @@
   // ============================================================
   const LS = 4; // Lichtkarte: 1 Pixel = 4 Welt-Einheiten (weich und schnell)
   function lowResCanvas() { const c = document.createElement("canvas"); c.width = Math.ceil(W / LS); c.height = Math.ceil(H / LS); return c; }
-  const lightCanvas = (() => { const c = lowResCanvas(); c.height = Math.ceil(WH / LS); return c; })(); // Weltgröße: liegt im verschobenen 2D-Kontext
+  const lightCanvas = (() => { const c = lowResCanvas(); c.width = Math.ceil(WW / LS); c.height = Math.ceil(WH / LS); return c; })(); // Weltgröße: liegt im verschobenen 2D-Kontext
   const lctx = lightCanvas.getContext("2d");
   const lights = [];
   const FIRE_RGB = ["200,60,20", "255,140,40", "255,220,120"];
@@ -8584,7 +8589,7 @@
   const flatPt = { x: 0, y: 0 };
   function scr(x, y, h) {
     if (mode3d) return Render3D.project(x, y, h);
-    flatPt.x = x; flatPt.y = y - scrOff;
+    flatPt.x = x - scrOffX; flatPt.y = y - scrOff;
     return flatPt;
   }
 
@@ -8595,7 +8600,7 @@
   const MENU_SEASON = (() => { const m = new Date().getMonth(); return m >= 10 || m === 0 ? { fest: "weihnachten", weather: "snow" } : m === 1 ? { fest: "karneval", weather: "confetti" } : m === 8 || m === 9 ? { fest: "wiesn", weather: "clear" } : { fest: "", weather: "rain" }; })();
   function menuWorld() {
     if (!menu3d) {
-      const p = { x: W / 2, y: 600, r: 16, aim: -Math.PI / 2, moving: false, walkT: 0, kick: 0, barrel: 0, orbit: 0, orbitAng: 0, drones: 0, muzzle: 0, invuln: 0, hp: 1, maxHp: 1 };
+      const p = { x: CX, y: 600, r: 16, aim: -Math.PI / 2, moving: false, walkT: 0, kick: 0, barrel: 0, orbit: 0, orbitAng: 0, drones: 0, muzzle: 0, invuln: 0, hp: 1, maxHp: 1 };
       const types = ["walker", "wiesn", "gunner", "zwerg", "brute", "jeck", "bloater", "walker", "schaffner", "armored", "ultra", "walker", "beamter", "zwerg"];
       const enemies = types.map((type, i) => menuFoe({ player: p }, type, i));
       const { fest, weather } = MENU_SEASON;
@@ -8611,7 +8616,7 @@
         state: "menu", run: { doorK: 0 }, player: p, enemies, bullets: [], eBullets: [], orbs: [], particles: [], corpses: [], zaps: [],
         ambient: Array.from({ length: 28 }, () => ({ x: rand(L, R), y: rand(T, B), size: rand(1, 2.4), ph: rand(0, TAU) })),
         roomLights: obs.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3 })),
-        obstacles: obs, supplyCrate: null, floorCanvas: Sprites.floor("markt", { W, H: WH, L, T, R, B }, 4242, { snow: weather === "snow", confetti: weather === "confetti", leaves: fest === "wiesn" }),
+        obstacles: obs, supplyCrate: null, floorCanvas: Sprites.floor("markt", { W: WW, H: WH, L, T, R, B }, 4242, { snow: weather === "snow", confetti: weather === "confetti", leaves: fest === "wiesn" }),
         theme: "markt", weather, fest, isBossRoom: false, camPunch: { x: 0, y: 0, fov: 0 }, survivors: NO_SURVIVORS, consumeFloorDirty: () => false,
         muzzlePoint: () => muzzlePoint(p), dronePos: () => ({ x: p.x, y: p.y }), menuCam: true, t: 0,
       };
@@ -8730,9 +8735,9 @@
     ctx.save();
     if (shake > 0 || punchX || punchY) ctx.translate(punchX + rand(-shake, shake), punchY + rand(-shake, shake));
     updateCam2D(frameDt);
-    ctx.translate(0, -camY);
+    ctx.translate(-camX, -camY);
     // 1) Welt
-    if (floorCanvas) ctx.drawImage(floorCanvas, 0, 0, W, WH);
+    if (floorCanvas) ctx.drawImage(floorCanvas, 0, 0, WW, WH);
     drawDoor();
     for (const o of obstacles) drawObstacle(o);
     drawAmbient(false);
@@ -8764,16 +8769,19 @@
     drawBars();
     drawTexts();
     ctx.restore();
-    scrOff = camY; // Overlay (Zielmarke, Randpfeile, Schilder) liegt in Bildschirm-Koordinaten
+    scrOff = camY; scrOffX = camX; // Overlay (Zielmarke, Randpfeile, Schilder) liegt in Bildschirm-Koordinaten
     drawOverlay();
-    scrOff = 0;
+    scrOff = 0; scrOffX = 0;
   }
   // v3.4 2D-Kamera: zeigt etwas mehr vom Weg nach vorn (Tür oben); beim Raumstart springt sie direkt an den Helden
   const scopeLook = () => (player && player.scopeK > 0 && SCOPES[player.weaponId] ? SCOPES[player.weaponId].reach * player.scopeK : 0);
   const cam2DTarget = () => clamp((player ? player.y + Math.sin(player.aim || 0) * scopeLook() : B) - 600, 0, WH - H);
+  // v5.15 seitlich: die Welt ist breiter als der Bildschirm
+  const cam2DTargetX = () => clamp((player ? player.x + Math.cos(player.aim || 0) * scopeLook() : CX) - W / 2, 0, WW - W);
   function updateCam2D(dt, snap = false) {
-    const t = cam2DTarget();
+    const t = cam2DTarget(), tx = cam2DTargetX();
     camY = snap ? t : camY + (t - camY) * Math.min(1, dt * 5);
+    camX = snap ? tx : camX + (tx - camX) * Math.min(1, dt * 5);
   }
 
   function drawGhosts() {
@@ -8801,7 +8809,7 @@
     ctx.fillStyle = "rgba(92,86,72,0.28)"; ctx.fillRect(x0, y0, mw, mh);
     ctx.beginPath(); ctx.rect(x0 - 3, y0 - 3, mw + 6, mh + 6); ctx.clip();
     // sichtbarer Ausschnitt der Kamera
-    const q = mode3d ? Render3D.viewQuad && Render3D.viewQuad() : [{ x: L, y: camY + 104 }, { x: R, y: camY + 104 }, { x: R, y: camY + H }, { x: L, y: camY + H }];
+    const q = mode3d ? Render3D.viewQuad && Render3D.viewQuad() : [{ x: camX, y: camY + 104 }, { x: camX + W, y: camY + 104 }, { x: camX + W, y: camY + H }, { x: camX, y: camY + H }];
     if (q) {
       ctx.beginPath(); q.forEach((v, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, x0 + (v.x - L) * k, y0 + (v.y - T) * k)); ctx.closePath();
       ctx.fillStyle = "rgba(255,236,190,0.1)"; ctx.fill();
@@ -8821,7 +8829,7 @@
         ctx.beginPath(); ctx.moveTo(x, my(g.y - g.h / 2)); ctx.lineTo(x, my(g.y + g.h / 2)); ctx.stroke(); ctx.lineWidth = 2;
       }
     }
-    const dl = W / 2 - DOOR_W / 2, dr = W / 2 + DOOR_W / 2;
+    const dl = CX - DOOR_W / 2, dr = CX + DOOR_W / 2;
     ctx.strokeStyle = "rgba(232,239,233,0.6)"; ctx.beginPath();
     ctx.moveTo(x0 - 1, y0 - 1); ctx.lineTo(mx(dl), y0 - 1); ctx.moveTo(mx(dr), y0 - 1); ctx.lineTo(x0 + mw + 1, y0 - 1);
     ctx.moveTo(x0 - 1, y0 + mh + 1); ctx.lineTo(x0 + mw + 1, y0 + mh + 1); ctx.stroke();
@@ -9218,8 +9226,8 @@
         ctx.fillStyle = `rgba(${rgb},0.7)`; ctx.beginPath(); ctx.arc(cx + Math.sin(t * 2.5 + ph) * 26, cy + Math.cos(t * 2.5 + ph) * 26, 18, 0, TAU); ctx.fill();
       };
       const left = save.leftHand;
-      pulse(left ? R - 120 : L + 90, "140,255,74", 0);
-      pulse(left ? L + 90 : R - 120, "255,110,80", 1.7);
+      pulse(left ? SCR_R - 120 : SCR_L + 90, "140,255,74", 0);
+      pulse(left ? SCR_L + 90 : SCR_R - 120, "255,110,80", 1.7);
     }
   }
   function drawTutorial() {
@@ -9254,7 +9262,7 @@
     }
     ctx.restore();
     if (!moving) {
-      const cx = L + 90, cy = SB - 90;
+      const cx = SCR_L + 90, cy = SB - 90;
       ctx.fillStyle = "rgba(255,255,255,0.15)";
       ctx.beginPath(); ctx.arc(cx, cy, 46, 0, TAU); ctx.fill();
       ctx.fillStyle = "rgba(140,255,74,0.7)";
@@ -9267,9 +9275,9 @@
   function drawMenuBg() {
     const t = performance.now() / 1000, dt = frameDt;
     if (!menuScene || menuScene.res !== Sprites.res) {
-      menuScene = { res: Sprites.res, floor: Sprites.floor("street", { W, H, L, T: ST, R, B: SB }, 4242), z: [] }; // 2D-Menü: Bildschirmausschnitt
+      menuScene = { res: Sprites.res, floor: Sprites.floor("street", { W, H, L: SCR_L, T: ST, R: SCR_R, B: SB }, 4242), z: [] }; // 2D-Menü: Bildschirmausschnitt
       ["walker", "runner", "walker", "crawler", "brute", "spitter", "dog", "walker", "bomber", "armored", "walker"].forEach((type, i) => {
-        menuScene.z.push({ type, v: i % 3, x: rand(L, R), y: 170 + i * 66 + rand(-15, 15), sp: ZOMBIES[type].speed * 0.3, dir: i % 2 ? 1 : -1, anim: rand(0, 8), wob: rand(0, TAU) });
+        menuScene.z.push({ type, v: i % 3, x: rand(SCR_L, SCR_R), y: 170 + i * 66 + rand(-15, 15), sp: ZOMBIES[type].speed * 0.3, dir: i % 2 ? 1 : -1, anim: rand(0, 8), wob: rand(0, TAU) });
       });
     }
     ctx.drawImage(menuScene.floor, 0, 0, W, H);
@@ -9279,7 +9287,7 @@
       z.wob += dt;
       z.anim += dt * (z.sp / 55) * 7;
       const r = ZOMBIES[z.type].r;
-      if (z.x > R + 40) z.x = L - 40; else if (z.x < L - 40) z.x = R + 40;
+      if (z.x > SCR_R + 40) z.x = SCR_L - 40; else if (z.x < SCR_L - 40) z.x = SCR_R + 40;
       const y = z.y + Math.sin(z.wob * 0.8) * 10;
       drawShadow(z.x, y, r);
       Sprites.draw(ctx, Sprites.zombie(z.type, Math.floor(z.anim), z.v), z.x, y, z.dir > 0 ? 0.15 * Math.sin(z.wob) : Math.PI + 0.15 * Math.sin(z.wob));
@@ -9293,7 +9301,7 @@
     const sx = W / 2 + Math.sin(t * 0.35) * 200, sy = 560 + Math.cos(t * 0.27) * 220;
     lctx.globalAlpha = 0.95; lctx.drawImage(ls, (sx - 190) / LS, (sy - 190) / LS, 380 / LS, 380 / LS);
     lctx.globalAlpha = 0.6;
-    for (const [lx, ly] of [[L + 40, 260], [R - 40, 620], [L + 60, 860]]) lctx.drawImage(ls, (lx - 120) / LS, (ly - 120) / LS, 240 / LS, 240 / LS);
+    for (const [lx, ly] of [[SCR_L + 40, 260], [SCR_R - 40, 620], [SCR_L + 60, 860]]) lctx.drawImage(ls, (lx - 120) / LS, (ly - 120) / LS, 240 / LS, 240 / LS);
     lctx.globalAlpha = 1; lctx.globalCompositeOperation = "source-over";
     ctx.drawImage(lightCanvas, 0, 0, lightCanvas.width * LS, lightCanvas.height * LS);
     ctx.globalCompositeOperation = "lighter";
@@ -9308,7 +9316,7 @@
   }
 
   function drawDoor() {
-    const x0 = W / 2 - DOOR_W / 2, y0 = T - 22, h = 22, k = run.doorK || 0;
+    const x0 = CX - DOOR_W / 2, y0 = T - 22, h = 22, k = run.doorK || 0;
     ctx.fillStyle = "#121517"; ctx.fillRect(x0 - 6, y0, DOOR_W + 12, h);
     ctx.fillStyle = "#040605"; ctx.fillRect(x0, y0 + 3, DOOR_W, h - 3);
     const pw = (DOOR_W / 2) * (1 - k);
@@ -9320,7 +9328,7 @@
         ctx.fillStyle = "#d9b21a";
         for (let i = 2; i < pw - 2; i += 8) ctx.fillRect(px + i, y0 + h - 6, 4, 3);
       }
-      ctx.fillStyle = "#1b1e21"; ctx.fillRect(W / 2 - 1 - (DOOR_W / 2 - pw), y0 + 3, 2, h - 3);
+      ctx.fillStyle = "#1b1e21"; ctx.fillRect(CX - 1 - (DOOR_W / 2 - pw), y0 + 3, 2, h - 3);
     }
     ctx.fillStyle = k > 0.5 ? "#8cff4a" : "#ff3a2a";
     ctx.fillRect(x0 - 5, y0 + 6, 3, 7); ctx.fillRect(x0 + DOOR_W + 2, y0 + 6, 3, 7);
@@ -9847,7 +9855,7 @@
     for (const gl of wallGlows) lights.push([gl.x, gl.y, gl.r * 1.5, 0.42 * wallGlowK(gl, t)]);
     if (p.muzzle > 0) { const m = muzzlePoint(p); lights.push([m.x, m.y, p.weapon.kind === "flame" ? 110 : 170, 0.9]); }
     for (const l of roomLights) lights.push([l.x, l.y, l.r, 0.75 + 0.15 * Math.sin(t * 3 + l.x)]);
-    if (run.doorK > 0) lights.push([W / 2, T + 10, 130, run.doorK * 0.8]);
+    if (run.doorK > 0) lights.push([CX, T + 10, 130, run.doorK * 0.8]);
     if (supplyCrate) lights.push([supplyCrate.x, supplyCrate.y, 150, 0.9]);
     let fires = 0;
     for (const q of particles) {
@@ -9939,15 +9947,15 @@
     for (const l of roomLights) glowAt(l.rgb, l.x, l.y, l.r * 0.45, 0.35 + 0.1 * Math.sin(t * 3 + l.x));
     // Tür: Lampen und Leuchtpfeile
     const lamp = (run.doorK || 0) > 0.5 ? "140,255,74" : "255,58,42";
-    glowAt(lamp, W / 2 - DOOR_W / 2 - 4, T - 12, 12, 0.9);
-    glowAt(lamp, W / 2 + DOOR_W / 2 + 4, T - 12, 12, 0.9);
+    glowAt(lamp, CX - DOOR_W / 2 - 4, T - 12, 12, 0.9);
+    glowAt(lamp, CX + DOOR_W / 2 + 4, T - 12, 12, 0.9);
     if (run.doorK > 0) {
-      glowAt("140,255,74", W / 2, T, 80, run.doorK * 0.55);
+      glowAt("140,255,74", CX, T, 80, run.doorK * 0.55);
       ctx.strokeStyle = "rgba(140,255,74,1)"; ctx.lineWidth = 4; ctx.lineCap = "round";
       for (let i = 0; i < 3; i++) {
         const y = T + 30 + i * 22 - ((t * 40) % 22);
         ctx.globalAlpha = run.doorK * (0.7 - i * 0.2);
-        ctx.beginPath(); ctx.moveTo(W / 2 - 14, y + 8); ctx.lineTo(W / 2, y); ctx.lineTo(W / 2 + 14, y + 8); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(CX - 14, y + 8); ctx.lineTo(CX, y); ctx.lineTo(CX + 14, y + 8); ctx.stroke();
       }
     }
     if (supplyCrate) glowAt("140,255,74", supplyCrate.x, supplyCrate.y, 60, 0.4 + 0.15 * Math.sin(t * 4));
@@ -12199,7 +12207,7 @@
   }
 
   // Für automatisierte Tests
-  window.__outbreak = { get state() { return state; }, get camY() { return camY; }, get aimJoy() { return aimJoy; }, get scopeOn() { return scopeOn; }, SCOPES, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y, evo) => { evoLock = true; try { const e = spawnEnemy(t, x, y); if (evo) mutate(e, evo, null); return e; } finally { evoLock = false; } }, freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), get miniSpot() { return miniSpot; }, get wetSpots() { return wetSpots; }, mini: (kind = "lukas") => { const s = { kind, x: player.x, y: player.y, r: 30, bob: 0, done: false, armed: false }; miniSpot = s; openMini(s); return s; }, layout: (list = [], withBarrier = false) => {
+  window.__outbreak = { get state() { return state; }, get camY() { return camY; }, get camX() { return camX; }, get aimJoy() { return aimJoy; }, get scopeOn() { return scopeOn; }, SCOPES, get run() { return run; }, get player() { return player; }, get enemies() { return enemies; }, get bullets() { return bullets; }, get eBullets() { return eBullets; }, get particles() { return particles; }, get zaps() { return zaps; }, save, hurt: (d) => hurtPlayer(d), spawn: (t, x, y, evo) => { evoLock = true; try { const e = spawnEnemy(t, x, y); if (evo) mutate(e, evo, null); return e; } finally { evoLock = false; } }, freeze: () => { state = "frozen"; player.hurtT = 0; player.invuln = 0; banner = null; texts = texts.filter((t) => t.size < 22); }, unfreeze: () => { if (state === "frozen") state = "play"; }, get mode3d() { return mode3d; }, get obstacles() { return obstacles; }, get orbs() { return orbs; }, get corpses() { return corpses; }, get pieces() { return pieces; }, get pools() { return pools; }, get screenBlood() { return screenBlood; }, get lobs() { return lobs; }, get parcels() { return parcels; }, get beams() { return beams; }, get hazards() { return hazards; }, shoot: (x, y, a, o = {}) => { const b = makeBullet(x, y, a, { dmg: 10, speed: 700, ...o }); bullets.push(b); return b; }, boom: (x, y, r = 70) => explode(x, y, r, 0, true), hit: (e, d, o = {}) => damageEnemy(e, d, o), evolve: (id) => takeEvolution(EVOLUTIONS.find((q) => q.id === id)), get passInfo() { return { ...seasonInfo(), level: passLevel(), premium: passPremium() }; }, get obj() { return run ? run.obj : null; }, get event() { return run ? run.event : null; }, forceEvent: (k) => { run.event = { kind: k, at: 999, fired: false }; }, skill: (id) => takeSkill(skillById(id)), mod: () => giveMod(rollMod()), supply: () => openSupply(), get gates() { return gates; }, horde: (n = 20) => startHorde(n), get miniSpot() { return miniSpot; }, get wetSpots() { return wetSpots; }, mini: (kind = "lukas") => { const s = { kind, x: player.x, y: player.y, r: 30, bob: 0, done: false, armed: false }; miniSpot = s; openMini(s); return s; }, layout: (list = [], withBarrier = false) => {
     const fest = run.mode === "campaign" && run.room > 0 ? curCity().fest : "";
     const obs = (withBarrier ? genBarrier() : []).concat(list.map((q) => { const sz = OBSTACLE_SIZE[q.kind]; let w = q.w || sz[0], h = q.h || sz[2]; if (q.vert && !q.w) [w, h] = [h, w]; const o = { seed: randi(1, 1e9), fest, vert: !!q.vert, ...q, w, h }; if (DESTRUCT[q.kind]) o.hp = DESTRUCT[q.kind]; return o; }));
     obstacles = clearGates(obs); floorCanvas = makeFloor();

@@ -2023,7 +2023,7 @@ window.Sprites = (() => {
     const R = rng(seed);
     const th = THEMES[theme];
     const aw = RR - L, ah = B - T;
-    const AK = Math.max(1, ah / 800); // v3.4: lange Arena – Bodendetails mit der Fläche mitwachsen lassen
+    const AK = Math.max(1, (ah / 800) * (aw / 492)); // v5.15 auch die Breite zählt // v3.4: lange Arena – Bodendetails mit der Fläche mitwachsen lassen
     const gray = (v) => `rgb(${v},${v},${v})`;
     g.fillStyle = "#0d1210"; g.fillRect(0, 0, W, H);
     q.fillStyle = "#000"; q.fillRect(0, 0, W, H);

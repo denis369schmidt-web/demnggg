@@ -654,7 +654,9 @@ window.Render3D = (() => {
     const r = P.ray * Math.PI / 180, d = P.dist * s, mx = (D.L + D.R) / 2;
     // v4.4 stärker zur Arena-Mitte ziehen: am Rand füllt sonst die Hausfassade ein Drittel des Bildes
     // Schulter-Versatz nimmt beim Herauszoomen ab – sonst rutscht die linke Seite aus dem Bild
-    return { x: hx + P.shoulder * Math.max(0, 2 - s) + (mx - hx) * (P.center ?? 0.2), y: Math.sin(r) * d, z: hz + Math.cos(r) * d };
+    // v5.15 breite Arena: der Zug zur Mitte ist begrenzt (so stark wie am Rand der alten, schmalen Arena)
+    const pull = Math.max(-246, Math.min(246, mx - hx)) * (P.center ?? 0.2);
+    return { x: hx + P.shoulder * Math.max(0, 2 - s) + pull, y: Math.sin(r) * d, z: hz + Math.cos(r) * d };
   }
   function shoulderSees(P, C, x, z, h, tv, th) {
     const sp = Math.sin(shCam.pitch), cp = Math.cos(shCam.pitch), ry = h - C.y, rz = z - C.z, depth = -ry * sp - rz * cp;
@@ -714,7 +716,8 @@ window.Render3D = (() => {
 
   // Kamera so weit zurückziehen, dass die ganze Arena unter das HUD passt
   // v3.4: gemessen wird ein Fenster von VIEW_Z Einheiten (die alte Arena) – die Übersicht folgt dem Helden dann längs der Arena
-  const VIEW_Z = 800;
+  const VIEW_Z = 800, VIEW_X = 492; // v5.15 Breite des Fensters (alte Arena-Breite) – die Übersicht folgt auch seitlich
+  const topX = (x) => Math.max(Math.min((D.L + D.R) / 2, D.L + VIEW_X / 2), Math.min(Math.max((D.L + D.R) / 2, D.R - VIEW_X / 2), x));
   const topZ = (y) => Math.max(D.T + VIEW_Z / 2 + 30, Math.min(D.B - VIEW_Z / 2 + 30, y - 100));
   function fitCamera() {
     const hud = 104 / D.H;
@@ -724,7 +727,8 @@ window.Render3D = (() => {
     camera.aspect = D.W / D.H;
     camera.clearViewOffset();
     camera.updateProjectionMatrix();
-    const corners = [[D.L - 14, D.T - 60], [D.R + 14, D.T - 60], [D.L - 14, D.T + VIEW_Z + 30], [D.R + 14, D.T + VIEW_Z + 30]];
+    const vl = CAM.tx - Math.min(VIEW_X, D.R - D.L) / 2 - 14, vr = CAM.tx + Math.min(VIEW_X, D.R - D.L) / 2 + 14;
+    const corners = [[vl, D.T - 60], [vr, D.T - 60], [vl, D.T + VIEW_Z + 30], [vr, D.T + VIEW_Z + 30]];
     let dist = 500, minY = 0, maxY = 0;
     for (; dist < 4000; dist += 10) {
       placeCamera(dist, 0, 0, true);
@@ -1560,7 +1564,7 @@ void main() {
           planks.push(pl);
         }
         const red = slam("#b81e18");
-        for (const s2 of [-1, 1]) { const x2 = add(mesh(box(5, 3.5, len * 0.9), red, -3.4 * Math.sign(o.x - 270) || -3.4, 32, 0)); x2.rotation.x = s2 * 0.62; }
+        for (const s2 of [-1, 1]) { const x2 = add(mesh(box(5, 3.5, len * 0.9), red, -3.4 * Math.sign(o.x - D.WW / 2) || -3.4, 32, 0)); x2.rotation.x = s2 * 0.62; }
         g.userData.planks = planks; g.userData.baseX = g.position.x;
         break;
       }
@@ -2240,7 +2244,7 @@ void main() {
   function addSkyline(g, w) {
     const id = w.cityId || w.theme || "street";
     const t = skylineTexture(id);
-    const z = D.T - 260 - SKY_BACK, cx = D.W / 2;
+    const z = D.T - 260 - SKY_BACK, cx = D.WW / 2;
     const back = mesh(new T3.PlaneGeometry(SKY_W, SKY_H), new T3.MeshBasicMaterial({ map: t, fog: false, depthWrite: false }), cx, SKY_Y0 + SKY_H / 2, z);
     back.renderOrder = -5;
     g.add(back);
@@ -2325,9 +2329,9 @@ void main() {
     floorTex.colorSpace = T3.SRGBColorSpace;
     floorTex.anisotropy = 8;
     const WHt = D.WH || D.H; // v3.4: Boden-Leinwand hat Welthöhe (Arena länger als der Bildschirm)
-    floorTex.repeat.set(aw / D.W, ah / WHt);
-    floorTex.offset.set(D.L / D.W, 1 - D.B / WHt);
-    const crop = (t) => { t.repeat.set(aw / D.W, ah / WHt); t.offset.set(D.L / D.W, 1 - D.B / WHt); return t; };
+    floorTex.repeat.set(aw / D.WW, ah / WHt);
+    floorTex.offset.set(D.L / D.WW, 1 - D.B / WHt);
+    const crop = (t) => { t.repeat.set(aw / D.WW, ah / WHt); t.offset.set(D.L / D.WW, 1 - D.B / WHt); return t; };
     const floorN = crop(gpuNormalMap(fc, 2.4, 720, T3.ClampToEdgeWrapping, 8));
     const floorMat = new T3.MeshPhongMaterial({ map: floorTex, color: 0xb4b4b4, normalMap: floorN, normalScale: new T3.Vector2(1, 1), specular: 0x4a5058, shininess: 60 });
     const glossTex = fc.gloss ? crop(new T3.CanvasTexture(fc.gloss)) : null; // frisches Blut wird hier nass glänzend eingestempelt
@@ -2365,8 +2369,8 @@ void main() {
         gl(i * 64 + 2, k * 43 + 10); gl(k * 43 + 20, i * 64 + 2);
       }
     }, true);
-    const outerMap = outerTex.clone(); outerMap.needsUpdate = true; outerMap.repeat.set(D.W * 4 / 620, WHt * 4 / 620);
-    const outer = mesh(new T3.PlaneGeometry(D.W * 4, WHt * 4), new T3.MeshBasicMaterial({ map: outerMap, color: 0xe0e4ea, fog: false }), D.W / 2, -0.5, WHt / 2);
+    const outerMap = outerTex.clone(); outerMap.needsUpdate = true; outerMap.repeat.set(D.WW * 4 / 620, WHt * 4 / 620);
+    const outer = mesh(new T3.PlaneGeometry(D.WW * 4, WHt * 4), new T3.MeshBasicMaterial({ map: outerMap, color: 0xe0e4ea, fog: false }), D.WW / 2, -0.5, WHt / 2);
     outer.rotation.x = -Math.PI / 2;
     g.add(outer);
 
@@ -2411,21 +2415,21 @@ void main() {
       else { const ez = z1 <= D.T + 1 ? z1 - 4 : z0 + 4; deco.add(mesh(box(x1 - x0, 3, 8), edgeMat, (x0 + x1) / 2, h + 1.5, ez)); }
     };
     // v3.5 Häuserblöcke höher (zwei Obergeschosse über dem Laden); Tor und Durchgänge bleiben auf WH
-    const WH = 64, SH = 128, BH = 112, dl = D.W / 2 - D.DOOR_W / 2, dr = D.W / 2 + D.DOOR_W / 2;
+    const WH = 64, SH = 128, BH = 112, dl = D.WW / 2 - D.DOOR_W / 2, dr = D.WW / 2 + D.DOOR_W / 2;
     const BACK = 260, SIDE = 240;
     wall(-SIDE, D.T - BACK, dl, D.T, BH, "z", 4);
-    wall(dr, D.T - BACK, D.W + SIDE, D.T, BH, "z", 4);
+    wall(dr, D.T - BACK, D.WW + SIDE, D.T, BH, "z", 4);
     { // Haus über dem Torbogen, zur Arena mit Obergeschoss-Fassade
       const bw = D.DOOR_W + 24, bh = BH - WH, fm = fac.map.clone(), fe = fac.emi.clone();
       for (const t of [fm, fe]) { t.needsUpdate = true; t.repeat.set(bw / FAC_W, bh / BH * 0.55); t.offset.set(0.5, 1 - bh / BH * 0.55); }
       const dark = slam("#2a2622"), front = new T3.MeshLambertMaterial({ map: fm, emissiveMap: fe, emissive: 0xffffff, emissiveIntensity: 1.2 });
-      const gb = mesh(box(bw, bh, 30), [dark, dark, dark, dark, front, dark], D.W / 2, WH + bh / 2, D.T - 15);
+      const gb = mesh(box(bw, bh, 30), [dark, dark, dark, dark, front, dark], D.WW / 2, WH + bh / 2, D.T - 15);
       gb.castShadow = true; g.add(gb);
     }
     // v3.0 Seitenwände mit Öffnungen für die Horden-Gänge
     const gts = w.gates || [];
     for (const left of [true, false]) {
-      const x0 = left ? -SIDE : D.R, x1 = left ? D.L : D.W + SIDE;
+      const x0 = left ? -SIDE : D.R, x1 = left ? D.L : D.WW + SIDE;
       const cuts = gts.filter((q) => (q.side < 0) === left).map((q) => [q.y - q.h / 2, q.y + q.h / 2]).sort((a, b) => a[0] - b[0]);
       let z = D.T;
       for (const [a, b] of cuts) {
@@ -2439,7 +2443,7 @@ void main() {
     }
     wall(D.L, D.B, D.R, D.B + 60, 14, "z");
     // Gang hinter der Tür
-    const hall = mesh(box(D.DOOR_W, 1, BACK), slam(ROOF[w.theme] || ROOF.street), D.W / 2, 0.3, D.T - BACK / 2);
+    const hall = mesh(box(D.DOOR_W, 1, BACK), slam(ROOF[w.theme] || ROOF.street), D.WW / 2, 0.3, D.T - BACK / 2);
     deco.add(hall);
     // Kleinkram auf den Dächern (Lüftung, Rohre) – macht die Ränder lebendiger
     const R2 = (() => { let s2 = (w.obstacles.length * 7919 + (w.theme.length * 31)) >>> 0; return () => { s2 = (s2 * 1664525 + 1013904223) >>> 0; return s2 / 4294967296; }; })();
@@ -2461,16 +2465,16 @@ void main() {
     const door = { panels: [], lamps: [] };
     const panelMat = new T3.MeshLambertMaterial({ color: 0x5b6167 });
     for (const s of [-1, 1]) {
-      const p = mesh(box(D.DOOR_W / 2, WH - 6, 10), panelMat, D.W / 2 + s * D.DOOR_W / 4, (WH - 6) / 2, D.T - 12);
+      const p = mesh(box(D.DOOR_W / 2, WH - 6, 10), panelMat, D.WW / 2 + s * D.DOOR_W / 4, (WH - 6) / 2, D.T - 12);
       p.castShadow = true;
       g.add(p);
       door.panels.push({ mesh: p, s });
       const lampMat = new T3.MeshBasicMaterial({ color: 0xff3a2a });
-      const lamp = mesh(box(5, 9, 5), lampMat, D.W / 2 + s * (D.DOOR_W / 2 + 7), WH - 14, D.T - 2);
+      const lamp = mesh(box(5, 9, 5), lampMat, D.WW / 2 + s * (D.DOOR_W / 2 + 7), WH - 14, D.T - 2);
       g.add(lamp);
       door.lamps.push(lamp);
     }
-    deco.add(mesh(box(D.DOOR_W + 16, 8, 26), slam("#2a2f33"), D.W / 2, WH - 2, D.T - 12));
+    deco.add(mesh(box(D.DOOR_W + 16, 8, 26), slam("#2a2f33"), D.WW / 2, WH - 2, D.T - 12));
 
     // Hindernisse
     const obs = new Map();
@@ -2505,7 +2509,7 @@ void main() {
       g.add(m); cones.push(m);
     }
     // Labor: Alarm-Rundumleuchten über der Tür
-    const beacons = w.theme === "lab" ? [[D.W / 2 - D.DOOR_W / 2 - 26, D.T - 8], [D.W / 2 + D.DOOR_W / 2 + 26, D.T - 8]] : [];
+    const beacons = w.theme === "lab" ? [[D.WW / 2 - D.DOOR_W / 2 - 26, D.T - 8], [D.WW / 2 + D.DOOR_W / 2 + 26, D.T - 8]] : [];
     for (const [bx, bz] of beacons) { deco.add(mesh(cyl(6, 7, 6, 10), slam("#2a2a2a"), bx, 64, bz)); deco.add(mesh(cyl(5, 5, 8, 10), sbasic("#ff3020"), bx, 71, bz)); }
     addProps(deco, w);
     addClutter(deco, w);
@@ -2525,7 +2529,7 @@ void main() {
     builtFloor = fc;
     renderer.shadowMap.needsUpdate = true;
     warmPending = true; // neue Raum-Materialien (Wände, Hindernisse) gleich mit übersetzen
-    if (!w.menuCam && w.player) { CAM.tz = topZ(w.player.y); CAM.fz = 0; } // v3.4: Übersicht startet beim Helden
+    if (!w.menuCam && w.player) { CAM.tz = topZ(w.player.y); CAM.tx = topX(w.player.x); CAM.fz = 0; } // v3.4: Übersicht startet beim Helden
   }
   // v3.4 Mond- und Aufhelllicht folgen dem sichtbaren Ausschnitt (Schattenkarte bleibt so scharf wie in der alten, kurzen Arena);
   // in 32er-Schritten, damit Schattenkanten nicht bei jeder kleinen Bewegung über das Texel-Raster kriechen
@@ -3955,7 +3959,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   // v2.2 Heilbronn: Kiliansturm mit dem „Männle“ ragt über die Dächer, am Marktplatz hängt die Kunstuhr des Rathauses
   function addHeilbronn(deco, w, WH) {
     const sand = slam("#b89a72"), sandD = slam("#8a7254"), slate = slam("#3a3e44"), gold = sbasic("#e8c64a");
-    const tw = group(D.W / 2 + 112, WH, D.T - 30);
+    const tw = group(D.WW / 2 + 112, WH, D.T - 30);
     tw.scale.setScalar(0.54); // gestaucht, damit Turm und Männle unter der Anzeige im Bild bleiben
     // Turmschaft in Stockwerken, nach oben schmaler (Renaissance-Westturm)
     let y = 0;
@@ -3976,7 +3980,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     cast(tw); deco.add(tw);
     if (w.district !== "Marktplatz") return null;
     // Kunstuhr: blaues Zifferblatt mit goldenem Ring, Sonne & Mond, zwei Zeiger, darüber das Rathaus-Giebelfeld
-    const cx = D.W / 2 - 112, cy = WH * 0.55, cz = D.T + 0.8;
+    const cx = D.WW / 2 - 112, cy = WH * 0.55, cz = D.T + 0.8;
     const face = group(cx, cy, cz);
     face.scale.setScalar(1.35);
     const disc = mesh(cyl(17, 17, 1.4, 24), slam("#1d3f8a"), 0, 0, 0); disc.rotation.x = Math.PI / 2; face.add(disc);
@@ -3994,7 +3998,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   function addCityMark(deco, w, WH) {
     const id = w.cityId;
     if (!id || id === "heilbronn") return;
-    const g = group(D.W / 2 - 118, WH, D.T - 34);
+    const g = group(D.WW / 2 - 118, WH, D.T - 34);
     g.scale.setScalar(0.58);
     const stone = slam("#9a8a74"), brick = slam("#6a3a32"), pale = slam("#c4c0b6");
     const dark = slam("#2c3238"), metal = slam("#5a646c"), gold = sbasic("#e8c64a");
@@ -5077,7 +5081,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
   function syncDoor(w) {
     if (!room) return;
     const k = w.run.doorK || 0;
-    for (const P of room.door.panels) P.mesh.position.x = D.W / 2 + P.s * (D.DOOR_W / 4 + k * (D.DOOR_W / 2 - 2));
+    for (const P of room.door.panels) P.mesh.position.x = D.WW / 2 + P.s * (D.DOOR_W / 4 + k * (D.DOOR_W / 2 - 2));
     for (const l of room.door.lamps) l.material.color.setHex(k > 0.5 ? 0x8cff4a : 0xff3a2a);
   }
 
@@ -5316,7 +5320,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     const dk = w.run.doorK || 0;
     doorBeam.visible = dk > 0;
     if (dk > 0) {
-      doorBeam.position.set(D.W / 2, 0, D.T - 6);
+      doorBeam.position.set(D.WW / 2, 0, D.T - 6);
       doorBeam.scale.set(D.DOOR_W * 0.5, 150 * dk, 10);
       doorBeam.material.opacity = (0.5 + 0.15 * Math.sin(t * 4)) * dk;
     }
@@ -5791,8 +5795,8 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     for (const l of w.roomLights) bill(addB, l.x, 40, l.y, l.r * 0.42, CELL.glow, l.rgb, (0.3 + 0.08 * Math.sin(t * 3 + l.x)) * glowLevel(l, t));
     const dk = w.run.doorK || 0;
     if (dk > 0) {
-      for (let i = 0; i < 3; i++) flat(floorB, D.W / 2, 1.5, D.T + 26 + i * 24 - ((t * 40) % 24), -Math.PI / 2, 12, 15, CELL.chevron, "140,255,74", dk * (0.8 - i * 0.22));
-      bill(addB, D.W / 2, 30, D.T, 70, CELL.glow, "140,255,74", dk * 0.45);
+      for (let i = 0; i < 3; i++) flat(floorB, D.WW / 2, 1.5, D.T + 26 + i * 24 - ((t * 40) % 24), -Math.PI / 2, 12, 15, CELL.chevron, "140,255,74", dk * (0.8 - i * 0.22));
+      bill(addB, D.WW / 2, 30, D.T, 70, CELL.glow, "140,255,74", dk * 0.45);
     }
     if (w.supplyCrate) bill(addB, w.supplyCrate.x, 30, w.supplyCrate.y, 60, CELL.glow, "140,255,74", 0.35 + 0.12 * Math.sin(t * 4));
     if (w.miniSpot) { const m = w.miniSpot, k = 0.5 + 0.5 * Math.sin(t * 4); flat(floorB, m.x, 1.5, m.y + 10, 0, m.r + 14, m.r + 14, CELL.ring, "255,212,92", 0.35 + 0.35 * k); bill(addB, m.x, 40, m.y, 50, CELL.glow, "255,200,110", 0.18 + 0.08 * k); }
@@ -6014,7 +6018,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     let s = 91 + (w.obstacles ? w.obstacles.length * 17 : 0) + w.theme.length * 53 + String(w.district || "").length * 7;
     const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
     const free = (x, z, r) => !(w.obstacles || []).some((o) => x + r > o.x - 4 && x - r < o.x + o.w + 4 && z + r > o.y - 4 && z - r < o.y + o.h + 4);
-    const doorX = D.W / 2, th = w.theme;
+    const doorX = D.WW / 2, th = w.theme;
     const paper = th === "hospital" ? ["#e8ecea", "#d8e4f0"] : ["#cfc6b4", "#b8b0a0", "#e0d8c4"];
     let placed = 0;
     for (let i = 0; i < 90 && placed < 22; i++) {
@@ -6080,7 +6084,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     let fires = 0;
     for (const b of w.bullets) if (b.kind === "flame" && fires++ % 6 === 0) lightCands.push([b.x, 22, b.y, "255,150,50", 1.8, 160, 5]);
     for (const l of w.roomLights) lightCands.push([l.x, 50, l.y, l.rgb, (1.3 + 0.2 * Math.sin(t * 3 + l.x)) * glowLevel(l, t), l.r * 1.8, 2]);
-    if ((w.run.doorK || 0) > 0) lightCands.push([D.W / 2, 40, D.T + 10, "140,255,74", 1.6 * w.run.doorK, 220, 3]);
+    if ((w.run.doorK || 0) > 0) lightCands.push([D.WW / 2, 40, D.T + 10, "140,255,74", 1.6 * w.run.doorK, 220, 3]);
     if (w.supplyCrate) lightCands.push([w.supplyCrate.x, 50, w.supplyCrate.y, "140,255,74", 1.6, 220, 3]);
     if (w.miniSpot) lightCands.push([w.miniSpot.x, 60, w.miniSpot.y + 10, "255,200,110", 1.5, 200, 3]);
     if (w.menuCam) {
@@ -6290,7 +6294,8 @@ void main() {
     const sx = (shake ? (Math.random() - 0.5) * shake * 1.6 : 0) + punch.x * 0.95;
     const sz = (shake ? (Math.random() - 0.5) * shake * 1.6 : 0) + punch.y * 0.95;
     const k = Math.min(1, dt * 3);
-    CAM.fx += ((w.player.x - D.W / 2) * 0.025 - CAM.fx) * k;
+    if (!w.menuCam) CAM.tx += (topX(w.player.x) - CAM.tx) * Math.min(1, dt * 3); // v5.15 seitlich mitfahren
+    CAM.fx += ((w.player.x - CAM.tx) * 0.025 - CAM.fx) * k;
     // v3.4 lange Arena: die Übersicht fährt längs mit (beim Raumaufbau springt sie, siehe buildRoom); kleine Nachführung bleibt
     if (!w.menuCam) { const zt = topZ(w.player.y); CAM.tz += (zt - CAM.tz) * Math.min(1, dt * 3); CAM.fz += ((w.player.y - 100 - CAM.tz) * 0.06 - CAM.fz) * k; }
     // Boss-Auftritt und Boss-Tod: Kamera fährt an den Boss heran

@@ -5707,7 +5707,14 @@
   // über öffentliche MQTT-Server: klappt hinter jedem NAT, braucht nur ausgehendes HTTPS/WebSocket. Der Gastgeber lauscht auf
   // allen Servern gleichzeitig, ein Gast nimmt den ersten, über den der Gastgeber antwortet. PeerJS bleibt Ausweichweg.
   // v5.4 vierter Server über Port 443 (normaler HTTPS-Port): Schul-, Firmen- und manche Mobilfunknetze sperren 8081–8884
-  const RELAY_DEFAULT = ["wss://broker.emqx.io:8084/mqtt", "wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081/mqtt", "wss://mqtt.eclipseprojects.io:443/mqtt"];
+  // v5.10 Server auf Port 443 zuerst: Schul-, Firmen-, Hotel- und manche Mobilfunknetze lassen nur 443 durch.
+  // Login-Daten in der Adresse (user:pass@) gehen ins MQTT-CONNECT, nicht in die WebSocket-Adresse.
+  const RELAY_DEFAULT = ["wss://mqtt.eclipseprojects.io:443/mqtt", "wss://public:public@public.cloud.shiftr.io:443", "wss://broker.emqx.io:8084/mqtt", "wss://broker.hivemq.com:8884/mqtt", "wss://test.mosquitto.org:8081/mqtt"];
+  // Zugangsdaten aus der Adresse lösen (Browser lehnen WebSockets mit user:pass@ ab)
+  function relayAuth(url) {
+    const m = /^(wss?:\/\/)([^:@/]+):([^@/]*)@(.+)$/.exec(url);
+    return m ? { ws: m[1] + m[4], user: decodeURIComponent(m[2]), pass: decodeURIComponent(m[3]) } : { ws: url, user: "", pass: "" };
+  }
   const relayList = () => {
     const q = /[?&]relay=([^&]+)/.exec(location.search); // Tests: eigener Server
     if (q) return decodeURIComponent(q[1]).split(",").filter(Boolean);
@@ -5715,9 +5722,9 @@
   };
   const NO_PEER = /[?&]nopeer\b/.test(location.search);
   const relayBase = (code) => `outbreak-germany/v47/${code}`;
-  const relayName = (url) => { try { return new URL(url).hostname.replace(/^(broker|test|mqtt)\./, ""); } catch { return "Relais"; } };
+  const relayName = (url) => { try { return new URL(relayAuth(url).ws).hostname.replace(/^(broker|test|mqtt)\./, ""); } catch { return "Relais"; } };
   // Minimaler MQTT-3.1.1-Client (QoS 0): verbinden, abonnieren, senden, Lebenszeichen, selbstständig neu verbinden
-  function mqttConnect(url, timeout = 6000) {
+  function mqttConnect(url, timeout = 9000) { // 9 s: TLS-Aufbau dauert in schwachen Mobilfunknetzen länger
     return new Promise((res, rej) => {
       const enc = new TextEncoder(), dec = new TextDecoder();
       const str = (t) => { const b = enc.encode(t); return [b.length >> 8, b.length & 255, ...b]; };
@@ -5746,11 +5753,12 @@
       const tm = setTimeout(fail, timeout);
       const open = () => {
         let buf = new Uint8Array(0);
-        try { ws = new WebSocket(url, "mqtt"); } catch { fail(); return; }
+        try { ws = new WebSocket(relayAuth(url).ws, "mqtt"); } catch { fail(); return; }
         ws.binaryType = "arraybuffer";
         ws.onopen = () => {
-          const id = `og${Math.random().toString(36).slice(2, 12)}`;
-          send(pkt(0x10, [...str("MQTT"), 4, 0x02, 0, 30, ...str(id)])); // sauberer Start, 30 s Lebenszeichen
+          const id = `og${Math.random().toString(36).slice(2, 12)}`, au = relayAuth(url);
+          const flags = 0x02 | (au.user ? 0x80 : 0) | (au.user && au.pass ? 0x40 : 0);
+          send(pkt(0x10, [...str("MQTT"), 4, flags, 0, 30, ...str(id), ...(au.user ? str(au.user) : []), ...(au.user && au.pass ? str(au.pass) : [])])); // sauberer Start, 30 s Lebenszeichen
         };
         ws.onmessage = (ev) => {
           const add = new Uint8Array(ev.data), nb = new Uint8Array(buf.length + add.length);
@@ -5818,7 +5826,7 @@
       const buses = [];
       let done = false, failed = 0, reached = 0;
       const stop = (why) => { if (done) return; done = true; clearTimeout(tm); for (const b of buses) b.close(); rej(new Error(why)); };
-      const tm = setTimeout(() => stop(reached ? "noroom" : "relay"), 7000);
+      const tm = setTimeout(() => stop(reached ? "noroom" : "relay"), 11000);
       openRelayGuest.cancel = () => stop("cancel");
       for (const url of list) {
         mqttConnect(url).then((bus) => {
@@ -5850,10 +5858,17 @@
       }
     });
   }
+  // v5.10 eigene TURN-Server (z. B. mit Konto bei einem TURN-Anbieter) über OUTBREAK_CONFIG.arena.iceServers – sie kommen
+  // vor die eingebauten von PeerJS. TURN über TLS auf Port 443 kommt auch durch strenge Firmen-Firewalls.
+  function peerCfg() {
+    const a = Platform.cfg.arena || {}, base = a.peer ? { ...a.peer } : {};
+    if (Array.isArray(a.iceServers) && a.iceServers.length) base.config = { iceServers: [...a.iceServers, { urls: "stun:stun.l.google.com:19302" }, { urls: ["turn:eu-0.turn.peerjs.com:3478", "turn:us-0.turn.peerjs.com:3478"], username: "peerjs", credential: "peerjsp" }] };
+    return Object.keys(base).length ? base : undefined;
+  }
   // PeerJS (WebRTC) – Gastgeber-Seite an den Hub hängen
   async function attachPeerHost(hub, code) {
     if (!window.Peer) await loadScript("vendor/peerjs.min.js");
-    const cfg = (Platform.cfg.arena && Platform.cfg.arena.peer) || undefined; // eigener Vermittlungs-Server möglich
+    const cfg = peerCfg(); // eigener Vermittlungs-Server möglich
     return new Promise((res, rej) => {
       const peer = new window.Peer(roomId(code), cfg);
       let done = false;
@@ -5874,7 +5889,7 @@
   }
   async function openPeerGuest(code) {
     if (!window.Peer) await loadScript("vendor/peerjs.min.js");
-    const cfg = (Platform.cfg.arena && Platform.cfg.arena.peer) || undefined;
+    const cfg = peerCfg();
     return new Promise((res, rej) => {
       const peer = new window.Peer(cfg);
       const hub = { host: false, me: -1, locked: false, onmsg: null, onjoin: null, onleave: null, onclose: null, via: "p2p", count: () => 0 };
@@ -5905,10 +5920,16 @@
     const hub = hubHostCore({ host: true, me: 0, locked: false, onmsg: null, onjoin: null, onleave: null, onclose: null, buses: [], ways: { relays: 0, peer: false } });
     let closed = false;
     const later = () => { if (!closed && lobby && lobby.hub === hub) renderArena(); };
-    const tasks = relayList().map((u) => mqttConnect(u).then((bus) => {
+    // v5.10 jeder Server, der beim Öffnen nicht antwortet, wird im Hintergrund weiter versucht – vielleicht ist genau
+    // der im Netz des Freundes der einzige erreichbare (Gäste nehmen den ersten Server, auf dem der Gastgeber antwortet)
+    const tryRelay = (u, n = 0) => mqttConnect(u).then((bus) => {
       if (closed) { bus.close(); return false; }
       attachRelayBus(hub, bus, code); hub.ways.relays++; later(); return true;
-    }, () => false));
+    }, () => {
+      if (!closed && n < 40) setTimeout(() => { if (!closed) tryRelay(u, n + 1); }, Math.min(15000, 4000 + n * 1000));
+      return false;
+    });
+    const tasks = relayList().map((u) => tryRelay(u));
     if (!NO_PEER) tasks.push(attachPeerHost(hub, code).then(() => { hub.ways.peer = true; later(); return true; }, () => false));
     const any = await new Promise((res) => { let left = tasks.length; for (const t of tasks) t.then((ok) => { if (ok) res(true); else if (--left === 0) res(false); }); });
     hub.close = () => {
@@ -5937,7 +5958,7 @@
       try {
         if (!window.Peer) await loadScript("vendor/peerjs.min.js");
         peer = await new Promise((res) => {
-          const p = new window.Peer((Platform.cfg.arena && Platform.cfg.arena.peer) || undefined);
+          const p = new window.Peer(peerCfg());
           const end = (ok) => { clearTimeout(tm); try { p.destroy(); } catch { /* weg */ } res(ok); };
           const tm = setTimeout(() => end(false), 6000);
           p.on("open", () => end(true)); p.on("error", () => end(false));
@@ -7188,7 +7209,7 @@
   }
 
   // ---------------------------------------------------------------- Fenster „Arena“
-  const NET_ERR = { relay: "Keine Verbindung zu den Spiel-Servern – Internet prüfen (WLAN/Mobilfunk) und nochmal versuchen", full: "Der Raum ist voll (höchstens 6 Spieler)", busy: "Dort läuft immer noch ein Match – später nochmal versuchen", noroom: "Raum nicht gefunden – stimmt der Code und hat dein Freund die Arena noch offen?", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst – Internet prüfen und nochmal versuchen", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
+  const NET_ERR = { relay: "Keine Verbindung zu den Spiel-Servern – dieses Netz blockiert sie vermutlich (Schul-/Firmen-WLAN). Tipp: WLAN aus und mobile Daten an (oder umgekehrt), dann nochmal", full: "Der Raum ist voll (höchstens 6 Spieler)", busy: "Dort läuft immer noch ein Match – später nochmal versuchen", noroom: "Raum nicht gefunden – stimmt der Code und hat dein Freund die Arena noch offen? Der Raum bleibt offen und sucht weiter nach Wegen: in 10 Sekunden nochmal versuchen", taken: "Der Code ist gerade vergeben – bitte neu erstellen", net: "Keine Verbindung zum Vermittlungs-Dienst – Internet prüfen und nochmal versuchen", load: "Online-Modul konnte nicht geladen werden", cancel: "" };
   // v4.8 Eingebettete Vorschau (z. B. eine Seite in einem fremden Rahmen) sperrt oft Verbindungen zu fremden Servern:
   // dann gleich auf die Web-Version verweisen statt „Internet prüfen“
   const embedded = (() => { try { return window.top !== window.self; } catch { return true; } })();
@@ -7306,13 +7327,14 @@
   }
   const VER_OLD_HOST = "Der Gastgeber hat eine ältere Spielversion ({b}) – er muss das Spiel neu laden (Web: Seite neu laden, App: aktualisieren). Danach nochmal beitreten.";
   const VER_APP = "Deine App ist älter ({a}) als die deines Freundes ({b}) – bitte die App aktualisieren oder die Web-Version nutzen: {u}";
-  async function openLobby(host, code, retry = 1, waitUntil = 0) {
+  const NET_TRIES = 4; // v5.10 Gäste versuchen es mehrmals (Server-Wechsel, Funkloch, langsamer Verbindungsaufbau)
+  async function openLobby(host, code, retry = host ? 1 : NET_TRIES, waitUntil = 0) {
     closeLobby();
     const me = lobby = { code, host, hub: null, players: [], ffa: false, chaos: host ? chaosOn() : false, me: host ? 0 : -1 };
     renderArena();
     keepAwake(true);
     // v5.3 vor dem Verbinden: neuere Web-Version da? Dann erst aktualisieren – sonst passen die Geräte nicht zusammen
-    if (!waitUntil && retry === 1) {
+    if (!waitUntil && (retry === 1 || retry === NET_TRIES)) {
       const nv = await newerWebVersion();
       if (lobby !== me) return;
       if (nv) { renderArena(tr("Neue Version {v} wird geladen …", { v: nv })); if (await freshReload(host ? "host=1" : `room=${code}`)) return; }
@@ -7336,9 +7358,10 @@
         }
       }
       // Vermittlung kurz weg (Funkloch, Dienst überlastet): einmal still neu versuchen
-      if (retry > 0 && (err.message === "net" || (err.message === "noroom" && !host))) {
-        renderArena(tr("Verbindung wird erneut versucht …"));
-        setTimeout(() => { if (lobby === me) openLobby(host, code, retry - 1, waitUntil || 1); }, err.message === "noroom" ? 2500 : 1500);
+      if (retry > 0 && (err.message === "net" || (!host && (err.message === "noroom" || err.message === "relay")))) {
+        const n = (host ? 1 : NET_TRIES) - retry + 2;
+        renderArena(host ? tr("Verbindung wird erneut versucht …") : tr("Verbindung wird erneut versucht … (Versuch {n} von {m})", { n, m: NET_TRIES + 1 }));
+        setTimeout(() => { if (lobby === me) openLobby(host, code, retry - 1, waitUntil || 1); }, err.message === "noroom" ? 3000 : 1500);
         return;
       }
       lobby = null; keepAwake(false); renderArena(netErrText(err.message));

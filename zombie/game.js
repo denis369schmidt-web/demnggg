@@ -1501,9 +1501,10 @@
     mouse.on = false;
     // v5.6 Doppeltipp irgendwo auf dem Bildschirm = Sprung (altes Auto-Feuer: Rolle); beide Tipps nah beieinander,
     // damit linker und rechter Daumen kurz nacheinander keinen Sprung auslösen
+    // v5.16 nur echte Tipps zählen (kurz, kaum bewegt) – Daumen kurz anheben und neu ansetzen löst keinen Sprung mehr aus
     const now = performance.now();
-    if (now - lastTap.t < 300 && (p.x - lastTap.x) ** 2 + (p.y - lastTap.y) ** 2 < 80 * 80) { if (manualAim()) requestJump(); else requestDash(); lastTap = { t: 0, x: 0, y: 0 }; }
-    else lastTap = { t: now, x: p.x, y: p.y };
+    if (now - lastTap.t < 280 && (p.x - lastTap.x) ** 2 + (p.y - lastTap.y) ** 2 < 70 * 70) { if (manualAim()) requestJump(); else requestDash(); lastTap = { t: 0, x: 0, y: 0 }; }
+    tapStart.set(e.pointerId, { t: now, x: p.x, y: p.y, far: false });
     // v5.4 Touch: eine Bildschirmhälfte läuft, die andere zielt und schießt (Linkshänder: getauscht)
     const aimSide = manualAim() && (save.leftHand ? p.x < W / 2 : p.x >= W / 2);
     if (manualAim() && !aimJoy.active && (aimSide || joy.active)) {
@@ -1517,6 +1518,8 @@
   });
   stage.addEventListener("pointermove", (e) => {
     if (e.pointerType === "mouse" && manualAim()) { const p = toWorld(e); mouse.x = p.x; mouse.y = p.y; mouse.on = true; return; }
+    const ts = tapStart.get(e.pointerId);
+    if (ts && !ts.far) { const q = toWorld(e); if ((q.x - ts.x) ** 2 + (q.y - ts.y) ** 2 > 16 * 16) ts.far = true; }
     if (aimJoy.active && e.pointerId === aimJoy.id) { const p = toWorld(e); aimJoy.x = p.x; aimJoy.y = p.y; return; }
     if (!joy.active || e.pointerId !== joy.id) return;
     const p = toWorld(e);
@@ -1524,6 +1527,8 @@
   });
   stage.addEventListener("contextmenu", (e) => { if (state === "play") e.preventDefault(); });
   const endJoy = (e) => {
+    const ts = tapStart.get(e.pointerId);
+    if (ts) { tapStart.delete(e.pointerId); if (e.type === "pointerup" && !ts.far && performance.now() - ts.t < 230) lastTap = { t: performance.now(), x: ts.x, y: ts.y }; }
     if (e.pointerId === joy.id) { joy.active = false; joy.id = null; }
     if (e.pointerId === aimJoy.id) { aimJoy.active = false; aimJoy.id = null; }
     if (e.pointerId === mouse.id) { mouse.down = false; mouse.id = null; }
@@ -1549,6 +1554,7 @@
   const swapBtn = () => ({ x: hx(88), y: SB - 180, r: 16 });
   const ultBtn = () => ({ x: hx(130), y: SB - 58, r: 32 });
   let lastTap = { t: 0, x: 0, y: 0 };
+  const tapStart = new Map(); // v5.16 Zeiger → Beginn (Zeit, Ort, schon gezogen?) für echte Tipps
   window.addEventListener("keydown", (e) => {
     if (e.key === " " && !e.repeat) { requestJump(); if (state === "play") e.preventDefault(); }
     if (e.key === "Shift" && !e.repeat) { requestDash(); if (state === "play") e.preventDefault(); }
@@ -1641,21 +1647,25 @@
     pad.prev = gp.buttons.map((q) => q.pressed);
   }
 
+  const JOY_R = 70, JOY_DEAD = 7, JOY_FULL = 46, JOY_MIN = 0.32; // Stick: Radius, Totzone, voller Lauf ab, Schleichtempo
+  const MOVE_ACC = 18, MOVE_DEC = 26, TURN = 16; // Anfahren, Abbremsen (je s), Drehen (rad/s) – direkt, aber ohne Ruckeln
   function inputVector() {
     let x = 0, y = 0;
     if (keys.has("a") || keys.has("arrowleft")) x -= 1;
     if (keys.has("d") || keys.has("arrowright")) x += 1;
     if (keys.has("w") || keys.has("arrowup")) y -= 1;
     if (keys.has("s") || keys.has("arrowdown")) y += 1;
-    if (!x && !y && pad.on) { x = pad.x; y = pad.y; }
+    let m = 1;
+    if (!x && !y && pad.on) { x = pad.x; y = pad.y; m = clamp((Math.hypot(x, y) - 0.2) / 0.6, 0, 1); }
     if (joy.active) {
+      // v5.16 analoger Stick: kleine Totzone, voller Lauf ab JOY_FULL, Ring wandert mit dem Daumen mit
       const dx = joy.x - joy.ox, dy = joy.y - joy.oy;
       const len = Math.hypot(dx, dy);
-      if (len > 70) { joy.ox = joy.x - (dx / len) * 70; joy.oy = joy.y - (dy / len) * 70; }
-      if (len > 8) { x = dx / len; y = dy / len; }
+      if (len > JOY_R) { joy.ox = joy.x - (dx / len) * JOY_R; joy.oy = joy.y - (dy / len) * JOY_R; }
+      if (len > JOY_DEAD) { x = dx / len; y = dy / len; m = clamp((Math.min(len, JOY_R) - JOY_DEAD) / (JOY_FULL - JOY_DEAD), 0, 1); }
     }
     const len = Math.hypot(x, y);
-    return len > 0 ? { x: x / len, y: y / len } : null;
+    return len > 0 ? { x: x / len, y: y / len, m: JOY_MIN + (1 - JOY_MIN) * Math.min(1, m) } : null;
   }
 
   // ============================================================
@@ -1847,11 +1857,15 @@
       p.aim = Math.atan2(p.dashY, p.dashX);
       ghosts.push({ x: p.x, y: p.y, life: 0.28, max: 0.28 });
     }
+    // v5.16 weiches Anfahren/Abbremsen statt Sprung auf volle Geschwindigkeit; p.vx/p.vy = echte Laufgeschwindigkeit (Bot-Vorhalt, Netz)
+    const sp = p.speed * (run.rage > 0 ? 1.15 : 1) * (p.slowT > 0 ? 0.55 : 1) * (1 - 0.45 * (p.scopeK || 0)) * (p.padT > 0 ? 1.6 : 1) * (p.vip ? 0.92 : 1); // Adrenalin, Bierlache/Formular, Zielfernrohr
+    const tvx = v ? v.x * sp * v.m : 0, tvy = v ? v.y * sp * v.m : 0, ka = Math.min(1, dt * (v ? MOVE_ACC : MOVE_DEC));
+    p.vx = (p.vx || 0) + (tvx - (p.vx || 0)) * ka; p.vy = (p.vy || 0) + (tvy - (p.vy || 0)) * ka;
+    if (p.dashT > 0) { p.vx = p.vy = 0; }
+    else if (Math.abs(p.vx) + Math.abs(p.vy) > 0.5) { p.x += p.vx * dt; p.y += p.vy * dt; }
     if (v) {
-      const sp = p.speed * (run.rage > 0 ? 1.15 : 1) * (p.slowT > 0 ? 0.55 : 1) * (1 - 0.45 * (p.scopeK || 0)) * (p.padT > 0 ? 1.6 : 1) * (p.vip ? 0.92 : 1); // Adrenalin, Bierlache/Formular, Zielfernrohr
-      p.x += v.x * sp * dt;
-      p.y += v.y * sp * dt;
-      p.aim = Math.atan2(v.y, v.x);
+      const ta = Math.atan2(v.y, v.x), d = angTo(p.aim || 0, ta);
+      p.aim = (p.aim || 0) + clamp(d, -TURN * dt, TURN * dt);
       p.walkT += dt * 10;
       const step = Math.floor(p.walkT / 1.55);
       // Sohlen werden nass, sobald der Held durch eine Lache läuft – nicht nur, wenn ein Schritt genau darin landet
@@ -9030,6 +9044,7 @@
     }
     if (roomFade > 0) { ctx.globalAlpha = Math.min(1, roomFade * 1.4); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
     if (state === "play" && joy.active) drawJoystick(joy);
+    else if (state === "play" && touchSeen && manualAim() && run && run.time < 25) drawStickHint(); // v5.16 zeigt in den ersten Sekunden, wo der Lauf-Stick sitzt
     if (state === "play" && aimJoy.active) drawJoystick(aimJoy, true);
     if (banner) drawBanner();
     drawBossCard();
@@ -10567,12 +10582,21 @@
     ctx.restore();
   }
 
+  function drawStickHint() {
+    const cx = save.leftHand ? SCR_R - 100 : SCR_L + 100, cy = SB - 120, k = Math.max(0, Math.min(1, (25 - run.time) / 4));
+    ctx.save(); ctx.globalAlpha = 0.5 * k;
+    ctx.strokeStyle = "rgba(140,255,74,0.5)"; ctx.lineWidth = 2; ctx.setLineDash([6, 8]);
+    ctx.beginPath(); ctx.arc(cx, cy, JOY_R, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(140,255,74,0.35)"; ctx.beginPath(); ctx.arc(cx, cy, 24, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
   function drawJoystick(j, aim = false) {
+    const dx = j.x - j.ox, dy = j.y - j.oy, push = aim ? 1 : clamp((Math.hypot(dx, dy) - JOY_DEAD) / (JOY_FULL - JOY_DEAD), 0, 1);
     ctx.fillStyle = "rgba(255,255,255,0.06)";
-    ctx.strokeStyle = aim ? "rgba(255,110,80,0.4)" : "rgba(140,255,74,0.35)"; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(j.ox, j.oy, 70, 0, TAU); ctx.fill(); ctx.stroke();
-    const dx = j.x - j.ox, dy = j.y - j.oy;
-    const len = Math.min(70, Math.hypot(dx, dy)), a = Math.atan2(dy, dx);
+    ctx.strokeStyle = aim ? "rgba(255,110,80,0.4)" : `rgba(140,255,74,${0.25 + 0.3 * push})`; ctx.lineWidth = 2; // v5.16 Ring leuchtet mit dem Tempo
+    ctx.beginPath(); ctx.arc(j.ox, j.oy, JOY_R, 0, TAU); ctx.fill(); ctx.stroke();
+    if (!aim && push > 0.02) { ctx.strokeStyle = `rgba(168,255,62,${0.55 * push})`; ctx.lineWidth = 4; const a0 = Math.atan2(dy, dx); ctx.beginPath(); ctx.arc(j.ox, j.oy, JOY_R, a0 - 0.5, a0 + 0.5); ctx.stroke(); }
+    const len = Math.min(JOY_R, Math.hypot(dx, dy)), a = Math.atan2(dy, dx);
     const kx = j.ox + Math.cos(a) * len, ky = j.oy + Math.sin(a) * len;
     const g = ctx.createRadialGradient(kx - 8, ky - 8, 2, kx, ky, 28);
     if (aim) { g.addColorStop(0, "rgba(255,200,180,0.85)"); g.addColorStop(1, "rgba(190,60,40,0.55)"); }

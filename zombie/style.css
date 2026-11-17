@@ -1642,3 +1642,16 @@ canvas.stamp-art { width: auto; max-width: 100%; }
 .chat-log p { margin: 0; }
 .chat-log b { color: #9fd4ff; margin-right: 4px; }
 .chat-log p.me b { color: #c8ff8a; }
+
+/* v5.1 Waffenwahl im Arena-Fenster: alle Waffen, waagerecht wischbar */
+.wpn-pick { display: grid; gap: 8px; padding: 12px; border-radius: 3px; background: var(--metal-tex), linear-gradient(180deg, #2a2c24, #1d1e18); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07); }
+.wpn-pick h3 { margin: 0; font: 800 12px/1 var(--f-ui); letter-spacing: 0.2em; text-transform: uppercase; color: var(--khaki); }
+.wpn-row { display: grid; grid-auto-flow: column; grid-auto-columns: 92px; gap: 8px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.wpn-chip { position: relative; display: grid; justify-items: center; align-content: start; gap: 4px; min-height: 84px; padding: 8px 6px 6px; border: 1px solid #3a3d33; border-radius: 3px; background: rgba(255, 255, 255, 0.04); color: #efe8d4; font: 700 11.5px/1.15 var(--f-ui); text-align: center; cursor: pointer; scroll-snap-align: start; }
+.wpn-chip img { width: 64px; height: 36px; object-fit: contain; }
+.wpn-chip span { overflow-wrap: anywhere; hyphens: auto; }
+.wpn-chip em { position: absolute; top: 3px; right: 4px; font: 800 8.5px/1 var(--f-ui); font-style: normal; letter-spacing: 0.1em; text-transform: uppercase; color: var(--khaki); }
+.wpn-chip.on { border-color: #a8ff3e; background: rgba(168, 255, 62, 0.12); box-shadow: inset 0 0 0 1px #a8ff3e; }
+.wpn-chip:disabled { opacity: 0.45; cursor: default; }
+.wpn-info { margin: 0; font: 600 13px/1.35 var(--f-ui); color: #efe8d4; }
+.wpn-note { margin: 0; font: 600 11.5px/1.35 var(--f-ui); color: var(--text-3, #9a9886); }

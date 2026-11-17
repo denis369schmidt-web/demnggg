@@ -5739,7 +5739,17 @@
     showBanner(tr("1 GEGEN 1"), `${e.def.name} · ${tr("Level {n}", { n: o.lv || 1 })}${o.pow ? ` · ${tr("Kampfwert {a} gegen {b}", { a: num(myPow), b: num(o.pow) })}` : ""}`, 2.6);
   }
   // v4.4 Ohne Aufstieg: Standard-Kämpfer (gewählte Waffe, keine Skills) – Freunde können sofort mitmachen
-  const myFighter = () => (save.arena && save.arena.f) || { weaponId: save.equipped || "pistol", skin: save.skin, level: 1, tier: 0, skills: {}, evo: {}, mods: [] };
+  // v5.1 Im Duell sind alle Waffen frei wählbar (Turnierregeln gleichen die Grund-DPS jeder Waffe an) – Wahl in save.arena.pick
+  const pvpPick = () => { const k = save.arena && save.arena.pick; return k && WEAPONS[k] ? k : null; };
+  const baseFighter = () => (save.arena && save.arena.f) || { weaponId: save.equipped || "pistol", skin: save.skin, level: 1, tier: 0, skills: {}, evo: {}, mods: [] };
+  const myFighter = () => { const f = baseFighter(), k = pvpPick(); return k && k !== f.weaponId ? { ...f, weaponId: k, tier: 0 } : f; };
+  function pickPvpWeapon(id) {
+    if (lobby || !WEAPONS[id]) return;
+    const a = save.arena || (save.arena = { w: 0, l: 0 });
+    a.pick = id === baseFighter().weaponId ? null : id;
+    persist();
+    renderArena();
+  }
   let pvpMatch = null; // Best of 3 über mehrere Runden
   function startPvp(opp, link, next = false) {
     const a = save.arena || (save.arena = { w: 0, l: 0 });
@@ -6618,13 +6628,18 @@
   let roomLinkUsed = false;
   let arenaTestTxt = "";
   function renderArena(msg = "") {
-    const a = save.arena || {}, f = a.f, info = f ? fighterInfo(fairPlayer(f)) : null, wname = info ? WEAPONS[info.w].name : "";
+    const a = save.arena || {}, f = a.f, info = f ? fighterInfo(fairPlayer(myFighter())) : null, wname = info ? WEAPONS[info.w].name : "";
     $("arenaFighter").innerHTML = f
       ? `${medal("duel", a.stage >= ARENA_STAGES ? "gold" : "steel", "big")}<span><small>${tr("Dein Kämpfer")}</small><b>${tr("Level {n}", { n: info.lv })} · ${wname}</b><em>${tr("Aufstieg {n}/{m}", { n: a.stage || 0, m: ARENA_STAGES })} · ${tr("{n} Skills", { n: info.skills })} · ${num(info.mhp)} ${tr("Leben")}</em></span>`
       : `${medal("duel", "steel", "big")}<span><small>${tr("Dein Kämpfer")}</small><b>${tr("Standard-Kämpfer")} · ${WEAPONS[myFighter().weaponId].name}</b><em>${tr("Ohne Skills – der Aufstieg (10 Bezirke) macht dich stärker")}</em></span>`;
     $("arenaClimb").innerHTML = `<span>${f ? tr("Neuer Aufstieg") : tr("Aufstieg starten")}</span>`;
     $("arenaRecord").textContent = `${tr("Wertung {e}", { e: arenaElo() })} · ${tr("Siege {w} · Niederlagen {l}", { w: a.w || 0, l: a.l || 0 })}`;
     const wait = !!lobby;
+    // v5.1 Waffenwahl fürs Duell: alle Waffen, die eigene ist markiert
+    const cur = myFighter().weaponId, own = baseFighter().weaponId, wl = $("arenaWeapons");
+    wl.innerHTML = Object.entries(WEAPONS).map(([id, w]) => `<button class="wpn-chip${id === cur ? " on" : ""}" data-w="${id}" ${wait ? "disabled" : ""} aria-pressed="${id === cur}">` +
+      `<img src="${Sprites.weaponIcon(id, 0)}" alt="" /><span>${escHtml(w.name)}</span>${id === own ? `<em>${tr("Deine")}</em>` : ""}</button>`).join("");
+    $("arenaWeaponInfo").textContent = `${WEAPONS[cur].name}: ${tr(WEAPONS[cur].desc)}`;
     if (document.activeElement !== $("arenaName")) { $("arenaName").value = save.pname || ""; $("arenaName").placeholder = rankOf(bestScore()).name; }
     $("arenaName").disabled = wait;
     for (const id of ["arenaBot", "arenaHost", "arenaJoin", "arenaCode", "arenaPaste"]) $(id).disabled = wait;
@@ -10567,6 +10582,7 @@
   $("arenaCancel").addEventListener("click", () => { closeLobby(); renderArena(); });
   $("arenaInvite").addEventListener("click", () => shareInvite());
   $("arenaParty").addEventListener("click", (ev) => { const b = ev.target.closest(".party-chip[data-pid]"); if (b && !b.disabled) toggleTeam(+b.dataset.pid); });
+  $("arenaWeapons").addEventListener("click", (ev) => { const b = ev.target.closest(".wpn-chip[data-w]"); if (b && !b.disabled) pickPvpWeapon(b.dataset.w); });
   $("arenaChat").addEventListener("click", (ev) => { const b = ev.target.closest(".quick-chip[data-i]"); if (b) { ensureAudio(); sendQuick(+b.dataset.i); } });
   $("arenaMode").addEventListener("click", () => toggleFfa());
   $("arenaName").addEventListener("change", (ev) => { save.pname = String(ev.target.value || "").replace(/[<>]/g, "").trim().slice(0, 14); persist(); });

@@ -11,6 +11,7 @@ Bezirke säubern, durch die Tür nach oben, bei jedem Level-Up 1 von 3 Skills w�
 Läuft im Browser, als installierbare PWA und als Android-App ([`../mobile`](../mobile)).
 
 ## Inhalt
+- **v5.1 – Freie Waffenwahl im Duell:** In der Arena kannst du jetzt jede der 15 Waffen wählen – auch ohne sie gekauft zu haben. Die Turnierregeln gleichen alle Waffen auf dieselbe Grundstärke an, du entscheidest nur über deinen Spielstil.
 - **v5.0 – Die Stadt lebt:** Dächer im Mondlicht mit erleuchteten Dachfenstern statt schwarzer Flächen, rund um die Arena erstreckt sich die nächtliche Stadt mit Straßenlaternen bis zum Horizont, die Skyline hat mehr erleuchtete Fenster. Wandlampen werfen weite warme Lichtinseln auf den Boden, der Asphalt säuft nicht mehr im Dunkeln ab.
 - **v4.9 – Schärfer und flüssiger:** Bis zu 75 % mehr Auflösung auf Retina-Displays (iPhone), die automatische Anpassung merkt sich, was dein Gerät schafft. Große Horden ruckeln weniger, weil Gegner-Modelle wiederverwendet und in ruhigen Momenten vorgebaut werden. Pfützen glänzen dunkel statt grau, Zebrastreifen wirken sauber.
 - **v4.8 – Gruppenkampf mit Überblick:** **Abschuss-Meldungen** oben im Bild („Denis › Max“), am Ende eine **Tabelle mit Abschüssen und Ausfällen** je Spieler. **Schnell-Nachrichten** („Los geht's!“, „Hilfe!“, „Gut gespielt!“ …) per Tipp in der Lobby und im Kampf (Funk-Knopf über der Rolle, am PC Tasten 1–6) – als Sprechblase über dem Kopf. Neu in den Einstellungen: **Linkshänder-Modus**, der die Aktionsknöpfe auf die linke Seite legt.

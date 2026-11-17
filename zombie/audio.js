@@ -472,62 +472,109 @@ window.GameAudio = (() => {
   // Waffen-Identität: jede Waffe hat eigenen Körper, Knall und Schweif
   // ------------------------------------------------------------------
   let lastGunT = 0, lastFootT = 0, lastMeatT = 0;
+  // v5.11 Waffen-Klang 2.0: jede Waffe aus Schichten – Tiefbass-Schlag (Punch), Überschall-Knall (Crack), Körper,
+  // Mechanik (Schlitten, Pumpe, Kammerverschluss), fallende Hülse – über einen kurzen „Häuserschlucht“-Hall (Slapback)
+  // und leicht im Stereobild verteilt. Schnellfeuerwaffen bleiben schlank (wenige Audio-Knoten fürs Handy).
+  let gunBus = null, gunRoom = null;
+  function gunOut() {
+    if (gunBus) return gunBus;
+    gunBus = ctx.createGain(); gunBus.gain.value = 1; gunBus.connect(sfxBus);
+    gunRoom = ctx.createConvolver(); gunRoom.buffer = impulse(0.7, 3.2);
+    const wet = ctx.createGain(); wet.gain.value = 0.32; gunRoom.connect(wet).connect(sfxBus);
+    return gunBus;
+  }
   function gun(kind) {
     if (!ready || muted) return;
-    kind = { dbl: "shotgun", nailgun: "smg", railgun: "sniper" }[kind] || kind; // v5.8 neue Waffen klingen wie ihre Verwandten
     const t = ctx.currentTime + 0.001;
-    const gap = { smg: 0.038, minigun: 0.032, flame: 0.07, rifle: 0.042, laser: 0.048, pistol: 0.05 }[kind] || 0.055;
+    const gap = { smg: 0.036, minigun: 0.03, flame: 0.07, rifle: 0.04, laser: 0.045, pistol: 0.05, nailgun: 0.04 }[kind] || 0.055;
     if (t - lastGunT < gap) return;
     lastGunT = t;
-    const out = sfxBus;
-    const body = (f0, f1, dur, vol, type = "sine") => {
-      const g = env(t, 0.001, vol, dur); g.connect(out);
+    const bus = gunOut();
+    let out = bus;
+    if (ctx.createStereoPanner) { const pn = ctx.createStereoPanner(); pn.pan.value = rnd(-0.14, 0.14); pn.connect(bus); out = pn; }
+    const room = (node, amt) => { const g = ctx.createGain(); g.gain.value = amt; node.connect(g).connect(gunRoom); };
+    // Tiefbass-Schlag: Sinus mit schnellem Tonhöhenfall
+    const punch = (f0, f1, dur, vol, at = 0) => {
+      const g = env(t + at, 0.001, vol, dur); g.connect(out); room(g, 0.5);
+      const o = ctx.createOscillator(); o.type = "sine";
+      o.frequency.setValueAtTime(f0, t + at); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + at + dur);
+      o.connect(g); o.start(t + at); o.stop(t + at + dur + 0.03);
+    };
+    const body = (f0, f1, dur, vol, type = "triangle", at = 0) => {
+      const g = env(t + at, 0.001, vol, dur); g.connect(out);
       const o = ctx.createOscillator(); o.type = type;
-      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(22, f1), t + dur);
-      o.connect(g); o.start(t); o.stop(t + dur + 0.03);
+      o.frequency.setValueAtTime(f0, t + at); o.frequency.exponentialRampToValueAtTime(Math.max(22, f1), t + at + dur);
+      o.connect(g); o.start(t + at); o.stop(t + at + dur + 0.03);
     };
-    const crack = (hi, lo, dur, vol) => {
-      const hp = filter("highpass", 1600, 0.55); hp.connect(out);
-      const g = env(t, 0.0007, vol, dur); g.connect(hp); noiseSrc(t, dur + 0.02, g);
-      const bp = filter("bandpass", hi, 1.2); bp.frequency.setValueAtTime(hi, t); bp.frequency.exponentialRampToValueAtTime(Math.max(80, lo), t + dur); bp.connect(out);
-      const g2 = env(t, 0.0007, vol * 0.65, dur * 0.75); g2.connect(bp); noiseSrc(t, dur, g2);
+    // Knall: Rauschen durch wandernden Bandpass, plus heller Hochpass-Anteil
+    const crack = (hi, lo, dur, vol, at = 0, wet = 0.6) => {
+      const bp = filter("bandpass", hi, 1.1); bp.frequency.setValueAtTime(hi, t + at); bp.frequency.exponentialRampToValueAtTime(Math.max(80, lo), t + at + dur); bp.connect(out); room(bp, wet);
+      const g = env(t + at, 0.0006, vol, dur); g.connect(bp); noiseSrc(t + at, dur + 0.02, g);
     };
-    const tail = (cut, dur, vol) => {
-      const lp = filter("lowpass", cut, 0.6); lp.frequency.setValueAtTime(cut, t); lp.frequency.exponentialRampToValueAtTime(80, t + dur); lp.connect(out);
-      const g = env(t, 0.004, vol, dur); g.connect(lp); noiseSrc(t, dur + 0.05, g);
+    const air = (cut, dur, vol, at = 0) => { // Nachhall/Druckwelle: tiefpassgefiltertes Rauschen
+      const lp = filter("lowpass", cut, 0.6); lp.frequency.setValueAtTime(cut, t + at); lp.frequency.exponentialRampToValueAtTime(70, t + at + dur); lp.connect(out); room(lp, 0.8);
+      const g = env(t + at, 0.004, vol, dur); g.connect(lp); noiseSrc(t + at, dur + 0.05, g);
     };
+    const click = (at, f, vol, dur = 0.012) => { // Mechanik: kurzer metallischer Klick
+      const hp = filter("bandpass", f, 3); hp.connect(out);
+      const g = env(t + at, 0.0005, vol, dur); g.connect(hp); noiseSrc(t + at, dur + 0.01, g);
+    };
+    const shell = (p, plastic = false) => { // fallende Hülse
+      if (Math.random() > p) return;
+      const at = rnd(0.24, 0.42), g = env(t + at, 0.001, plastic ? 0.07 : 0.045, plastic ? 0.06 : 0.12); g.connect(out);
+      if (plastic) osc("triangle", rnd(520, 640), t + at, 0.07, g);
+      else { osc("sine", rnd(3100, 3600), t + at, 0.12, g); osc("sine", rnd(5200, 5900), t + at, 0.06, g); const g2 = env(t + at + 0.07, 0.001, 0.025, 0.08); g2.connect(out); osc("sine", rnd(3300, 3800), t + at + 0.07, 0.08, g2); }
+    };
+    const zap = (f0, f1, dur, vol, type = "sawtooth") => { const g = env(t, 0.001, vol, dur); g.connect(out); room(g, 0.4); const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur); o.connect(g); o.start(t); o.stop(t + dur + 0.03); };
     switch (kind) {
-      case "shotgun": body(170, 38, 0.24, 0.62); crack(2200, 280, 0.18, 0.32); tail(900, 0.28, 0.16); break;
-      case "magnum": body(110, 32, 0.28, 0.7); crack(2800, 220, 0.14, 0.28); tail(700, 0.32, 0.18); break;
-      case "sniper": body(90, 28, 0.32, 0.72); crack(5200, 400, 0.2, 0.3); tail(500, 0.45, 0.2); break;
-      case "smg": body(280, 90, 0.055, 0.2); crack(5000, 1400, 0.045, 0.16); break;
-      case "rifle": body(200, 55, 0.1, 0.32); crack(3600, 700, 0.08, 0.2); break;
-      case "minigun": body(240, 80, 0.045, 0.18); crack(3800, 1100, 0.04, 0.14); break;
-      case "pistol": body(240, 70, 0.09, 0.3); crack(4400, 900, 0.07, 0.2); break;
+      case "pistol": punch(150, 48, 0.12, 0.42); crack(4400, 900, 0.07, 0.24); body(260, 90, 0.06, 0.12); click(0.045, 3800, 0.05); shell(0.7); break;
+      case "smg": punch(170, 60, 0.06, 0.26); crack(5200, 1500, 0.04, 0.17, 0, 0.3); shell(0.25); break;
+      case "nailgun": { // Druckluft: „Pfft“ + Nagel-Tick
+        const bp = filter("bandpass", 1800, 1.4); bp.connect(out); const g = env(t, 0.002, 0.3, 0.06); g.connect(bp); noiseSrc(t, 0.07, g);
+        body(1400, 900, 0.025, 0.16, "square"); click(0.03, 2600, 0.14, 0.01);
+        break;
+      }
+      case "rifle": punch(120, 38, 0.11, 0.42); crack(3800, 700, 0.08, 0.24); air(1100, 0.22, 0.08); shell(0.45); break;
+      case "minigun": punch(140, 50, 0.05, 0.24); crack(4000, 1200, 0.035, 0.15, 0, 0.25); shell(0.18); break;
+      case "shotgun": punch(95, 28, 0.3, 0.75); crack(2400, 260, 0.16, 0.34); air(900, 0.42, 0.2); click(0.3, 1500, 0.12, 0.03); click(0.4, 1900, 0.14, 0.035); shell(1, true); break; // Pumpe: tschk-tschk
+      case "dbl": punch(85, 25, 0.34, 0.8); crack(2200, 240, 0.18, 0.36); punch(90, 26, 0.28, 0.6, 0.035); crack(2000, 220, 0.16, 0.3, 0.035); air(800, 0.55, 0.26); click(0.5, 1200, 0.1, 0.04); break; // zwei Läufe, Kipplauf
+      case "magnum": punch(70, 24, 0.34, 0.8); crack(3000, 240, 0.14, 0.32); air(700, 0.5, 0.22); click(0.26, 2400, 0.07); break; // Trommel dreht
+      case "sniper": punch(60, 20, 0.4, 0.82); crack(6200, 420, 0.2, 0.34, 0, 0.9); air(520, 0.85, 0.24); click(0.42, 1700, 0.1, 0.025); click(0.55, 2200, 0.1, 0.025); shell(0.8); break; // Kammerverschluss
+      case "railgun": { // Spulen-Entladung: Zischen nach oben, Knall, tiefer Donner, nachklingender Resonanzton
+        zap(300, 2600, 0.07, 0.12); zap(2400, 140, 0.22, 0.22, "square");
+        crack(8000, 1600, 0.12, 0.26, 0.02, 0.9); punch(55, 18, 0.5, 0.8, 0.02); air(600, 0.9, 0.2, 0.02);
+        const g = env(t + 0.05, 0.004, 0.06, 0.7); g.connect(out); room(g, 0.6); osc("sine", 880, t + 0.05, 0.75, g); osc("sine", 1320, t + 0.05, 0.5, g, 4);
+        break;
+      }
+      case "laser": zap(1900, 260, 0.14, 0.16); zap(3800, 520, 0.1, 0.06, "sine"); crack(7000, 2500, 0.05, 0.08, 0, 0.3); break;
+      case "cryo": {
+        const hp = filter("highpass", 2400, 0.8); hp.connect(out); room(hp, 0.6);
+        const g = env(t, 0.004, 0.16, 0.18); g.connect(hp); noiseSrc(t, 0.2, g);
+        const g2 = env(t, 0.002, 0.05, 0.3); g2.connect(out); osc("sine", 2600, t, 0.3, g2); osc("sine", 3900, t, 0.2, g2); // gläserner Klang
+        body(420, 180, 0.12, 0.1);
+        break;
+      }
+      case "tesla": {
+        zap(90, 45, 0.12, 0.2, "square");
+        for (let i = 0; i < 4; i++) crack(rnd(5000, 9000), 1800, 0.03, 0.12, i * 0.025, 0.3); // Knistern
+        break;
+      }
       case "flame": {
         const bp = filter("bandpass", 700, 0.7); bp.connect(out);
         const g = env(t, 0.01, 0.16, 0.22); g.connect(bp); noiseSrc(t, 0.24, g);
         body(90, 50, 0.18, 0.08, "sawtooth");
         break;
       }
-      case "tesla": body(80, 40, 0.08, 0.12, "square"); crack(8000, 1800, 0.1, 0.18); break;
-      case "grenade": body(150, 45, 0.16, 0.4); crack(900, 200, 0.1, 0.14); break;
-      case "rocket": body(70, 28, 0.22, 0.5, "sawtooth"); tail(600, 0.35, 0.18); break;
-      case "laser": {
-        const g = env(t, 0.002, 0.16, 0.12); g.connect(out);
-        osc("sawtooth", 1680, t, 0.14, g); osc("sine", 3360, t, 0.1, g);
-        crack(7000, 2500, 0.06, 0.1);
+      case "grenade": punch(300, 110, 0.12, 0.4); body(160, 60, 0.14, 0.18); crack(900, 200, 0.08, 0.1); click(0.35, 1300, 0.08, 0.03); break; // „Plopp“
+      case "rocket": { // Zündung + Fauchen, das wegzieht
+        punch(70, 26, 0.3, 0.6);
+        const bp = filter("bandpass", 400, 0.9); bp.frequency.setValueAtTime(400, t); bp.frequency.exponentialRampToValueAtTime(1800, t + 0.5); bp.connect(out); room(bp, 0.8);
+        const g = env(t, 0.02, 0.26, 0.55); g.connect(bp); noiseSrc(t, 0.6, g);
         break;
       }
-      case "cryo": {
-        const hp = filter("highpass", 2400, 0.8); hp.connect(out);
-        const g = env(t, 0.004, 0.14, 0.16); g.connect(hp); noiseSrc(t, 0.18, g);
-        body(420, 180, 0.12, 0.1, "triangle");
-        break;
-      }
-      case "disc": body(180, 70, 0.1, 0.22, "square"); crack(3200, 800, 0.08, 0.12); break;
-      case "crossbow": body(140, 60, 0.12, 0.22, "triangle"); crack(1800, 600, 0.06, 0.1); break;
-      default: body(220, 70, 0.09, 0.28); crack(4000, 800, 0.07, 0.18);
+      case "crossbow": body(240, 170, 0.28, 0.2); crack(1800, 600, 0.05, 0.12, 0, 0.2); click(0.01, 900, 0.1, 0.02); break; // Sehne
+      case "disc": { const bp = filter("bandpass", 6000, 2); bp.connect(out); const g = env(t, 0.002, 0.26, 0.22); g.connect(bp); noiseSrc(t, 0.24, g); body(1200, 1500, 0.22, 0.14, "sine"); break; } // Sägeblatt
+      default: punch(140, 45, 0.1, 0.36); crack(4000, 800, 0.07, 0.2);
     }
   }
   function foot() {

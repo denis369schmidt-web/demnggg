@@ -6383,10 +6383,11 @@
     const edge = gasEdge(pv);
     if (edge < Infinity) for (const sgn of [-1, 1]) {
       const yl = cy + sgn * edge, far = sgn > 0 ? B : T;
-      const pts = mode3d ? [scr(L, yl, 0), scr(R, yl, 0), scr(R, yl, 120), scr(L, yl, 120)] : [scr(L, yl, 0), scr(R, yl, 0), scr(R, far, 0), scr(L, far, 0)];
+      const near = clamp(Math.abs(yl - player.y) / 450, 0.3, 1); // nah an der Kamera: niedriger und durchsichtiger
+      const pts = mode3d ? [scr(L, yl, 0), scr(R, yl, 0), scr(R, yl, 70 * near), scr(L, yl, 70 * near)] : [scr(L, yl, 0), scr(R, yl, 0), scr(R, far, 0), scr(L, far, 0)];
       if (pts.some((q) => !q || q.behind)) continue;
       ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, q.x, q.y)); ctx.closePath();
-      ctx.fillStyle = `rgba(120,200,60,${0.28 + 0.06 * Math.sin(t * 2 + sgn)})`; ctx.fill();
+      ctx.fillStyle = `rgba(120,200,60,${(0.26 + 0.06 * Math.sin(t * 2 + sgn)) * near})`; ctx.fill();
       ctx.strokeStyle = "rgba(170,255,90,0.75)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.stroke();
     }
     if (pv.meHidden && !player.spectate) {

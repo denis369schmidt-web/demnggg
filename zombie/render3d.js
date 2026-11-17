@@ -4226,6 +4226,20 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
         g.add(barrels); g.userData.barrels = barrels; len = 38; break;
       }
     }
+    // v5.11 Detail-Durchgang für Feuerwaffen: Schiene mit Rillen, Leuchtpunkt-Visier, Mündungsbremse, Abzugsbügel, Leuchtakzent
+    const FIRE_DETAIL = { pistol: [2.6, 1], smg: [2.8, 1], rifle: [3, 1], sniper: [2.6, 0], magnum: [3, 1], shotgun: [2.8, 0], dbl: [2.8, 0], minigun: [4.8, 1], nailgun: [4.6, 1] };
+    const fd = FIRE_DETAIL[id];
+    if (fd) {
+      const [top, dot] = fd, rail = slam("#1b1d21");
+      add(mesh(box(len * 0.42, 0.7, 2.2), rail, len * 0.28, top, 0));
+      for (let x = len * 0.1; x < len * 0.48; x += 2.6) add(mesh(box(0.9, 0.9, 2.6), steel2, x, top + 0.7, 0));
+      if (dot) { add(mesh(box(3.2, 2.6, 2.4), rail, len * 0.34, top + 1.9, 0)); add(mesh(box(0.5, 1, 1), sbasic(tier >= 2 ? "#c48bff" : "#ff3a2a"), len * 0.34 + 1.4, top + 2.1, 0)); }
+      add(along(mesh(cyl(1.9, 1.7, 3, 8), slam("#121417"), len + 0.5, id === "dbl" || id === "shotgun" ? 1 : 0.5, 0)));
+      add(mesh(box(5, 0.7, 1.2), steel2, 1.5, -3.4, 0));
+      add(mesh(box(len * 0.3, 0.35, 0.3), sbasic(tier >= 2 ? "#c48bff" : tier >= 1 ? "#ffcf4a" : "#5ad8ff"), len * 0.45, 0, 2.3)); // Leuchtstreifen an der Seite
+    }
+    if (id === "railgun") for (const x of [18, 26, 34]) add(mesh(box(0.6, 6.8, 4.8), sbasic("#7ff3ff"), x + 1.4, 0.2, 0)); // glühende Spulen
+    if (id === "laser" || id === "cryo" || id === "tesla") add(mesh(ico(1.6, 1), sbasic(id === "laser" ? "#ff4a4a" : "#9fe8ff"), len, 0.5, 0)); // Emitter-Kristall
     if (tier >= 1) add(mesh(box(len * 0.45, 1, 4.4), gold, len * 0.2, 2.2, 0));
     if (tier >= 2) { add(mesh(ico(1.8, 0), sbasic("#b46bff"), len * 0.25, 3.2, 0)); g.userData.gem = true; }
     g.userData.len = len;
@@ -5317,6 +5331,190 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     for (let i = 0; i < room.lamps.length; i++) { const l = room.lamps[i]; refl(l.x, 48, l.z, room.lampRgb, 0.75 * lampLevel(l, t), 11); }
     if (!w.menuCam) for (const c of lightCands) if (c[6] < 12) refl(c[0], c[1], c[2], c[3], Math.min(0.95, c[4] * 0.3), Math.min(24, 7 + c[5] * 0.035));
   }
+  // ================================================================ v5.11 Waffen-Offensive: Geschosse, Spuren, Einschläge, Mündungsfeuer
+  // Jede Waffe hat ihren eigenen Schuss: heißer Kern + farbiger Schein + Leuchtspur aus der Flugbahn (Positionsverlauf je Kugel).
+  // Scharfschütze und Railgun hinterlassen eine stehende Spur (Kondensstreifen bzw. Ionenspirale), Treffer blitzen auf.
+  const PROJ = {
+    pistol: { core: "255,246,220", len: 26, w: 1.5, halo: 9, trail: 3, ta: 0.28 },
+    smg: { core: "255,240,205", len: 30, w: 1.25, halo: 7, trail: 3, ta: 0.22 },
+    nailgun: { core: "236,240,248", len: 13, w: 1.1, halo: 5, nail: true },
+    rifle: { core: "255,238,196", len: 46, w: 1.7, halo: 11, trail: 5, ta: 0.32 },
+    minigun: { core: "255,228,176", len: 42, w: 1.6, halo: 9, trail: 4, ta: 0.3 },
+    shotgun: { core: "255,232,176", len: 18, w: 1.5, halo: 6, trail: 2, ta: 0.3, spark: true },
+    dbl: { core: "255,232,176", len: 20, w: 1.6, halo: 7, trail: 2, ta: 0.32, spark: true },
+    magnum: { core: "255,252,236", len: 50, w: 2.7, halo: 17, trail: 6, ta: 0.42, ring: true, imp: 1.5 },
+    sniper: { core: "255,255,248", len: 130, w: 2.1, halo: 15, trail: 12, ta: 0.5, linger: 0.8, contrail: true, imp: 1.6 },
+    railgun: { core: "235,255,255", len: 170, w: 2.6, halo: 22, trail: 16, ta: 0.6, linger: 1.0, helix: true, imp: 2.2 },
+    cryo: { core: "238,250,255", len: 34, w: 2.3, halo: 15, trail: 7, ta: 0.4, frost: true },
+  };
+  const trails = new WeakMap(); // Kugel → [[x, y, z], …] (neueste zuerst)
+  let projLast = new Set(), projT = 0;
+  const ghostTrails = [], impacts = [], muzzleSmoke = [];
+  let lastMuzzle = 0;
+  function trailOf(b, z, n) {
+    let tr = trails.get(b);
+    if (!tr) { tr = []; trails.set(b, tr); }
+    const h = tr[0];
+    if (!h || (h[0] - b.x) ** 2 + (h[2] - b.y) ** 2 > 36) { tr.unshift([b.x, z, b.y]); if (tr.length > n) tr.length = n; }
+    return tr;
+  }
+  function drawTrail(tr, x, z, y, rgb, a, wid, cell = CELL.streak) {
+    let px = x, pz = z, py = y;
+    for (let i = 0; i < tr.length; i++) {
+      const q = tr[i], k = 1 - i / tr.length, dx = px - q[0], dy = py - q[2], l = Math.hypot(dx, dy);
+      if (l > 1) flat(addB, (px + q[0]) / 2, (pz + q[1]) / 2, (py + q[2]) / 2, Math.atan2(dy, dx), l / 2 + 1, wid * (0.4 + 0.6 * k), cell, rgb, a * k);
+      px = q[0]; pz = q[1]; py = q[2];
+    }
+  }
+  function helix(tr, x, z, y, a, phase) {
+    let px = x, py = y, pz = z, s = 0;
+    for (let i = 0; i < tr.length; i++) {
+      const q = tr[i], dx = q[0] - px, dy = q[2] - py, l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l, steps = Math.max(1, Math.round(l / 9));
+      for (let j = 0; j < steps; j++) {
+        const f = j / steps, ph = phase + (s + l * f) * 0.09, r = 6;
+        bill(addB, px + dx * f + nx * Math.cos(ph) * r, pz + (q[1] - pz) * f + Math.sin(ph) * r, py + dy * f + ny * Math.cos(ph) * r, 3.2, CELL.glow, "150,250,255", a * (1 - i / tr.length));
+      }
+      s += l; px = q[0]; py = q[2]; pz = q[1];
+    }
+  }
+  function drawProjectiles(w, t) {
+    const dt = Math.min(0.1, Math.max(0, t - projT)); projT = t;
+    const now = new Set(w.bullets);
+    // verschwundene Kugeln: Einschlag (wenn noch Flugzeit übrig war) und stehende Spur
+    for (const b of projLast) {
+      if (now.has(b)) continue;
+      const st = PROJ[b.wid], tr = trails.get(b), z = b.z || 22;
+      if (st && st.linger && tr && tr.length > 1) ghostTrails.push({ tr: [[b.x, z, b.y], ...tr], life: st.linger, max: st.linger, st, rgb: b.tracer, ph: t * 9 });
+      if (b.life > 0.03 && b.kind !== "flame" && b.kind !== "grenade" && b.kind !== "rocket" && impacts.length < 40) impacts.push({ x: b.x, y: b.y, z, rgb: b.tracer, core: (st && st.core) || "255,240,210", s: (st && st.imp) || (b.big ? 1.2 : 0.8), life: 0.16, max: 0.16, rot: Math.random() * 6.3 });
+    }
+    projLast = now;
+    // stehende Spuren
+    for (let i = ghostTrails.length - 1; i >= 0; i--) {
+      const g = ghostTrails[i];
+      g.life -= dt;
+      if (g.life <= 0) { ghostTrails.splice(i, 1); continue; }
+      const k = g.life / g.max, h = g.tr[0];
+      if (g.st.contrail) { drawTrail(g.tr.slice(1), h[0], h[1], h[2], "200,205,215", 0.22 * k, 3.2 + (1 - k) * 4); drawTrail(g.tr.slice(1), h[0], h[1], h[2], g.rgb, 0.18 * k, 1.2); }
+      if (g.st.helix) { drawTrail(g.tr.slice(1), h[0], h[1], h[2], "110,240,255", 0.35 * k, 2.4); helix(g.tr.slice(1), h[0], h[1], h[2], 0.55 * k, g.ph + (1 - k) * 4); }
+    }
+    // Einschläge: Sternblitz, Funkenkreuz, Druckring
+    for (let i = impacts.length - 1; i >= 0; i--) {
+      const q = impacts[i];
+      q.life -= dt;
+      if (q.life <= 0) { impacts.splice(i, 1); continue; }
+      const k = q.life / q.max, sz = q.s * (10 + (1 - k) * 14);
+      bill(addB, q.x, q.z, q.y, sz * 1.6, CELL.glow, q.rgb, 0.7 * k);
+      bill(addB, q.x, q.z, q.y, sz, CELL.star, q.core, k, q.rot);
+      if (q.s > 1) bill(addB, q.x, q.z, q.y, sz * 1.8 * (1.4 - k), CELL.ring, q.rgb, 0.5 * k);
+    }
+    let flameIdx = 0;
+    for (const b of w.bullets) {
+      const z = b.z || 22;
+      if (b.kind === "flame") {
+        if (quality < 2 && (++flameIdx & 1)) continue;
+        const k = b.life / b.maxLife, size = 14 + (1 - k) * 18;
+        bill(addB, b.x, z - 2, b.y, size * 1.3, CELL.glow, fireRgb(k), 0.95);
+        billS(addB, b.x, z + 2, b.y, size * 0.7, size * 1.1, CELL.fire, fireRgb(k * 0.8), 0.8 * k);
+        bill(addB, b.x, z - 2, b.y, size * 0.5, CELL.glow, "255,240,190", 0.9 * k);
+        continue;
+      }
+      if (b.kind === "grenade") {
+        const k = 1 - b.life / b.maxLife, hz = 14 + Math.sin(k * Math.PI) * 60, tr = trailOf(b, hz, 8);
+        drawTrail(tr, b.x, hz, b.y, "170,170,170", 0.12, 3);
+        bill(addB, b.x, hz, b.y, 10, CELL.glow, "255,80,40", Math.sin(t * 20) > 0 ? 0.95 : 0.3);
+        bill(addB, b.x, hz, b.y, 4, CELL.glow, "255,230,200", 0.9);
+        continue;
+      }
+      if (b.kind === "bolt") { // Armbrust: Schaft, Federn, Spitze mit Glanzpunkt
+        const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp, ang = Math.atan2(uy, ux);
+        flat(normB, b.x - ux * 10, z, b.y - uy * 10, ang, 10, 0.9, CELL.streak, "90,70,50", 1);
+        flat(normB, b.x - ux * 19, z, b.y - uy * 19, ang, 3, 2.4, CELL.streak, "220,60,50", 0.95);
+        bill(addB, b.x, z, b.y, 5, CELL.star, "230,240,255", 0.9, t * 9);
+        drawTrail(trailOf(b, z, 4), b.x, z, b.y, b.tracer, 0.25, 1.2);
+        continue;
+      }
+      if (b.kind === "rocket") { // Flamme + liegenbleibende Rauchfahne
+        const a = Math.atan2(b.vy, b.vx), tx = b.x - Math.cos(a) * 11, tz = b.y - Math.sin(a) * 11, tr = trailOf(b, z, 14);
+        for (let i = 1; i < tr.length; i += 2) { const q = tr[i], k = 1 - i / tr.length; bill(normB, q[0], q[1] + i * 0.8, q[2], 8 + i * 1.6, CELL.smoke, "150,150,150", 0.42 * k, i); }
+        billS(addB, tx, z, tz, 9, 14 + Math.random() * 6, CELL.fire, "255,170,60", 1);
+        bill(addB, tx, z, tz, 18 + Math.random() * 4, CELL.glow, "255,150,50", 0.9);
+        bill(addB, tx, z, tz, 6, CELL.glow, "255,250,210", 1);
+        continue;
+      }
+      if (b.kind === "disc") { // Sägeblatt: rotierender Stern mit Funkenring
+        bill(addB, b.x, 16, b.y, 18, CELL.glow, "200,225,255", 0.35);
+        bill(addB, b.x, 16, b.y, 15, CELL.star, "235,245,255", 0.9, t * 30);
+        bill(addB, b.x, 16, b.y, 22, CELL.ring, "180,210,255", 0.4, -t * 18);
+        continue;
+      }
+      if (b.kind === "laser") {
+        const sp = Math.hypot(b.vx, b.vy) || 1, len = 160, ang = Math.atan2(b.vy, b.vx), pulse = 0.8 + 0.2 * Math.sin(t * 40);
+        const cx = b.x - (b.vx / sp) * len * 0.5, cz = b.y - (b.vy / sp) * len * 0.5;
+        flat(addB, cx, z, cz, ang, len * 0.5, 9 * pulse, CELL.streak, "255,30,40", 0.45);
+        flat(addB, cx, z, cz, ang, len * 0.5, 4, CELL.streak, "255,60,60", 0.9);
+        flat(addB, cx, z + 0.2, cz, ang, len * 0.5, 1.3, CELL.streak, "255,240,240", 1);
+        bill(addB, b.x, z, b.y, 16 * pulse, CELL.glow, "255,70,70", 0.85);
+        bill(addB, b.x, z, b.y, 9, CELL.star, "255,220,220", 0.8, t * 12);
+        continue;
+      }
+      // Kugeln mit eigenem Look je Waffe
+      const st = PROJ[b.wid] || { core: "255,240,210", len: b.long ? 90 : 26, w: Math.max(1.4, b.r * 0.8), halo: b.r * 3.2, trail: b.long ? 6 : 2, ta: 0.25 };
+      const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp, ang = Math.atan2(uy, ux), len = st.len;
+      const cx = b.x - ux * len * 0.5, cy = b.y - uy * len * 0.5;
+      if (st.nail) { // Nagel: metallischer Schaft mit Glanz
+        flat(normB, cx, z, cy, ang, len * 0.5, 1.1, CELL.streak, "150,155,165", 1);
+        bill(addB, b.x, z, b.y, 6, CELL.star, "255,255,255", 0.8, t * 14 + b.spin);
+        drawTrail(trailOf(b, z, 3), b.x, z, b.y, "200,205,215", 0.18, 0.8);
+        continue;
+      }
+      if (st.trail) drawTrail(trailOf(b, z, st.trail), b.x, z, b.y, b.tracer, st.ta, st.w * 1.6);
+      flat(addB, cx, z, cy, ang, len * 0.5, st.w * 2.8, CELL.streak, b.tracer, 0.55); // farbiger Schein
+      flat(addB, cx, z + 0.1, cy, ang, len * 0.5, st.w * 0.75, CELL.streak, st.core, 1); // heißer Kern
+      bill(addB, b.x, z, b.y, st.halo, CELL.glow, b.tracer, 0.8);
+      bill(addB, b.x, z, b.y, st.halo * 0.35, CELL.glow, st.core, 1);
+      if (st.ring) bill(addB, b.x, z, b.y, st.halo * 1.3, CELL.ring, b.tracer, 0.25, t * 6);
+      if (st.spark && Math.random() < 0.5) bill(addB, b.x - ux * 6, z, b.y - uy * 6, 4, CELL.star, "255,220,150", 0.7, Math.random() * 6);
+      if (st.frost) for (let i = 0; i < 3; i++) bill(addB, b.x - ux * (8 + i * 9) + Math.sin(t * 9 + i) * 4, z + Math.cos(t * 7 + i) * 4, b.y - uy * (8 + i * 9), 4 - i, CELL.star, "220,245,255", 0.7, t * 5 + i);
+      if (st.helix) helix(trailOf(b, z, st.trail), b.x, z, b.y, 0.8, t * 9);
+    }
+    // Pulverdampf nach Schüssen
+    for (let i = muzzleSmoke.length - 1; i >= 0; i--) {
+      const q = muzzleSmoke[i];
+      q.life -= dt;
+      if (q.life <= 0) { muzzleSmoke.splice(i, 1); continue; }
+      q.x += q.vx * dt; q.y += q.vy * dt; q.z += 14 * dt; q.vx *= 0.92; q.vy *= 0.92;
+      const k = q.life / q.max;
+      bill(normB, q.x, q.z, q.y, q.s * (1.6 - k), CELL.smoke, "185,185,185", 0.28 * k, q.rot);
+    }
+  }
+  // Mündungsfeuer je Waffe: Kegel nach vorn, Linsenblitz, bei schweren Waffen Druckring, danach Pulverdampf
+  const MUZZLE = {
+    shotgun: { s: 1.5, cone: 3, ring: true, smoke: 3 }, dbl: { s: 1.8, cone: 4, ring: true, smoke: 4 }, magnum: { s: 1.3, cone: 2, ring: true, smoke: 2 },
+    sniper: { s: 1.4, cone: 2, ring: true, smoke: 3, side: true }, rifle: { s: 1, cone: 2, smoke: 1 }, minigun: { s: 1.1, cone: 2, smoke: 1 },
+    smg: { s: 0.85, cone: 1, smoke: 1 }, pistol: { s: 0.9, cone: 1, smoke: 1 }, nailgun: { s: 0.5, cone: 0, smoke: 1 },
+    railgun: { s: 1.6, cone: 2, ring: true, smoke: 0, col: "140,245,255" }, cryo: { s: 1, cone: 1, col: "170,230,255" }, laser: { s: 0.9, cone: 0, col: "255,110,110" },
+    grenade: { s: 1.2, cone: 1, smoke: 3 }, rocket: { s: 1.4, cone: 1, smoke: 5, back: true },
+  };
+  function drawMuzzle(w, t, p, mz) {
+    const st = MUZZLE[p.weaponId] || { s: 1, cone: 1, smoke: 1 }, a = p.aim, ca = Math.cos(a), sa = Math.sin(a);
+    if (p.muzzle > lastMuzzle + 0.001 && st.smoke) // neuer Schuss: Pulverdampf
+      for (let i = 0; i < st.smoke && muzzleSmoke.length < 60; i++) muzzleSmoke.push({ x: mz.x + ca * 6, y: mz.y + sa * 6, z: 24, vx: ca * (40 + Math.random() * 60) + (Math.random() - 0.5) * 30, vy: sa * (40 + Math.random() * 60) + (Math.random() - 0.5) * 30, s: 8 + st.s * 6, life: 0.7, max: 0.7, rot: Math.random() * 6 });
+    lastMuzzle = p.muzzle;
+    if (!(p.muzzle > 0) || !p.weapon.flash) return;
+    const sc = (0.75 + Math.random() * 0.35) * st.s * (p.weapon.flash === "flame" ? 0.6 : 1);
+    const mzc = st.col || (p.weapon.flash === "tesla" ? "160,240,255" : p.weapon.flash === "laser" ? "255,120,120" : "255,230,150");
+    bill(addB, mz.x, 24, mz.y, 16 * sc, CELL.star, mzc, 1, Math.random() * TAU);
+    bill(addB, mz.x, 24, mz.y, 30 * sc, CELL.flare, mzc, 0.8, Math.random() * 0.6 - 0.3);
+    bill(addB, mz.x, 24, mz.y, 34 * sc, CELL.glow, p.weapon.tracer, 0.75);
+    // Feuerkegel nach vorn (mehrere Zungen, leicht gefächert)
+    for (let i = 0; i < st.cone; i++) {
+      const off = (i - (st.cone - 1) / 2) * 0.28 + (Math.random() - 0.5) * 0.12, L = (10 + Math.random() * 8) * sc;
+      flat(addB, mz.x + Math.cos(a + off) * L, 24, mz.y + Math.sin(a + off) * L, a + off, L, 4 * sc, CELL.streak, i % 2 ? mzc : "255,250,230", 0.9);
+    }
+    if (st.side) for (const sgn of [-1, 1]) flat(addB, mz.x - sa * sgn * 7 * sc, 24, mz.y + ca * sgn * 7 * sc, a + sgn * Math.PI / 2, 7 * sc, 2.4 * sc, CELL.streak, mzc, 0.7); // Mündungsbremse
+    if (st.ring && p.muzzle > 0.04) bill(addB, mz.x + ca * 8, 24, mz.y + sa * 8, 26 * sc, CELL.shock, mzc, 0.45);
+    if (st.back) bill(addB, p.x - ca * 26, 26, p.y - sa * 26, 30, CELL.glow, "255,170,90", 0.6); // Raketenrohr: Rückstrahl
+  }
   function fillBatches(w, t) {
     const m = camera.matrixWorld.elements;
     camR.set(m[0], m[1], m[2]); camU.set(m[4], m[5], m[6]);
@@ -5373,38 +5571,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
         }
       }
     }
-    // Spieler-Projektile
-    let flameIdx = 0;
-    for (const b of w.bullets) {
-      if (b.kind === "flame") {
-        if (quality < 2 && (++flameIdx & 1)) continue;
-        const k = b.life / b.maxLife, size = 14 + (1 - k) * 18;
-        bill(addB, b.x, 20, b.y, size * 1.3, CELL.glow, fireRgb(k), 0.95);
-        bill(addB, b.x, 20, b.y, size * 0.5, CELL.glow, "255,240,190", 0.9 * k);
-      } else if (b.kind === "grenade") {
-        const k = 1 - b.life / b.maxLife;
-        bill(addB, b.x, 14 + Math.sin(k * Math.PI) * 60, b.y, 9, CELL.glow, "255,80,40", Math.sin(t * 20) > 0 ? 0.9 : 0.3);
-      } else if (b.kind === "bolt") {
-        bill(addB, b.x, 22, b.y, 9, CELL.glow, b.tracer, 0.5);
-      } else if (b.kind === "rocket") {
-        const a = Math.atan2(b.vy, b.vx), tx = b.x - Math.cos(a) * 11, tz = b.y - Math.sin(a) * 11;
-        bill(addB, tx, 22, tz, 12 + Math.random() * 4, CELL.glow, "255,170,60", 1);
-        bill(addB, tx, 22, tz, 5, CELL.glow, "255,250,210", 1);
-      } else if (b.kind === "disc") {
-        bill(addB, b.x, 16, b.y, 16, CELL.glow, "220,235,255", 0.3);
-      } else if (b.kind === "laser") {
-        const sp = Math.hypot(b.vx, b.vy) || 1, len = 150, ang = Math.atan2(b.vy, b.vx);
-        const cx = b.x - (b.vx / sp) * len * 0.5, cz = b.y - (b.vy / sp) * len * 0.5;
-        flat(addB, cx, 22, cz, ang, len * 0.5, 5, CELL.streak, "255,40,40", 0.9);
-        flat(addB, cx, 22.2, cz, ang, len * 0.5, 1.4, CELL.streak, "255,235,235", 1);
-        bill(addB, b.x, 22, b.y, 12, CELL.glow, "255,70,70", 0.8);
-      } else {
-        const sp = Math.hypot(b.vx, b.vy) || 1, len = b.long ? 90 : Math.min(42, Math.max(14, sp * 0.035));
-        const ang = Math.atan2(b.vy, b.vx);
-        flat(addB, b.x - (b.vx / sp) * len * 0.5, 22, b.y - (b.vy / sp) * len * 0.5, ang, len * 0.5, Math.max(1.6, b.r * 0.9), CELL.streak, b.tracer, 1);
-        bill(addB, b.x, 22, b.y, b.r * 3.2, CELL.glow, b.tracer, 0.75);
-      }
-    }
+    drawProjectiles(w, t); // v5.11 eigener Look je Waffe, Spuren, Einschläge
     // Tesla-Blitze
     for (const z of w.zaps) {
       const k = z.life / z.max, dx = z.x2 - z.x1, dy = z.y2 - z.y1, len = Math.hypot(dx, dy) || 1;
@@ -5592,13 +5759,7 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     }
     // Waffe: Mündungsfeuer, Zündflamme, Aura, Schulterlicht
     const mz = w.muzzlePoint();
-    if (p.muzzle > 0 && p.weapon.flash) {
-      const sc = (0.75 + Math.random() * 0.35) * (p.weapon.flash === "flame" ? 0.6 : p.weapon.flash === "big" ? 1.3 : 1);
-      const mzc = p.weapon.flash === "tesla" ? "160,240,255" : p.weapon.flash === "laser" ? "255,120,120" : "255,230,150";
-      bill(addB, mz.x, 24, mz.y, 16 * sc, CELL.star, mzc, 1, Math.random() * TAU);
-      bill(addB, mz.x, 24, mz.y, 30 * sc, CELL.flare, mzc, 0.8, Math.random() * 0.6 - 0.3); // v3.5 Linsenblitz
-      bill(addB, mz.x, 24, mz.y, 34, CELL.glow, p.weapon.tracer, 0.75);
-    }
+    drawMuzzle(w, t, p, mz); // v5.11 Mündungsfeuer je Waffe, Pulverdampf
     if (p.weapon.kind === "flame") bill(addB, mz.x, 22, mz.y, 5, CELL.glow, "110,200,255", 0.9);
     if (p.weapon.kind === "tesla") bill(addB, mz.x, 24, mz.y, 9 + Math.sin(t * 20) * 2, CELL.glow, "127,231,255", 0.8);
     if (p.tier >= 2) bill(addB, (p.x + mz.x) / 2, 26, (p.y + mz.y) / 2, 22, CELL.glow, "180,107,255", 0.3 + 0.1 * Math.sin(t * 5));
@@ -5891,6 +6052,8 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       if (e.mode === "whistle") lightCands.push([e.x, 40, e.y, "255,226,130", 1.6, 220, 6]);
     }
     for (const b of w.bullets) if (b.kind === "rocket") lightCands.push([b.x, 26, b.y, "255,160,60", 2, 160, 6]);
+    for (const q of impacts) if (q.s > 1.1) lightCands.push([q.x, q.z, q.y, q.rgb, 1.6 * q.s * (q.life / q.max), 120, 5]); // v5.11 schwere Treffer leuchten auf
+    for (const b of w.bullets) if (b.wid === "railgun" || b.wid === "sniper") lightCands.push([b.x, 26, b.y, b.tracer, 1.4, 140, 5]);
     let fires = 0;
     for (const b of w.bullets) if (b.kind === "flame" && fires++ % 6 === 0) lightCands.push([b.x, 22, b.y, "255,150,50", 1.8, 160, 5]);
     for (const l of w.roomLights) lightCands.push([l.x, 50, l.y, l.rgb, (1.3 + 0.2 * Math.sin(t * 3 + l.x)) * glowLevel(l, t), l.r * 1.8, 2]);
@@ -6208,6 +6371,6 @@ void main() {
     setTilt(x, y) { menuCam.tiltX += (x - menuCam.tiltX) * 0.15; menuCam.tiltY += (y - menuCam.tiltY) * 0.15; },
     get ready() { return ready; },
     get bloom() { return !!(post && postActive()); },
-    get debug() { return { scene, camera, renderer, models, atmo, shCam, heliFly, room: () => room, floorQuads: () => floorB && floorB.n, post: () => post, flashShadows, woundAt, playerModel: () => playerModel, shocks, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
+    get debug() { return { scene, camera, renderer, models, atmo, shCam, heliFly, room: () => room, floorQuads: () => floorB && floorB.n, post: () => post, flashShadows, woundAt, proj: () => ({ ghost: ghostTrails.length, impacts: impacts.length, smoke: muzzleSmoke.length }), playerModel: () => playerModel, shocks, flashlight, moon, hemi, CAM, fitCamera, stats: () => ({ pooled: [...pools.values()].reduce((a, l) => a + l.length, 0), active: models.size, dying: dying.size, geoCache: geoCache.size, texCache: texCache.size, shared: shared.size }) }; },
   };
 })();

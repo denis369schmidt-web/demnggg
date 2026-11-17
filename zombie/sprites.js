@@ -965,6 +965,10 @@ window.Sprites = (() => {
     plague: { torso: "#1a1816", pants: "#151311", pack: "#2a2016", pouch: "#3a2a1a", pads: "#2a2622", arm: "#1a1816", helmet: "#121010", visor: "#e8c64a", glow: "#e8c64a" },
     gold: { torso: "#d4a52a", pants: "#a07a1a", pack: "#b08a2a", pouch: "#8a6a1a", pads: "#f2c84a", arm: "#c9982a", helmet: "#f2c84a", visor: "#fff2b0", glow: "#fff2b0" },
     hunter: { torso: "#262b30", pants: "#1c2024", pack: "#20262a", pouch: "#2a331f", pads: "#3c4a2c", arm: "#2a3036", helmet: "#1e2328", visor: "#8cff4a", glow: "#8cff4a" },
+    // v5.8 Länder-Skins
+    russe: { torso: "#5a5e48", pants: "#3e4234", pack: "#4a4a3a", pouch: "#4d513d", pads: "#4a4e3c", arm: "#565a44", helmet: "#6a5440", visor: "#e8f0ff", glow: "#ff5a4a" },
+    deutscher: { torso: "#5c6a4a", pants: "#4c5a3c", pack: "#4a5438", pouch: "#4a5838", pads: "#3e4a32", arm: "#56644a", helmet: "#4e5c40", visor: "#ffd24a", glow: "#ffd24a" },
+    ami: { torso: "#b49a6c", pants: "#a48c62", pack: "#8e7a54", pouch: "#9a845a", pads: "#8a7650", arm: "#ae9468", helmet: "#a28a5e", visor: "#2a2a2a", glow: "#3a8cff" },
   };
   function playerBody(frame, pack, skin = "soldier") {
     const S = SKIN2D[skin] || SKIN2D.soldier;
@@ -1032,6 +1036,9 @@ window.Sprites = (() => {
     cryo: { len: 42, grip: 13, muzzle: 42 },
     rocket: { len: 54, grip: 18, muzzle: 54 },
     laser: { len: 48, grip: 14, muzzle: 48 },
+    dbl: { len: 44, grip: 13, muzzle: 44 }, // v5.8 Doppelflinte
+    nailgun: { len: 30, grip: 9, muzzle: 30 }, // v5.8 Nagelpistole
+    railgun: { len: 60, grip: 16, muzzle: 60 }, // v5.8 Railgun
   };
   const TIER_COLOR = ["#7c8590", "#ffcf4a", "#ffcf4a"];
 
@@ -1042,6 +1049,25 @@ window.Sprites = (() => {
     const stripe = (x, w) => { if (tier > 0) { g.fillStyle = accent; g.fillRect(x, y - 1, w, 2); } };
     const gem = (x) => { if (tier > 1) { g.fillStyle = "#b46bff"; circ(g, x, y, 2.2); g.fill(); g.fillStyle = "#fff"; circ(g, x - 0.6, y - 0.6, 0.7); g.fill(); } };
     switch (id) {
+      // v5.8 Doppelflinte: Holzschaft, zwei Läufe übereinander
+      case "dbl":
+        wood(0, 16, 7); steel(15, 7, 7, "#2b2b2b");
+        steel(21, 23, 3, "#3a3d42"); g.fillStyle = "#2a2d31"; g.fillRect(21, y + 1.6, 23, 2.6);
+        g.fillStyle = "#111"; circ(g, 43.5, y - 0.4, 1); g.fill(); circ(g, 43.5, y + 2.9, 1); g.fill();
+        wood(24, 8, 6); stripe(16, 6); gem(19); break;
+      // v5.8 Nagelpistole aus dem Baumarkt: gelbes Gehäuse, Nagelmagazin
+      case "nailgun":
+        steel(2, 22, 9, "#e0b021"); g.fillStyle = "rgba(0,0,0,0.3)"; g.fillRect(6, y - 4.5, 1.2, 9); g.fillRect(10, y - 4.5, 1.2, 9);
+        steel(23, 7, 4, "#3a3d42"); steel(10, 5, 4, "#2a2d31"); g.fillStyle = "#2a2d31"; g.fillRect(12, y + 4, 4, 7);
+        g.fillStyle = "#c8ccd2"; for (let i = 0; i < 4; i++) g.fillRect(17 + i * 1.6, y + 4.5, 0.8, 4);
+        stripe(4, 14); gem(12); break;
+      // v5.8 Railgun: lange Schienen mit leuchtenden Spulen
+      case "railgun":
+        steel(0, 16, 7, "#22262c"); steel(15, 14, 9, "#2e343c");
+        steel(28, 32, 2.2, "#596270"); g.fillStyle = "#596270"; g.fillRect(28, y + 2.6, 32, 2.2);
+        g.fillStyle = "#7ff3ff"; g.fillRect(28, y + 0.8, 31, 1.4);
+        for (const x of [32, 40, 48]) { g.fillStyle = "#1a1d22"; g.fillRect(x, y - 3.5, 3, 8); g.fillStyle = "#7ff3ff"; g.fillRect(x + 0.8, y - 2.8, 1.4, 6.4); }
+        stripe(16, 10); gem(22); break;
       case "pistol":
         steel(4, 9, 7, "#25282d"); steel(4, 20, 6); stripe(9, 12); gem(13);
         g.fillStyle = "#111"; circ(g, 23.5, y, 1.2); g.fill(); break;

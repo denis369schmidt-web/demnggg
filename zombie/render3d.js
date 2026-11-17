@@ -4159,6 +4159,16 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     let len = 24;
     switch (id) {
       case "pistol": add(mesh(box(14, 4.2, 3.6), steel, 6, 1, 0)); add(mesh(box(4, 6, 3), steel2, 0, -2.5, 0)); len = 13; break;
+      // v5.8 neue Waffen
+      case "dbl": add(mesh(box(14, 4.5, 3), wood, -8, -0.5, 0)); add(mesh(box(8, 5, 4), steel, 3, 0, 0)); for (const yy of [1.6, -1.4]) add(along(mesh(cyl(1.4, 1.4, 24, 8), steel2, 19, yy, 0))); add(mesh(box(8, 3, 4.2), wood, 12, -2.6, 0)); len = 31; break;
+      case "nailgun": add(mesh(box(16, 7, 4.4), tlam("#e0b021", "plain"), 4, 1, 0)); add(mesh(box(4, 7, 3.4), steel2, 2, -5, 0)); add(along(mesh(cyl(1.4, 1.6, 8, 8), steel, 15, 1, 0))); add(mesh(box(8, 2.4, 2.4), tlam("#c8ccd2", "metal"), 8, -3.6, 0)); len = 19; break;
+      case "railgun": {
+        add(mesh(box(14, 5, 3.6), slam("#22262c"), -6, -0.5, 0)); add(mesh(box(12, 7, 4.6), slam("#2e343c"), 6, 0, 0));
+        for (const yy of [2.2, -1.8]) add(mesh(box(32, 1.4, 2.6), steel2, 28, yy, 0));
+        add(mesh(box(31, 0.8, 1.2), sbasic("#7ff3ff"), 28, 0.2, 0));
+        for (const x of [18, 26, 34]) add(mesh(box(2.4, 6.4, 4.4), slam("#1a1d22"), x, 0.2, 0));
+        len = 44; break;
+      }
       case "smg": add(mesh(box(18, 5, 4), steel, 6, 0, 0)); add(mesh(box(3, 8, 3), steel2, 8, -5, 0)); add(mesh(box(8, 2, 2), steel2, -7, 0, 0)); add(along(mesh(cyl(1.2, 1.2, 8, 6), steel2, 18, 0.5, 0))); len = 22; break;
       case "shotgun": add(mesh(box(12, 4.5, 3), wood, -8, -0.5, 0)); add(mesh(box(10, 5, 4), steel, 3, 0, 0)); add(along(mesh(cyl(1.4, 1.4, 24, 6), steel2, 19, 1, 0))); add(along(mesh(cyl(1.2, 1.2, 18, 6), steel, 16, -1.6, 0))); add(mesh(box(8, 3.4, 4.2), wood, 14, -1.6, 0)); len = 31; break;
       case "crossbow": {
@@ -4234,6 +4244,11 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
     gold: { torso: "#d4a52a", pants: "#a07a1a", boots: "#3a2a0a", arm: "#c9982a", pads: "#f2c84a", pouch: "#8a6a1a", pack: "#b08a2a", roll: "#8a6a1a", helmet: "#f2c84a", visor: "#fff2b0", face: "#c9a07a", belt: "#5a3a0a", glow: "#fff2b0", shiny: true },
     // Saisonpass: Seuchenjäger – Graphit mit Giftgrün-Leuchtstreifen und Gasmaske
     hunter: { torso: "#262b30", pants: "#1c2024", boots: "#0e1012", arm: "#2a3036", pads: "#3c4a2c", pouch: "#2a331f", pack: "#20262a", roll: "#3c4a2c", helmet: "#1e2328", visor: "#8cff4a", face: "#1e2328", belt: "#0f1112", glow: "#8cff4a", neon: "#8cff4a", gasmask: true },
+    // v5.8 Länder-Skins (typische Ausrüstung, keine politischen Symbole): Pelzmütze + Ringelhemd + Mantel,
+    // Flecktarn + Gefechtshelm, Wüsten-Tarnfarbe + Sonnenbrille; dazu die Landesfarben als Ärmelabzeichen
+    russe: { torso: "#5a5e48", pants: "#3e4234", boots: "#1a1a16", arm: "#565a44", pads: "#4a4e3c", pouch: "#4d513d", pack: "#4a4a3a", roll: "#6e5c40", helmet: "#6a5440", visor: "#e8f0ff", face: "#d4ab88", belt: "#2a2018", glow: "#ff5a4a", ushanka: true, telnyashka: true, greatcoat: true, flag: ["#f2f2ee", "#2a4fa8", "#c8262a"] },
+    deutscher: { torso: "#5c6a4a", pants: "#4c5a3c", boots: "#141412", arm: "#56644a", pads: "#3e4a32", pouch: "#4a5838", pack: "#4a5438", roll: "#5c6a4a", helmet: "#4e5c40", visor: "#ffd24a", face: "#d9b08e", belt: "#1e1e1a", glow: "#ffd24a", camo: ["#2c3a24", "#6b5a3a", "#1a1a16", "#7a8a5a"], flag: ["#151515", "#c8262a", "#f2c21a"] },
+    ami: { torso: "#b49a6c", pants: "#a48c62", boots: "#5a4630", arm: "#ae9468", pads: "#8a7650", pouch: "#9a845a", pack: "#8e7a54", roll: "#6a5a40", helmet: "#a28a5e", visor: "#1a1a1a", face: "#e0b48e", belt: "#3a2e20", glow: "#3a8cff", flag: ["#b8222a", "#f2f2ee", "#b8222a"], canton: "#24346a" },
   };
   function buildPlayer(w) {
     const p = w.player;
@@ -4383,6 +4398,21 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       for (const z of [-0.3, 0.3]) M.body.add(mesh(box(0.72 * r, 0.05 * r, 0.05 * r), sbasic(S.neon), 0.02 * r, 1.52 * r, z * r * 1.5));
       M.body.add(mesh(box(0.05 * r, 0.6 * r, 0.05 * r), sbasic(S.neon), 0.36 * r, 1.52 * r, 0));
     }
+    // v5.8 Länder-Skins: Mantelschoß, Ringelhemd am Kragen, Tarnflecken, Ärmelabzeichen in Landesfarben
+    if (S.greatcoat) { const sk = mesh(cyl(0.44 * r, 0.56 * r, 0.62 * r, 14), torsoMat, -0.02 * r, 0.78 * r, 0); sk.scale.set(0.86, 1, 1.24); M.body.add(sk); for (const z of [-1, 1]) M.body.add(fine(mesh(ico(0.035 * r, 0), buckle, 0.4 * r, 1.25 * r + z * 0.0, z * 0.12 * r))); }
+    if (S.telnyashka) for (let k = 0; k < 4; k++) M.body.add(fine(mesh(box(0.05 * r, 0.035 * r, 0.26 * r), sbasic(k % 2 ? "#f2f2ee" : "#2a3f8a"), 0.4 * r, 1.92 * r - k * 0.06 * r, 0)));
+    if (S.camo) {
+      let sd = 7;
+      const rn = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+      for (let k = 0; k < 14; k++) {
+        const a = rn() * TAU, yy = 1.2 + rn() * 0.7, sp = mesh(box(0.05 * r, (0.08 + rn() * 0.1) * r, (0.12 + rn() * 0.14) * r), tlam(S.camo[k % S.camo.length], "cloth"), Math.cos(a) * 0.37 * r, yy * r, Math.sin(a) * 0.52 * r);
+        sp.rotation.y = -a; M.body.add(fine(sp));
+      }
+    }
+    if (S.flag) for (const z of [-1, 1]) {
+      for (let k = 0; k < 3; k++) M.body.add(fine(mesh(box(0.22 * r, 0.05 * r, 0.02 * r), sbasic(S.flag[k]), 0.02 * r, 1.84 * r - k * 0.05 * r, z * 0.83 * r)));
+      if (S.canton) M.body.add(fine(mesh(box(0.09 * r, 0.08 * r, 0.025 * r), sbasic(S.canton), -0.06 * r, 1.835 * r, z * 0.835 * r)));
+    }
     if (S.scarf) {
       const sc2 = mesh(torus(0.34 * r, 0.09 * r), tlam(S.scarf, "cloth"), 0.04 * r, 2.06 * r, 0); sc2.rotation.x = Math.PI / 2; M.body.add(sc2);
       for (const z of [-0.08, 0.08]) { const tail = mesh(box(0.06 * r, 0.6 * r, 0.12 * r), tlam(S.scarf, "cloth"), -0.42 * r, 1.82 * r, z * r); tail.rotation.z = 0.6; M.body.add(tail); }
@@ -4413,9 +4443,16 @@ vec3 surfLite(vec3 c, vec3 p, float t, float z) {
       const ns = fine(mesh(cone(0.055 * r, 0.14 * r, 4), faceM, 0.36 * r, -0.08 * r, 0)); ns.rotation.z = -Math.PI / 2 + 0.5; head.add(ns);
       const chin = mesh(box(0.2 * r, 0.12 * r, 0.3 * r), faceM, 0.22 * r, -0.26 * r, 0); chin.rotation.z = -0.2; head.add(chin);
       for (const z of [-1, 1]) { const ear = mesh(ico(0.08 * r, 1), faceM, 0, -0.04 * r, z * 0.35 * r); ear.scale.set(0.6, 1, 0.4); head.add(ear); }
-      if (!S.hat && !S.gasmask) for (const z of [-1, 1]) { const cs = fine(mesh(box(0.03 * r, 0.32 * r, 0.03 * r), strap, 0.06 * r, -0.16 * r, z * 0.33 * r)); cs.rotation.x = -z * 0.25; head.add(cs); }
+      if (!S.hat && !S.gasmask && !S.ushanka) for (const z of [-1, 1]) { const cs = fine(mesh(box(0.03 * r, 0.32 * r, 0.03 * r), strap, 0.06 * r, -0.16 * r, z * 0.33 * r)); cs.rotation.x = -z * 0.25; head.add(cs); }
     }
-    if (S.hood) {
+    if (S.ushanka) {
+      // Pelzmütze: runde Krone, hochgeklappter Stirnschild, seitliche Ohrenklappen, kleines Metallabzeichen
+      const fur = C("helmet", "hair");
+      const crown = mesh(ico(0.44 * r, 2), fur, -0.04 * r, 0.16 * r, 0); crown.scale.set(1, 0.72, 1.02); head.add(crown);
+      head.add(mesh(box(0.12 * r, 0.24 * r, 0.7 * r), fur, 0.36 * r, 0.24 * r, 0));
+      for (const z of [-1, 1]) { const ef = mesh(box(0.3 * r, 0.36 * r, 0.1 * r), fur, 0, -0.08 * r, z * 0.4 * r); ef.rotation.x = z * 0.12; head.add(ef); }
+      head.add(fine(mesh(cyl(0.06 * r, 0.06 * r, 0.02 * r, 10), tlam("#b8bcc0", "metal"), 0.43 * r, 0.26 * r, 0).rotateZ(Math.PI / 2)));
+    } else if (S.hood) {
       const hood = mesh(ico(0.48 * r, 2), C("helmet"), -0.05 * r, 0.04 * r, 0); hood.scale.set(1.02, 1.04, 1); head.add(hood);
       head.add(mesh(box(0.1 * r, S.gasmask ? 0.26 * r : 0.1 * r, 0.56 * r), sbasic(S.visor), 0.4 * r, S.gasmask ? 0.06 * r : 0.04 * r, 0));
     } else if (S.hat) {

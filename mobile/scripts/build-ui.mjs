@@ -54,6 +54,8 @@ const ICONS = {
   album: "stamper", duel: "crossed-swords", photo: "photo-camera", backup: "save", hand: "hand",
   // v5.4 Zielen und Zielfernrohr
   scope: "crosshair", aim: "targeting",
+  // v5.8 Länder-Skins
+  ushanka: "ushanka", bwHelmet: "helmet", usEagle: "eagle-head",
   // Skills
   multishot: "bullets", front: "heavy-bullets", diag: "arrow-cluster", side: "back-forth", rear: "return-arrow",
   pierce: "supersonic-bullet", ricochet: "ricochet", wall: "brick-wall", atk: "muscle-up", rate: "machine-gun-magazine",

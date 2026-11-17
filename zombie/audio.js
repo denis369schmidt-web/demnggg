@@ -474,6 +474,7 @@ window.GameAudio = (() => {
   let lastGunT = 0, lastFootT = 0, lastMeatT = 0;
   function gun(kind) {
     if (!ready || muted) return;
+    kind = { dbl: "shotgun", nailgun: "smg", railgun: "sniper" }[kind] || kind; // v5.8 neue Waffen klingen wie ihre Verwandten
     const t = ctx.currentTime + 0.001;
     const gap = { smg: 0.038, minigun: 0.032, flame: 0.07, rifle: 0.042, laser: 0.048, pistol: 0.05 }[kind] || 0.055;
     if (t - lastGunT < gap) return;

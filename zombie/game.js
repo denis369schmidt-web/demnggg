@@ -206,13 +206,17 @@
     tesla: { name: "Tesla-Gewehr", desc: "Kettenblitz springt auf 3 weitere Zombies.", price: 2000, dmg: 22, rate: 1.7, speed: 0, pellets: 1, spread: 0, jitter: 0, range: 430, pierce: 0, r: 0, color: "#7fe7ff", kind: "tesla", chain: 3, flash: "tesla", casing: 0, kick: 1.5, shake: 1, tracer: "127,231,255" },
     rocket: { name: "Raketenwerfer", desc: "Zielsuchende Raketen mit riesiger Explosion.", price: 2300, dmg: 60, rate: 0.7, speed: 380, pellets: 1, spread: 0, jitter: 0, range: 900, pierce: 0, r: 7, color: "#ffb36b", kind: "rocket", aoe: 95, flash: "big", casing: 0, kick: 8, shake: 3, tracer: "255,170,90" },
     minigun: { name: "Minigun", desc: "Läuft bei Dauerfeuer warm – dann ein Bleigewitter.", price: 2600, dmg: 8, rate: 13, speed: 900, pellets: 1, spread: 0, jitter: 0.11, range: 820, pierce: 0, r: 3, color: "#ffd36a", spin: true, flash: "big", casing: 1, kick: 1.2, shake: 0.6, tracer: "255,211,106" },
+    // v5.8 drei neue Waffen
+    dbl: { name: "Doppelflinte", desc: "Zwei Läufe, ein Donnerschlag: 8 Schrotkugeln und kräftiger Rückstoß.", price: 1150, dmg: 13, rate: 0.95, speed: 680, pellets: 8, spread: 0.62, jitter: 0.06, range: 340, pierce: 0, r: 3, color: "#ffb36b", flash: "big", casing: 2, kick: 8, shake: 4, tracer: "255,179,107", knock: 22 },
+    nailgun: { name: "Nagelpistole", desc: "Aus dem Baumarkt: schnelle Nägel, die einen Zombie durchschlagen.", price: 600, dmg: 11, rate: 5, speed: 760, pellets: 1, spread: 0, jitter: 0.05, range: 650, pierce: 1, r: 3, color: "#c8ccd2", flash: "std", casing: 0, kick: 1.5, shake: 0, tracer: "200,204,210", knock: 2 },
+    railgun: { name: "Railgun", desc: "Magnetbeschleuniger: durchschlägt alles in einer Linie, mit Zielfernrohr.", price: 3600, dmg: 130, rate: 0.45, speed: 3400, pellets: 1, spread: 0, jitter: 0, range: 1500, pierce: 99, r: 3, color: "#7ff3ff", crit: 0.15, long: true, flash: "tesla", casing: 0, kick: 9, shake: 5, tracer: "127,243,255", knock: 16, big: true },
     laser: { name: "Laserkanone", desc: "Gebündelte Energie durchbohrt jede Reihe und verbrennt Zombies.", price: 3200, dmg: 17, rate: 4.2, speed: 2600, pellets: 1, spread: 0, jitter: 0.015, range: 1300, pierce: 99, r: 2.5, color: "#ff4a4a", kind: "laser", long: true, flash: "laser", casing: 0, kick: 1, shake: 0, tracer: "255,70,70" },
   };
   // v3.4 Wirtschaft: weniger Münzen, höhere Preise, Freischaltungen an den Fortschritt (erreichte Stadt) gebunden
   const ECON = { earn: 0.6, price: 1.7 };
   const econPrice = (v) => Math.round((v * ECON.price) / 10) * 10;
   for (const w of Object.values(WEAPONS)) w.price = econPrice(w.price);
-  const WEAPON_REQ = { shotgun: 0, smg: 1, crossbow: 1, magnum: 2, flame: 2, rifle: 3, sniper: 3, disc: 4, grenade: 4, cryo: 5, tesla: 5, rocket: 6, minigun: 7, laser: 8 };
+  const WEAPON_REQ = { shotgun: 0, smg: 1, crossbow: 1, magnum: 2, flame: 2, rifle: 3, sniper: 3, disc: 4, grenade: 4, cryo: 5, tesla: 5, rocket: 6, minigun: 7, laser: 8, nailgun: 1, dbl: 3 };
   const reqLocked = (req) => (req || 0) > (save.cityMax || 0);
   // v5.5 Waffen, die man nicht kaufen kann – nur freispielen (Fortschritt aus dem Spielstand, gilt für alle Modi)
   const WEAPON_UNLOCK = {
@@ -221,6 +225,7 @@
     rocket: { text: "Erledige 2.000 Zombies", need: 2000, cur: () => save.stats.kills || 0 },
     minigun: { text: "Erreiche Köln in der Kampagne", need: 7, cur: () => save.cityMax || 0, city: true },
     laser: { text: "Erreiche Hamburg in der Kampagne", need: 8, cur: () => save.cityMax || 0, city: true },
+    railgun: { text: "Gewinne 10 Arena-Matches", need: 10, cur: () => (save.arena && save.arena.w) || 0 }, // v5.8
   };
   const unlockOnly = (id) => !!WEAPON_UNLOCK[id];
   function checkUnlocks(quiet = false) {
@@ -1680,6 +1685,7 @@
     crossbow: { reach: 230, fov: 0.26, dmg: 0.15 },
     laser: { reach: 240, fov: 0.26, dmg: 0.1 },
     magnum: { reach: 160, fov: 0.18, dmg: 0.1 },
+    railgun: { reach: 320, fov: 0.38, dmg: 0.2 }, // v5.8
   };
   const hasScope = () => !!(player && SCOPES[player.weaponId]);
   let scopeOn = false;
@@ -4508,7 +4514,7 @@
     fx4d("level"); sfx("combo");
     callout = { title: tr(sp.name).toUpperCase(), n: 1, bonus: 0, life: 1.3, max: 1.3, plain: true };
     const near = (r, max = 99) => enemies.filter((e) => !e.dead && e.spawnT <= 0 && !e.under && (e.x - p.x) ** 2 + (e.y - p.y) ** 2 < r * r).sort((a, b) => dist2(a, p) - dist2(b, p)).slice(0, max);
-    const id = mySpecialId();
+    const id = SPECIAL_ALIAS[mySpecialId()] || mySpecialId();
     if (id === "soldier") {
       for (let i = 0; i < 7; i++) {
         const d = 70 + i * 68, x = clamp(p.x + Math.cos(p.aim) * d, L + 30, R - 30), y = clamp(p.y + Math.sin(p.aim) * d, T + 30, B - 30);
@@ -6004,10 +6010,12 @@
   const seedRand = (n) => { let x = (n | 0) ^ 0x9e3779b9; x = Math.imul(x ^ (x >>> 16), 0x85ebca6b); x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35); return ((x ^ (x >>> 16)) >>> 0) / 4294967296; };
   const chaosOn = () => !!(save.arena && save.arena.chaos);
   function shuffled(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  // v5.8 Online jede Runde ein zufälliger Skin (nur Aussehen – Turnierregeln: Helden-Fähigkeiten zählen im Duell nicht)
+  const randomSkin = () => pick(SKINS.map((q) => q.id));
   function chaosFighter() {
     const skills = {};
     for (const sk of shuffled(SKILLS.filter((q) => typeof q.apply === "function")).slice(0, 6)) skills[sk.id] = (sk.max || 1) > 1 && Math.random() < 0.4 ? 2 : 1;
-    return { weaponId: pick(Object.keys(WEAPONS)), skin: save.skin, level: 1, tier: 0, skills, evo: {}, mods: [] };
+    return { weaponId: pick(Object.keys(WEAPONS)), skin: randomSkin(), level: 1, tier: 0, skills, evo: {}, mods: [] };
   }
   // nach startRun: Gürtel mit zwei zufälligen Wurfwaffen, zufällige Spezialfähigkeit, halb volle Energie
   function applyChaos(mut = pick(MUTATORS)) {
@@ -6297,6 +6305,7 @@
     startRun("pvp");
     run.pet = null;
     player = fairPlayer(hub.chaos ? chaosFighter() : myFighter());
+    player.skin = randomSkin();
     syncGearLook();
     run.belt = {}; run.ult = 0; // Turnierregeln: keine Wurfwaffen, keine Spezialfähigkeit
     if (hub.chaos) applyChaos(chaosMut(hub.chaosSeed || 0, next && pvpMatch && pvpMatch.party ? pvpMatch.round + 1 : 1));
@@ -6317,7 +6326,10 @@
     pv.myKey = partyKey(pv, meQ);
     setupPartyRoom();
     pv.taken = new Set();
-    if (hub.chaos) { pv.chaos = true; showBanner(run.chaos.title, `${tr(run.mut.desc)} · ${run.chaos.info}`, 3.4); try { hub.send({ t: "lk", w: player.weaponId }); } catch { /* weg */ } } // Zufallswaffe den anderen zeigen
+    if (hub.chaos) { pv.chaos = true; showBanner(run.chaos.title, `${tr(run.mut.desc)} · ${run.chaos.info}`, 3.4); }
+    else { const sk = SKINS.find((q) => q.id === player.skin); if (sk) showBanner(tr("ZUFALLS-SKIN"), sk.name, 2.2); }
+    const sendLook = () => { if (run && run.pvp === pv) try { hub.send({ t: "lk", w: player.weaponId, s: player.skin }); } catch { /* weg */ } };
+    sendLook(); setTimeout(sendLook, 1200); // Zufallswaffe und -Skin den anderen zeigen (zweimal – Nachzügler starten etwas später)
     hub.onmsg = partyMessage;
     hub.onjoin = (pid) => hub.kick(pid); // Match läuft: niemand kommt dazu
     hub.onleave = (pid) => { if (run && run.pvp === pv) partyGone(pid, tr("{n} hat das Spiel verlassen", { n: partyName(pv, pid) })); };
@@ -6404,7 +6416,11 @@
     }
     if (m.t === "qc") { showQuick(from, m.i); return; }
     if (m.t === "pk") { const i = +m.i; (pv.taken || (pv.taken = new Set())).add(i); for (const o of orbs) if (o.puId === i && !o.dead) { o.dead = true; fxRing(o.x, o.y, 40, o.rgb, 0.3); } return; } // v5.5 Kapsel hat jemand anderes geholt
-    if (m.t === "lk" && WEAPONS[m.w]) { const e = pv.ents.get(from); if (e) { e.look = { ...e.look, w: m.w }; if (e.body) { e.body.weaponId = m.w; e.body.weapon = WEAPONS[m.w]; } } return; }
+    if (m.t === "lk" && WEAPONS[m.w]) {
+      const e = pv.ents.get(from);
+      if (e) { const lk = safeLook({ ...e.look, w: m.w, skin: m.s || e.look.skin }); e.look = lk; if (e.body) { e.body.weaponId = lk.w; e.body.weapon = WEAPONS[lk.w]; e.body.skin = lk.skin; } }
+      return;
+    }
     if (m.t === "quit") { partyGone(from, tr("{n} hat aufgegeben", { n: partyName(pv, from) })); return; }
     if (m.t === "dead") { if (pv.alive.has(from)) partyTally(from, m.by == null ? null : +m.by); partyDeath(from); return; }
     const e = pv.ents.get(from);
@@ -10724,11 +10740,15 @@
     { id: "ninja", icon: "ninja", name: tr("Schatten-Ninja"), price: 5000 },
     { id: "cyber", icon: "cyber", name: tr("Cyber-Agent"), price: 8000 },
     { id: "plague", icon: "plagueDoc", name: tr("Seuchendoktor"), price: 12000 },
+    // v5.8 Länder-Skins: typische Soldaten-Ausrüstung, bewusst ohne politische oder extremistische Symbole
+    { id: "russe", icon: "ushanka", name: tr("Grenadier"), price: 4000 },
+    { id: "deutscher", icon: "bwHelmet", name: tr("BW-Jäger"), price: 4000 },
+    { id: "ami", icon: "usEagle", name: tr("US-Ranger"), price: 4000 },
     { id: "gold", icon: "crown", name: tr("Goldener Held"), iap: IDS.goldSkin, desc: tr("Premium-Skin · +10% Münzen") },
     { id: "hunter", icon: "hunter", name: tr("Seuchenjäger"), pass: true, desc: tr("Exklusiv im Premium-Saisonpass") },
   ];
   for (const q of SKINS) if (q.price) q.price = econPrice(q.price);
-  const SKIN_REQ = { police: 1, firefighter: 2, hazmat: 3, ninja: 4, cyber: 5, plague: 6 }; // v3.4: Held erst ab erreichter Stadt
+  const SKIN_REQ = { police: 1, firefighter: 2, hazmat: 3, ninja: 4, cyber: 5, plague: 6, russe: 1, deutscher: 1, ami: 1 }; // v3.4: Held erst ab erreichter Stadt
   // v2.5 Helden: jeder Held spielt sich anders (vorher reine Optik)
   const HERO_PERKS = {
     soldier: { name: "Feldtraining", desc: "+15 % Erfahrung", apply: (p) => { p.xpGain = 1.15; } },
@@ -10740,6 +10760,9 @@
     plague: { name: "Aderlass", desc: "Heilt 1 % Leben pro Abschuss", apply: (p) => { p.lifesteal += 0.01; } },
     gold: { name: "Goldrausch", desc: "+10 % Münzen", apply: () => { /* run.greed in startRun */ } },
     hunter: { name: "Kopfgeldjäger", desc: "+20 % Schaden gegen Elites und Bosse · doppeltes Kopfgeld", apply: (p) => { p.bigGame = 1.2; } },
+    russe: { name: "Kältefest", desc: "+20 % Leben · Verlangsamung halbiert", apply: (p) => { p.maxHp = p.hp = Math.round(p.maxHp * 1.2); p.slowResist = 0.5; } },
+    deutscher: { name: "Gründlichkeit", desc: "+10 % Krit-Chance · −8 % erlittener Schaden", apply: (p) => { p.crit += 0.1; p.dmgTaken = 0.92; } },
+    ami: { name: "Feuerkraft", desc: "+12 % Feuerrate · +6 % Tempo", apply: (p) => { p.rateMul *= 1.12; p.speed *= 1.06; } },
   };
   const heroPerk = (id) => HERO_PERKS[id] || HERO_PERKS.soldier;
   // v2.9 Spezialfähigkeit je Held: lädt über Abschüsse (Elites viel, Bosse sofort voll), Taste E / Knopf / Gamepad Y
@@ -10753,7 +10776,12 @@
     plague: { name: "Heilnebel", icon: "healMist", desc: "Heilt 40 %, vergiftet Zombies, 6 s Lebensraub" },
     gold: { name: "Goldregen", icon: "goldRain", desc: "Goldene Druckwelle und 10 s doppelte Münzen" },
     hunter: { name: "Präzisionsschuss", icon: "railShot", desc: "Strahl quer über das Feld mit gewaltigem Schaden" },
+    // v5.8 Länder-Skins nutzen die Wirkung eines verwandten Spezials (SPECIAL_ALIAS)
+    russe: { name: "Sperrfeuer", icon: "airstrike", desc: "Sieben Granaten-Einschläge entlang deiner Blickrichtung" },
+    deutscher: { name: "Präzisionsschuss", icon: "railShot", desc: "Strahl quer über das Feld mit gewaltigem Schaden" },
+    ami: { name: "Drohnenschwarm", icon: "missileSwarm", desc: "EMP betäubt alles in der Nähe, dazu drei Drohnen für 10 s" },
   };
+  const SPECIAL_ALIAS = { russe: "soldier", deutscher: "hunter", ami: "cyber" };
   const heroSpecial = (id) => HERO_SPECIALS[id] || HERO_SPECIALS.soldier;
   // v2.9 Wurfwaffen: im Shop freischalten, eine davon startet im Gürtel; Nachschub von Elites, Bossen, je Bezirk und aus der Versorgungskiste
   const THROWABLES = {

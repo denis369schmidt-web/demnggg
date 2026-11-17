@@ -8028,6 +8028,8 @@
         html += cell(ev.icon, "gold", `${ev.name}<small>${have}/${need}</small>`, 1, "todo evo-todo");
       }
       grid.innerHTML = html || `<p class="empty">${tr("Noch keine Skills")}</p>`;
+      const hl = controlHints();
+      $("pauseHelp").innerHTML = `${I("hand")}<span><b>${escHtml(tr(hl[0]))}</b><em>${escHtml(tr(hl[1]))}</em></span>`;
       show(ui.pause);
     } else if (state === "pause") {
       ensureAudio();
@@ -9023,7 +9025,7 @@
     if (state === "play" && aimJoy.active) drawJoystick(aimJoy, true);
     if (banner) drawBanner();
     drawBossCard();
-    if (!save.tutorialDone && run.room === 1 && (state === "play" || state === "pick")) drawTutorial();
+    // v5.14 keine Spielhilfe mehr über dem Spielbild – die Steuerung steht kurz im Pause-Fenster (controlHints)
   }
 
   function glowAt(rgb, x, y, r, a = 1) {
@@ -9172,7 +9174,23 @@
     ctx.drawImage(s.c, x - r * 1.3, y - r * 0.15, r * 2.6, r * 1.3);
   }
 
-  // v5.4 Tutorial für das manuelle Zielen
+  // v5.14 Kurz-Hilfe fürs Pause-Fenster: zwei Zeilen passend zum Eingabegerät
+  function controlHints() {
+    const how = pad.on ? "pad" : touchSeen ? "touch" : "keys";
+    if (!manualAim()) return {
+      touch: ["Finger ziehen = laufen · loslassen = automatisch schießen", "Doppeltipp = Rolle"],
+      keys: ["WASD/Pfeiltasten = laufen · stehen = automatisch schießen", "Leertaste/Shift = Rolle"],
+      pad: ["Linker Stick = laufen · loslassen = automatisch schießen", "A/X = Rolle"],
+    }[how];
+    const lines = {
+      touch: ["Stehen bleiben = automatisch schießen · Rechter Daumen = selbst zielen", "2× tippen = springen: auf Autos & Container – von oben schießen"],
+      keys: ["Stehen = automatisch schießen · Maus + Klick = selbst zielen", "Leertaste = springen · Shift = Rolle · Rechtsklick/V = Zielfernrohr"],
+      pad: ["Stehen = automatisch schießen · Rechter Stick = selbst zielen", "A = springen · X = Rolle · RT = schießen · LT = Zielfernrohr"],
+    }[how].slice();
+    if (save.leftHand && how === "touch") lines[0] = "Stehen bleiben = automatisch schießen · Linker Daumen = selbst zielen";
+    return lines;
+  }
+  // v5.4 Tutorial für das manuelle Zielen (seit v5.14 nicht mehr im Spielbild)
   function drawAimTutorial() {
     const t = performance.now() / 1000, y = (ST + SB) / 2 + 36, fired = !!player.firing;
     const how = pad.on ? "pad" : touchSeen ? "touch" : "keys";

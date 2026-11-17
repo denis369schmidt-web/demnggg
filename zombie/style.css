@@ -1673,3 +1673,11 @@ canvas.stamp-art { width: auto; max-width: 100%; }
 .sniper-toggle .sw.on { background: #2f86c8; }
 .chaos-toggle:disabled { cursor: default; opacity: 0.75; }
 .wpn-row.dim { opacity: 0.4; }
+
+/* v5.14 Kurz-Hilfe im Pause-Fenster (ersetzt den Hilfe-Kasten im Spielbild) */
+.pause-help { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; margin: 2px 0 10px; padding: 8px 10px; border: 1px dashed rgba(60, 45, 25, 0.45); border-radius: 3px; background: rgba(60, 45, 25, 0.07); text-align: left; }
+.pause-help > .ic { font-size: 22px; color: #6b5532; }
+.pause-help span { display: grid; gap: 2px; min-width: 0; }
+.pause-help b { font: 700 13px/1.25 var(--f-ui); color: #3a2c18; }
+.pause-help em { font: 600 12px/1.25 var(--f-ui); font-style: normal; color: #5e5039; }
+.pause-sub { margin: 0 0 6px; }

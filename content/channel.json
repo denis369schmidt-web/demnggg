@@ -1,122 +1,122 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-11-17",
-  "generatedAt": "2026-11-17T14:24:34.350Z",
-  "attempt": 2,
+  "edition": "2026-11-18",
+  "generatedAt": "2026-11-18T14:10:08.502Z",
+  "attempt": 0,
   "theme": {
-    "id": "neon-horizont",
-    "title": "Neon-Horizont",
-    "mood": "verträumt",
-    "description": "Zukunftsbilder zwischen Synthesizern und Stadtlichtern.",
+    "id": "goldene-stunde",
+    "title": "Goldene Stunde",
+    "mood": "dankbar",
+    "description": "Der Moment, in dem alles kurz still steht und glänzt.",
     "keywords": [
-      "Neon",
-      "Horizont",
-      "Zukunft",
-      "Lichter",
-      "Vision",
-      "Signal"
+      "Sonne",
+      "Gold",
+      "Moment",
+      "Frieden",
+      "Licht",
+      "Dank"
     ]
   },
   "challenge": {
-    "id": "vokal-fessel",
-    "title": "Vokal-Fessel",
-    "task": "Schreibe 12 Bars über „Neon-Horizont“, in denen jede Zeile auf denselben Vokalklang endet.",
-    "constraint": "Kein Wort darf doppelt als Zeilenende vorkommen.",
-    "bars": 12,
-    "bpm": 118
+    "id": "atem-marathon",
+    "title": "Atem-Marathon",
+    "task": "Performe 16 Bars über „Goldene Stunde“ mit maximal einem Atemzug pro zwei Zeilen – Pausen bewusst setzen.",
+    "constraint": "Nutze mindestens einen internen Reim pro Doppelzeile.",
+    "bars": 16,
+    "bpm": 74
   },
   "wordPacks": [
     {
-      "id": "neon-horizont-thema",
-      "title": "Thema: Neon-Horizont",
+      "id": "goldene-stunde-thema",
+      "title": "Thema: Goldene Stunde",
       "words": [
-        "Neon",
-        "Lichter",
-        "Signal",
-        "Vision",
-        "Zukunft",
-        "Horizont"
+        "Sonne",
+        "Dank",
+        "Moment",
+        "Frieden",
+        "Licht",
+        "Gold"
       ]
     },
     {
-      "id": "2026-11-17-bilder",
+      "id": "2026-11-18-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Funken",
-        "Leuchtturm",
-        "Magnet",
-        "Schatten",
-        "Asphalt",
-        "Radar"
+        "Echo",
+        "Radar",
+        "Fundament",
+        "Kompass",
+        "Tresor",
+        "Antenne"
       ]
     },
     {
-      "id": "2026-11-17-energie",
+      "id": "2026-11-18-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Fokus",
-        "Stolz",
-        "Respekt",
-        "driften",
-        "pushen",
-        "tauchen"
+        "Feuer",
+        "Balance",
+        "Hunger",
+        "gleiten",
+        "steigen",
+        "sprinten"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Beben",
-      "b": "schweben"
+      "a": "Fluss",
+      "b": "Schluss"
     },
     {
-      "a": "Weite",
-      "b": "Seite"
-    },
-    {
-      "a": "Kette",
-      "b": "Wette"
-    },
-    {
-      "a": "Klang",
-      "b": "Drang"
+      "a": "Nacht",
+      "b": "gemacht"
     },
     {
       "a": "Nebel",
       "b": "Pegel"
     },
     {
-      "a": "Leben",
-      "b": "geben"
+      "a": "Kette",
+      "b": "Wette"
+    },
+    {
+      "a": "Zeilen",
+      "b": "eilen"
+    },
+    {
+      "a": "Herz",
+      "b": "Schmerz"
     }
   ],
   "starterBars": [
     {
-      "line": "Asphalt in den Zeilen, jede Silbe nimmt mich mit",
+      "line": "Zwischen Gold und Skyline find ich Raum für den Reim",
       "syllables": 13
     },
     {
-      "line": "Ich stapel Silben auf Signal, bis der Pegel sich häuft",
-      "syllables": 14
+      "line": "Aus Licht wird ein Plan, aus dem Plan wird ein Schritt",
+      "syllables": 11
     },
     {
-      "line": "Der Tag war Signal, doch die Nacht macht ihn zu meinem",
-      "syllables": 13
-    },
-    {
-      "line": "Signal als Kompass und die Snare gibt den Takt",
+      "line": "Ich zähl die Beats wie Gold, alles landet exakt",
       "syllables": 12
+    },
+    {
+      "line": "Mit Skyline in der Stimme klingt selbst Stille wie ein Ruf",
+      "syllables": 15
     }
   ],
   "flowTip": {
-    "id": "aufnahme-check",
-    "title": "Der 24-Stunden-Check",
-    "tip": "Höre jede Aufnahme erst am nächsten Tag erneut. Frische Ohren erkennen Timing-Fehler sofort."
+    "id": "offbeat-wuerze",
+    "title": "Offbeat als Würze",
+    "tip": "Rappe eine von acht Zeilen bewusst neben dem Raster. Der Kontrast macht die On-Beat-Zeilen stärker."
   },
-  "quote": "Große Hooks entstehen oft aus kleinen Selbstgesprächen.",
+  "quote": "Schreib die Zeile, die du morgen hören willst.",
   "beatPreset": {
-    "bpm": 118,
-    "pattern": "Uptempo Battle",
-    "energy": "hoch"
+    "bpm": 74,
+    "pattern": "Lo-Fi Chill",
+    "energy": "chill"
   },
   "editorial": {
     "score": 100,
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-11-17",
+    "latestEdition": "2026-11-18",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-11-18T14:10:08.502Z",
+    "edition": "2026-11-18",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 18,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Goldene Stunde“, Lo-Fi Chill @ 74 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Atem-Marathon“ (16 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-11-18 veröffentlicht (Hash 8f1f0448)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-11-17T14:24:34.350Z",
     "edition": "2026-11-17",
     "attempt": 2,
@@ -1871,41 +1906,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-09-29 veröffentlicht (Hash 226e2ed9)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-09-28T11:42:51.097Z",
-    "edition": "2026-09-28",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 30,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Nachtschicht“, West Coast Bounce @ 97 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Leiser & Lauter“ (12 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-09-28 veröffentlicht (Hash 5e8418dd)."
       }
     ]
   }

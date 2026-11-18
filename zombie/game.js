@@ -5779,6 +5779,8 @@
   const NO_PEER = /[?&]nopeer\b/.test(location.search);
   const relayBase = (code) => `outbreak-germany/v47/${code}`;
   const relayName = (url) => { try { return new URL(relayAuth(url).ws).hostname.replace(/^(broker|test|mqtt)\./, ""); } catch { return "Relais"; } };
+  // v5.18 eindeutige Kennungen aus dem Krypto-Zufall (Math.random kann geseedet sein – gleiche Kennung = gleiche Spielernummer)
+  const uid = (n) => { const a = new Uint8Array(n); try { crypto.getRandomValues(a); } catch { for (let i = 0; i < n; i++) a[i] = Math.random() * 256; } return [...a].map((b) => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join(""); };
   // Minimaler MQTT-3.1.1-Client (QoS 0): verbinden, abonnieren, senden, Lebenszeichen, selbstständig neu verbinden
   function mqttConnect(url, timeout = 9000) { // 9 s: TLS-Aufbau dauert in schwachen Mobilfunknetzen länger
     return new Promise((res, rej) => {
@@ -5791,7 +5793,7 @@
         out[0] = type; out.set(len, 1); out.set(body, 1 + len.length);
         return out;
       };
-      let ws = null, ping = 0, done = false, closed = false, retry = 0, pid = 1;
+      let ws = null, ping = 0, done = false, closed = false, retry = 0, pid = 1, lastRx = Date.now();
       const cli = {
         url, open: false, subs: new Map(), onclose: null, onopen: null,
         sub(topic, fn) { this.subs.set(topic, fn); if (this.open) subscribe(topic); },
@@ -5801,9 +5803,14 @@
           body.set(t); body.set(p, t.length);
           return send(pkt(0x30, body));
         },
-        close() { closed = true; clearInterval(ping); if (this.open) send(new Uint8Array([0xe0, 0])); this.open = false; try { ws.close(); } catch { /* zu */ } },
+        close() { closed = true; MQTT_LIVE.delete(this); clearInterval(ping); if (this.open) send(new Uint8Array([0xe0, 0])); this.open = false; try { ws.close(); } catch { /* zu */ } },
+        // v5.18 Mobilfunk: das Netz kappt Verbindungen oft still (Funkzelle/IP gewechselt, NAT vergessen) – der Browser
+        // hält den Socket dann weiter für offen. kick() wirft ihn weg und verbindet sofort neu, check() prüft per Ping.
+        kick() { if (closed || !ws) return; this.zombie = false; const old = ws; old.onclose = old.onmessage = old.onerror = null; try { old.close(); } catch { /* zu */ } lost(true); },
+        check() { if (closed || !this.open) return; const t0 = Date.now(); send(new Uint8Array([0xc0, 0])); setTimeout(() => { if (!closed && lastRx < t0) this.kick(); }, 3500); },
+        zombie: false, // Test: Leitung tot, aber „offen“
       };
-      const send = (u8) => { if (ws && ws.readyState === 1) { ws.send(u8); return true; } return false; };
+      const send = (u8) => { if (ws && ws.readyState === 1 && !cli.zombie) { ws.send(u8); return true; } return false; };
       const subscribe = (topic) => { const id = (pid++ & 0xffff) || 1; send(pkt(0x82, [id >> 8, id & 255, ...str(topic), 0])); };
       const fail = () => { if (!done) { done = true; closed = true; try { ws.close(); } catch { /* zu */ } rej(new Error("net")); } };
       const tm = setTimeout(fail, timeout);
@@ -5812,11 +5819,13 @@
         try { ws = new WebSocket(relayAuth(url).ws, "mqtt"); } catch { fail(); return; }
         ws.binaryType = "arraybuffer";
         ws.onopen = () => {
-          const id = `og${Math.random().toString(36).slice(2, 12)}`, au = relayAuth(url);
+          const id = `og${uid(10)}`, au = relayAuth(url);
           const flags = 0x02 | (au.user ? 0x80 : 0) | (au.user && au.pass ? 0x40 : 0);
           send(pkt(0x10, [...str("MQTT"), 4, flags, 0, 30, ...str(id), ...(au.user ? str(au.user) : []), ...(au.user && au.pass ? str(au.pass) : [])])); // sauberer Start, 30 s Lebenszeichen
         };
         ws.onmessage = (ev) => {
+          if (cli.zombie) return;
+          lastRx = Date.now();
           const add = new Uint8Array(ev.data), nb = new Uint8Array(buf.length + add.length);
           nb.set(buf); nb.set(add, buf.length); buf = nb;
           for (;;) {
@@ -5831,8 +5840,9 @@
               if (body[1] !== 0) { fail(); return; }
               cli.open = true; retry = 0;
               for (const t of cli.subs.keys()) subscribe(t);
-              clearInterval(ping); ping = setInterval(() => send(new Uint8Array([0xc0, 0])), 20000);
-              if (!done) { done = true; clearTimeout(tm); res(cli); } else if (cli.onopen) cli.onopen();
+              clearInterval(ping); lastRx = Date.now();
+              ping = setInterval(() => { if (Date.now() - lastRx > MQTT_DEAD) cli.kick(); else send(new Uint8Array([0xc0, 0])); }, 8000);
+              if (!done) { done = true; clearTimeout(tm); MQTT_LIVE.add(cli); res(cli); } else if (cli.onopen) cli.onopen();
             } else if (type === 3) { // PUBLISH
               const tl = (body[0] << 8) | body[1], topic = dec.decode(body.subarray(2, 2 + tl));
               const off = 2 + tl + (((h >> 1) & 3) ? 2 : 0), fn = cli.subs.get(topic);
@@ -5840,19 +5850,24 @@
             }
           }
         };
-        ws.onclose = () => {
-          const was = cli.open; cli.open = false; clearInterval(ping);
-          if (!done) { fail(); return; }
-          if (closed) return;
-          if (was && cli.onclose) cli.onclose();
-          // Funkloch: still neu verbinden, Abos werden nach CONNACK wiederhergestellt
-          setTimeout(() => { if (!closed) open(); }, Math.min(5000, 600 * ++retry));
-        };
+        ws.onclose = () => lost(false);
         ws.onerror = () => { /* onclose folgt */ };
+      };
+      const lost = (now) => {
+        const was = cli.open; cli.open = false; clearInterval(ping);
+        if (!done) { fail(); return; }
+        if (closed) return;
+        if (was && cli.onclose) cli.onclose();
+        // Funkloch: still neu verbinden, Abos werden nach CONNACK wiederhergestellt
+        setTimeout(() => { if (!closed) open(); }, now ? 50 : Math.min(5000, 600 * ++retry));
       };
       open();
     });
   }
+  // v5.18 alle offenen Relais-Leitungen: nach Netzwechsel sofort neu, nach Rückkehr aus dem Hintergrund per Ping prüfen
+  const MQTT_LIVE = new Set(), MQTT_DEAD = 20000;
+  window.addEventListener("online", () => { for (const c of MQTT_LIVE) c.kick(); });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") for (const c of MQTT_LIVE) c.check(); });
   // Gastgeber: einen Relais-Server an den gemeinsamen Hub hängen
   function attachRelayBus(hub, bus, code) {
     const base = relayBase(code), rids = hub.rids || (hub.rids = new Map());
@@ -5864,7 +5879,11 @@
         const rid = String(d.rid || "").slice(0, 24);
         if (!rid) return;
         if (d.k === "join") {
-          if (rids.has(rid)) return; // derselbe Gast über einen zweiten Server
+          if (rids.has(rid)) { // derselbe Gast über einen zweiten Server oder erneut, weil das „welcome“ verloren ging
+            const q = rids.get(rid), c = hub.conns.get(q);
+            if (c) { c.send({ t: "welcome", pid: q, f: 0 }); return; }
+            rids.delete(rid); // war schon entfernt: neu aufnehmen
+          }
           if (hub.locked || hub.count() >= HUB_MAX) { bus.pub(`${base}/g/${rid}`, { t: "full", busy: !!hub.locked }); hubKnock(hub); return; }
           const pid = hub.nextPid();
           rids.set(rid, pid);
@@ -5877,12 +5896,12 @@
   // Gast: alle Server parallel, der erste mit Antwort des Gastgebers gewinnt
   function openRelayGuest(code) {
     return new Promise((res, rej) => {
-      const base = relayBase(code), rid = Math.random().toString(36).slice(2, 14), list = relayList();
+      const base = relayBase(code), rid = uid(12), list = relayList();
       const hub = { host: false, me: -1, locked: false, onmsg: null, onjoin: null, onleave: null, onclose: null, via: "", count: () => 0 };
       const buses = [];
       let done = false, failed = 0, reached = 0;
-      const stop = (why) => { if (done) return; done = true; clearTimeout(tm); for (const b of buses) b.close(); rej(new Error(why)); };
-      const tm = setTimeout(() => stop(reached ? "noroom" : "relay"), 11000);
+      const stop = (why) => { if (done) return; done = true; clearTimeout(tm); for (const k of knock) clearInterval(k); for (const b of buses) b.close(); rej(new Error(why)); };
+      const tm = setTimeout(() => stop(reached ? "noroom" : "relay"), 20000), knock = [];
       openRelayGuest.cancel = () => stop("cancel");
       for (const url of list) {
         mqttConnect(url).then((bus) => {
@@ -5891,7 +5910,7 @@
           const inbox = (m) => {
             if (!done) {
               if (m.t === "welcome") {
-                done = true; clearTimeout(tm);
+                done = true; clearTimeout(tm); for (const k of knock) clearInterval(k);
                 for (const b of buses) if (b !== bus) b.close();
                 hub.me = +m.pid; hub.bus = bus; hub.via = url;
                 hub.send = (msg) => bus.pub(`${base}/h`, { k: "up", rid, m: msg });
@@ -5902,7 +5921,7 @@
               } else if (m.t === "full") stop(m.busy ? "busy" : "full");
               return;
             }
-            if (hub.bus !== bus) return;
+            if (hub.bus !== bus || m.t === "welcome") return; // doppeltes „welcome“ nach erneutem Anklopfen
             if (m.t === "bye") { if (hub.onclose) hub.onclose(); return; }
             if (+m.f === hub.me) return; // eigene Nachricht über den Sammelkanal
             if (hub.onmsg) hub.onmsg(m);
@@ -5910,6 +5929,8 @@
           bus.sub(`${base}/g/${rid}`, inbox);
           bus.sub(`${base}/all`, inbox);
           bus.pub(`${base}/h`, { k: "join", rid });
+          // v5.18 alle 2 s erneut anklopfen: QoS 0 speichert nichts – war der Gastgeber gerade im Funkloch, ginge die erste Anfrage verloren
+          knock.push(setInterval(() => { if (!done) bus.pub(`${base}/h`, { k: "join", rid }); }, 2000));
         }, () => { if (++failed === list.length) stop("relay"); });
       }
     });
@@ -5918,8 +5939,12 @@
   // vor die eingebauten von PeerJS. TURN über TLS auf Port 443 kommt auch durch strenge Firmen-Firewalls.
   function peerCfg() {
     const a = Platform.cfg.arena || {}, base = a.peer ? { ...a.peer } : {};
-    if (Array.isArray(a.iceServers) && a.iceServers.length) base.config = { iceServers: [...a.iceServers, { urls: "stun:stun.l.google.com:19302" }, { urls: ["turn:eu-0.turn.peerjs.com:3478", "turn:us-0.turn.peerjs.com:3478"], username: "peerjs", credential: "peerjsp" }] };
-    return Object.keys(base).length ? base : undefined;
+    // v5.18 zwei Handys im Mobilfunk (Carrier-NAT) finden sich nur über TURN – frei nutzbare Server auf Port 80/443 dazu
+    const own = Array.isArray(a.iceServers) ? a.iceServers : [];
+    base.config = { iceServers: [...own, { urls: ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"] },
+      { urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turns:openrelay.metered.ca:443?transport=tcp"], username: "openrelayproject", credential: "openrelayproject" },
+      { urls: ["turn:eu-0.turn.peerjs.com:3478", "turn:us-0.turn.peerjs.com:3478"], username: "peerjs", credential: "peerjsp" }] };
+    return base;
   }
   // PeerJS (WebRTC) – Gastgeber-Seite an den Hub hängen
   async function attachPeerHost(hub, code) {
@@ -12280,5 +12305,5 @@
     obstacles = clearGates(obs); floorCanvas = makeFloor();
     roomLights = obstacles.filter((o) => GLOWING[o.kind]).map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2, rgb: GLOWING[o.kind], r: Math.max(o.w, o.h) * 1.3, src: o }));
     return obstacles;
-  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP, codeFromText, netVersion, netCompatible, verNum, lobbyVersion, NET_PROTO, get spoof() { return netSpoof; }, get wake() { return wakeWanted; }, pvpPayout, MUTATORS, chaosMut, PVP_PAY, ARENAS, pickArena, set forceArena(v) { arenaForce = v; }, get arenaId() { return run && run.arena; }, get cranes() { return run && run.pvp && run.pvp.cranes; }, ARENA_OBJ, pickObjective, objSetup: (k) => arenaObjSetup(run.pvp, k), gasEdge: () => gasEdge(run.pvp), PVP_LEN, get arenaH() { return ARENA.h; }, SNIPER, SNIPER_W, sniperize, glint: (e) => scopeGlintOf(e) }, unlock: { check: checkUnlocks, WEAPON_UNLOCK }, jump: () => requestJump(), supportAt: (x, y, z) => supportAt(x, y, z), topOf: (o) => topOf(o), duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
+  }, get birds() { return birds; }, backup: { export: exportSave, parse: parseBackup }, checkpoint: { save: saveCheckpoint, resume: resumeRun, get data() { return save.resume; } }, PETS, arena: { mqttLive: MQTT_LIVE, peerCfg, fighterOf, fighterInfo, fairPlayer, FAIR, WEAPONS, get match() { return pvpMatch; }, startPvp, saveFighter, get lobby() { return lobby; }, openLobby, PVP, codeFromText, netVersion, netCompatible, verNum, lobbyVersion, NET_PROTO, get spoof() { return netSpoof; }, get wake() { return wakeWanted; }, pvpPayout, MUTATORS, chaosMut, PVP_PAY, ARENAS, pickArena, set forceArena(v) { arenaForce = v; }, get arenaId() { return run && run.arena; }, get cranes() { return run && run.pvp && run.pvp.cranes; }, ARENA_OBJ, pickObjective, objSetup: (k) => arenaObjSetup(run.pvp, k), gasEdge: () => gasEdge(run.pvp), PVP_LEN, get arenaH() { return ARENA.h; }, SNIPER, SNIPER_W, sniperize, glint: (e) => scopeGlintOf(e) }, unlock: { check: checkUnlocks, WEAPON_UNLOCK }, jump: () => requestJump(), supportAt: (x, y, z) => supportAt(x, y, z), topOf: (o) => topOf(o), duel: { encode: duelEncode, decode: duelDecode }, forge: forgeGear, album: { list: ALBUM, stamp: albumStamp }, landFlock: (x, y, n) => landFlock(x, y, n), gear: { SLOTS: GEAR_SLOTS, RARITY: GEAR_RARITY, AFFIX: GEAR_AFFIX, make: makeGear, roll: rollGear, drop: (x, y, luck) => dropGear(x ?? player.x, y ?? player.y - 90, luck), add: addToBag, stock: dealerStock, apply: applyGear, power: gearPower, render: renderGear, shop: () => { shopTab = "gear"; renderShop(); show(ui.shop); } }, get throws() { return throws; }, get decoys() { return decoys; }, get strikes() { return strikes; }, POWERUPS, looter: () => spawnLooter(), EVO, mutate: (e, st, cause = "test") => mutate(e, st, cause), roar: (e) => alphaRoar(e), rollEvo: (e) => rollEvo(e), get lures() { return lures; }, hitObs: (o, d) => hitObstacle(o, d), get pu() { return run ? run.pu || null : null; }, power: (k, x, y) => dropPower(x ?? player.x, y ?? player.y - 70, k), takePower: (k) => takePower({ pu: k }), throwNow: () => doThrow(), ultNow: () => { run.ult = 100; activateUlt(); }, giveThrow: (k, n = 1) => addThrow(k, n, player.x, player.y), cycleThrow: () => cycleThrow(), THROWABLES, HERO_SPECIALS, get fuses() { return fuses; }, objective: (k) => setupObjective(k), elite: (e, n = 1) => { if (!e.elite) makeElite(e, n); return e; }, levelUp: () => addXp(player.xpNeed - player.xp), nextRoom: () => nextRoom(), startRun, gameOver, setGfx: (q, lock = true) => { quality = q; gfxLocked = lock; resize(); } };
 })();

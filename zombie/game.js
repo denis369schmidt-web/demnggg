@@ -5557,7 +5557,22 @@
   // Beide sehen sich selbst unten: fremde Koordinaten werden am Arena-Mittelpunkt gespiegelt.
   // ============================================================
   const ARENA_STAGES = 10;
-  const PVP = { dmg: 0.6, invuln: 0.15, sendHz: 15, timeout: 6, count: 3 };
+  const PVP = { dmg: 0.6, invuln: 0.15, sendHz: 15, timeout: 6, drop: 25, count: 3 }; // v5.17 ab 6 s „hakt“, erst nach 25 s raus
+  // v5.17 wichtige Steuer-Nachrichten dreifach senden (Funklöcher, verlorene Pakete); der Empfänger verwirft Doppelte über m.u
+  const netSeen = new Set();
+  function sendSure(hub, m) {
+    m.u = Math.floor(Math.random() * 2147483647);
+    const go = () => { try { hub.send(m); } catch { /* Leitung weg */ } };
+    go(); setTimeout(go, 260); setTimeout(go, 820);
+  }
+  function netDupe(m) {
+    if (!m || m.u == null) return false;
+    const k = `${m.f}:${m.u}`;
+    if (netSeen.has(k)) return true;
+    netSeen.add(k);
+    if (netSeen.size > 600) { const it = netSeen.values(); for (let i = 0; i < 200; i++) netSeen.delete(it.next().value); }
+    return false;
+  }
   // Was vom Helden in den Kämpfer wandert: alle Werte außer Lage und laufenden Zeitgebern
   const FIGHTER_SKIP = new Set(["x", "y", "vx", "vy", "hp", "aim", "fireCd", "invuln", "moving", "muzzle", "walkT", "plant", "footStep", "ghostCd", "kick", "spin", "barrel", "hurtT",
     "dashCd", "dashT", "dashX", "dashY", "weapon", "slowT", "jamT", "perfectT", "orbitAng", "droneCd", "xp", "revives"]);
@@ -6458,7 +6473,7 @@
   }
   function objWin(pv, win, why) {
     if (pv.over) return;
-    if (pv.party) { pv.hub.send({ t: "round", win }); partyRound(win); return; }
+    if (pv.party) { sendSure(pv.hub, { t: "round", win }); partyRound(win); return; }
     endPvp(win === "me", why, false, true);
   }
   function objTick(pv, dt) {
@@ -6515,7 +6530,7 @@
     updateCam2D(0, true);
     fxRing(p.x, p.y, 70, "168,255,62", 0.4);
     addText(p.x, p.y - 60, tr("ZURÜCK IM KAMPF"), "#a8ff3e", 16, true);
-    if (pv.party) { pv.alive.add(pv.me); const m = partyLocal(pv, p.x, p.y); pv.hub.send({ t: "rs", x: Math.round(m.x), y: Math.round(m.y) }); }
+    if (pv.party) { pv.alive.add(pv.me); const m = partyLocal(pv, p.x, p.y); sendSure(pv.hub, { t: "rs", x: Math.round(m.x), y: Math.round(m.y) }); }
   }
   function playerDown(pv, why) {
     const p = player;
@@ -6897,7 +6912,7 @@
     const left = partyPresent(pv);
     if (!teamsValid(left, pv.ffa)) return;
     pv.hub.chaosSeed = randi(1, 999999999);
-    pv.hub.send({ t: "again", players: left, ffa: pv.ffa, seed: pv.hub.chaosSeed, chaos: !!pv.hub.chaos, sniper: !!pv.hub.sniper });
+    sendSure(pv.hub, { t: "again", players: left, ffa: pv.ffa, seed: pv.hub.chaosSeed, chaos: !!pv.hub.chaos, sniper: !!pv.hub.sniper });
     startParty(pv.hub, left, pv.ffa);
   }
   // Sudden Death: ab FAIR.sudden Sekunden steigt der erlittene Schaden um 3 % je Sekunde – kein Verstecken bis zum Schluss
@@ -6926,7 +6941,7 @@
       const lag = pv.quiet > 1, ms = pv.ping == null ? null : Math.round(pv.ping);
       const col = lag ? "#ff6a4a" : ms == null || ms < 90 ? "#9fe08a" : ms < 180 ? "#ffd36a" : "#ff8a3a";
       ctx.textAlign = "right"; ctx.font = "800 11px 'Barlow Condensed', sans-serif"; ctx.fillStyle = col;
-      ctx.fillText(lag ? tr("Verbindung hakt … {s} s", { s: Math.ceil(PVP.timeout - pv.quiet) }) : ms == null ? tr("Ping …") : tr("Ping {n} ms", { n: ms }), x + w, y + 34);
+      ctx.fillText(lag ? tr("Verbindung hakt … {s} s", { s: Math.ceil(PVP.drop - pv.quiet) }) : ms == null ? tr("Ping …") : tr("Ping {n} ms", { n: ms }), x + w, y + 34);
     }
     if (pv.cd > 0 && state === "play") {
       const n = Math.ceil(pv.cd), f = pv.cd - Math.floor(pv.cd);
@@ -7011,7 +7026,7 @@
     else pvpMatch.round++;
     const pv = run.pvp = {
       net: true, party: true, hub, players, ffa, me: hub.me, meQ, flip: partySide(players, ffa, meQ) === 1,
-      ents: new Map(), allies: [], alive: new Set(players.map((q) => q.pid)), left: new Set(), seen: new Map(players.map((q) => [q.pid, 0])),
+      ents: new Map(), allies: [], alive: new Set(players.map((q) => q.pid)), left: new Set(), seen: new Map(players.map((q) => [q.pid, 0])), seenAt: new Map(players.map((q) => [q.pid, performance.now()])), quitters: new Set(),
       pings: new Map(), inB: new Map(), sendT: 0, pingT: 0, cd: PVP.count, over: false, dead: false, t: 0, sudden: false,
       opp: players.find((q) => q.pid !== hub.me) || null,
       get rival() { for (const e of this.ents.values()) if (e.foe && !e.dead) return e; return null; }, // erster lebender Gegner (Kamera, Tests)
@@ -7095,7 +7110,12 @@
     const pv = run && run.pvp;
     if (!pv || !pv.party || !m) return;
     const from = +m.f;
+    if (netDupe(m)) return; // v5.17 dreifach gesendete Steuer-Nachrichten nur einmal verarbeiten
     pv.seen.set(from, 0); // Stille in Spielzeit (ruckelnde Geräte fliegen nicht fälschlich raus)
+    pv.seenAt.set(from, performance.now());
+    // v5.17 nach einem Funkloch zurück: wieder dabei (bis zum Rundenende als Zuschauer, ab der nächsten Runde mit)
+    if (pv.left.has(from) && !pv.quitters.has(from) && m.t !== "quit") { if (pv.hub.host) { sendSure(pv.hub, { t: "back", pid: from }); partyBack(from); } }
+    if (m.t === "back" && from === 0) { partyBack(+m.pid); return; }
     if (m.t === "ping") { if (pv.hub.host) pv.hub.sendTo(from, { t: "pong", c: m.c }); else pv.hub.send({ t: "pong", c: m.c, to: 0 }); return; }
     if (m.t === "pong") {
       const ms = clamp(performance.now() - (+m.c || 0), 0, 5000), old = pv.pings.get(from);
@@ -7114,7 +7134,11 @@
         return;
       }
       if (m.t === "final") { partyFinal(m.win == null ? null : String(m.win), String(m.why || "")); return; }
-      if (m.t === "gone") { partyGone(+m.pid, String(m.why || "")); return; }
+      if (m.t === "gone") {
+        // v5.17 der Gastgeber hielt mich für weg (Funkloch): bis zum Rundenende zuschauen, danach geht es normal weiter
+        if (+m.pid === pv.me) { if (!pv.dead && !pv.over) { pv.dead = true; player.hp = 0; player.spectate = true; pv.alive.delete(pv.me); showBanner(tr("VERBINDUNG WACKELT"), tr("Du bist ab der nächsten Runde wieder dabei"), 2.4); } return; }
+        partyGone(+m.pid, String(m.why || "")); return;
+      }
     }
     if (m.t === "qc") { showQuick(from, m.i); return; }
     if (m.t === "bg" && pv.obj && pv.obj.k === "loot") { // v5.9 jemand hat einen Geldsack geholt
@@ -7139,7 +7163,7 @@
       if (e) { const lk = safeLook({ ...e.look, w: m.w, skin: m.s || e.look.skin }); e.look = lk; if (e.body) { e.body.weaponId = lk.w; e.body.weapon = WEAPONS[lk.w]; e.body.skin = lk.skin; } }
       return;
     }
-    if (m.t === "quit") { partyGone(from, tr("{n} hat aufgegeben", { n: partyName(pv, from) })); return; }
+    if (m.t === "quit") { pv.quitters.add(from); partyGone(from, tr("{n} hat aufgegeben", { n: partyName(pv, from) })); return; }
     if (m.t === "dead") { if (pv.alive.has(from)) partyTally(from, m.by == null ? null : +m.by); partyDeath(from); return; }
     const e = pv.ents.get(from);
     if (!e || pv.over) return;
@@ -7179,7 +7203,7 @@
     p.hp = 0; p.spectate = true;
     fxBlood(p.x, p.y, rand(0, TAU), 16, RED, 240);
     slowMo = Math.max(slowMo, 0.5); shake = Math.max(shake, 8);
-    pv.hub.send({ t: "dead", by: pv.lastBy ?? null });
+    sendSure(pv.hub, { t: "dead", by: pv.lastBy ?? null });
     partyTally(pv.me, pv.lastBy);
     pv.alive.delete(pv.me);
     pv.streak = 0;
@@ -7318,13 +7342,20 @@
     ctx.globalAlpha = 1;
   }
   // jemand ist weg (verlassen, aufgegeben, Zeitüberschreitung): zählt wie ausgeschieden, auch für die folgenden Runden
+  function partyBack(pid) {
+    const pv = run && run.pvp;
+    if (!pv || !pv.left.has(pid) || pid === pv.me) return;
+    pv.left.delete(pid); pv.seen.set(pid, 0); pv.seenAt.set(pid, performance.now());
+    toast(tr("{n} ist wieder da", { n: partyName(pv, pid) }), "info");
+    renderRematch(pv);
+  }
   function partyGone(pid, why) {
     const pv = run.pvp;
     if (!pv || pv.left.has(pid) || pid === pv.me) return;
     pv.left.add(pid);
     toast(why || tr("{n} ist weg", { n: partyName(pv, pid) }), "info");
     partyDeath(pid);
-    if (pv.hub.host) { pv.hub.send({ t: "gone", pid, why }); partyCheck(); }
+    if (pv.hub.host) { sendSure(pv.hub, { t: "gone", pid, why }); partyCheck(); }
     renderRematch(pv);
   }
   // nur der Gastgeber: ist nur noch eine Seite da, endet die Runde – ist nur noch eine Seite anwesend, das ganze Match
@@ -7334,17 +7365,17 @@
     const present = new Set(partyPresent(pv).map((q) => partyKey(pv, q)));
     if (present.size <= 1) {
       const win = [...present][0] || null;
-      pv.hub.send({ t: "final", win, why: tr("Die Gegenseite hat das Spiel verlassen") });
+      sendSure(pv.hub, { t: "final", win, why: tr("Die Gegenseite hat das Spiel verlassen") });
       partyFinal(win, tr("Die Gegenseite hat das Spiel verlassen"));
       return;
     }
     // v5.9 Personenschutz: fällt ein VIP, gewinnt die andere Seite
-    if (pv.obj && pv.obj.k === "vip") for (const [key, pid] of Object.entries(pv.obj.vips)) if (!pv.alive.has(pid)) { const win = key === "t0" ? "t1" : "t0"; pv.hub.send({ t: "round", win }); partyRound(win); return; }
+    if (pv.obj && pv.obj.k === "vip") for (const [key, pid] of Object.entries(pv.obj.vips)) if (!pv.alive.has(pid)) { const win = key === "t0" ? "t1" : "t0"; sendSure(pv.hub, { t: "round", win }); partyRound(win); return; }
     if (pv.respawn) return; // mit Wiedereinstieg entscheidet das Einsatzziel
     const alive = new Set(pv.players.filter((q) => pv.alive.has(q.pid)).map((q) => partyKey(pv, q)));
     if (alive.size <= 1) {
       const win = [...alive][0] || null;
-      pv.hub.send({ t: "round", win });
+      sendSure(pv.hub, { t: "round", win });
       partyRound(win);
     }
   }
@@ -7385,7 +7416,7 @@
   function partyQuit(why) {
     const pv = run.pvp;
     if (!pv || pv.matchDone) return;
-    try { pv.hub.send({ t: "quit" }); } catch { /* weg */ }
+    try { sendSure(pv.hub, { t: "quit" }); } catch { /* weg */ }
     pv.over = true; pv.quitMe = true;
     partyMatchEnd(false, why);
     setTimeout(() => { try { pv.hub.close(); } catch { /* zu */ } }, 400);
@@ -7479,8 +7510,10 @@
     let quiet = 0;
     for (const [pid, t] of pv.seen) { if (pid === pv.me || pv.left.has(pid)) continue; const q = t + Math.min(dt, 0.1); pv.seen.set(pid, q); quiet = Math.max(quiet, q); }
     pv.quiet = quiet;
-    if (pv.hub.host) { for (const q of pv.players) if (q.pid !== 0 && !pv.left.has(q.pid) && (pv.seen.get(q.pid) || 0) > PVP.timeout) partyGone(q.pid, tr("Verbindung zu {n} verloren", { n: q.name })); }
-    else if (!pv.matchDone && (pv.seen.get(0) || 0) > PVP.timeout) partyHostLeft(tr("Verbindung zum Gastgeber verloren"));
+    // v5.17 erst nach PVP.drop Sekunden Stille (Spielzeit UND Echtzeit) raus – kurze Funklöcher und App-Wechsel überlebt man
+    const gone = (pid) => (pv.seen.get(pid) || 0) > PVP.drop && performance.now() - (pv.seenAt.get(pid) || 0) > PVP.drop * 1000;
+    if (pv.hub.host) { for (const q of pv.players) if (q.pid !== 0 && !pv.left.has(q.pid) && gone(q.pid)) partyGone(q.pid, tr("Verbindung zu {n} verloren", { n: q.name })); }
+    else if (!pv.matchDone && gone(0)) partyHostLeft(tr("Verbindung zum Gastgeber verloren"));
   }
   function drawArenaLine(pv, y) {
     const lab = arenaFxLabel(pv);
@@ -7531,7 +7564,7 @@
     ctx.fillText(`${tr("RUNDE {n}", { n: pvpMatch.round })} · ${pvpMatch.me}:${pvpMatch.them}${pv.sudden ? ` · ${tr("SUDDEN DEATH")}` : ""}`, W / 2, y + 8);
     const lag = pv.quiet > 1, ms = pv.ping == null ? null : Math.round(pv.ping);
     ctx.textAlign = "right"; ctx.fillStyle = lag ? "#ff6a4a" : ms == null || ms < 90 ? "#9fe08a" : ms < 180 ? "#ffd36a" : "#ff8a3a";
-    ctx.fillText(lag ? tr("Verbindung hakt … {s} s", { s: Math.max(0, Math.ceil(PVP.timeout - pv.quiet)) }) : ms == null ? tr("Ping …") : tr("Ping {n} ms", { n: ms }), x + w, y + 8);
+    ctx.fillText(lag ? tr("Verbindung hakt … {s} s", { s: Math.max(0, Math.ceil(PVP.drop - pv.quiet)) }) : ms == null ? tr("Ping …") : tr("Ping {n} ms", { n: ms }), x + w, y + 8);
     y = drawObjHud(pv, y + 20) - 20;
     y = drawArenaLine(pv, y + 20) - 20;
     drawKillfeed(y + 32);
@@ -7644,7 +7677,7 @@
   // v5.3 Netz-Protokoll statt App-Version: Geräte mit verschiedenen App-Ständen dürfen zusammen spielen, solange das
   // Protokoll passt. NET_PROTO nur erhöhen, wenn sich Nachrichten inkompatibel ändern. Ältere Stände ohne „p“ (5.0/5.1)
   // sprechen dasselbe Protokoll – ihnen fehlt nur der Zufallsmodus.
-  const NET_PROTO = 61, NET_LEGACY = ["5.0", "5.1"];
+  const NET_PROTO = 62, NET_LEGACY = ["5.0", "5.1"];
   const verNum = (v) => String(v || "").split(".").slice(0, 3).reduce((n, x, i) => n + (parseInt(x, 10) || 0) * [1e6, 1e3, 1][i], 0);
   function netCompatible(i, chaos) {
     if (!i) return false;
@@ -7722,7 +7755,7 @@
     hub.locked = false;
     const info = playerInfo();
     // v4.7 Lebenszeichen in der Lobby: wer 10 s nichts hört, weiß Bescheid (Funkloch, App geschlossen)
-    const seen = new Map(), HB = 2000, LOST = 10000;
+    const seen = new Map(), HB = 2000, LOST = 45000; // v5.17 Lobby: erst nach 45 s ohne Lebenszeichen raus
     for (const q of me.players) seen.set(q.pid, performance.now());
     seen.set(0, performance.now());
     clearInterval(me.hb);
@@ -7747,6 +7780,7 @@
         if (lobby !== me) return;
         seen.set(+m.f, performance.now());
         if (m.t === "qc") { showQuick(+m.f, m.i); return; }
+        if (m.t === "bye") { const q = me.players.find((x) => x.pid === +m.f); if (q) { me.players = me.players.filter((x) => x !== q); me.note = tr("{n} hat den Raum verlassen", { n: q.name }); lobbyBroadcast(); } return; }
         if (m.t !== "hello" || !m.i) return;
         if (!netCompatible(m.i, me.chaos || me.sniper)) {
           // nicht passende Version: freundlich abweisen – das ältere Gerät aktualisiert sich (Web) und kommt wieder
@@ -7824,7 +7858,7 @@
     if (!lb || !lb.host || !lb.hub || !teamsValid(lb.players, lb.ffa)) return;
     lb.hub.locked = true; // während des Matches kommt niemand mehr dazu
     lb.hub.chaosSeed = randi(1, 999999999);
-    lb.hub.send({ t: "go", players: lb.players, ffa: lb.ffa, chaos: !!lb.chaos, sniper: !!lb.sniper, seed: lb.hub.chaosSeed });
+    sendSure(lb.hub, { t: "go", players: lb.players, ffa: lb.ffa, chaos: !!lb.chaos, sniper: !!lb.sniper, seed: lb.hub.chaosSeed });
     lb.hub.chaos = !!lb.chaos; lb.hub.sniper = !!lb.sniper;
     lobby = null;
     startParty(lb.hub, lb.players, lb.ffa);
@@ -12197,9 +12231,18 @@
       if (ui.menu.classList.contains("hidden")) toMenu(); else Platform.exitApp();
     }
   });
+  // v5.17 Seite/App wird geschlossen: sofort Bescheid geben (Funklöcher bekommen Geduld, echtes Verlassen nicht)
+  window.addEventListener("pagehide", () => {
+    try {
+      const pv = run && run.pvp;
+      if (pv && pv.party && pv.hub && !pv.matchDone) { pv.hub.send({ t: "quit" }); }
+      if (lobby && lobby.hub && !lobby.host) lobby.hub.send({ t: "bye" });
+    } catch { /* Seite geht ohnehin zu */ }
+  });
   Platform.on("pause", () => {
     // Online-Kampf: wer die App verlässt, verliert – sofort und für beide sichtbar statt erst nach der Zeitüberschreitung
-    if ((state === "play" || state === "pause") && run && run.pvp && run.pvp.net && !run.pvp.over) { endPvp(false, tr("App verlassen"), true); return; }
+    // v5.17 online kein Aufgeben mehr beim kurzen App-Wechsel: das Spiel läuft weiter, die anderen warten bis zu PVP.drop Sekunden
+    if ((state === "play" || state === "pause") && run && run.pvp && run.pvp.net && !run.pvp.over) { if (actx && actx.state === "running") actx.suspend(); return; }
     if (state === "play") togglePause();
     if (actx && actx.state === "running") actx.suspend();
   });

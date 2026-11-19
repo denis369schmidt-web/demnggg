@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-18",
-  "generatedAt": "2026-10-18T09:38:34.455Z",
+  "edition": "2026-11-19",
+  "generatedAt": "2026-11-19T14:26:25.714Z",
   "attempt": 0,
   "theme": {
     "id": "heimathafen",
@@ -18,89 +18,89 @@
     ]
   },
   "challenge": {
-    "id": "punchline-schmiede",
-    "title": "Punchline-Schmiede",
-    "task": "Baue in 8 Bars mindestens vier Punchlines zum Thema „Heimathafen“ – jede zweite Zeile muss sitzen.",
-    "constraint": "Kein Wort darf doppelt als Zeilenende vorkommen.",
+    "id": "storytelling-run",
+    "title": "Storytelling-Run",
+    "task": "Erzähle in 8 Bars eine Mini-Geschichte über „Heimathafen“ mit Anfang, Wendepunkt und Schlusszeile.",
+    "constraint": "Baue genau eine bewusste Pause von einem halben Takt ein.",
     "bars": 8,
-    "bpm": 73
+    "bpm": 102
   },
   "wordPacks": [
     {
       "id": "heimathafen-thema",
       "title": "Thema: Heimathafen",
       "words": [
-        "Erinnerung",
+        "Block",
         "Wurzeln",
         "Anker",
-        "Familie",
         "Heimat",
-        "Block"
+        "Erinnerung",
+        "Familie"
       ]
     },
     {
-      "id": "2026-10-18-bilder",
+      "id": "2026-11-19-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Echo",
-        "Silhouette",
+        "Neonlicht",
+        "Anker",
+        "Fundament",
         "Radar",
-        "Satellit",
-        "Tresor",
-        "Magnet"
+        "Leuchtturm",
+        "Spiegel"
       ]
     },
     {
-      "id": "2026-10-18-energie",
+      "id": "2026-11-19-energie",
       "title": "Gefühl & Bewegung",
       "words": [
+        "Mut",
+        "Ruhe",
         "Fokus",
-        "Balance",
-        "Stolz",
-        "pushen",
-        "grinden",
-        "kreisen"
+        "kreisen",
+        "klettern",
+        "tauchen"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Feuer",
-      "b": "teuer"
+      "a": "Weite",
+      "b": "Seite"
+    },
+    {
+      "a": "Glut",
+      "b": "Mut"
+    },
+    {
+      "a": "Takt",
+      "b": "exakt"
     },
     {
       "a": "Meer",
       "b": "schwer"
     },
     {
-      "a": "Kette",
-      "b": "Wette"
+      "a": "Ton",
+      "b": "davon"
     },
     {
-      "a": "Boden",
-      "b": "Methoden"
-    },
-    {
-      "a": "Traum",
-      "b": "Raum"
-    },
-    {
-      "a": "Kern",
-      "b": "fern"
+      "a": "Beben",
+      "b": "schweben"
     }
   ],
   "starterBars": [
     {
-      "line": "Heimat im Blick, ich bleib ruhig auf der Eins",
-      "syllables": 11
+      "line": "Der Tag war Heimat, doch die Nacht macht ihn zu meinem",
+      "syllables": 13
     },
     {
-      "line": "Block in der Hand und der Zweifel wird kleiner",
-      "syllables": 11
+      "line": "Anker bleibt der Anker, wenn der Offbeat mich ruft",
+      "syllables": 12
     },
     {
-      "line": "Block bleibt der Anker, wenn der Offbeat mich ruft",
-      "syllables": 11
+      "line": "Zwischen Anker und Funken find ich Raum für den Reim",
+      "syllables": 13
     },
     {
       "line": "Ich stapel Silben auf Heimat, bis der Pegel sich häuft",
@@ -108,18 +108,18 @@
     }
   ],
   "flowTip": {
-    "id": "vokal-farben",
-    "title": "Vokalfarben mischen",
-    "tip": "Dunkle Vokale (o, u) klingen schwer, helle (i, e) schnell. Wähle Reimwörter passend zur Stimmung."
+    "id": "pausen-power",
+    "title": "Pausen sind Punchlines",
+    "tip": "Eine gut gesetzte Pause vor der Punchline verdoppelt ihre Wirkung. Stille ist Teil des Flows."
   },
   "quote": "Talent startet den Motor, Routine fährt die Strecke.",
   "beatPreset": {
-    "bpm": 73,
-    "pattern": "Lo-Fi Chill",
-    "energy": "chill"
+    "bpm": 102,
+    "pattern": "West Coast Bounce",
+    "energy": "mittel"
   },
   "editorial": {
-    "score": 100,
+    "score": 99,
     "gates": [
       {
         "gate": "Vollständigkeit",
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-18",
+    "latestEdition": "2026-11-19",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

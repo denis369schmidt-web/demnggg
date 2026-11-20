@@ -1,5 +1,45 @@
 [
   {
+    "runAt": "2026-11-20T14:01:17.387Z",
+    "edition": "2026-11-20",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 31,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Spiegelbild“, Trap Halftime @ 137 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Freestyle-Zirkel“ (8 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-11-20 veröffentlicht (Hash fb10d4bc)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-11-19T14:26:25.714Z",
     "edition": "2026-11-19",
     "attempt": 0,
@@ -1866,41 +1906,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-10-01 veröffentlicht (Hash 70bf0796)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-09-30T11:10:52.253Z",
-    "edition": "2026-09-30",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 21,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Vollgas“, West Coast Bounce @ 98 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Silben-Sprint“ (12 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-09-30 veröffentlicht (Hash 1428c55f)."
       }
     ]
   }

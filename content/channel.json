@@ -1,125 +1,125 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-11-19",
-  "generatedAt": "2026-11-19T14:26:25.714Z",
-  "attempt": 0,
+  "edition": "2026-11-20",
+  "generatedAt": "2026-11-20T14:01:17.387Z",
+  "attempt": 1,
   "theme": {
-    "id": "heimathafen",
-    "title": "Heimathafen",
-    "mood": "warm",
-    "description": "Wurzeln, alte Freunde und der Block, der dich geprägt hat.",
+    "id": "spiegelbild",
+    "title": "Spiegelbild",
+    "mood": "ehrlich",
+    "description": "Selbstreflexion ohne Filter – die härteste Battle-Runde.",
     "keywords": [
-      "Heimat",
-      "Wurzeln",
-      "Block",
-      "Familie",
-      "Erinnerung",
-      "Anker"
+      "Spiegel",
+      "Wahrheit",
+      "Zweifel",
+      "Stolz",
+      "Wandel",
+      "Kern"
     ]
   },
   "challenge": {
-    "id": "storytelling-run",
-    "title": "Storytelling-Run",
-    "task": "Erzähle in 8 Bars eine Mini-Geschichte über „Heimathafen“ mit Anfang, Wendepunkt und Schlusszeile.",
+    "id": "freestyle-zirkel",
+    "title": "Freestyle-Zirkel",
+    "task": "Freestyle 8 Bars über „Spiegelbild“ – nutze alle Wörter aus dem Wortpaket „Gefühl & Bewegung“ mindestens einmal.",
     "constraint": "Baue genau eine bewusste Pause von einem halben Takt ein.",
     "bars": 8,
-    "bpm": 102
+    "bpm": 137
   },
   "wordPacks": [
     {
-      "id": "heimathafen-thema",
-      "title": "Thema: Heimathafen",
+      "id": "spiegelbild-thema",
+      "title": "Thema: Spiegelbild",
       "words": [
-        "Block",
-        "Wurzeln",
-        "Anker",
-        "Heimat",
-        "Erinnerung",
-        "Familie"
+        "Stolz",
+        "Wahrheit",
+        "Wandel",
+        "Spiegel",
+        "Zweifel",
+        "Kern"
       ]
     },
     {
-      "id": "2026-11-19-bilder",
+      "id": "2026-11-20-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Neonlicht",
-        "Anker",
-        "Fundament",
-        "Radar",
-        "Leuchtturm",
-        "Spiegel"
+        "Asphalt",
+        "Tresor",
+        "Magnet",
+        "Skyline",
+        "Satellit",
+        "Funken"
       ]
     },
     {
-      "id": "2026-11-19-energie",
+      "id": "2026-11-20-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Mut",
+        "Feuer",
+        "Instinkt",
         "Ruhe",
-        "Fokus",
+        "starten",
         "kreisen",
-        "klettern",
-        "tauchen"
+        "sprinten"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Weite",
-      "b": "Seite"
-    },
-    {
-      "a": "Glut",
-      "b": "Mut"
-    },
-    {
-      "a": "Takt",
-      "b": "exakt"
-    },
-    {
       "a": "Meer",
       "b": "schwer"
     },
     {
-      "a": "Ton",
-      "b": "davon"
+      "a": "Herz",
+      "b": "Schmerz"
     },
     {
-      "a": "Beben",
-      "b": "schweben"
+      "a": "Kette",
+      "b": "Wette"
+    },
+    {
+      "a": "Leben",
+      "b": "geben"
+    },
+    {
+      "a": "Klang",
+      "b": "Drang"
+    },
+    {
+      "a": "Welle",
+      "b": "Schwelle"
     }
   ],
   "starterBars": [
     {
-      "line": "Der Tag war Heimat, doch die Nacht macht ihn zu meinem",
-      "syllables": 13
-    },
-    {
-      "line": "Anker bleibt der Anker, wenn der Offbeat mich ruft",
+      "line": "Aus Spiegel wird ein Plan, aus dem Plan wird ein Schritt",
       "syllables": 12
     },
     {
-      "line": "Zwischen Anker und Funken find ich Raum für den Reim",
-      "syllables": 13
+      "line": "Stolz in der Hand und der Zweifel wird kleiner",
+      "syllables": 11
     },
     {
-      "line": "Ich stapel Silben auf Heimat, bis der Pegel sich häuft",
-      "syllables": 14
+      "line": "Spiegel als Kompass und die Snare gibt den Takt",
+      "syllables": 12
+    },
+    {
+      "line": "Der Tag war Spiegel, doch die Nacht macht ihn zu meinem",
+      "syllables": 13
     }
   ],
   "flowTip": {
-    "id": "pausen-power",
-    "title": "Pausen sind Punchlines",
-    "tip": "Eine gut gesetzte Pause vor der Punchline verdoppelt ihre Wirkung. Stille ist Teil des Flows."
+    "id": "tempo-treppe",
+    "title": "Tempo-Treppe",
+    "tip": "Trainiere denselben Text bei 85, 95 und 110 BPM. Wer die Treppe hochkommt, sitzt bei jedem Beat."
   },
-  "quote": "Talent startet den Motor, Routine fährt die Strecke.",
+  "quote": "Der Beat wartet nicht – aber er verzeiht jedem, der wiederkommt.",
   "beatPreset": {
-    "bpm": 102,
-    "pattern": "West Coast Bounce",
+    "bpm": 137,
+    "pattern": "Trap Halftime",
     "energy": "mittel"
   },
   "editorial": {
-    "score": 99,
+    "score": 100,
     "gates": [
       {
         "gate": "Vollständigkeit",
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-11-19",
+    "latestEdition": "2026-11-20",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

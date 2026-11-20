@@ -15,6 +15,7 @@
   "lint": {
     "exclude": [
       "game.js",
+      "beats.js",
       "channel.js",
       "agents.js",
       "zombie/"
@@ -23,6 +24,7 @@
   "fmt": {
     "exclude": [
       "game.js",
+      "beats.js",
       "channel.js",
       "agents.js",
       "content/",

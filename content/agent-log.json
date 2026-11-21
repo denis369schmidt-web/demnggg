@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-11-21T13:28:39.064Z",
+    "edition": "2026-11-21",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 27,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Tiefsee“, Lo-Fi Chill @ 81 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Double-Time-Drill“ (16 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-11-21 veröffentlicht (Hash 1c663b22)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-11-20T14:01:17.387Z",
     "edition": "2026-11-20",
     "attempt": 1,
@@ -1871,41 +1906,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-10-02 veröffentlicht (Hash e52f7052)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-10-01T11:38:02.379Z",
-    "edition": "2026-10-01",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 25,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Spiegelbild“, Boom Bap @ 91 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Freestyle-Zirkel“ (8 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-10-01 veröffentlicht (Hash 70bf0796)."
       }
     ]
   }

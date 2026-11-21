@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "edition": "2026-11-21",
+  "generatedAt": "2026-11-21T13:28:39.064Z",
+  "attempt": 0,
+  "theme": {
+    "id": "tiefsee",
+    "title": "Tiefsee",
+    "mood": "dunkel",
+    "description": "Abtauchen in die tiefsten Gedanken, Druck aushalten.",
+    "keywords": [
+      "Tiefe",
+      "Ozean",
+      "Druck",
+      "Strömung",
+      "Leuchten",
+      "Grund"
+    ]
+  },
+  "challenge": {
+    "id": "doubletime-drill",
+    "title": "Double-Time-Drill",
+    "task": "Rappe 16 Bars zu „Tiefsee“: erst halbes Tempo, ab der Hälfte Double-Time ohne Textänderung.",
+    "constraint": "Baue genau eine bewusste Pause von einem halben Takt ein.",
+    "bars": 16,
+    "bpm": 81
+  },
+  "wordPacks": [
+    {
+      "id": "tiefsee-thema",
+      "title": "Thema: Tiefsee",
+      "words": [
+        "Tiefe",
+        "Ozean",
+        "Druck",
+        "Strömung",
+        "Grund",
+        "Leuchten"
+      ]
+    },
+    {
+      "id": "2026-11-21-bilder",
+      "title": "Bilder & Metaphern",
+      "words": [
+        "Tresor",
+        "Magnet",
+        "Anker",
+        "Neonlicht",
+        "Leuchtturm",
+        "Asphalt"
+      ]
+    },
+    {
+      "id": "2026-11-21-energie",
+      "title": "Gefühl & Bewegung",
+      "words": [
+        "Stolz",
+        "Instinkt",
+        "Mut",
+        "pushen",
+        "grinden",
+        "schweben"
+      ]
+    }
+  ],
+  "rhymePairs": [
+    {
+      "a": "Fluss",
+      "b": "Schluss"
+    },
+    {
+      "a": "Feuer",
+      "b": "teuer"
+    },
+    {
+      "a": "Wort",
+      "b": "Ort"
+    },
+    {
+      "a": "Welle",
+      "b": "Schwelle"
+    },
+    {
+      "a": "Blick",
+      "b": "Genick"
+    },
+    {
+      "a": "Takt",
+      "b": "exakt"
+    }
+  ],
+  "starterBars": [
+    {
+      "line": "Radar in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 13
+    },
+    {
+      "line": "Tiefe als Kompass und die Snare gibt den Takt",
+      "syllables": 12
+    },
+    {
+      "line": "Mit Radar in der Stimme klingt selbst Stille wie ein Ruf",
+      "syllables": 14
+    },
+    {
+      "line": "Tiefe im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 11
+    }
+  ],
+  "flowTip": {
+    "id": "snare-anker",
+    "title": "Snare als Anker",
+    "tip": "Setze betonte Silben bewusst auf Zählzeit 2 und 4 – die Snare trägt deine Betonung, nicht umgekehrt."
+  },
+  "quote": "Talent startet den Motor, Routine fährt die Strecke.",
+  "beatPreset": {
+    "bpm": 81,
+    "pattern": "Lo-Fi Chill",
+    "energy": "chill"
+  },
+  "editorial": {
+    "score": 100,
+    "gates": [
+      {
+        "gate": "Vollständigkeit",
+        "passed": true,
+        "details": "Alle Bestandteile der Edition sind vorhanden."
+      },
+      {
+        "gate": "Frische",
+        "passed": true,
+        "details": "Thema und Challenge sind neu gegenüber den letzten 5 Editionen."
+      },
+      {
+        "gate": "Lexikon",
+        "passed": true,
+        "details": "Keine gesperrten Begriffe gefunden."
+      },
+      {
+        "gate": "Silbendichte",
+        "passed": true,
+        "details": "Alle Starter-Bars liegen im Zielfenster (6–18 Silben)."
+      },
+      {
+        "gate": "Reimpaare",
+        "passed": true,
+        "details": "Alle Reimpaare klingen auf derselben Endung."
+      },
+      {
+        "gate": "Wortpakete",
+        "passed": true,
+        "details": "Jedes Wortpaket enthält mindestens fünf einzigartige Wörter."
+      }
+    ]
+  },
+  "health": {
+    "status": "gruen",
+    "editionCount": 31,
+    "latestEdition": "2026-11-21",
+    "archivedEditions": 30,
+    "prunedEditions": 1,
+    "notes": [
+      "Archiv ist aktuell und vollständig.",
+      "1 alte Edition(en) aus dem Archiv entfernt (Limit: 30)."
+    ]
+  }
+}

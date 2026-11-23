@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-11-23T16:03:09.208Z",
+    "edition": "2026-11-23",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 19,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Eiszeit“, Double-Time Drill @ 156 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Silben-Sprint“ (16 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-11-23 veröffentlicht (Hash 2a4e3257)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-11-22T13:21:11.602Z",
     "edition": "2026-11-22",
     "attempt": 0,
@@ -1871,41 +1906,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-10-04 veröffentlicht (Hash e3c9410b)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-10-03T10:25:13.366Z",
-    "edition": "2026-10-03",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 24,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Gewitterfront“, West Coast Bounce @ 102 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Punchline-Schmiede“ (8 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-10-03 veröffentlicht (Hash 1e4c794c)."
       }
     ]
   }

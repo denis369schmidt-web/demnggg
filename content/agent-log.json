@@ -1,5 +1,45 @@
 [
   {
+    "runAt": "2026-11-25T15:36:29.915Z",
+    "edition": "2026-11-25",
+    "attempt": 1,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 19,
+    "stages": [
+      {
+        "name": "Editor",
+        "ok": false,
+        "summary": "Versuch 1 abgelehnt (Frische)."
+      },
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Goldene Stunde“, West Coast Bounce @ 98 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Cypher-Staffel“ (8 Bars), Versuch 2."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-11-25 veröffentlicht (Hash 3a8ac21)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-11-24T15:53:31.830Z",
     "edition": "2026-11-24",
     "attempt": 0,
@@ -1866,46 +1906,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-10-06 veröffentlicht (Hash 7809fb83)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-10-05T12:17:20.215Z",
-    "edition": "2026-10-05",
-    "attempt": 1,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 27,
-    "stages": [
-      {
-        "name": "Editor",
-        "ok": false,
-        "summary": "Versuch 1 abgelehnt (Frische)."
-      },
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Heimathafen“, Double-Time Drill @ 156 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Leiser & Lauter“ (12 Bars), Versuch 2."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-10-05 veröffentlicht (Hash 9bc7ae6)."
       }
     ]
   }

@@ -6,17 +6,18 @@
   <title>FlowForge – Rap Trainer</title>
   <link rel="icon" type="image/png" href="assets/logo.png" />
   <link rel="stylesheet" href="style.css" />
+  <script src="beats.js" defer></script>
   <script src="game.js" defer></script>
   <script src="channel.js" defer></script>
 </head>
-<body>
+<body class="trainer">
   <main class="app-shell">
     <header class="hero">
       <div class="brand">
         <img class="brand-logo" src="assets/logo.png" alt="FlowForge Logo" />
         <div>
           <h1>FlowForge</h1>
-          <p>Schlagwörter rein, Beat an, Flow trainieren. Wie ein Mini-Garageband für Rap-Übungen.</p>
+          <p>Beat wählen, Text bauen, Flow aufnehmen. Lizenzfreie Original-Beats oder deine eigene Datei.</p>
         </div>
       </div>
       <div class="hero-side">
@@ -32,6 +33,24 @@
         </div>
       </div>
     </header>
+
+    <section class="beat-bay glass" aria-label="Beat-Bibliothek">
+      <div class="bay-head">
+        <div>
+          <h2>Beat-Bibliothek</h2>
+          <p id="nowPlaying" class="now-playing">Gewählt: Nachtasphalt · Boom Bap</p>
+          <p class="bay-lead">Diese Beats entstehen hier im Browser und sind eigenes Material – ohne fremde Samples. Speichere sie als WAV und nimm deine Stimme darüber auf, oder lade einen eigenen Beat hoch. Dateien bleiben auf deinem Gerät.</p>
+        </div>
+        <div class="upload-box">
+          <label class="btn" for="beatUpload">Eigenen Beat hochladen</label>
+          <input id="beatUpload" type="file" accept="audio/*,.wav,.mp3,.ogg,.m4a,.flac,.webm" hidden />
+          <p id="uploadMeta" class="upload-meta">WAV, MP3 oder M4A. Bleibt lokal im Browser.</p>
+          <button id="clearUpload" class="btn muted" type="button" hidden>Upload entfernen</button>
+        </div>
+      </div>
+      <div id="genreFilters" class="genre-row"></div>
+      <div id="beatGrid" class="beat-grid"></div>
+    </section>
 
     <section class="grid">
       <article class="panel glass">
@@ -54,15 +73,35 @@
 
       <article class="panel glass">
         <h2>2) Beat & Aufnahme</h2>
-        <p>Beat starten, Effekte live schalten und direkt aufnehmen.</p>
+        <p>Der laufende Beat liegt in der Aufnahme. Effekte gelten nur für die Stimme.</p>
 
         <canvas id="beatViz" class="beat-viz" width="640" height="88" aria-hidden="true"></canvas>
 
         <div class="controls">
-          <button id="startBeat" class="btn">▶ Beat starten</button>
-          <button id="stopBeat" class="btn muted">■ Beat stoppen</button>
-          <button id="recordToggle" class="btn danger">● Aufnahme starten</button>
+          <button id="startBeat" class="btn" type="button">▶ Beat starten</button>
+          <button id="stopBeat" class="btn muted" type="button">■ Beat stoppen</button>
+          <button id="recordToggle" class="btn danger" type="button">● Aufnahme starten</button>
         </div>
+
+        <div class="mix-row">
+          <label>Beat
+            <input id="beatVol" type="range" min="0" max="100" value="70" />
+          </label>
+          <label>Stimme
+            <input id="micVol" type="range" min="0" max="100" value="100" />
+          </label>
+        </div>
+
+        <div class="row export-row">
+          <label for="exportBars">WAV-Länge</label>
+          <select id="exportBars">
+            <option value="4">4 Takte</option>
+            <option value="8" selected>8 Takte</option>
+            <option value="16">16 Takte</option>
+          </select>
+          <button id="downloadBeat" class="btn" type="button">Beat als WAV speichern</button>
+        </div>
+        <a id="beatFileLink" class="btn muted" hidden>Letzten Beat herunterladen</a>
 
         <fieldset class="effects">
           <legend>Stimmeneffekte</legend>

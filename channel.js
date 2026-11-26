@@ -27,6 +27,7 @@ function applyWordPack(pack) {
 
 function applyBeatPreset(preset) {
   if (window.FlowForge) {
+    if (window.FlowForge.selectPattern) window.FlowForge.selectPattern(preset.pattern);
     window.FlowForge.setBpm(preset.bpm);
     return;
   }
@@ -42,6 +43,7 @@ function launchChallenge(data, pack) {
       bpm: data.challenge.bpm || data.beatPreset.bpm,
       bars: data.challenge.bars,
       keywords: words,
+      pattern: data.beatPreset.pattern,
       start: true,
     });
   } else {

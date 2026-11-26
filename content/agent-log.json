@@ -1,5 +1,40 @@
 [
   {
+    "runAt": "2026-11-26T15:17:17.624Z",
+    "edition": "2026-11-26",
+    "attempt": 0,
+    "status": "veröffentlicht",
+    "score": 100,
+    "durationMs": 27,
+    "stages": [
+      {
+        "name": "Research",
+        "ok": true,
+        "summary": "Thema „Vollgas“, Uptempo Battle @ 114 BPM."
+      },
+      {
+        "name": "Draft",
+        "ok": true,
+        "summary": "Challenge „Atem-Marathon“ (16 Bars), Versuch 1."
+      },
+      {
+        "name": "Editor",
+        "ok": true,
+        "summary": "6/6 Gates grün, Score 100."
+      },
+      {
+        "name": "Maintenance",
+        "ok": true,
+        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
+      },
+      {
+        "name": "Publisher",
+        "ok": true,
+        "summary": "Edition 2026-11-26 veröffentlicht (Hash 1c0068b6)."
+      }
+    ]
+  },
+  {
     "runAt": "2026-11-25T15:36:29.915Z",
     "edition": "2026-11-25",
     "attempt": 1,
@@ -1871,41 +1906,6 @@
         "name": "Publisher",
         "ok": true,
         "summary": "Edition 2026-10-07 veröffentlicht (Hash aa306979)."
-      }
-    ]
-  },
-  {
-    "runAt": "2026-10-06T12:02:25.869Z",
-    "edition": "2026-10-06",
-    "attempt": 0,
-    "status": "veröffentlicht",
-    "score": 100,
-    "durationMs": 25,
-    "stages": [
-      {
-        "name": "Research",
-        "ok": true,
-        "summary": "Thema „Gipfelsturm“, Trap Halftime @ 139 BPM."
-      },
-      {
-        "name": "Draft",
-        "ok": true,
-        "summary": "Challenge „Double-Time-Drill“ (8 Bars), Versuch 1."
-      },
-      {
-        "name": "Editor",
-        "ok": true,
-        "summary": "6/6 Gates grün, Score 100."
-      },
-      {
-        "name": "Maintenance",
-        "ok": true,
-        "summary": "Archiv: 30 Editionen, 1 bereinigt, Status gruen."
-      },
-      {
-        "name": "Publisher",
-        "ok": true,
-        "summary": "Edition 2026-10-06 veröffentlicht (Hash 7809fb83)."
       }
     ]
   }

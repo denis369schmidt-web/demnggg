@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-10-25",
-  "generatedAt": "2026-10-25T09:49:16.749Z",
+  "edition": "2026-11-26",
+  "generatedAt": "2026-11-26T15:17:17.624Z",
   "attempt": 0,
   "theme": {
     "id": "vollgas",
@@ -18,105 +18,105 @@
     ]
   },
   "challenge": {
-    "id": "vokal-fessel",
-    "title": "Vokal-Fessel",
-    "task": "Schreibe 8 Bars über „Vollgas“, in denen jede Zeile auf denselben Vokalklang endet.",
-    "constraint": "Mindestens zwei Zeilen enthalten einen Doppelreim.",
-    "bars": 8,
-    "bpm": 94
+    "id": "atem-marathon",
+    "title": "Atem-Marathon",
+    "task": "Performe 16 Bars über „Vollgas“ mit maximal einem Atemzug pro zwei Zeilen – Pausen bewusst setzen.",
+    "constraint": "Baue genau eine bewusste Pause von einem halben Takt ein.",
+    "bars": 16,
+    "bpm": 114
   },
   "wordPacks": [
     {
       "id": "vollgas-thema",
       "title": "Thema: Vollgas",
       "words": [
-        "Tempo",
-        "Strecke",
         "Turbo",
-        "Motor",
         "Adrenalin",
-        "Start"
+        "Motor",
+        "Start",
+        "Tempo",
+        "Strecke"
       ]
     },
     {
-      "id": "2026-10-25-bilder",
+      "id": "2026-11-26-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Tinte",
-        "Kompass",
-        "Funken",
         "Asphalt",
-        "Leuchtturm",
-        "Schatten"
+        "Satellit",
+        "Fundament",
+        "Echo",
+        "Tresor",
+        "Anker"
       ]
     },
     {
-      "id": "2026-10-25-energie",
+      "id": "2026-11-26-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Haltung",
-        "Geduld",
-        "Stolz",
-        "steigen",
-        "pushen",
-        "schweben"
+        "Ruhe",
+        "Zweifel",
+        "Feuer",
+        "driften",
+        "grinden",
+        "starten"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Blick",
-      "b": "Genick"
-    },
-    {
-      "a": "Nebel",
-      "b": "Pegel"
-    },
-    {
-      "a": "Welle",
-      "b": "Schwelle"
-    },
-    {
-      "a": "Kern",
-      "b": "fern"
-    },
-    {
-      "a": "Glut",
-      "b": "Mut"
+      "a": "Zeit",
+      "b": "bereit"
     },
     {
       "a": "Rauch",
       "b": "auch"
+    },
+    {
+      "a": "Herz",
+      "b": "Schmerz"
+    },
+    {
+      "a": "Wind",
+      "b": "geschwind"
+    },
+    {
+      "a": "Hallen",
+      "b": "knallen"
+    },
+    {
+      "a": "Boden",
+      "b": "Methoden"
     }
   ],
   "starterBars": [
     {
-      "line": "Turbo im Blick, ich bleib ruhig auf der Eins",
-      "syllables": 11
-    },
-    {
-      "line": "Ich zähl die Beats wie Strecke, alles landet exakt",
-      "syllables": 13
-    },
-    {
-      "line": "Mit Leuchtturm in der Stimme klingt selbst Stille wie ein Ruf",
+      "line": "Adrenalin in der Hand und der Zweifel wird kleiner",
       "syllables": 14
     },
     {
-      "line": "Leuchtturm auf Repeat, bis die Hook von alleine läuft",
-      "syllables": 13
+      "line": "Zwischen Adrenalin und Funken find ich Raum für den Reim",
+      "syllables": 15
+    },
+    {
+      "line": "Start als Kompass und die Snare gibt den Takt",
+      "syllables": 11
+    },
+    {
+      "line": "Start im Blick, ich bleib ruhig auf der Eins",
+      "syllables": 10
     }
   ],
   "flowTip": {
-    "id": "silben-budget",
-    "title": "Silben-Budget",
-    "tip": "Zähle Silben pro Zeile: 10–14 bei mittlerem Tempo. Über 16 wird es Double-Time, darunter entsteht Raum."
+    "id": "offbeat-wuerze",
+    "title": "Offbeat als Würze",
+    "tip": "Rappe eine von acht Zeilen bewusst neben dem Raster. Der Kontrast macht die On-Beat-Zeilen stärker."
   },
-  "quote": "Talent startet den Motor, Routine fährt die Strecke.",
+  "quote": "Ein ruhiger Atem ist die beste Punchline-Versicherung.",
   "beatPreset": {
-    "bpm": 94,
-    "pattern": "West Coast Bounce",
-    "energy": "mittel"
+    "bpm": 114,
+    "pattern": "Uptempo Battle",
+    "energy": "hoch"
   },
   "editorial": {
     "score": 100,
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-10-25",
+    "latestEdition": "2026-11-26",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [

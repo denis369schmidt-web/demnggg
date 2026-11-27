@@ -1,122 +1,122 @@
 {
   "schemaVersion": 1,
-  "edition": "2026-11-26",
-  "generatedAt": "2026-11-26T15:17:17.624Z",
+  "edition": "2026-11-27",
+  "generatedAt": "2026-11-27T15:06:03.554Z",
   "attempt": 0,
   "theme": {
-    "id": "vollgas",
-    "title": "Vollgas",
-    "mood": "hoch",
-    "description": "Double-Time, keine Bremsen, der Takt gibt die Richtung.",
+    "id": "labyrinth",
+    "title": "Labyrinth",
+    "mood": "suchend",
+    "description": "Verwinkelte Gedanken, aber der Flow findet den Ausgang.",
     "keywords": [
-      "Tempo",
-      "Motor",
-      "Turbo",
-      "Strecke",
-      "Adrenalin",
-      "Start"
+      "Labyrinth",
+      "Wege",
+      "Nebel",
+      "Kompass",
+      "Suche",
+      "Ausgang"
     ]
   },
   "challenge": {
-    "id": "atem-marathon",
-    "title": "Atem-Marathon",
-    "task": "Performe 16 Bars über „Vollgas“ mit maximal einem Atemzug pro zwei Zeilen – Pausen bewusst setzen.",
-    "constraint": "Baue genau eine bewusste Pause von einem halben Takt ein.",
-    "bars": 16,
-    "bpm": 114
+    "id": "punchline-schmiede",
+    "title": "Punchline-Schmiede",
+    "task": "Baue in 8 Bars mindestens vier Punchlines zum Thema „Labyrinth“ – jede zweite Zeile muss sitzen.",
+    "constraint": "Die Hook-Zeile muss eine Frage sein.",
+    "bars": 8,
+    "bpm": 132
   },
   "wordPacks": [
     {
-      "id": "vollgas-thema",
-      "title": "Thema: Vollgas",
+      "id": "labyrinth-thema",
+      "title": "Thema: Labyrinth",
       "words": [
-        "Turbo",
-        "Adrenalin",
-        "Motor",
-        "Start",
-        "Tempo",
-        "Strecke"
+        "Nebel",
+        "Labyrinth",
+        "Suche",
+        "Wege",
+        "Kompass",
+        "Ausgang"
       ]
     },
     {
-      "id": "2026-11-26-bilder",
+      "id": "2026-11-27-bilder",
       "title": "Bilder & Metaphern",
       "words": [
-        "Asphalt",
-        "Satellit",
+        "Skyline",
+        "Magnet",
+        "Silhouette",
         "Fundament",
-        "Echo",
-        "Tresor",
-        "Anker"
+        "Neonlicht",
+        "Tinte"
       ]
     },
     {
-      "id": "2026-11-26-energie",
+      "id": "2026-11-27-energie",
       "title": "Gefühl & Bewegung",
       "words": [
-        "Ruhe",
-        "Zweifel",
+        "Fokus",
+        "Haltung",
         "Feuer",
-        "driften",
-        "grinden",
-        "starten"
+        "schweben",
+        "gleiten",
+        "kreisen"
       ]
     }
   ],
   "rhymePairs": [
     {
-      "a": "Zeit",
-      "b": "bereit"
+      "a": "Beben",
+      "b": "schweben"
     },
     {
-      "a": "Rauch",
-      "b": "auch"
+      "a": "Glut",
+      "b": "Mut"
     },
     {
-      "a": "Herz",
-      "b": "Schmerz"
+      "a": "Feuer",
+      "b": "teuer"
     },
     {
-      "a": "Wind",
-      "b": "geschwind"
+      "a": "Zeilen",
+      "b": "eilen"
     },
     {
-      "a": "Hallen",
-      "b": "knallen"
+      "a": "Licht",
+      "b": "Sicht"
     },
     {
-      "a": "Boden",
-      "b": "Methoden"
+      "a": "Nebel",
+      "b": "Pegel"
     }
   ],
   "starterBars": [
     {
-      "line": "Adrenalin in der Hand und der Zweifel wird kleiner",
+      "line": "Wege in der Hand und der Zweifel wird kleiner",
+      "syllables": 12
+    },
+    {
+      "line": "Echo in den Zeilen, jede Silbe nimmt mich mit",
+      "syllables": 13
+    },
+    {
+      "line": "Der Tag war Labyrinth, doch die Nacht macht ihn zu meinem",
       "syllables": 14
     },
     {
-      "line": "Zwischen Adrenalin und Funken find ich Raum für den Reim",
-      "syllables": 15
-    },
-    {
-      "line": "Start als Kompass und die Snare gibt den Takt",
-      "syllables": 11
-    },
-    {
-      "line": "Start im Blick, ich bleib ruhig auf der Eins",
-      "syllables": 10
+      "line": "Mit Echo in der Stimme klingt selbst Stille wie ein Ruf",
+      "syllables": 14
     }
   ],
   "flowTip": {
-    "id": "offbeat-wuerze",
-    "title": "Offbeat als Würze",
-    "tip": "Rappe eine von acht Zeilen bewusst neben dem Raster. Der Kontrast macht die On-Beat-Zeilen stärker."
+    "id": "snare-anker",
+    "title": "Snare als Anker",
+    "tip": "Setze betonte Silben bewusst auf Zählzeit 2 und 4 – die Snare trägt deine Betonung, nicht umgekehrt."
   },
-  "quote": "Ein ruhiger Atem ist die beste Punchline-Versicherung.",
+  "quote": "Der Unterschied zwischen Probe und Performance ist nur das Publikum.",
   "beatPreset": {
-    "bpm": 114,
-    "pattern": "Uptempo Battle",
-    "energy": "hoch"
+    "bpm": 132,
+    "pattern": "Trap Halftime",
+    "energy": "mittel"
   },
   "editorial": {
     "score": 100,
@@ -156,7 +156,7 @@
   "health": {
     "status": "gruen",
     "editionCount": 31,
-    "latestEdition": "2026-11-26",
+    "latestEdition": "2026-11-27",
     "archivedEditions": 30,
     "prunedEditions": 1,
     "notes": [
